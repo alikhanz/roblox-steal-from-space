@@ -8,6 +8,8 @@ local FlightInputs = {}
 FlightInputs.CONTEXT_NAME = "FlightContext"
 FlightInputs.ASCEND = "Ascend"
 FlightInputs.DESCEND = "Descend"
+-- Hold next to an egg to grab it.
+FlightInputs.GRAB = "Grab"
 -- Where the camera looks. Fed by the client through a Scriptable binding; untrusted on the server.
 FlightInputs.AIM = "Aim"
 FlightInputs.AIM_BINDING = "Camera"
@@ -49,6 +51,7 @@ function FlightInputs.create(): InputContext
 	context.Enabled = true
 	keyAction(FlightInputs.ASCEND, { Enum.KeyCode.Space, Enum.KeyCode.ButtonR1 }).Parent = context
 	keyAction(FlightInputs.DESCEND, { Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonL1 }).Parent = context
+	keyAction(FlightInputs.GRAB, { Enum.KeyCode.E, Enum.KeyCode.ButtonX }).Parent = context
 	aimAction().Parent = context
 	return context
 end

@@ -76,6 +76,14 @@ describe("Flight.nextVelocity", function()
 		expectVector(velocity, FORWARD * TUNING.maxSpeed, 1e-3)
 	end)
 
+	it("approaches a reduced top speed when slowed", function()
+		local velocity = Vector3.zero
+		for _ = 1, 600 do
+			velocity = Flight.nextVelocity(velocity, FORWARD, 1 / 60, TUNING, 0.5)
+		end
+		expectVector(velocity, FORWARD * TUNING.maxSpeed * 0.5, 1e-3)
+	end)
+
 	it("is independent of the frame rate", function()
 		local fast, slow = Vector3.zero, Vector3.zero
 		for _ = 1, 60 do

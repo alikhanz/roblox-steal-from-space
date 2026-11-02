@@ -56,10 +56,17 @@ end
 
 -- Velocity for the next simulation step. With input, approaches the target exponentially
 -- (frame-rate independent); without input, keeps gliding and slowly loses speed.
-function Flight.nextVelocity(current: Vector3, direction: Vector3, deltaTime: number, tuning: Tuning): Vector3
+-- `speedMultiplier` scales the top speed, e.g. when carrying a heavy egg (default 1).
+function Flight.nextVelocity(
+	current: Vector3,
+	direction: Vector3,
+	deltaTime: number,
+	tuning: Tuning,
+	speedMultiplier: number?
+): Vector3
 	if direction.Magnitude > 0 then
 		local blend = 1 - math.exp(-tuning.response * deltaTime)
-		return current:Lerp(direction * tuning.maxSpeed, blend)
+		return current:Lerp(direction * tuning.maxSpeed * (speedMultiplier or 1), blend)
 	end
 	return current * tuning.driftRetentionPerSecond ^ deltaTime
 end

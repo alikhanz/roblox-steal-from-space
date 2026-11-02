@@ -7,10 +7,15 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+local Carry = require("../Domain/Carry")
+local DevConfig = require("../Config/DevConfig")
+local EggConfig = require("../Config/EggConfig")
+local EggTargets = require("./EggTargets")
 local Flight = require("../Domain/Flight")
 local FlightConfig = require("../Config/FlightConfig")
 local FlightInputs = require("../Input/FlightInputs")
 local FlightLean = require("../Domain/FlightLean")
+local Grab = require("../Domain/Grab")
 local JetpackConfig = require("../Config/JetpackConfig")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
@@ -51,10 +56,22 @@ local function verticalInput(context: Instance): number
 	return up - down
 end
 
+local function carriedRarity(character: Model): EggConfig.RarityId?
+	local value = character:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE)
+	if type(value) == "string" and EggConfig.RARITIES[value :: EggConfig.RarityId] then
+		return value :: EggConfig.RarityId
+	end
+	return nil
+end
+
 local function fly(rig: Rig, context: Instance, deltaTime: number)
 	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
 	local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
-	local velocity = Flight.nextVelocity(rig.root.AssemblyLinearVelocity, direction, deltaTime, FlightConfig.TUNING)
+	local rarity = carriedRarity(rig.character)
+	-- Strength (stage 4) will offset the egg's weight; untrained for now.
+	local speedMultiplier = if rarity then Carry.speedMultiplier(EggConfig.RARITIES[rarity].weight, 0) else 1
+	local velocity =
+		Flight.nextVelocity(rig.root.AssemblyLinearVelocity, direction, deltaTime, FlightConfig.TUNING, speedMultiplier)
 
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
@@ -106,12 +123,38 @@ local function walk(rig: Rig)
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 end
 
-local function breathe(rig: Rig, inSpace: boolean, deltaTime: number)
+local function breathe(player: Player, rig: Rig, inSpace: boolean, deltaTime: number)
 	local current = rig.character:GetAttribute(OxygenConfig.ATTRIBUTE)
 	local oxygen = if type(current) == "number" then current else OxygenConfig.CAPACITY
-	local nextOxygen = Oxygen.step(oxygen, OxygenConfig.CAPACITY, inSpace, deltaTime, OxygenConfig.TUNING)
+	-- Studio playtests can switch draining off (DevService); live servers never set this.
+	local draining = inSpace and player:GetAttribute(DevConfig.INFINITE_OXYGEN_ATTRIBUTE) ~= true
+	local nextOxygen = Oxygen.step(oxygen, OxygenConfig.CAPACITY, draining, deltaTime, OxygenConfig.TUNING)
 	if nextOxygen ~= current then
 		rig.character:SetAttribute(OxygenConfig.ATTRIBUTE, nextOxygen)
+	end
+end
+
+-- Fills the grab progress while the grab input is held next to an egg. Completion is only a
+-- request: the server confirms it outside the simulation (CarryService) and hands over the egg.
+local function grab(rig: Rig, context: Instance, deltaTime: number)
+	local character = rig.character
+	local previousProgress = character:GetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE)
+	local previousTarget = character:GetAttribute(EggConfig.GRAB_TARGET_ATTRIBUTE)
+
+	local target = if carriedRarity(character) then nil else EggTargets.nearest(rig.root.Position)
+	local targetId = if target then target.id else nil
+	-- Switching to another egg starts over.
+	local progress = if type(previousProgress) == "number" and previousTarget == targetId then previousProgress else 0
+	local grabSeconds = if target then EggConfig.RARITIES[target.rarity].grabSeconds else 0
+	local nextProgress =
+		Grab.step(progress, FlightInputs.isPressed(context, FlightInputs.GRAB), target ~= nil, grabSeconds, deltaTime)
+
+	if nextProgress ~= previousProgress then
+		character:SetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE, nextProgress)
+	end
+	local nextTarget = if nextProgress > 0 then targetId else nil
+	if nextTarget ~= previousTarget then
+		character:SetAttribute(EggConfig.GRAB_TARGET_ATTRIBUTE, nextTarget)
 	end
 end
 
@@ -123,10 +166,11 @@ local function step(deltaTime: number)
 			continue
 		end
 
-		local wasInSpace = rig.character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true
+		local previous = rig.character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE)
 		local inSpace =
-			Zones.nextInSpace(wasInSpace, rig.root.Position, StationConfig.STATION, StationConfig.ZONE_MARGIN)
-		if wasInSpace ~= inSpace then
+			Zones.nextInSpace(previous == true, rig.root.Position, StationConfig.STATION, StationConfig.ZONE_MARGIN)
+		-- Compared with the raw attribute so a fresh character (nil) gets an explicit value.
+		if previous ~= inSpace then
 			rig.character:SetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE, inSpace)
 		end
 
@@ -136,7 +180,8 @@ local function step(deltaTime: number)
 			walk(rig)
 		end
 		setFlightPose(rig, inSpace)
-		breathe(rig, inSpace, deltaTime)
+		breathe(player, rig, inSpace, deltaTime)
+		grab(rig, context, deltaTime)
 	end
 end
 
