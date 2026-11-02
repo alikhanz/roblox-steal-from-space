@@ -66,17 +66,22 @@ local function addFlame(nozzle: BasePart, exitOffset: Vector3)
 	flame.Texture = JetpackConfig.FLAME_TEXTURE
 	flame.Color = ColorSequence.new(JetpackConfig.FLAME_COLOR_START, JetpackConfig.FLAME_COLOR_END)
 	flame.LightEmission = 1
+	-- Wide and bright at the nozzle, tapering and fading over about a stud and a half.
 	flame.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.45),
-		NumberSequenceKeypoint.new(1, 0),
+		NumberSequenceKeypoint.new(0, 0.9),
+		NumberSequenceKeypoint.new(0.4, 0.6),
+		NumberSequenceKeypoint.new(1, 0.1),
 	})
 	flame.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.6, 0.3),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	flame.Lifetime = NumberRange.new(0.12, 0.25)
-	flame.Speed = NumberRange.new(10, 16)
-	flame.SpreadAngle = Vector2.new(8, 8)
+	flame.Lifetime = NumberRange.new(0.2, 0.35)
+	flame.Speed = NumberRange.new(5, 8)
+	flame.SpreadAngle = Vector2.new(6, 6)
+	flame.Rotation = NumberRange.new(0, 360)
+	flame.RotSpeed = NumberRange.new(-90, 90)
 	flame.EmissionDirection = Enum.NormalId.Top
 	flame.Rate = 0
 	flame.Enabled = false

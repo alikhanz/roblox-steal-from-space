@@ -11,7 +11,7 @@ local LEAN: FlightLean.Tuning = {
 return table.freeze({
 	-- Uploaded flight animation (rbxassetid://...). Empty: Studio builds it from FlightPose on the
 	-- fly; live servers need the uploaded asset (see CLAUDE.md, "Анимации").
-	FLIGHT_ANIMATION_ID = "",
+	FLIGHT_ANIMATION_ID = "rbxassetid://138651289824053",
 	-- Name of the Animation instance the server puts in each character.
 	ANIMATION_INSTANCE_NAME = "JetpackFlightAnimation",
 	ANIMATION_FADE_SECONDS = 0.25,
@@ -32,8 +32,8 @@ return table.freeze({
 	FLAME_COLOR_START = Color3.fromRGB(255, 236, 160),
 	FLAME_COLOR_END = Color3.fromRGB(255, 96, 30),
 	-- Particles per second per nozzle: idle hover and full thrust.
-	FLAME_RATE_IDLE = 40,
-	FLAME_RATE_FULL = 160,
+	FLAME_RATE_IDLE = 35,
+	FLAME_RATE_FULL = 110,
 	FLAME_LIGHT_COLOR = Color3.fromRGB(255, 150, 70),
 	FLAME_LIGHT_BRIGHTNESS = 2,
 	FLAME_LIGHT_RANGE = 10,
