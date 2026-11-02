@@ -19,6 +19,9 @@
 # Selene's generated Roblox standard library
 /roblox.yml
 
+# Personal Claude Code settings
+/.claude/settings.local.json
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
