@@ -1,23 +1,29 @@
 --!strict
 -- Where a position is in the world. Pure: works only with the vectors it is given.
 --
--- The station zone is the part of the dome above the bottom of the platform: walking with
--- gravity there, jetpack flight everywhere else (including right under the platform).
+-- The station zone is the column right above the platform, under the dome: walking with
+-- gravity there, jetpack flight everywhere else. So a player flying in keeps the jetpack until
+-- they are over the floor, and one stepping off the edge starts flying right past the rim.
 
 local Zones = {}
 
 export type Station = {
 	read domeCenter: Vector3,
 	read domeRadius: number,
+	-- Center of the platform's top surface and its radius: the walkable floor.
+	read platformCenter: Vector3,
+	read platformRadius: number,
 	-- World height of the platform's underside; below it is open space.
 	read floorY: number,
 }
 
 -- How deep inside the station zone a position is, in studs (negative when outside).
 local function depthInside(position: Vector3, station: Station): number
-	local fromDome = station.domeRadius - (position - station.domeCenter).Magnitude
+	local underDome = station.domeRadius - (position - station.domeCenter).Magnitude
 	local aboveFloor = position.Y - station.floorY
-	return math.min(fromDome, aboveFloor)
+	local offset = position - station.platformCenter
+	local overPlatform = station.platformRadius - math.sqrt(offset.X * offset.X + offset.Z * offset.Z)
+	return math.min(underDome, aboveFloor, overPlatform)
 end
 
 function Zones.isInStation(position: Vector3, station: Station): boolean

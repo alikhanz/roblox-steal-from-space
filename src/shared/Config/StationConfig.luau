@@ -1,6 +1,6 @@
 --!strict
 -- Station layout. The dome sits on the platform like a bubble; the station zone (walking with
--- gravity) is the dome above the platform's underside, everything else is open space.
+-- gravity) is the column right above the platform, under the dome; everything else is open space.
 
 local Zones = require("../Domain/Zones")
 
@@ -17,6 +17,8 @@ local domeRise = math.sqrt(DOME_RADIUS ^ 2 - (PLATFORM_RADIUS + RIM_WIDTH) ^ 2)
 local STATION: Zones.Station = {
 	domeCenter = PLATFORM_CENTER + Vector3.yAxis * domeRise,
 	domeRadius = DOME_RADIUS,
+	platformCenter = PLATFORM_CENTER,
+	platformRadius = PLATFORM_RADIUS,
 	floorY = PLATFORM_CENTER.Y - PLATFORM_THICKNESS,
 }
 
