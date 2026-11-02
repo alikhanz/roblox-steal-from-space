@@ -46,6 +46,8 @@
 - `require` внутри `src/shared` — **строковые относительные** (`require("./BigNum")`, `require("../Config/Rarity")`): они одинаково работают в Roblox и в Lune.
 - **В коде, который тестируется в Lune, нет `init.luau`.** Roblox и файловая система разрешают его пути по-разному.
 - Между сервисами Roblox (`ReplicatedStorage` ↔ `ServerScriptService`, пакеты) — `require` через инстансы.
+- Чистая логика на сервере (как `SessionManager`) не делает `require` модулей из `ReplicatedStorage` и Roblox API: всё нужное получает параметрами. Так она тестируется в Lune.
+- Общий код в `src/shared`, который тестируется, не обращается к глобалам Roblox (`task`, `game`, `workspace`): нужные функции передаются параметром (пример — `spawn` в `Lifecycle.run`).
 - Зависимости — только через Wally (`wally.toml`), версии закреплены в `wally.lock`. Новая зависимость = запись в [DECISIONS.md](DECISIONS.md) (зачем, почему эта).
 - Инструменты — только через Rokit (`rokit.toml`).
 

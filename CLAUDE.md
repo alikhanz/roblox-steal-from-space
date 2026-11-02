@@ -16,6 +16,7 @@ lune run install      # после клонирования и после пра
 lune run check        # перед КАЖДЫМ коммитом; должен быть зелёным
 lune run format       # если check упал на форматировании
 lune run test [фильтр]
+lune run content      # только проверка строк локализации
 lune run net          # после правки net/remotes.zap
 rojo serve            # синхронизация в Studio
 ```
