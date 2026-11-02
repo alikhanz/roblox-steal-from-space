@@ -2,7 +2,7 @@
 -- Owns the lifecycle of player profile sessions:
 --
 --   Loading ──> Active ──> Closing ──> Closed
---      │          └───────────────────> Closed (session lost to another server)
+--      │          └───────────────────> Closed (session lost to another server, or server shutdown)
 --      ├──> Closed (player left while loading)
 --      └──> Failed (could not load, newer version, corrupted data)
 --
@@ -10,7 +10,7 @@
 -- so this module is pure Luau and every failure path is covered by tests.
 
 export type SessionState = "Loading" | "Active" | "Closing" | "Closed" | "Failed"
-export type EndReason = "PlayerLeft" | "SessionLost" | "LoadFailed" | "NewerVersion" | "Corrupted"
+export type EndReason = "PlayerLeft" | "SessionLost" | "ServerShutdown" | "LoadFailed" | "NewerVersion" | "Corrupted"
 
 export type ProfileHandle = {
 	data: { [string]: any },
@@ -22,6 +22,8 @@ export type ProfileHandle = {
 export type ProfilePort = {
 	-- Yields until the profile is loaded; returns nil on failure or once `shouldCancel` returns true.
 	startSession: (userId: number, shouldCancel: () -> boolean) -> ProfileHandle?,
+	-- True once the server is shutting down and storage is closing every session itself.
+	isShuttingDown: () -> boolean,
 }
 
 export type LoadOutcome = { ok: true, data: any } | { ok: false, reason: "NewerVersion" | "Corrupted", detail: string }
@@ -122,7 +124,8 @@ function SessionManager.new(config: Config): SessionManager
 		session.handle = handle
 		handle.onSessionEnd(function()
 			if session.state == "Active" then
-				transition(userId, session, "Closed", "SessionLost")
+				local reason: EndReason = if config.port.isShuttingDown() then "ServerShutdown" else "SessionLost"
+				transition(userId, session, "Closed", reason)
 			end
 		end)
 		transition(userId, session, "Active", nil)

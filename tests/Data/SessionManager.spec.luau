@@ -67,6 +67,7 @@ type Harness = {
 	startSession: (userId: number, shouldCancel: () -> boolean) -> SessionManager.ProfileHandle?,
 	handle: FakeHandle,
 	present: boolean,
+	shuttingDown: boolean,
 	now: number,
 	loadOutcome: SessionManager.LoadOutcome?,
 }
@@ -80,6 +81,7 @@ local function harness(): Harness
 		events = {},
 		handle = fakeHandle({ schemaVersion = 1, coins = 0 }),
 		present = true,
+		shuttingDown = false,
 		now = 0,
 		loadOutcome = nil,
 		startSession = defaultStartSession,
@@ -90,6 +92,9 @@ local function harness(): Harness
 		port = {
 			startSession = function(userId, shouldCancel)
 				return h.startSession(userId, shouldCancel)
+			end,
+			isShuttingDown = function()
+				return h.shuttingDown
 			end,
 		},
 		loadData = function(saved)
@@ -281,6 +286,15 @@ describe("SessionManager while active", function()
 
 		expect(lastEvent(h)).toEqual({ state = "Closed", reason = "SessionLost" })
 		expect(h.manager.update(USER_ID, function() end)).toBe(false)
+	end)
+
+	it("tells a server shutdown apart from a lost session", function()
+		local h = harness()
+		load(h)
+		h.shuttingDown = true
+		h.handle.loseSession()
+
+		expect(lastEvent(h)).toEqual({ state = "Closed", reason = "ServerShutdown" })
 	end)
 end)
 

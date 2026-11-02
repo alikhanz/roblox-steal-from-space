@@ -41,7 +41,14 @@ function ProfileStoreAdapter.new(options: Options): SessionManager.ProfilePort
 		}
 	end
 
-	return { startSession = startSession }
+	local function isShuttingDown(): boolean
+		return ProfileStore.IsClosing
+	end
+
+	return {
+		startSession = startSession,
+		isShuttingDown = isShuttingDown,
+	}
 end
 
 return table.freeze(ProfileStoreAdapter)
