@@ -1,6 +1,6 @@
 --!strict
 -- `lune run check`: the single quality gate. Run it before every commit.
--- Order: format -> lint -> types (game) -> types (tooling) -> tests -> build.
+-- Order: format -> lint -> types (game) -> types (tooling) -> content -> tests -> build.
 
 local fs = require("@lune/fs")
 
@@ -67,6 +67,12 @@ Shell.runSteps("Check", {
 				"luau-lsp",
 				concat({ "analyze", "--platform=standard", "--flag:LuauSolverV2=true" }, Paths.TOOLING_SOURCES)
 			)
+		end,
+	},
+	{
+		name = "Content (localization)",
+		run = function()
+			return Shell.exec("lune", { "run", "content" })
 		end,
 	},
 	{
