@@ -44,6 +44,11 @@ rojo serve            # синхронизация в Studio
 - **Код в запущенном плейтесте не обновляется** — после правок перезапускай Play. Перед Play дай Rojo секунду-две на синхронизацию: если запустить сразу после правки, в игру попадёт старый код.
 - В Studio всё работает на mock-хранилище ProfileStore (плейс не опубликован) — это ожидаемо.
 - Плейтест через MCP: `start_stop_play`, ввод — `user_keyboard_input`, проверки — `execute_luau` в `Server`/`Client`, вывод — `get_console_output`.
+- **Команды разработчика** (только Studio, `src/server/Services/DevService.luau`) — `BindableFunction` в `ServerStorage.DevCommands`, вызываются из серверного `execute_luau`:
+  - `SetInfiniteOxygen:Invoke(true/false)` — кислород не тратится в этом плейтесте (по умолчанию — из `DevConfig.STUDIO_INFINITE_OXYGEN`, в коммитах `false`);
+  - `SpawnEggNearPlayer:Invoke("Rare")` — выпавшее яйцо перед игроком;
+  - `RefillOxygen:Invoke()` — полный баллон.
+- Не переноси персонажа далеко через `PivotTo` в тестах: перенос на сотни studs рвёт физические суставы, и персонаж может остаться мёртвым без респауна. Для теста подноси объекты к игроку (команды разработчика) или лети.
 
 ## Анимации
 
