@@ -35,3 +35,11 @@ rojo serve            # синхронизация в Studio
 - Ветки `<тип>/<кратко>`, коммиты Conventional Commits. Перед `git push` покажи пользователю, что уйдёт.
 - Не правь сгенерированное: `Packages/`, `ServerPackages/`, `src/*/Net/Remotes.luau`, `sourcemap.json`, `types/`, `build/`.
 - Studio: при подключённом MCP-сервере `Roblox_Studio` можно запускать плейтесты, выполнять Luau и читать Output. Код всё равно правится только в файлах.
+
+## Studio: что важно знать
+
+- **Server Authority** включается в плейсе вручную: Workspace → Properties → `AuthorityMode = Server`. Из скриптов, MCP и плагина Rojo это свойство недоступно.
+- **`rojo serve` может упасть**, если файл создаётся и сразу удаляется (например, временный пробный файл). Признак — новые файлы не появляются в Studio. Лечится перезапуском `rojo serve` и повторным Connect в плагине. Временные файлы лучше класть вне `src/`.
+- **Код в запущенном плейтесте не обновляется** — после правок перезапускай Play.
+- В Studio всё работает на mock-хранилище ProfileStore (плейс не опубликован) — это ожидаемо.
+- Плейтест через MCP: `start_stop_play`, ввод — `user_keyboard_input`, проверки — `execute_luau` в `Server`/`Client`, вывод — `get_console_output`.

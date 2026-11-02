@@ -16,7 +16,7 @@
 | `lune` | — | Скрипты задач: install, check, test, format, net |
 | `tests` | — | Тесты доменной логики для Lune |
 
-Настройки Workspace задаются в `default.project.json`: `StreamingEnabled = true`, `SignalBehavior = Deferred`.
+Настройки Workspace задаются в `default.project.json`: `StreamingEnabled = true`, `SignalBehavior = Deferred`, `AuthorityMode = Server`, `FallenPartsDestroyHeight = -5000`. `AuthorityMode` плагин Rojo в открытый плейс записать не может — в новом плейсе его один раз включают вручную (Workspace → Properties → AuthorityMode = Server); связанные свойства включаются сами.
 
 ## Слои
 
@@ -69,13 +69,29 @@ DataService (связь с Roblox: игроки, сообщения при ош�
 - Поверх Zap — слой команд: лимиты частоты, валидация, очередь команд на игрока, проверка активной сессии.
 - Ввод, влияющий на симуляцию (полёт, рывок), идёт через Input Action System, а не через remotes.
 
-## Движение и Server Authority (решается экспериментом)
+## Движение и Server Authority
 
-Server Authority блокирует спидхаки на уровне движка, но требует особого стиля кода: логика в `RunService:BindToSimulation`, только API с меткой Simulation Access, время через `time()`, ввод через Input Action System, удаление объектов вне симуляции.
+Включено: `Workspace.AuthorityMode = Server` (решение 019). Сервер считает движение, клиент его предсказывает и откатывается при расхождении. Подделка позиции или скорости на клиенте откатывается движком.
 
-В начале этапа 1 делаем эксперимент: полёт на джетпаке под Server Authority. По результату фиксируем решение в [DECISIONS.md](DECISIONS.md):
-- **работает** → вся симуляция движения пишется по правилам Server Authority;
-- **не работает** → клиент владеет своей физикой, сервер проверяет скорость и позицию с запасом на пинг и мягко возвращает нарушителя.
+```
+Клиент                                   Сервер
+AimController ─ направление камеры ─┐
+стандартное управление (MoveDirection)├─> InputActions под Player ─> SpaceSimulation
+Space/Ctrl, кнопки ▲▼ на телефоне ───┘                              (тот же модуль)
+SpaceSimulation (предсказание) ─> атрибуты персонажа ─> HUD (Vide)
+```
+
+- **`SpaceSimulation`** (`src/shared/Simulation`) привязан через `RunService:BindToSimulation` на сервере и на клиенте. Под куполом — обычная ходьба; за куполом — полёт на `LinearVelocity` + `AlignOrientation` туда, куда смотрит камера; кислород убывает в космосе и восстанавливается под куполом.
+- **Математика** — в `Domain/Flight`, `Domain/Oxygen`, `Domain/Zones`, покрыта тестами.
+- **Ввод** (`src/shared/Input/FlightInputs`): контекст `FlightContext` под каждым `Player` (создаёт сервер). `Ascend`/`Descend` — клавиши и кнопки на телефоне (`UIButton`-привязки создаёт клиент локально), `Aim` — `Scriptable`-привязка, её каждый кадр заполняет `AimController`. Сервер не доверяет `Aim`: `Flight.sanitizeAim`.
+- **Объекты создаются вне симуляции:** `SpaceService` выдаёт контекст ввода игроку и ограничители персонажу, убивает при пустом баллоне (в `PostSimulation`).
+- **Состояние симуляции — в атрибутах персонажа:** `InSpace`, `Oxygen`. HUD читает их на клиенте — значения предсказанные, поэтому без задержки.
+
+Правила кода в симуляции — в [CONVENTIONS.md](CONVENTIONS.md), раздел 5.
+
+## Мир
+
+`WorldService` строит мир при старте сервера, всё из кода: платформа станции со светящимся ободом, купол (`StationConfig.DOME` — он же граница «ходьба/полёт»), точка появления, поле астероидов по зерну (`WorldConfig.SEED`, одинаковое на всех серверах), освещение космоса. Позже детали заменятся моделями из `assets/`.
 
 ## Стражи (план)
 
