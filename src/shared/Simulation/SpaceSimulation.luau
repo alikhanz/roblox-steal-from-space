@@ -1,15 +1,21 @@
 --!strict
--- Jetpack movement, bound to RunService:BindToSimulation. Runs on the server (authoritative)
--- and on the client (prediction) with the same code, so it may only use Simulation Access APIs,
--- keep its state in attributes and never create, destroy or reparent instances.
+-- Movement and life support in space, bound to RunService:BindToSimulation.
+-- Runs on the server (authoritative) and on the client (prediction) with the same code, so it
+-- may only use Simulation Access APIs, keeps its state in character attributes and never
+-- creates, destroys or reparents instances. The math lives in Domain and is unit-tested.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local FlightConfig = require("./FlightConfig")
-local FlightInputs = require("./FlightInputs")
+local Flight = require("../Domain/Flight")
+local FlightConfig = require("../Config/FlightConfig")
+local FlightInputs = require("../Input/FlightInputs")
+local Oxygen = require("../Domain/Oxygen")
+local OxygenConfig = require("../Config/OxygenConfig")
+local StationConfig = require("../Config/StationConfig")
+local Zones = require("../Domain/Zones")
 
-local JetpackSimulation = {}
+local SpaceSimulation = {}
 
 type Rig = {
 	character: Model,
@@ -26,7 +32,7 @@ local function findRig(player: Player): Rig?
 	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local root = character:FindFirstChild("HumanoidRootPart")
-	if not humanoid or not root or not root:IsA("BasePart") then
+	if not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") then
 		return nil
 	end
 	local velocity = root:FindFirstChild(FlightConfig.VELOCITY_NAME)
@@ -37,55 +43,45 @@ local function findRig(player: Player): Rig?
 	return { character = character, humanoid = humanoid, root = root, velocity = velocity, align = align }
 end
 
-local function updateToggle(rig: Rig, togglePressed: boolean): boolean
-	local wasHeld = rig.character:GetAttribute(FlightConfig.TOGGLE_HELD_ATTRIBUTE) == true
-	local flying = rig.character:GetAttribute(FlightConfig.FLYING_ATTRIBUTE) == true
-	-- Edge detection on polled state: Pressed/Released events are unreliable under rollback.
-	if togglePressed and not wasHeld then
-		flying = not flying
-		rig.character:SetAttribute(FlightConfig.FLYING_ATTRIBUTE, flying)
-	end
-	rig.character:SetAttribute(FlightConfig.TOGGLE_HELD_ATTRIBUTE, togglePressed)
-	return flying
+local function verticalInput(context: Instance): number
+	local up = if FlightInputs.isPressed(context, FlightInputs.ASCEND) then 1 else 0
+	local down = if FlightInputs.isPressed(context, FlightInputs.DESCEND) then 1 else 0
+	return up - down
 end
 
 local function fly(rig: Rig, context: Instance, deltaTime: number)
-	local vertical = (if FlightInputs.isPressed(context, FlightInputs.ASCEND) then 1 else 0)
-		- (if FlightInputs.isPressed(context, FlightInputs.DESCEND) then 1 else 0)
-	local input = rig.humanoid.MoveDirection + Vector3.yAxis * vertical
-	if input.Magnitude > 1 then
-		input = input.Unit
-	end
-
-	local current = rig.root.AssemblyLinearVelocity
-	local nextVelocity
-	if input.Magnitude > 0 then
-		-- Exponential approach to the input target: frame-rate independent acceleration.
-		local blend = 1 - math.exp(-FlightConfig.RESPONSE * deltaTime)
-		nextVelocity = current:Lerp(input * FlightConfig.MAX_SPEED, blend)
-	else
-		-- No input: keep gliding, losing a fixed share of speed per second.
-		nextVelocity = current * FlightConfig.DRIFT_RETENTION_PER_SECOND ^ deltaTime
-	end
+	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
+	local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
+	local velocity = Flight.nextVelocity(rig.root.AssemblyLinearVelocity, direction, deltaTime, FlightConfig.TUNING)
 
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
-	rig.velocity.VectorVelocity = nextVelocity
+	rig.velocity.VectorVelocity = velocity
 
-	local horizontal = Vector3.new(current.X, 0, current.Z)
-	if horizontal.Magnitude > 1 then
-		rig.align.CFrame = CFrame.lookAlong(Vector3.zero, horizontal)
+	-- Face where the camera looks, kept level so the character does not tumble.
+	local facing = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.new(velocity.X, 0, velocity.Z)
+	if facing.Magnitude > 1e-3 then
+		rig.align.CFrame = CFrame.lookAlong(Vector3.zero, facing)
 	end
 	rig.align.MaxTorque = FlightConfig.MAX_FORCE
 end
 
-local function land(rig: Rig)
+local function walk(rig: Rig)
 	if rig.velocity.MaxForce == 0 then
 		return
 	end
 	rig.velocity.MaxForce = 0
 	rig.align.MaxTorque = 0
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+end
+
+local function breathe(rig: Rig, inSpace: boolean, deltaTime: number)
+	local current = rig.character:GetAttribute(OxygenConfig.ATTRIBUTE)
+	local oxygen = if type(current) == "number" then current else OxygenConfig.CAPACITY
+	local nextOxygen = Oxygen.step(oxygen, OxygenConfig.CAPACITY, inSpace, deltaTime, OxygenConfig.TUNING)
+	if nextOxygen ~= current then
+		rig.character:SetAttribute(OxygenConfig.ATTRIBUTE, nextOxygen)
+	end
 end
 
 local function step(deltaTime: number)
@@ -95,16 +91,23 @@ local function step(deltaTime: number)
 		if not rig or not context then
 			continue
 		end
-		if updateToggle(rig, FlightInputs.isPressed(context, FlightInputs.TOGGLE)) then
+
+		local inSpace = not Zones.isInsideDome(rig.root.Position, StationConfig.DOME)
+		if rig.character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= inSpace then
+			rig.character:SetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE, inSpace)
+		end
+
+		if inSpace then
 			fly(rig, context, deltaTime)
 		else
-			land(rig)
+			walk(rig)
 		end
+		breathe(rig, inSpace, deltaTime)
 	end
 end
 
-function JetpackSimulation.start()
+function SpaceSimulation.start()
 	RunService:BindToSimulation(step)
 end
 
-return table.freeze(JetpackSimulation)
+return table.freeze(SpaceSimulation)

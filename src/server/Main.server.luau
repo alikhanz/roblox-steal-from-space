@@ -4,12 +4,15 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DataService = require(script.Parent.Services.DataService)
-local FlightService = require(script.Parent.Services.FlightService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
+local SpaceService = require(script.Parent.Services.SpaceService)
+local WorldService = require(script.Parent.Services.WorldService)
 
 local dataService = DataService.new()
-local flightService = FlightService.new()
+local worldService = WorldService.new()
+local spaceService = SpaceService.new({ getSpawn = worldService.getSpawn })
 
-Lifecycle.run({ dataService, flightService }, function(callback)
+-- WorldService starts first so the spawn exists before players are set up.
+Lifecycle.run({ dataService, worldService, spaceService }, function(callback)
 	task.spawn(callback)
 end)

@@ -30,7 +30,9 @@
 		"Workspace": {
 			"$properties": {
 				"StreamingEnabled": true,
-				"SignalBehavior": "Deferred"
+				"SignalBehavior": "Deferred",
+				"AuthorityMode": "Server",
+				"FallenPartsDestroyHeight": -5000
 			}
 		}
 	}

@@ -1,17 +1,22 @@
 --!strict
 -- Input Action System setup for flight. The server creates one context per player under the
--- Player instance (required by Server Authority); the simulation reads it on both sides.
+-- Player instance (Server Authority sends only these inputs to the server); the simulation
+-- polls them with GetState() on both sides.
 
 local FlightInputs = {}
 
 FlightInputs.CONTEXT_NAME = "FlightContext"
 FlightInputs.ASCEND = "Ascend"
 FlightInputs.DESCEND = "Descend"
-FlightInputs.TOGGLE = "ToggleJetpack"
+-- Where the camera looks. Fed by the client through a Scriptable binding; untrusted on the server.
+FlightInputs.AIM = "Aim"
+FlightInputs.AIM_BINDING = "Camera"
+-- Name of the client-side bindings that link the on-screen buttons on touch devices.
+FlightInputs.TOUCH_BINDING = "TouchButton"
 
 local CONTEXT_PRIORITY = 1000
 
-local function boolAction(name: string, keyCodes: { Enum.KeyCode }): InputAction
+local function keyAction(name: string, keyCodes: { Enum.KeyCode }): InputAction
 	local action = Instance.new("InputAction")
 	action.Name = name
 	action.Type = Enum.InputActionType.Bool
@@ -24,24 +29,49 @@ local function boolAction(name: string, keyCodes: { Enum.KeyCode }): InputAction
 	return action
 end
 
+local function aimAction(): InputAction
+	local action = Instance.new("InputAction")
+	action.Name = FlightInputs.AIM
+	action.Type = Enum.InputActionType.Direction3D
+	local binding = Instance.new("InputBinding")
+	binding.Name = FlightInputs.AIM_BINDING
+	binding.Type = Enum.InputBindingType.Scriptable
+	binding.Parent = action
+	return action
+end
+
+-- Server only: builds the context to parent under a Player.
 function FlightInputs.create(): InputContext
 	local context = Instance.new("InputContext")
 	context.Name = FlightInputs.CONTEXT_NAME
 	context.Priority = CONTEXT_PRIORITY
+	context.Sink = false
 	context.Enabled = true
-	boolAction(FlightInputs.ASCEND, { Enum.KeyCode.E, Enum.KeyCode.ButtonR1 }).Parent = context
-	boolAction(FlightInputs.DESCEND, { Enum.KeyCode.Q, Enum.KeyCode.ButtonL1 }).Parent = context
-	boolAction(FlightInputs.TOGGLE, { Enum.KeyCode.F, Enum.KeyCode.ButtonY }).Parent = context
+	keyAction(FlightInputs.ASCEND, { Enum.KeyCode.Space, Enum.KeyCode.ButtonR1 }).Parent = context
+	keyAction(FlightInputs.DESCEND, { Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonL1 }).Parent = context
+	aimAction().Parent = context
 	return context
 end
 
--- Reads a Bool action's state; false when the action is missing (e.g. not replicated yet).
-function FlightInputs.isPressed(context: Instance, name: string): boolean
+function FlightInputs.findAction(context: Instance, name: string): InputAction?
 	local action = context:FindFirstChild(name)
-	if action and action:IsA("InputAction") then
-		return action:GetState() == true
+	return if action and action:IsA("InputAction") then action else nil
+end
+
+-- A Bool action's state; false when the action is missing (e.g. not replicated yet).
+function FlightInputs.isPressed(context: Instance, name: string): boolean
+	local action = FlightInputs.findAction(context, name)
+	return action ~= nil and action:GetState() == true
+end
+
+-- The raw aim the client reported, or nil. Sanitize before use: it comes from the client.
+function FlightInputs.readAim(context: Instance): Vector3?
+	local action = FlightInputs.findAction(context, FlightInputs.AIM)
+	if not action then
+		return nil
 	end
-	return false
+	local state = action:GetState()
+	return if typeof(state) == "Vector3" then state else nil
 end
 
 return table.freeze(FlightInputs)

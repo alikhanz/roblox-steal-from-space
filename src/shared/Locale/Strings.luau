@@ -20,6 +20,10 @@ local Strings = {
 		ru = "Вышло обновление игры. Зайди снова, чтобы играть дальше.",
 		en = "The game just got an update. Rejoin to keep playing.",
 	},
+	["oxygen.low.toast"] = {
+		ru = "Кислород кончается! Лети к станции",
+		en = "Low oxygen! Fly back to the station",
+	},
 	["data.corrupted.message"] = {
 		ru = "Не получилось прочитать твой прогресс. Мы ничего в нём не меняли. Зайди снова через пару минут.",
 		en = "We couldn't read your progress. Nothing in it was changed. Rejoin in a few minutes.",
