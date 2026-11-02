@@ -63,9 +63,16 @@ Shell.runSteps("Check", {
 	{
 		name = "Types: tooling and tests (luau-lsp, Lune)",
 		run = function()
+			-- Roblox datatype definitions (Vector3, ...) are loaded too: pure Domain modules use them
+			-- as types, and tests build them through @lune/roblox, whose typedefs lack datatypes.
 			return Shell.exec(
 				"luau-lsp",
-				concat({ "analyze", "--platform=standard", "--flag:LuauSolverV2=true" }, Paths.TOOLING_SOURCES)
+				concat({
+					"analyze",
+					"--platform=standard",
+					`--definitions=@roblox={Paths.ROBLOX_DEFINITIONS}`,
+					"--flag:LuauSolverV2=true",
+				}, Paths.TOOLING_SOURCES)
 			)
 		end,
 	},
