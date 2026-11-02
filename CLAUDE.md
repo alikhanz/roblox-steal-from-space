@@ -43,3 +43,11 @@ rojo serve            # синхронизация в Studio
 - **Код в запущенном плейтесте не обновляется** — после правок перезапускай Play.
 - В Studio всё работает на mock-хранилище ProfileStore (плейс не опубликован) — это ожидаемо.
 - Плейтест через MCP: `start_stop_play`, ввод — `user_keyboard_input`, проверки — `execute_luau` в `Server`/`Client`, вывод — `get_console_output`.
+
+## Анимации
+
+- Позы задаются **данными** в коде (`src/shared/Character/FlightPose.luau`: углы суставов R15), из них `FlightAnimation.buildSequence()` собирает `KeyframeSequence`.
+- Под Server Authority персонаж игрока проигрывает **только загруженные** анимации, и только запущенные внутри симуляции. Временные анимации Studio (`RegisterKeyframeSequence`) не работают.
+- **Загрузка** (делает пользователь, от владельца игры — аккаунта или группы): Explorer → `ServerStorage.JetpackFlight` → правый клик → **Save to Roblox** → тип Animation. Полученный ID — в `JetpackConfig.FLIGHT_ANIMATION_ID` (`rbxassetid://…`). Для правки позы — повторная загрузка с перезаписью того же ассета, ID не меняется.
+- **Предпросмотр позы без игры:** в Edit-режиме манекен R15, у которого `AnimationConstraint` заменены на `Motor6D` (поза пишется в `C0`), и снимки через MCP `screen_capture`. `AnimationConstraint` позу без физики не показывает.
+- Суставы аватара — `AnimationConstraint`, а не `Motor6D`; `Animate` — модуль, его нельзя отключить. Переопределять суставы скриптом бесполезно: аниматор пишет их последним перед физикой.

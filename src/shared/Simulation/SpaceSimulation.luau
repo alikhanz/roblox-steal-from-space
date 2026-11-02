@@ -10,6 +10,8 @@ local RunService = game:GetService("RunService")
 local Flight = require("../Domain/Flight")
 local FlightConfig = require("../Config/FlightConfig")
 local FlightInputs = require("../Input/FlightInputs")
+local FlightLean = require("../Domain/FlightLean")
+local JetpackConfig = require("../Config/JetpackConfig")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
 local StationConfig = require("../Config/StationConfig")
@@ -58,12 +60,41 @@ local function fly(rig: Rig, context: Instance, deltaTime: number)
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
 	rig.velocity.VectorVelocity = velocity
 
-	-- Face where the camera looks, kept level so the character does not tumble.
-	local facing = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.new(velocity.X, 0, velocity.Z)
+	-- Face where the camera looks (level, so the body never tumbles), then lean into the motion.
+	local facing = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.zero
+	if facing.Magnitude < 1e-3 then
+		local look = rig.root.CFrame.LookVector
+		facing = Vector3.new(look.X, 0, look.Z)
+	end
 	if facing.Magnitude > 1e-3 then
-		rig.align.CFrame = CFrame.lookAlong(Vector3.zero, facing)
+		local heading = CFrame.lookAlong(Vector3.zero, facing)
+		local localVelocity = heading:VectorToObjectSpace(velocity)
+		local pitch, roll =
+			FlightLean.angles(-localVelocity.Z, localVelocity.X, FlightConfig.TUNING.maxSpeed, JetpackConfig.LEAN)
+		rig.align.CFrame = heading * CFrame.Angles(pitch, 0, roll)
 	end
 	rig.align.MaxTorque = FlightConfig.MAX_FORCE
+end
+
+-- Plays or stops the flight pose. Runs inside the simulation: under Server Authority, character
+-- animations started elsewhere are rolled back. Tracks are looked up each step, never cached.
+local function setFlightPose(rig: Rig, active: boolean)
+	local animation = rig.character:FindFirstChild(JetpackConfig.ANIMATION_INSTANCE_NAME)
+	local animator = rig.humanoid:FindFirstChildOfClass("Animator")
+	if not animation or not animation:IsA("Animation") or not animator then
+		return
+	end
+	local track = animator:GetTrackByAnimationId(animation.AnimationId)
+	if active then
+		if not track then
+			track = animator:LoadAnimation(animation)
+		end
+		if not track.IsPlaying then
+			track:Play(JetpackConfig.ANIMATION_FADE_SECONDS)
+		end
+	elseif track and track.IsPlaying then
+		track:Stop(JetpackConfig.ANIMATION_FADE_SECONDS)
+	end
 end
 
 local function walk(rig: Rig)
@@ -102,6 +133,7 @@ local function step(deltaTime: number)
 		else
 			walk(rig)
 		end
+		setFlightPose(rig, inSpace)
 		breathe(rig, inSpace, deltaTime)
 	end
 end

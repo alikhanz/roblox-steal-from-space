@@ -6,14 +6,19 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local FlightAnimation = require(ReplicatedStorage.Shared.Character.FlightAnimation)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
+local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
+local JetpackModel = require(script.Parent.Parent.Character.JetpackModel)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 
-local ROOT_WAIT_TIMEOUT = 10
+local PART_WAIT_TIMEOUT = 10
+-- Parts the jetpack attaches to; the character is only equipped once all of them exist.
+local REQUIRED_PARTS = { "HumanoidRootPart", "UpperTorso", "RightHand", "LeftHand" }
 
 export type Dependencies = {
 	getSpawn: () -> SpawnLocation?,
@@ -21,18 +26,24 @@ export type Dependencies = {
 
 export type SpaceService = {
 	name: string,
+	init: () -> (),
 	start: () -> (),
 }
 
 local SpaceService = {}
 
-local function equipJetpack(character: Model)
-	local root = character:WaitForChild("HumanoidRootPart", ROOT_WAIT_TIMEOUT)
-	if not root or not root:IsA("BasePart") then
-		warn(`[SpaceService] {character.Name} has no HumanoidRootPart`)
-		return
+local function waitForParts(character: Model): boolean
+	for _, name in REQUIRED_PARTS do
+		local part = character:WaitForChild(name, PART_WAIT_TIMEOUT)
+		if not part or not part:IsA("BasePart") then
+			warn(`[SpaceService] {character.Name} has no {name}; jetpack not equipped`)
+			return false
+		end
 	end
+	return true
+end
 
+local function addFlightConstraints(root: BasePart)
 	local attachment = Instance.new("Attachment")
 	attachment.Name = FlightConfig.ATTACHMENT_NAME
 
@@ -67,15 +78,39 @@ local function suffocateEmptyTanks()
 end
 
 function SpaceService.new(dependencies: Dependencies): SpaceService
+	local flightAnimationId: string? = nil
+
+	local function equip(character: Model)
+		if not waitForParts(character) then
+			return
+		end
+		addFlightConstraints(character:FindFirstChild("HumanoidRootPart") :: BasePart)
+		JetpackModel.attach(character)
+
+		if flightAnimationId then
+			local animation = Instance.new("Animation")
+			animation.Name = JetpackConfig.ANIMATION_INSTANCE_NAME
+			animation.AnimationId = flightAnimationId
+			animation.Parent = character
+		end
+	end
+
 	local function onPlayerAdded(player: Player)
 		FlightInputs.create().Parent = player
 		local spawn = dependencies.getSpawn()
 		if spawn then
 			player.RespawnLocation = spawn
 		end
-		player.CharacterAdded:Connect(equipJetpack)
+		player.CharacterAdded:Connect(equip)
 		if player.Character then
-			equipJetpack(player.Character)
+			equip(player.Character)
+		end
+	end
+
+	local function init()
+		flightAnimationId = FlightAnimation.resolveId()
+		if not flightAnimationId then
+			warn("[SpaceService] No flight animation: set JetpackConfig.FLIGHT_ANIMATION_ID for live servers")
 		end
 	end
 
@@ -88,6 +123,7 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 
 	return {
 		name = "SpaceService",
+		init = init,
 		start = start,
 	}
 end
