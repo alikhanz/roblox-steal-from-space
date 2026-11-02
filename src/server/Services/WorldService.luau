@@ -12,9 +12,9 @@ local WORLD_FOLDER_NAME = "World"
 local DOME_TRANSPARENCY = 0.75
 local DOME_COLOR = Color3.fromRGB(110, 190, 255)
 local PLATFORM_COLOR = Color3.fromRGB(128, 136, 160)
+local HULL_COLOR = Color3.fromRGB(70, 76, 94)
 -- Glowing rim around the platform: makes the station easy to find from the asteroid field.
 local RIM_COLOR = Color3.fromRGB(90, 200, 255)
-local RIM_WIDTH = 2
 local STAR_COUNT = 5000
 
 export type WorldService = {
@@ -34,32 +34,56 @@ local function scenery(part: BasePart)
 	part.CastShadow = false
 end
 
-local function buildStation(parent: Instance): SpawnLocation
-	local dome = StationConfig.DOME
+-- A flat disc centered at `center` (Roblox cylinders run along X, so turn the axis upright).
+local function disc(name: string, center: Vector3, radius: number, thickness: number): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Shape = Enum.PartType.Cylinder
+	part.Size = Vector3.new(thickness, radius * 2, radius * 2)
+	part.CFrame = CFrame.new(center) * CFrame.Angles(0, 0, math.rad(90))
+	return part
+end
 
-	local platform = Instance.new("Part")
-	platform.Name = "Platform"
-	platform.Shape = Enum.PartType.Cylinder
-	-- A cylinder's axis is X; rotate it so the flat faces point up.
-	platform.Size = Vector3.new(
-		StationConfig.PLATFORM_THICKNESS,
-		StationConfig.PLATFORM_RADIUS * 2,
-		StationConfig.PLATFORM_RADIUS * 2
-	)
-	platform.CFrame = CFrame.new(dome.center - Vector3.yAxis * StationConfig.PLATFORM_THICKNESS / 2)
-		* CFrame.Angles(0, 0, math.rad(90))
+-- Stepped hull under the platform. Each step is a little wider than the dome sphere at its top,
+-- so the part of the sphere below the platform stays hidden inside the hull.
+local function buildHull(parent: Instance)
+	local station = StationConfig.STATION
+	local sphereBottomY = station.domeCenter.Y - station.domeRadius
+	local depth = station.floorY - sphereBottomY
+	if depth <= 0 then
+		return
+	end
+	local stepHeight = depth / StationConfig.HULL_STEPS
+	for step = 1, StationConfig.HULL_STEPS do
+		local topY = station.floorY - (step - 1) * stepHeight
+		local sphereRadiusAtTop = math.sqrt(math.max(0, station.domeRadius ^ 2 - (topY - station.domeCenter.Y) ^ 2))
+		local center = Vector3.new(station.domeCenter.X, topY - stepHeight / 2, station.domeCenter.Z)
+		local hull = disc(`Hull{step}`, center, sphereRadiusAtTop + 1, stepHeight)
+		hull.Material = Enum.Material.Metal
+		hull.Color = HULL_COLOR
+		hull.Anchored = true
+		hull.CanTouch = false
+		hull.Parent = parent
+	end
+end
+
+local function buildStation(parent: Instance): SpawnLocation
+	local station = StationConfig.STATION
+	local platformCenter = StationConfig.PLATFORM_CENTER - Vector3.yAxis * StationConfig.PLATFORM_THICKNESS / 2
+
+	local platform = disc("Platform", platformCenter, StationConfig.PLATFORM_RADIUS, StationConfig.PLATFORM_THICKNESS)
 	platform.Material = Enum.Material.DiamondPlate
 	platform.Color = PLATFORM_COLOR
 	platform.Anchored = true
 	platform.CanTouch = false
 	platform.Parent = parent
 
-	local rim = Instance.new("Part")
-	rim.Name = "Rim"
-	rim.Shape = Enum.PartType.Cylinder
-	local rimDiameter = (StationConfig.PLATFORM_RADIUS + RIM_WIDTH) * 2
-	rim.Size = Vector3.new(StationConfig.PLATFORM_THICKNESS / 2, rimDiameter, rimDiameter)
-	rim.CFrame = platform.CFrame
+	local rim = disc(
+		"Rim",
+		platformCenter,
+		StationConfig.PLATFORM_RADIUS + StationConfig.RIM_WIDTH,
+		StationConfig.PLATFORM_THICKNESS / 2
+	)
 	rim.Material = Enum.Material.Neon
 	rim.Color = RIM_COLOR
 	rim.CanCollide = false
@@ -69,8 +93,8 @@ local function buildStation(parent: Instance): SpawnLocation
 	local shell = Instance.new("Part")
 	shell.Name = "Dome"
 	shell.Shape = Enum.PartType.Ball
-	shell.Size = Vector3.one * dome.radius * 2
-	shell.CFrame = CFrame.new(dome.center)
+	shell.Size = Vector3.one * station.domeRadius * 2
+	shell.CFrame = CFrame.new(station.domeCenter)
 	shell.Material = Enum.Material.ForceField
 	shell.Color = DOME_COLOR
 	shell.Transparency = DOME_TRANSPARENCY
@@ -81,12 +105,14 @@ local function buildStation(parent: Instance): SpawnLocation
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "StationSpawn"
 	spawn.Size = Vector3.new(8, 1, 8)
-	spawn.CFrame = CFrame.new(dome.center + StationConfig.SPAWN_OFFSET)
+	spawn.CFrame = CFrame.new(StationConfig.PLATFORM_CENTER + StationConfig.SPAWN_OFFSET)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Anchored = true
 	spawn.CanTouch = false
 	spawn.Parent = parent
+
+	buildHull(parent)
 	return spawn
 end
 
@@ -96,7 +122,7 @@ local function randomInField(random: Random): Vector3
 	local distance = math.sqrt(random:NextNumber(inner * inner, outer * outer))
 	local angle = random:NextNumber(0, math.pi * 2)
 	local height = random:NextNumber(-WorldConfig.VERTICAL_SPREAD, WorldConfig.VERTICAL_SPREAD)
-	return StationConfig.DOME.center + Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance)
+	return StationConfig.PLATFORM_CENTER + Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance)
 end
 
 local function buildAsteroids(parent: Instance)

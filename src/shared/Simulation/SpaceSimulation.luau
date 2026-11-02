@@ -123,8 +123,10 @@ local function step(deltaTime: number)
 			continue
 		end
 
-		local inSpace = not Zones.isInsideDome(rig.root.Position, StationConfig.DOME)
-		if rig.character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= inSpace then
+		local wasInSpace = rig.character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true
+		local inSpace =
+			Zones.nextInSpace(wasInSpace, rig.root.Position, StationConfig.STATION, StationConfig.ZONE_MARGIN)
+		if wasInSpace ~= inSpace then
 			rig.character:SetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE, inSpace)
 		end
 
