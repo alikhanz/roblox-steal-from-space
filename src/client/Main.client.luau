@@ -1,0 +1,2 @@
+--!strict
+-- Client entry point. The controller loader is wired up here in stage 0 (see docs/ARCHITECTURE.md).

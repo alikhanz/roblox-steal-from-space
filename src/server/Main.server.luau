@@ -1,0 +1,2 @@
+--!strict
+-- Server entry point. The service loader is wired up here in stage 0 (see docs/ARCHITECTURE.md).

@@ -1,0 +1,9 @@
+# Normalize text files to LF everywhere so StyLua checks are stable on Windows.
+* text=auto eol=lf
+
+*.rbxm binary
+*.rbxl binary
+*.png binary
+*.jpg binary
+*.ogg binary
+*.mp3 binary
