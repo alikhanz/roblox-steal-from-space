@@ -5,10 +5,11 @@
 --
 -- Pure Luau: the caller supplies `spawn` (task.spawn in the game, a direct call in tests).
 
+-- Read-only fields, so any service or controller with these members (required or not) fits.
 export type System = {
-	name: string,
-	init: (() -> ())?,
-	start: (() -> ())?,
+	read name: string,
+	read init: (() -> ())?,
+	read start: (() -> ())?,
 }
 
 export type Spawn = (callback: () -> ()) -> ()

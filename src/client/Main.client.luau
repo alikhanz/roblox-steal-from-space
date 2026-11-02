@@ -1,2 +1,10 @@
 --!strict
--- Client entry point. The controller loader is wired up here in stage 0 (see docs/ARCHITECTURE.md).
+-- Client entry point: creates every controller, wires dependencies explicitly and starts them.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
+
+Lifecycle.run({}, function(callback)
+	task.spawn(callback)
+end)

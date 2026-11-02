@@ -1,2 +1,13 @@
 --!strict
--- Server entry point. The service loader is wired up here in stage 0 (see docs/ARCHITECTURE.md).
+-- Server entry point: creates every service, wires dependencies explicitly and starts them.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local DataService = require(script.Parent.Services.DataService)
+local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
+
+local dataService = DataService.new()
+
+Lifecycle.run({ dataService }, function(callback)
+	task.spawn(callback)
+end)
