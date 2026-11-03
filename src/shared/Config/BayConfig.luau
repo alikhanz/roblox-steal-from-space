@@ -26,4 +26,21 @@ return table.freeze({
 	OFFLINE_INCOME_CAP_SECONDS = 4 * 60 * 60,
 	-- Pods pay out this often (CONVENTIONS, performance: income at 1 Hz).
 	INCOME_TICK_SECONDS = 1,
+
+	-- Bay model attributes and tags (replicated for the client views).
+	TAG = "Bay",
+	OWNER_ID_ATTRIBUTE = "OwnerUserId",
+	OWNER_NAME_ATTRIBUTE = "OwnerName",
+	-- Instance names inside a bay model.
+	SIGN_NAME = "Sign",
+	INCUBATOR_NAME = "Incubator",
+	CONTENTS_NAME = "Contents",
+	-- Alien models standing in pods or waiting on the floor.
+	ALIEN_TAG = "Alien",
+	ALIEN_ID_ATTRIBUTE = "AlienId",
+	ALIEN_UID_ATTRIBUTE = "Uid",
+	-- Eggs lying in an incubator; HatchAt is server (Unix) time.
+	INCUBATOR_EGG_TAG = "IncubatorEgg",
+	EGG_UID_ATTRIBUTE = "Uid",
+	EGG_HATCH_AT_ATTRIBUTE = "HatchAt",
 })

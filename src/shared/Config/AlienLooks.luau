@@ -1,0 +1,27 @@
+--!strict
+-- How aliens look: a blob in its tier's color; the top tiers glow so they are worth showing off.
+-- Kept apart from AlienConfig so the numbers there load in Lune.
+
+local AlienConfig = require("./AlienConfig")
+
+export type TierLook = {
+	read color: Color3,
+	-- Glow around the alien: 0 for none.
+	read glow: number,
+}
+
+local TIERS: { [AlienConfig.TierId]: TierLook } = {
+	Common = { color = Color3.fromRGB(190, 196, 210), glow = 0 },
+	Uncommon = { color = Color3.fromRGB(110, 225, 130), glow = 0 },
+	Rare = { color = Color3.fromRGB(80, 160, 255), glow = 0.5 },
+	Epic = { color = Color3.fromRGB(190, 90, 255), glow = 0.9 },
+	Legendary = { color = Color3.fromRGB(255, 190, 60), glow = 1.4 },
+}
+
+return table.freeze({
+	TIERS = table.freeze(TIERS),
+	-- Body size, studs (a squat sphere).
+	BODY_SIZE = Vector3.new(1.8, 2.1, 1.8),
+	EYE_SIZE = Vector3.new(0.35, 0.5, 0.2),
+	EYE_COLOR = Color3.fromRGB(20, 20, 30),
+})

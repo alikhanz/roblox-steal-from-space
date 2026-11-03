@@ -40,6 +40,46 @@ local Strings = {
 		ru = "Поймали!",
 		en = "Caught!",
 	},
+	["egg.common.title"] = {
+		ru = "Обычное яйцо",
+		en = "Common egg",
+	},
+	["egg.uncommon.title"] = {
+		ru = "Необычное яйцо",
+		en = "Uncommon egg",
+	},
+	["egg.rare.title"] = {
+		ru = "Редкое яйцо",
+		en = "Rare egg",
+	},
+	["egg.hatchIn.hint"] = {
+		ru = "Вылупится через {time}",
+		en = "Hatches in {time}",
+	},
+	["egg.hatching.hint"] = {
+		ru = "Вот-вот вылупится!",
+		en = "Hatching any second!",
+	},
+	["bay.owner.title"] = {
+		ru = "Отсек {name}",
+		en = "{name}'s bay",
+	},
+	["alien.income.hint"] = {
+		ru = "{income} монет/с",
+		en = "{income} coins/s",
+	},
+	["time.seconds.hint"] = {
+		ru = { one = "{count} секунда", few = "{count} секунды", many = "{count} секунд" },
+		en = { one = "{count} second", other = "{count} seconds" },
+	},
+	["time.minutes.hint"] = {
+		ru = { one = "{count} минута", few = "{count} минуты", many = "{count} минут" },
+		en = { one = "{count} minute", other = "{count} minutes" },
+	},
+	["time.hours.hint"] = {
+		ru = { one = "{count} час", few = "{count} часа", many = "{count} часов" },
+		en = { one = "{count} hour", other = "{count} hours" },
+	},
 	["tier.common.title"] = {
 		ru = "Обычный",
 		en = "Common",

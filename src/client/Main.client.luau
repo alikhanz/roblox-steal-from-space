@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AimController = require(script.Parent.Controllers.AimController)
+local BayViewController = require(script.Parent.Controllers.BayViewController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
@@ -18,6 +19,7 @@ Lifecycle.run({
 	HudController.new(),
 	GrabPromptController.new(),
 	GuardianViewController.new(),
+	BayViewController.new(),
 	EggEffectsController.new(),
 	HitEffectsController.new(),
 	JetpackEffectsController.new(),

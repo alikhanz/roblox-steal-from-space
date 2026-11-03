@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local BayService = require(script.Parent.Services.BayService)
 local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
@@ -22,7 +23,13 @@ RunService.Heartbeat:Connect(scheduler.step)
 local dataService = DataService.new()
 local worldService = WorldService.new()
 local nestService = NestService.new({ getNestSites = worldService.getNestSites, scheduler = scheduler })
-local speedService = SpeedService.new()
+local profile = {
+	activated = dataService.activated,
+	getData = dataService.getData,
+	update = dataService.update,
+}
+local speedService = SpeedService.new(profile)
+local bayService = BayService.new(profile)
 local spaceService = SpaceService.new({ getSpawn = worldService.getSpawn })
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
@@ -43,9 +50,11 @@ local guardianService = GuardianService.new({
 local devService = DevService.new({
 	spawnLooseEgg = carryService.spawnLooseEgg,
 	setSpeed = speedService.setSpeed,
+	addAlien = bayService.addAlien,
+	addEgg = bayService.addEgg,
 })
 
--- Order matters for start: the world is built before nests, guardians and players use it.
+-- Order matters for start: the world is built before nests, bays, guardians and players use it.
 Lifecycle.run({
 	dataService,
 	worldService,
@@ -54,6 +63,7 @@ Lifecycle.run({
 	spaceService,
 	carryService,
 	guardianService,
+	bayService,
 	devService,
 }, function(callback)
 	task.spawn(callback)

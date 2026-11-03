@@ -5,11 +5,15 @@
 local Grab = require("../Domain/Grab")
 local Hatch = require("../Domain/Hatch")
 local Loot = require("../Domain/Loot")
+-- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
+local Strings = require("../Locale/Strings")
 
 export type RarityId = "Common" | "Uncommon" | "Rare"
 export type SizeId = "Small" | "Medium" | "Large"
 
 export type Rarity = {
+	-- The egg's name, e.g. "Rare egg".
+	read nameKey: keyof<typeof(Strings)>,
 	read grabSeconds: number,
 	-- Share of the speed stat a medium egg takes away while carried (see Speed.eggWeight).
 	read weight: number,
@@ -50,18 +54,21 @@ local MAGNET: Grab.MagnetTuning = {
 
 local RARITIES: { [RarityId]: Rarity } = {
 	Common = {
+		nameKey = "egg.common.title",
 		grabSeconds = 2,
 		weight = 0.1,
 		hatchSeconds = { min = 30, max = 10 * 60 },
 		luck = 0,
 	},
 	Uncommon = {
+		nameKey = "egg.uncommon.title",
 		grabSeconds = 2.5,
 		weight = 0.18,
 		hatchSeconds = { min = 5 * 60, max = 40 * 60 },
 		luck = 0.35,
 	},
 	Rare = {
+		nameKey = "egg.rare.title",
 		grabSeconds = 3,
 		weight = 0.28,
 		hatchSeconds = { min = 20 * 60, max = 2 * 60 * 60 },

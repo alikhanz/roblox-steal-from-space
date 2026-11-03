@@ -7,12 +7,16 @@
 --   game.ServerStorage.DevCommands.SpawnEggNearPlayer:Invoke("Rare", "Large")
 --   game.ServerStorage.DevCommands.SetInfiniteOxygen:Invoke(true)
 --   game.ServerStorage.DevCommands.SetSpeed:Invoke(2500)
+--   game.ServerStorage.DevCommands.GiveAlien:Invoke(2, "Rare")
+--   game.ServerStorage.DevCommands.GiveEgg:Invoke("Uncommon", "Large", 1)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
+local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
@@ -30,7 +34,9 @@ export type Dependencies = {
 		position: Vector3,
 		launch: Vector3?
 	) -> (),
-	setSpeed: (player: Player, speed: BigNum.BigNum) -> (),
+	setSpeed: (player: Player, speed: BigNum.BigNum) -> boolean,
+	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
+	addEgg: (player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number) -> boolean,
 }
 
 export type DevService = {
@@ -86,8 +92,34 @@ function DevService.new(dependencies: Dependencies): DevService
 			end
 			assert(type(value) == "number" and value > 0, "SetSpeed expects a positive number")
 			local speed = BigNum.fromNumber(value)
-			dependencies.setSpeed(player, speed)
+			if not dependencies.setSpeed(player, speed) then
+				return "profile not active yet"
+			end
 			return `speed set to {BigNum.format(speed)}`
+		end,
+		-- Gives the first player an alien of `grade` (guardian post number) and `tier`.
+		GiveAlien = function(grade: number?, tier: string?): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local gradeConfig = assert(AlienConfig.GRADES[grade or 1], `Unknown grade {grade}`)
+			local alienId = assert(gradeConfig.aliens[(tier or "Common") :: AlienConfig.TierId], `Unknown tier {tier}`)
+			local location = dependencies.addAlien(player, alienId)
+			return if location then `{alienId} -> {location}` else "profile not active yet"
+		end,
+		-- Puts an egg into the first player's incubator, as if delivered from guardian `grade`.
+		GiveEgg = function(rarity: string?, size: string?, grade: number?): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local chosenRarity = (rarity or "Common") :: EggConfig.RarityId
+			local chosenSize = (size or EggConfig.TYPICAL_SIZE) :: EggConfig.SizeId
+			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)
+			assert(EggConfig.SIZES[chosenSize], `Unknown size {chosenSize}`)
+			local added = dependencies.addEgg(player, chosenRarity, chosenSize, grade or 1)
+			return if added then "egg in the incubator" else "profile not active yet"
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).
 		SetInfiniteOxygen = function(enabled: boolean): string
