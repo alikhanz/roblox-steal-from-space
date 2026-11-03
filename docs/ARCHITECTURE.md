@@ -16,7 +16,7 @@
 | `lune` | — | Скрипты задач: install, check, test, format, net |
 | `tests` | — | Тесты доменной логики для Lune |
 
-Настройки Workspace задаются в `default.project.json`: `StreamingEnabled = true`, `SignalBehavior = Deferred`, `AuthorityMode = Server`, `FallenPartsDestroyHeight = -5000`. `AuthorityMode` плагин Rojo в открытый плейс записать не может — в новом плейсе его один раз включают вручную (Workspace → Properties → AuthorityMode = Server); связанные свойства включаются сами.
+Настройки Workspace задаются в `default.project.json`: `StreamingEnabled = true` (выключить нельзя: Server Authority держит его включённым), `StreamingMinRadius = 1024`, `StreamingTargetRadius = 2048` (радиус больше карты, чтобы мир из тысячи частей приходил целиком, а не кусками; решение 032), `SignalBehavior = Deferred`, `AuthorityMode = Server`, `FallenPartsDestroyHeight = -5000`. Свойства Workspace плагин Rojo в открытый плейс не записывает — в новом плейсе их один раз выставляют вручную (Workspace → Properties): `AuthorityMode = Server` (связанные свойства, в том числе `StreamingEnabled`, включаются сами и больше не выключаются), `StreamingMinRadius = 1024`, `StreamingTargetRadius = 2048`.
 
 ## Слои
 
