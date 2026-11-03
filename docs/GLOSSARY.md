@@ -81,18 +81,26 @@
 | `DevourerSwarm` | Рой пожирателей | Devourer Swarm |
 | `StarRay` | Звёздный скат | Star Ray |
 | `SpaceWhale` | Космический Кит | Space Whale |
-| `Alert` | тревога | alert |
+| `RecommendedSpeed` | рекомендуемая скорость | recommended speed | Над стражем; не гарантия |
 
-## Тренажёры и статы
+## Скорость и прокачка
 
 | ID | Русский | English | Заметки |
 |---|---|---|---|
-| `Centrifuge` | центрифуга | centrifuge | Качает мощность |
-| `PressureChamber` | барокамера | pressure chamber | Качает кислород |
-| `StrengthRig` | тренажёр силы | strength rig | Качает силу |
-| `Thrust` | мощность | thrust | Стат джетпака |
-| `OxygenCapacity` | запас кислорода | oxygen capacity | |
-| `Strength` | сила | strength | Снижает штраф за вес яйца |
+| `Speed` | скорость | speed | Единственная характеристика игрока, значок ⚡ |
+| `Trainer` | тренажёр | trainer | Качает скорость |
+| `TrainerUpgrade` | улучшение тренажёра | trainer upgrade | Больше прибавка в секунду |
+| `JetpackUpgrade` | улучшение джетпака | jetpack upgrade | Умножает скорость |
+| `Crossbreed` | скрещивание / скрестить | crossbreed | 3 пришельца одного грейда → 1 |
+| `Grade` | грейд | grade | Набор пришельцев одного стража |
+
+## Размеры яиц
+
+| ID | Русский | English |
+|---|---|---|
+| `Small` | малое | small |
+| `Medium` | среднее | medium |
+| `Large` | большое | large |
 
 ## Ивенты
 
