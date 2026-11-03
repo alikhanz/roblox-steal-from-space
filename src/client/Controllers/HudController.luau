@@ -63,6 +63,8 @@ function HudController.new(dependencies: Dependencies): HudController
 	local hitByGuardian = source(true)
 	-- True while an egg carrier is in the harpoon's reach of the camera's aim.
 	local harpoonLocked = source(false)
+	-- Keyboard, gamepad or touch: the key hints follow it.
+	local inputMode = source(UserInputService.PreferredInput)
 
 	-- The same cone the server checks, on what this client can see: other characters that
 	-- carry an egg, and test dummies.
@@ -185,11 +187,53 @@ function HudController.new(dependencies: Dependencies): HudController
 				return dependencies.abilities.isCooling(kind)
 			end
 		end
-		local chips = {}
+		-- The key bound to an action, worded for the current input (reads the same bindings
+		-- the input uses).
+		local KEY_WORDS: { [string]: Text.Key } = {
+			MouseLeftButton = "key.mouseLeft.hint",
+			LeftShift = "key.shift.hint",
+			LeftControl = "key.control.hint",
+			Space = "key.space.hint",
+		}
+		local function keyOf(actionName: string): () -> string
+			return function()
+				local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
+				local key = if context then FlightInputs.boundKey(context, actionName, inputMode()) else nil
+				if not key then
+					return "?"
+				end
+				local word = KEY_WORDS[key.Name]
+				if word then
+					return Text.get(locale, word)
+				end
+				-- Gamepad buttons drop their "Button" prefix: ButtonR2 is "R2".
+				return (string.gsub(key.Name, "^Button", ""))
+			end
+		end
+		local function noCooldown(): string
+			return ""
+		end
+		local function never(): boolean
+			return false
+		end
+		local function plainChip(labelKey: Text.Key, actionName: string)
+			return {
+				label = Text.get(locale, labelKey),
+				key = keyOf(actionName),
+				cooldown = noCooldown,
+				cooling = never,
+			}
+		end
+		local chips = {
+			plainChip("hud.ascend.hint", FlightInputs.ASCEND),
+			plainChip("hud.descend.hint", FlightInputs.DESCEND),
+			plainChip("hud.grab.hint", FlightInputs.GRAB),
+		}
 		local buttons = {}
 		for _, ability in abilities do
 			table.insert(chips, {
 				label = ability.text,
+				key = keyOf(ability.action),
 				cooldown = function()
 					local left = dependencies.abilities.left(ability.kind)
 					return if left > 0
@@ -200,6 +244,9 @@ function HudController.new(dependencies: Dependencies): HudController
 			})
 			table.insert(buttons, { action = ability.action, text = ability.text, cooling = coolingOf(ability.kind) })
 		end
+		local function chipsVisible(): boolean
+			return inSpace() and inputMode() ~= Enum.PreferredInput.Touch
+		end
 
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
@@ -209,7 +256,7 @@ function HudController.new(dependencies: Dependencies): HudController
 					locked = harpoonLocked,
 					lockedText = Text.get(locale, "pvp.harpoonLocked.hint"),
 				}),
-				AbilityChips({ visible = inSpace, chips = chips }),
+				AbilityChips({ visible = chipsVisible, chips = chips }),
 				HitFlash({
 					visible = stunned,
 					text = function()
@@ -295,6 +342,9 @@ function HudController.new(dependencies: Dependencies): HudController
 		if player.Character then
 			watchCharacter(player.Character)
 		end
+		UserInputService:GetPropertyChangedSignal("PreferredInput"):Connect(function()
+			inputMode(UserInputService.PreferredInput)
+		end)
 		-- The hit and the carried egg are written by the server onto the predicted character:
 		-- changed signals do not fire for that on the client, so they are polled (see CLAUDE.md,
 		-- Studio notes). Taking an egg and dropping it are announced here; a delivery is

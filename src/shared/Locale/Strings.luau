@@ -512,6 +512,34 @@ local Strings = {
 		ru = "{seconds} с",
 		en = "{seconds}s",
 	},
+	["hud.ascend.hint"] = {
+		ru = "Вверх",
+		en = "Up",
+	},
+	["hud.descend.hint"] = {
+		ru = "Вниз",
+		en = "Down",
+	},
+	["hud.grab.hint"] = {
+		ru = "Взять яйцо",
+		en = "Grab egg",
+	},
+	["key.mouseLeft.hint"] = {
+		ru = "ЛКМ",
+		en = "LMB",
+	},
+	["key.shift.hint"] = {
+		ru = "Shift",
+		en = "Shift",
+	},
+	["key.control.hint"] = {
+		ru = "Ctrl",
+		en = "Ctrl",
+	},
+	["key.space.hint"] = {
+		ru = "Пробел",
+		en = "Space",
+	},
 	["shop.sign.title"] = {
 		ru = "Магазин джетпаков",
 		en = "Jetpack shop",

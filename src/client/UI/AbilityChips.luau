@@ -1,7 +1,8 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- A row of chips at the bottom of the screen, one per attack: its name, and while it cools
--- down, the seconds left. Shown while flying.
+-- A row of chips at the bottom of the screen, one per action: the key to press, its name,
+-- and while it cools down, the seconds left. Shown while flying with a keyboard or a gamepad
+-- (touch screens have the buttons themselves).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -19,10 +20,14 @@ local COOLING_TRANSPARENCY = 0.6
 
 export type Chip = {
 	label: string,
+	-- The key to press, e.g. "F", "LMB", "R2".
+	key: () -> string,
 	-- "1.2s" while cooling, "" when ready.
 	cooldown: () -> string,
 	cooling: () -> boolean,
 }
+
+local KEY_PADDING = 6
 
 export type Props = {
 	visible: () -> boolean,
@@ -40,7 +45,31 @@ local function AbilityChip(chip: Chip, order: number): Frame
 		end,
 		create("UICorner")({ CornerRadius = Theme.CORNER }),
 		Layout.padding(PADDING, PADDING / 2),
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Horizontal,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, GAP),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		-- The key, boxed like the badge over an egg.
 		create("TextLabel")({
+			Name = "Key",
+			LayoutOrder = 1,
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundColor3 = Theme.OXYGEN,
+			BackgroundTransparency = function()
+				return if chip.cooling() then COOLING_TRANSPARENCY else 0
+			end,
+			FontFace = Theme.FONT,
+			TextSize = Theme.TEXT_SIZE,
+			TextColor3 = Theme.PANEL,
+			Text = chip.key,
+			create("UICorner")({ CornerRadius = UDim.new(0, 6) }),
+			Layout.padding(KEY_PADDING, 2),
+		}),
+		create("TextLabel")({
+			Name = "Label",
+			LayoutOrder = 2,
 			AutomaticSize = Enum.AutomaticSize.XY,
 			BackgroundTransparency = 1,
 			FontFace = Theme.FONT,

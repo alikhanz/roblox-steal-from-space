@@ -73,6 +73,25 @@ function FlightInputs.findAction(context: Instance, name: string): InputAction?
 	return if action and action:IsA("InputAction") then action else nil
 end
 
+-- The key bound to a Bool action for the given input: a gamepad button for a gamepad, any
+-- other key otherwise. Nil when the action or its binding is missing. The hint in the HUD
+-- reads this, so it never disagrees with what the key actually does.
+function FlightInputs.boundKey(context: Instance, name: string, input: Enum.PreferredInput): Enum.KeyCode?
+	local action = FlightInputs.findAction(context, name)
+	if not action then
+		return nil
+	end
+	for _, binding in action:GetChildren() do
+		if binding:IsA("InputBinding") then
+			local isGamepad = string.sub(binding.KeyCode.Name, 1, 6) == "Button"
+			if isGamepad == (input == Enum.PreferredInput.Gamepad) then
+				return binding.KeyCode
+			end
+		end
+	end
+	return nil
+end
+
 -- A Bool action's state; false when the action is missing (e.g. not replicated yet).
 function FlightInputs.isPressed(context: Instance, name: string): boolean
 	local action = FlightInputs.findAction(context, name)
