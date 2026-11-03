@@ -11,16 +11,27 @@ local UpgradeConfig = require("../Config/UpgradeConfig")
 
 local Names = {}
 
--- Nil for an alien this build does not know.
-function Names.alien(locale: Text.Locale, alienId: string): string?
+-- The two halves of an alien's name: its tier and its guardian. Nil for an alien this build
+-- does not know.
+function Names.alienParts(locale: Text.Locale, alienId: string): (string?, string?)
 	local alien = AlienConfig.ALIENS[alienId]
 	local post = alien and GuardianConfig.POSTS[alien.grade]
 	if not alien or not post then
-		return nil
+		return nil, nil
 	end
-	local tier = Text.get(locale, AlienConfig.TIERS[alien.tier].nameKey)
-	local guardian = Text.get(locale, post.nameKey)
-	return `{tier} · {guardian}`
+	return Text.get(locale, AlienConfig.TIERS[alien.tier].nameKey), Text.get(locale, post.nameKey)
+end
+
+-- "<tier> · <guardian>", or nil for an unknown alien.
+function Names.alien(locale: Text.Locale, alienId: string): string?
+	local tier, guardian = Names.alienParts(locale, alienId)
+	return if tier and guardian then `{tier} · {guardian}` else nil
+end
+
+-- The guardian whose eggs hatch into grade `grade`, or nil for an unknown grade.
+function Names.guardian(locale: Text.Locale, grade: number): string?
+	local post = GuardianConfig.POSTS[grade]
+	return if post then Text.get(locale, post.nameKey) else nil
 end
 
 -- Nil for an unknown rarity.

@@ -14,6 +14,13 @@ describe("Names.alien", function()
 
 	it("returns nil for an unknown alien", function()
 		expect(Names.alien("en", "Nope.Common")).toBeNil()
+		expect({ Names.alienParts("en", "Nope.Common") }).toEqual({})
+	end)
+
+	it("gives the halves apart and names a grade's guardian", function()
+		expect({ Names.alienParts("ru", "DebrisBelt2.Epic") }).toEqual({ "Эпический", "Краб-дрон" })
+		expect(Names.guardian("en", 24)).toBe("Space Whale")
+		expect(Names.guardian("en", 99)).toBeNil()
 	end)
 end)
 

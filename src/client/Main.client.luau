@@ -16,18 +16,20 @@ local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local ProfileState = require(script.Parent.State.ProfileState)
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
+local ToastState = require(script.Parent.State.ToastState)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
 
 local profileState = ProfileState.new()
+local toastState = ToastState.new()
 
 Lifecycle.run({
 	profileState,
 	AimController.new(),
-	HudController.new({ coins = profileState.coins }),
+	HudController.new({ coins = profileState.coins, toast = toastState.push }),
 	GrabPromptController.new(),
 	GuardianViewController.new(),
 	BayViewController.new(),
-	BayWindowController.new({ profile = profileState }),
+	BayWindowController.new({ profile = profileState, toasts = toastState }),
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({ profile = profileState }),
 	EggEffectsController.new(),

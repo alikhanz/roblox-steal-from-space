@@ -170,7 +170,8 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			local entries = Crossbreed.resultEntries(AlienConfig.HATCH_ENTRIES, positions, BayConfig.CROSSBREED_LUCK)
 			local tier = Loot.pick(entries, random:NextNumber())
 			resultId = AlienConfig.GRADES[grade].aliens[tier]
-			resultLocation = Bay.addHatched(data, { uid = Bay.newUid(data), id = resultId :: string })
+			resultLocation =
+				Bay.addCrossbred(data, { uid = Bay.newUid(data), id = resultId :: string }, BayConfig.INVENTORY_SLOTS)
 		end)
 		if not notice and resultId and resultLocation then
 			crossbred.fire(player, resultId, resultLocation)

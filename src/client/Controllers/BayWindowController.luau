@@ -23,6 +23,7 @@ local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
+local ToastState = require(script.Parent.Parent.State.ToastState)
 local Toasts = require(script.Parent.Parent.UI.Toasts)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WelcomeBack = require(script.Parent.Parent.UI.WelcomeBack)
@@ -32,7 +33,6 @@ local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 local TOGGLE_KEY = Enum.KeyCode.B
-local TOAST_SECONDS = 3.5
 -- Egg countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
 
@@ -50,6 +50,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
+	toasts: ToastState.ToastState,
 }
 
 export type BayWindowController = {
@@ -69,7 +70,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	local selection = source({} :: { number })
 	-- The alien whose sale waits for a second tap.
 	local pendingSale = source(nil :: number?)
-	local toasts = source({} :: { Toasts.Toast })
 	local reward = source(nil :: Reward?)
 	-- Optional sources are read through a plain getter: Vide types a source as an intersection
 	-- of reader and writer, which is ambiguous to call without arguments when T is optional.
@@ -77,28 +77,22 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	local readReward = reward :: () -> Reward?
 	-- Bumped every second so egg lines recompute.
 	local clock = source(0)
-	local toastCounter = 0
 	local locale: Text.Locale = "en"
 
 	local function text(key: Text.Key, args: Text.Args?): string
 		return Text.get(locale, key, args)
 	end
 
-	local function toast(message: string, color: Color3)
-		toastCounter += 1
-		local id = toastCounter
-		local list = table.clone(toasts())
-		table.insert(list, { id = id, text = message, color = color })
-		toasts(list)
-		task.delay(TOAST_SECONDS, function()
-			local remaining = {}
-			for _, entry in toasts() do
-				if entry.id ~= id then
-					table.insert(remaining, entry)
-				end
-			end
-			toasts(remaining)
-		end)
+	local toast = dependencies.toasts.push
+
+	local PLACE_KEYS: { [ProfileState.Location]: Text.Key } = {
+		Pod = "place.pod.hint",
+		Inventory = "place.inventory.hint",
+		Floor = "place.floor.hint",
+	}
+
+	local function placeText(location: ProfileState.Location): string
+		return text(PLACE_KEYS[location] or "place.floor.hint")
 	end
 
 	local function selectedRecords(): { { record: ProfileState.Alien, location: ProfileState.Location } }
@@ -175,6 +169,19 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return true
 	end
 
+	-- The grade every selected alien shares, or nil when none is selected or they differ.
+	local function selectedGrade(): number?
+		local grade: number? = nil
+		for _, entry in selectedRecords() do
+			local alien = AlienConfig.ALIENS[entry.record.id]
+			if not alien or (grade and alien.grade ~= grade) then
+				return nil
+			end
+			grade = alien.grade
+		end
+		return grade
+	end
+
 	-- The line above the buttons: what is selected and what can happen to it.
 	local function status(): string
 		local records = selectedRecords()
@@ -189,7 +196,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		elseif canCrossbreed() then
 			return text("bay.crossbreedReady.hint")
 		end
-		return text("bay.crossbreedPick.hint", { count = #records })
+		local grade = selectedGrade()
+		if not grade then
+			return text("bay.crossbreedMixed.hint")
+		end
+		return text("bay.crossbreedSame.hint", {
+			guardian = Names.guardian(locale, grade) or "?",
+			count = #records,
+			left = BayConfig.CROSSBREED_COUNT - #records,
+		})
 	end
 
 	local function podPrice(): BigNum.BigNum
@@ -210,11 +225,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	local function eggLine(egg: ProfileState.Egg): string
 		local _ = clock()
 		local name = Names.egg(locale, egg.rarity) or "?"
+		local guardian = Names.guardian(locale, egg.grade) or "?"
 		local left = egg.hatchAt - workspace:GetServerTimeNow()
 		local when = if left > 0
 			then text("egg.hatchIn.hint", { time = Duration.describe(locale, left) })
 			else text("egg.hatching.hint")
-		return `{name} — {when}`
+		return `{name} · {guardian} — {when}`
 	end
 
 	-- Drops selections of aliens that are gone (sold, crossbred, hatched into their place).
@@ -244,9 +260,21 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		end
 	end
 
+	-- A delivered egg shows up as one more egg in the incubator: that is the moment to cheer.
+	local incubatorCount: number? = nil
+	local function watchIncubator()
+		local count = #profile.bay().incubator
+		local previous = incubatorCount
+		incubatorCount = count
+		if previous ~= nil and count > previous then
+			toast(text("egg.delivered.toast"), Theme.TOAST_GOOD)
+		end
+	end
+
 	local function mountUi(playerGui: Instance)
 		Vide.mount(function()
 			Vide.effect(pruneSelection)
+			Vide.effect(watchIncubator)
 			return create("ScreenGui")({
 				Name = "BayUi",
 				ResetOnSpawn = false,
@@ -311,12 +339,14 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						status = status,
 					},
 					alienName = function(alienId)
-						return Names.alien(locale, alienId)
+						local _, guardian = Names.alienParts(locale, alienId)
+						return guardian
 					end,
-					alienIncome = function(alienId)
+					alienSubtitle = function(alienId)
 						local alien = AlienConfig.ALIENS[alienId]
+						local tier = Names.alienParts(locale, alienId)
 						local income = if alien then BigNum.format(alien.income) else "?"
-						return text("alien.income.hint", { income = income })
+						return text("alien.tierIncome.hint", { tier = tier or "?", income = income })
 					end,
 					alienColor = function(alienId)
 						local alien = AlienConfig.ALIENS[alienId]
@@ -325,6 +355,13 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					eggLine = eggLine,
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
+					end,
+					-- Once a guardian is picked, aliens of other guardians fade: they cannot
+					-- join the crossbreed (they can still be tapped for a move or a sale).
+					isDimmed = function(alienId)
+						local grade = selectedGrade()
+						local alien = AlienConfig.ALIENS[alienId]
+						return grade ~= nil and alien ~= nil and alien.grade ~= grade
 					end,
 					onToggle = toggle,
 					canCrossbreed = canCrossbreed,
@@ -394,7 +431,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					end,
 				}),
 
-				Toasts({ toasts = toasts }),
+				Toasts({ toasts = dependencies.toasts.toasts }),
 
 				WelcomeBack({
 					visible = function()
@@ -436,11 +473,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		assert(playerGui, "[BayWindowController] PlayerGui did not appear")
 		mountUi(playerGui)
 
-		profile.hatched.connect(function(alienId)
-			toast(text("alien.hatched.toast", { name = Names.alien(locale, alienId) or "?" }), Theme.TOAST_GOOD)
+		local function announce(key: Text.Key, alienId: string, location: ProfileState.Location)
+			local args = { name = Names.alien(locale, alienId) or "?", place = placeText(location) }
+			toast(text(key, args), Theme.TOAST_GOOD)
+		end
+		profile.hatched.connect(function(alienId, location)
+			announce("alien.hatched.toast", alienId, location)
 		end)
-		profile.crossbred.connect(function(alienId)
-			toast(text("alien.crossbred.toast", { name = Names.alien(locale, alienId) or "?" }), Theme.TOAST_GOOD)
+		profile.crossbred.connect(function(alienId, location)
+			announce("alien.crossbred.toast", alienId, location)
 		end)
 		profile.notice.connect(function(notice)
 			toast(text(NOTICE_KEYS[notice] or "notice.unknownAlien.toast"), Theme.TOAST_BAD)

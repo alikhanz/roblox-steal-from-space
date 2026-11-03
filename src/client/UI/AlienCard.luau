@@ -19,14 +19,19 @@ local SELECTED_STROKE = 3
 
 export type Props = {
 	layoutOrder: number,
-	-- Nil shows an empty slot with `emptyText`.
+	-- The guardian's name; nil shows an empty slot with `emptyText`.
 	title: () -> string?,
-	income: () -> string,
+	-- Tier and income.
+	subtitle: () -> string,
 	color: () -> Color3,
 	selected: () -> boolean,
+	-- Faded: not a crossbreed match for the current selection. Still tappable.
+	dimmed: () -> boolean,
 	emptyText: string,
 	onTap: () -> (),
 }
+
+local DIMMED_TRANSPARENCY = 0.6
 
 local function AlienCard(props: Props): TextButton
 	local function hasAlien(): boolean
@@ -39,7 +44,10 @@ local function AlienCard(props: Props): TextButton
 			return if props.selected() then Theme.SELECTED else Theme.PANEL
 		end,
 		BackgroundTransparency = function()
-			return if hasAlien() then 0 else Theme.PANEL_TRANSPARENCY
+			if not hasAlien() then
+				return Theme.PANEL_TRANSPARENCY
+			end
+			return if props.dimmed() then DIMMED_TRANSPARENCY else 0
 		end,
 		Text = "",
 		AutoButtonColor = hasAlien,
@@ -63,6 +71,9 @@ local function AlienCard(props: Props): TextButton
 			LayoutOrder = 1,
 			Size = UDim2.fromOffset(SWATCH_SIZE, SWATCH_SIZE),
 			BackgroundColor3 = props.color,
+			BackgroundTransparency = function()
+				return if props.dimmed() then DIMMED_TRANSPARENCY else 0
+			end,
 			Visible = hasAlien,
 			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
 		}),
@@ -83,16 +94,19 @@ local function AlienCard(props: Props): TextButton
 				AutomaticSize = Enum.AutomaticSize.Y,
 				BackgroundTransparency = 1,
 				FontFace = Theme.FONT,
-				TextSize = SMALL_TEXT_SIZE,
+				TextSize = Theme.TEXT_SIZE,
 				TextColor3 = Theme.TEXT,
+				TextTransparency = function()
+					return if props.dimmed() then DIMMED_TRANSPARENCY else 0
+				end,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				TextWrapped = true,
+				TextTruncate = Enum.TextTruncate.AtEnd,
 				Text = function()
 					return props.title() or props.emptyText
 				end,
 			}),
 			create("TextLabel")({
-				Name = "Income",
+				Name = "Subtitle",
 				LayoutOrder = 2,
 				Size = UDim2.fromScale(1, 0),
 				AutomaticSize = Enum.AutomaticSize.Y,
@@ -100,9 +114,13 @@ local function AlienCard(props: Props): TextButton
 				FontFace = Theme.FONT,
 				TextSize = SMALL_TEXT_SIZE,
 				TextColor3 = Theme.COINS,
+				TextTransparency = function()
+					return if props.dimmed() then DIMMED_TRANSPARENCY else 0
+				end,
 				TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd,
 				Visible = hasAlien,
-				Text = props.income,
+				Text = props.subtitle,
 			}),
 		}),
 	}) :: TextButton

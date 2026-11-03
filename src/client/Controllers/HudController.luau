@@ -11,11 +11,13 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
+local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
@@ -34,6 +36,8 @@ local STAT_GAP = 8
 
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
+	-- Shows a short message (grabbed, delivered or dropped egg).
+	toast: (text: string, color: Color3) -> (),
 }
 
 export type HudController = {
@@ -48,6 +52,9 @@ function HudController.new(dependencies: Dependencies): HudController
 	local inSpace = source(false)
 	local speed = source(SpeedConfig.STARTING_SPEED)
 	local stunned = source(false)
+	-- Rarity of the egg in the player's hands; nil with empty hands.
+	local carried = source(nil :: string?)
+	local readCarried = carried :: () -> string?
 	local characterConnections: { RBXScriptConnection } = {}
 
 	local function readSpeed(player: Player)
@@ -133,6 +140,21 @@ function HudController.new(dependencies: Dependencies): HudController
 						end,
 						layoutOrder = 2,
 					}),
+					-- The egg in hand: the thief sees their own back, so the HUD says it.
+					StatBadge({
+						name = "EggBadge",
+						title = Text.get(locale, "egg.carried.hint"),
+						icon = "🥚",
+						color = Theme.TEXT,
+						value = function()
+							local rarity = readCarried()
+							return if rarity then Names.egg(locale, rarity) or rarity else ""
+						end,
+						visible = function()
+							return readCarried() ~= nil
+						end,
+						layoutOrder = 3,
+					}),
 				}),
 				OxygenBar({
 					fraction = fraction,
@@ -166,11 +188,34 @@ function HudController.new(dependencies: Dependencies): HudController
 		if player.Character then
 			watchCharacter(player.Character)
 		end
-		-- The hit is written by the server onto the predicted character: changed signals do not
-		-- fire for that on the client, so it is polled (see CLAUDE.md, Studio notes).
+		-- The hit and the carried egg are written by the server onto the predicted character:
+		-- changed signals do not fire for that on the client, so they are polled (see CLAUDE.md,
+		-- Studio notes). Taking an egg and dropping it are announced here; a delivery is
+		-- announced by the bay window, which sees the egg land in the incubator (a grab on the
+		-- platform is delivered the same instant, before this poll could see it).
+		local lastCharacter: Model? = nil
 		RunService.Heartbeat:Connect(function()
 			local character = player.Character
-			stunned(character ~= nil and character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) ~= nil)
+			local isStunned = character ~= nil and character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) ~= nil
+			stunned(isStunned)
+
+			local rarity = character and character:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE)
+			local now = if type(rarity) == "string" then rarity else nil
+			local before = readCarried()
+			local sameCharacter = character == lastCharacter
+			lastCharacter = character
+			if now == before then
+				return
+			end
+			carried(now)
+			if not sameCharacter then
+				return
+			end
+			if now then
+				dependencies.toast(Text.get(locale, "egg.grabbed.toast"), Theme.TOAST_GOOD)
+			elseif isStunned then
+				dependencies.toast(Text.get(locale, "egg.dropped.toast"), Theme.TOAST_BAD)
+			end
 		end)
 		-- Mantissa and exponent arrive separately; reading both on either change is harmless.
 		player:GetAttributeChangedSignal(SpeedConfig.MANTISSA_ATTRIBUTE):Connect(function()

@@ -1,6 +1,7 @@
 --!strict
--- Client-side visuals for loose eggs: a glowing trail in the egg's color, so a knocked-out egg
--- is easy to follow with the eye as it flies off.
+-- Client-side visuals for eggs out of their nests: a glowing trail in the egg's color, so a
+-- knocked-out egg is easy to follow with the eye as it flies off, and a carried egg shows
+-- from behind that the thief is holding something.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -48,9 +49,11 @@ end
 
 function EggEffectsController.new(): EggEffectsController
 	local function start()
-		CollectionService:GetInstanceAddedSignal(EggConfig.LOOSE_EGG_TAG):Connect(addTrail)
-		for _, instance in CollectionService:GetTagged(EggConfig.LOOSE_EGG_TAG) do
-			addTrail(instance)
+		for _, tag in { EggConfig.LOOSE_EGG_TAG, EggConfig.CARRIED_EGG_TAG } do
+			CollectionService:GetInstanceAddedSignal(tag):Connect(addTrail)
+			for _, instance in CollectionService:GetTagged(tag) do
+				addTrail(instance)
+			end
 		end
 	end
 

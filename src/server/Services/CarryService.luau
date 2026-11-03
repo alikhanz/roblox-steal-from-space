@@ -102,6 +102,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 		local egg = EggModel.build(rarity, size)
 		egg.Name = "CarriedEgg"
+		CollectionService:AddTag(egg, EggConfig.CARRIED_EGG_TAG)
 		egg.CFrame = torso.CFrame * CARRY_OFFSET
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = torso

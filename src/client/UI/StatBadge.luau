@@ -23,6 +23,8 @@ export type Props = {
 	-- Formatted stat, e.g. "1.5K".
 	value: () -> string,
 	layoutOrder: number,
+	-- Shown unless this says otherwise.
+	visible: (() -> boolean)?,
 }
 
 -- Vide's instance types do not list UIPadding, so it is made directly.
@@ -55,6 +57,7 @@ local function StatBadge(props: Props): Frame
 		AutomaticSize = Enum.AutomaticSize.XY,
 		BackgroundColor3 = Theme.PANEL,
 		BackgroundTransparency = Theme.PANEL_TRANSPARENCY,
+		Visible = props.visible or true,
 
 		create("UICorner")({ CornerRadius = Theme.CORNER }),
 		padding(PADDING, PADDING / 2),

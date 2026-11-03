@@ -20,7 +20,7 @@ local MAX_WIDTH = 760
 local MAX_HEIGHT = 600
 local PADDING = 16
 local GAP = 10
-local CARD_SIZE = UDim2.fromOffset(170, 64)
+local CARD_SIZE = UDim2.fromOffset(190, 64)
 local TITLE_TEXT_SIZE = 24
 local SECTION_TEXT_SIZE = 18
 local HINT_TEXT_SIZE = 14
@@ -54,13 +54,15 @@ export type Props = {
 	visible: () -> boolean,
 	bay: () -> ProfileState.Bay,
 	texts: Texts,
-	-- Name, income text and color of an alien by id; nil name for an unknown alien.
+	-- Guardian name (nil for an unknown alien), tier-and-income line and tier color of an alien.
 	alienName: (alienId: string) -> string?,
-	alienIncome: (alienId: string) -> string,
+	alienSubtitle: (alienId: string) -> string,
 	alienColor: (alienId: string) -> Color3,
 	-- Egg line: "<name> — hatches in …", refreshed by the controller.
 	eggLine: (egg: ProfileState.Egg) -> string,
 	isSelected: (uid: number) -> boolean,
+	-- True for an alien that cannot join the current crossbreed selection.
+	isDimmed: (alienId: string) -> boolean,
 	onToggle: (uid: number) -> (),
 	canCrossbreed: () -> boolean,
 	canSell: () -> boolean,
@@ -135,9 +137,9 @@ local function BayWindow(props: Props): Frame
 				local record = alien()
 				return if record then props.alienName(record.id) else nil
 			end,
-			income = function()
+			subtitle = function()
 				local record = alien()
-				return if record then props.alienIncome(record.id) else ""
+				return if record then props.alienSubtitle(record.id) else ""
 			end,
 			color = function()
 				local record = alien()
@@ -146,6 +148,10 @@ local function BayWindow(props: Props): Frame
 			selected = function()
 				local record = alien()
 				return record ~= nil and props.isSelected(record.uid)
+			end,
+			dimmed = function()
+				local record = alien()
+				return record ~= nil and props.isDimmed(record.id)
 			end,
 			emptyText = texts.emptyPod,
 			onTap = function()

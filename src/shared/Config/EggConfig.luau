@@ -116,8 +116,10 @@ return table.freeze({
 	NEST_EGG_POSITION_ATTRIBUTE = "EggPosition",
 	-- Name of the egg part inside a nest model.
 	NEST_EGG_NAME = "Egg",
-	-- Loose eggs floating in space after a drop.
+	-- Loose eggs floating in space after a drop, and eggs welded to a thief; both carry the
+	-- rarity attribute for the client's trail.
 	LOOSE_EGG_TAG = "LooseEgg",
+	CARRIED_EGG_TAG = "CarriedEgg",
 	LOOSE_EGG_RARITY_ATTRIBUTE = "Rarity",
 	LOOSE_EGG_SIZE_ATTRIBUTE = "Size",
 

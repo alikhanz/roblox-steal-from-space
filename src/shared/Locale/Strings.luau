@@ -273,12 +273,52 @@ local Strings = {
 		en = "Out of the pod",
 	},
 	["alien.hatched.toast"] = {
-		ru = "Вылупился: {name}!",
-		en = "Hatched: {name}!",
+		ru = "Вылупился {name} → {place}",
+		en = "Hatched: {name} → {place}",
 	},
 	["alien.crossbred.toast"] = {
-		ru = "Скрестили! Получился {name}",
-		en = "Crossbred! Say hi to {name}",
+		ru = "Скрестили! {name} → {place}",
+		en = "Crossbred! {name} → {place}",
+	},
+	["place.pod.hint"] = {
+		ru = "в капсулу",
+		en = "to a pod",
+	},
+	["place.inventory.hint"] = {
+		ru = "в инвентарь",
+		en = "to the inventory",
+	},
+	["place.floor.hint"] = {
+		ru = "на пол отсека",
+		en = "to the bay floor",
+	},
+	["alien.tierIncome.hint"] = {
+		ru = "{tier} · {income} ●/с",
+		en = "{tier} · {income} ●/s",
+	},
+	["egg.grabbed.toast"] = {
+		ru = "Схватил! Неси яйцо на станцию",
+		en = "Got it! Fly the egg to the station",
+	},
+	["egg.carried.hint"] = {
+		ru = "В руках",
+		en = "Carrying",
+	},
+	["egg.delivered.toast"] = {
+		ru = "Яйцо в инкубаторе!",
+		en = "Egg in the incubator!",
+	},
+	["egg.dropped.toast"] = {
+		ru = "Яйцо выпало! Подбери его",
+		en = "Egg dropped! Grab it back",
+	},
+	["bay.crossbreedSame.hint"] = {
+		ru = "Скрещивание: {guardian} {count} из 3. Выбери ещё {left} таких же",
+		en = "Crossbreed: {guardian} {count} of 3. Pick {left} more of the same",
+	},
+	["bay.crossbreedMixed.hint"] = {
+		ru = "Это разные стражи. Для скрещивания нужны 3 пришельца одного стража",
+		en = "Different guardians. Crossbreeding needs 3 aliens of one guardian",
 	},
 	["notice.inventoryFull.toast"] = {
 		ru = "Инвентарь полный: продай или скрести",

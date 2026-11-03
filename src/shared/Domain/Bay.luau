@@ -86,6 +86,16 @@ function Bay.addHatched(data: Data, alien: Alien): Location
 	return "Floor"
 end
 
+-- Puts a crossbred alien where the player will look for it: the inventory (its parents mostly
+-- came from there), else a free pod, else the floor.
+function Bay.addCrossbred(data: Data, alien: Alien, inventorySlots: number): Location
+	if #data.inventory < inventorySlots then
+		table.insert(data.inventory, alien)
+		return "Inventory"
+	end
+	return Bay.addHatched(data, alien)
+end
+
 -- Moves an alien from the floor into the inventory. False when it is not on the floor or the
 -- inventory is full.
 function Bay.pickUp(data: Data, uid: number, inventorySlots: number): boolean

@@ -70,7 +70,8 @@ function DevService.new(dependencies: Dependencies): DevService
 	local infiniteOxygen = DevConfig.STUDIO_INFINITE_OXYGEN
 
 	local commands: { [string]: (...any) -> any } = {
-		-- Floats an egg in front of the first player; it returns to `nestId` (default Nest1) later.
+		-- Floats an egg in front of the first player; it returns to `nestId` (default: the first
+		-- nest of the Debris Belt) later.
 		SpawnEggNearPlayer = function(rarity: string?, size: string?, nestId: string?): string
 			local _, root = firstPlayerRoot()
 			if not root then
@@ -83,7 +84,7 @@ function DevService.new(dependencies: Dependencies): DevService
 			dependencies.spawnLooseEgg(
 				chosenRarity,
 				chosenSize,
-				nestId or "Nest1",
+				nestId or "DebrisBeltNest1",
 				root.Position + root.CFrame.LookVector * SPAWN_DISTANCE
 			)
 			return "spawned"
