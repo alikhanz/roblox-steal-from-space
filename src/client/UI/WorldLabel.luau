@@ -5,15 +5,28 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Button = require(script.Parent.Button)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
 
-local SIZE = UDim2.fromOffset(220, 60)
+local WIDTH = 220
+local HEIGHT = 60
+-- Room for the button row under the two lines.
+local BUTTON_ROW_HEIGHT = 48
 -- Signs fade out beyond this distance so the station is not covered in text, studs.
 local DEFAULT_MAX_DISTANCE = 80
 local VALUE_TEXT_SIZE = 16
+
+-- A button under the sign: a purchase right where the thing stands.
+export type ButtonProps = {
+	text: string | () -> string,
+	enabled: () -> boolean,
+	visible: () -> boolean,
+	onClick: () -> (),
+	color: Color3?,
+}
 
 export type Props = {
 	adornee: BasePart,
@@ -24,16 +37,20 @@ export type Props = {
 	-- Height of the sign above the adornee's center, studs.
 	studsAbove: number,
 	maxDistance: number?,
+	button: ButtonProps?,
 }
 
 local function WorldLabel(props: Props): BillboardGui
+	local button = props.button
 	return create("BillboardGui")({
 		Name = "WorldLabel",
 		Adornee = props.adornee,
-		Size = SIZE,
+		Size = UDim2.fromOffset(WIDTH, HEIGHT + (if button then BUTTON_ROW_HEIGHT else 0)),
 		StudsOffset = Vector3.new(0, props.studsAbove, 0),
 		MaxDistance = props.maxDistance or DEFAULT_MAX_DISTANCE,
 		AlwaysOnTop = true,
+		-- Needed for the button to take clicks and touches.
+		Active = button ~= nil,
 		LightInfluence = 0,
 
 		create("UIListLayout")({
@@ -65,6 +82,23 @@ local function WorldLabel(props: Props): BillboardGui
 			TextStrokeTransparency = 0.4,
 			Text = props.value,
 		}),
+
+		if button
+			then create("Frame")({
+				Name = "ButtonRow",
+				LayoutOrder = 3,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Visible = button.visible,
+				Button({
+					name = "SignButton",
+					text = button.text,
+					enabled = button.enabled,
+					color = button.color or Theme.COINS_DARK,
+					onClick = button.onClick,
+				}),
+			})
+			else nil,
 	}) :: BillboardGui
 end
 

@@ -118,7 +118,11 @@ function BayService.new(dependencies: Dependencies): BayService
 			warn(`[BayService] Unknown egg {egg.rarity} {egg.size} (uid {egg.uid}); not shown`)
 			return
 		end
-		local part = EggModel.build(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, true)
+		local part = EggModel.build(
+			egg.rarity :: EggConfig.RarityId,
+			egg.size :: EggConfig.SizeId,
+			BayLooks.INCUBATOR_GLOW_SCALE
+		)
 		part.Name = `Egg{egg.uid}`
 		part.Anchored = true
 		part.CFrame = cframe
@@ -154,6 +158,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			return
 		end
 		local prompt = Instance.new("ProximityPrompt")
+		-- Drawn by the client in the same style as the egg prompt (PromptViewController).
+		prompt.Style = Enum.ProximityPromptStyle.Custom
 		prompt.ActionText = Text.get(Text.resolveLocale(player.LocaleId), "alien.pickUp.button")
 		prompt.ObjectText = ""
 		prompt.MaxActivationDistance = PICK_UP_DISTANCE
@@ -174,6 +180,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		end
 		local contents = contentsOf(bay)
 		contents:ClearAllChildren()
+		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
 
 		for index, pod in data.pods do
 			BayModel.buildPod(bay.origin, index).Parent = contents

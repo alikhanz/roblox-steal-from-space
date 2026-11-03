@@ -1,25 +1,20 @@
 --!strict
--- The trainer pad in every bay: while the owner stands on it, their trained speed grows once
--- a second; an engine prompt on the pad buys the next trainer level. The profile holds the
--- level; the bay model carries it as an attribute for the sign over the pad.
+-- The trainer pad in every bay: while the owner stands on it, their trained speed grows a few
+-- times a second. The profile holds the level; the bay model carries it as an attribute for
+-- the sign over the pad, whose button buys the next level (an UpgradeTrainer command).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
-local EconomyService = require(script.Parent.EconomyService)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
-local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Trainer = require(ReplicatedStorage.Shared.Domain.Trainer)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
-
--- The prompt is held briefly so a passing tap does not spend coins.
-local PROMPT_HOLD_SECONDS = 0.4
 
 export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
@@ -30,10 +25,7 @@ export type Dependencies = {
 	getBayOrigin: (player: Player) -> CFrame?,
 	-- Re-publishes the speed stat after the trained speed changed.
 	publishSpeed: (player: Player) -> (),
-	upgradeTrainer: (player: Player) -> EconomyService.Notice?,
 	trainerUpgraded: Signal.Signal<Player>,
-	-- Tells the player why the prompt refused.
-	notify: (player: Player, notice: EconomyService.Notice) -> (),
 }
 
 export type TrainingService = {
@@ -45,8 +37,6 @@ export type TrainingService = {
 
 type Station = {
 	model: Model,
-	prompt: ProximityPrompt,
-	locale: Text.Locale,
 }
 
 local TrainingService = {}
@@ -55,38 +45,20 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 	local stations: { [Player]: Station } = {}
 	local trained = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
 
+	-- The level on the bay model: the sign over the pad reads it.
 	local function describe(player: Player, station: Station)
 		local data = dependencies.getData(player)
-		local level = if data then data.trainerLevel else 0
-		local price = Upgrades.trainerPrice(level, UpgradeConfig.TUNING)
-		station.model:SetAttribute(BayConfig.TRAINER_LEVEL_ATTRIBUTE, level)
-		station.prompt.ObjectText = Text.get(station.locale, "trainer.level.hint", { level = level })
-		station.prompt.ActionText = Text.get(station.locale, "trainer.upgrade.button", { price = BigNum.format(price) })
+		station.model:SetAttribute(BayConfig.TRAINER_LEVEL_ATTRIBUTE, if data then data.trainerLevel else 0)
 	end
 
 	local function onBayAssigned(player: Player, model: Model)
-		local pad = model:FindFirstChild(BayConfig.TRAINER_NAME)
-		if not pad or not pad:IsA("BasePart") then
+		if not model:FindFirstChild(BayConfig.TRAINER_NAME) then
 			warn(`[TrainingService] {model.Name} has no {BayConfig.TRAINER_NAME}; no training for {player.Name}`)
 			return
 		end
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.MaxActivationDistance = BayConfig.TRAINER_PROMPT_DISTANCE
-		prompt.HoldDuration = PROMPT_HOLD_SECONDS
-		prompt.RequiresLineOfSight = false
-		prompt.Triggered:Connect(function(who)
-			if who ~= player then
-				return
-			end
-			local notice = dependencies.upgradeTrainer(player)
-			if notice then
-				dependencies.notify(player, notice)
-			end
-		end)
-		local station: Station = { model = model, prompt = prompt, locale = Text.resolveLocale(player.LocaleId) }
+		local station: Station = { model = model }
 		stations[player] = station
 		describe(player, station)
-		prompt.Parent = pad
 	end
 
 	local function release(player: Player)

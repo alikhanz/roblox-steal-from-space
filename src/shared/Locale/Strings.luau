@@ -476,6 +476,26 @@ local Strings = {
 		ru = "+{gain} ⚡",
 		en = "+{gain} ⚡",
 	},
+	["bay.podsSign.title"] = {
+		ru = "Капсулы: {count}/{max}",
+		en = "Pods: {count}/{max}",
+	},
+	["bay.podsSign.hint"] = {
+		ru = "Пришелец в капсуле приносит монеты",
+		en = "An alien in a pod earns coins",
+	},
+	["bay.podsFull.hint"] = {
+		ru = "Все капсулы куплены",
+		en = "Every pod is yours",
+	},
+	["bay.buyPodSign.button"] = {
+		ru = "Купить: {price} ●",
+		en = "Buy: {price} ●",
+	},
+	["pvp.cooldown.hint"] = {
+		ru = "{seconds} с",
+		en = "{seconds}s",
+	},
 	["shop.sign.title"] = {
 		ru = "Магазин джетпаков",
 		en = "Jetpack shop",

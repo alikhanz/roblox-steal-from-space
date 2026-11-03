@@ -60,9 +60,11 @@ return table.freeze({
 	SIGN_NAME = "Sign",
 	INCUBATOR_NAME = "Incubator",
 	TRAINER_NAME = "Trainer",
+	PODS_SIGN_NAME = "PodsSign",
 	CONTENTS_NAME = "Contents",
-	-- On the bay model: the owner's trainer level, for the sign over the pad.
+	-- On the bay model: the owner's trainer level and pod count, for the signs.
 	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
+	POD_COUNT_ATTRIBUTE = "PodCount",
 	-- Alien models standing in pods or waiting on the floor.
 	ALIEN_TAG = "Alien",
 	ALIEN_ID_ATTRIBUTE = "AlienId",

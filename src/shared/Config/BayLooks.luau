@@ -25,12 +25,16 @@ return table.freeze({
 	-- The sign post at the back of the bay, where the owner's name hangs.
 	SIGN_POSITION = Vector3.new(0, 4, 7.5),
 	SIGN_SIZE = Vector3.new(6, 1.2, 0.4),
+	-- An invisible anchor between the pod rows for the pods' sign (count, price, buy button).
+	PODS_SIGN_POSITION = Vector3.new(0, 4.5, -3.75),
 
 	-- The incubator: a glowing disc where delivered eggs lie in a ring.
 	INCUBATOR_POSITION = Vector3.new(0, 0.3, 3.5),
 	INCUBATOR_RADIUS = 4.5,
 	INCUBATOR_THICKNESS = 0.6,
 	INCUBATOR_COLOR = Color3.fromRGB(255, 170, 60),
+	-- Rare eggs still shine in the incubator, at this share of their light.
+	INCUBATOR_GLOW_SCALE = 0.2,
 	-- Eggs lie on this ring inside the incubator; more eggs than slots go round again, higher.
 	EGG_RING_RADIUS = 3,
 	EGG_RING_SLOTS = 10,

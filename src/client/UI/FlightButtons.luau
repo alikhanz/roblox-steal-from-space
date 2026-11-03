@@ -22,15 +22,18 @@ export type Props = {
 	onButton: (actionName: string, button: GuiButton) -> (),
 	ascendAction: string,
 	descendAction: string,
-	-- The attacks, top to bottom, each with its word.
-	abilities: { { action: string, text: string } },
+	-- The attacks, top to bottom, each with its word; a cooling one is dimmed.
+	abilities: { { action: string, text: string, cooling: () -> boolean } },
 }
+
+local COOLING_TRANSPARENCY = 0.7
 
 local function FlightButton(
 	symbol: string,
 	order: number,
 	textSize: number,
 	color: Color3,
+	dimmed: (() -> boolean)?,
 	onCreated: (GuiButton) -> ()
 ): TextButton
 	return create("TextButton")({
@@ -38,7 +41,9 @@ local function FlightButton(
 		LayoutOrder = order,
 		Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE),
 		BackgroundColor3 = color,
-		BackgroundTransparency = Theme.PANEL_TRANSPARENCY,
+		BackgroundTransparency = function()
+			return if dimmed and dimmed() then COOLING_TRANSPARENCY else Theme.PANEL_TRANSPARENCY
+		end,
 		FontFace = Theme.FONT,
 		TextSize = textSize,
 		TextColor3 = Theme.TEXT,
@@ -56,7 +61,7 @@ local function FlightButtons(props: Props): Frame
 	for order, ability in props.abilities do
 		table.insert(
 			abilityButtons,
-			FlightButton(ability.text, order, Theme.TEXT_SIZE, Theme.DANGER, function(button)
+			FlightButton(ability.text, order, Theme.TEXT_SIZE, Theme.DANGER, ability.cooling, function(button)
 				props.onButton(ability.action, button)
 			end)
 		)
@@ -76,10 +81,10 @@ local function FlightButtons(props: Props): Frame
 		}),
 
 		abilityButtons,
-		FlightButton("▲", #props.abilities + 1, BUTTON_SIZE / 2, Theme.PANEL, function(button)
+		FlightButton("▲", #props.abilities + 1, BUTTON_SIZE / 2, Theme.PANEL, nil, function(button)
 			props.onButton(props.ascendAction, button)
 		end),
-		FlightButton("▼", #props.abilities + 2, BUTTON_SIZE / 2, Theme.PANEL, function(button)
+		FlightButton("▼", #props.abilities + 2, BUTTON_SIZE / 2, Theme.PANEL, nil, function(button)
 			props.onButton(props.descendAction, button)
 		end),
 	}) :: Frame

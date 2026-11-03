@@ -171,6 +171,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		Remotes.UpgradeJetpack.SetCallback(guarded(function(player)
 			return economy.upgradeJetpack(player)
 		end))
+		Remotes.UpgradeTrainer.SetCallback(guarded(function(player)
+			return economy.upgradeTrainer(player)
+		end))
 
 		PlayerEvents.observe(function() end, function(player)
 			limiter.forget(tostring(player.UserId))

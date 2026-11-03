@@ -10,6 +10,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local AbilityChips = require(script.Parent.Parent.UI.AbilityChips)
+local AbilityState = require(script.Parent.Parent.State.AbilityState)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
@@ -38,6 +40,7 @@ export type Dependencies = {
 	coins: () -> BigNum.BigNum,
 	-- Shows a short message (grabbed, delivered or dropped egg).
 	toast: (text: string, color: Color3) -> (),
+	abilities: AbilityState.AbilityState,
 }
 
 export type HudController = {
@@ -105,9 +108,49 @@ function HudController.new(dependencies: Dependencies): HudController
 		local playerGui = player:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[HudController] PlayerGui did not appear")
 
+		-- The attacks: their input action, their word and their cooldown.
+		local abilities = {
+			{
+				kind = "Strike" :: AbilityState.Kind,
+				action = FlightInputs.STRIKE,
+				text = Text.get(locale, "pvp.strike.button"),
+			},
+			{
+				kind = "Harpoon" :: AbilityState.Kind,
+				action = FlightInputs.HARPOON,
+				text = Text.get(locale, "pvp.harpoon.button"),
+			},
+			{
+				kind = "Bomb" :: AbilityState.Kind,
+				action = FlightInputs.BOMB,
+				text = Text.get(locale, "pvp.bomb.button"),
+			},
+		}
+		local function coolingOf(kind: AbilityState.Kind): () -> boolean
+			return function()
+				return dependencies.abilities.isCooling(kind)
+			end
+		end
+		local chips = {}
+		local buttons = {}
+		for _, ability in abilities do
+			table.insert(chips, {
+				label = ability.text,
+				cooldown = function()
+					local left = dependencies.abilities.left(ability.kind)
+					return if left > 0
+						then Text.get(locale, "pvp.cooldown.hint", { seconds = string.format("%.1f", left) })
+						else ""
+				end,
+				cooling = coolingOf(ability.kind),
+			})
+			table.insert(buttons, { action = ability.action, text = ability.text, cooling = coolingOf(ability.kind) })
+		end
+
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
 			local children: { Instance } = {
+				AbilityChips({ visible = inSpace, chips = chips }),
 				HitFlash({
 					visible = stunned,
 					text = function()
@@ -174,11 +217,7 @@ function HudController.new(dependencies: Dependencies): HudController
 						visible = inSpace,
 						ascendAction = FlightInputs.ASCEND,
 						descendAction = FlightInputs.DESCEND,
-						abilities = {
-							{ action = FlightInputs.STRIKE, text = Text.get(locale, "pvp.strike.button") },
-							{ action = FlightInputs.HARPOON, text = Text.get(locale, "pvp.harpoon.button") },
-							{ action = FlightInputs.BOMB, text = Text.get(locale, "pvp.bomb.button") },
-						},
+						abilities = buttons,
 						onButton = function(actionName, button)
 							task.spawn(TouchBindings.bind, player, actionName, button)
 						end,

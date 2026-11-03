@@ -185,6 +185,16 @@ function BayModel.build(slot: number, origin: CFrame): Model
 
 	buildTrainer(origin, model)
 
+	-- Invisible: only carries the pods' sign.
+	local podsSign = Instance.new("Part")
+	podsSign.Name = BayConfig.PODS_SIGN_NAME
+	podsSign.Size = Vector3.one * 0.2
+	podsSign.Transparency = 1
+	podsSign.CFrame = origin * CFrame.new(BayLooks.PODS_SIGN_POSITION)
+	podsSign.CanCollide = false
+	scenery(podsSign)
+	podsSign.Parent = model
+
 	local contents = Instance.new("Folder")
 	contents.Name = BayConfig.CONTENTS_NAME
 	contents.Parent = model

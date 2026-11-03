@@ -75,8 +75,10 @@ function ShopModel.build(): Model
 	light.Parent = orb
 	orb.Parent = model
 
-	-- The prompt's texts are set by each client in its own language.
+	-- The prompt's texts are set by each client in its own language, and the client draws it
+	-- in the same style as the egg prompt (PromptViewController).
 	local prompt = Instance.new("ProximityPrompt")
+	prompt.Style = Enum.ProximityPromptStyle.Custom
 	prompt.MaxActivationDistance = ShopConfig.PROMPT_DISTANCE
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = counter

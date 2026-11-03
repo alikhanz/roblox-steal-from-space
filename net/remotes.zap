@@ -217,8 +217,15 @@ event BuyPod = {
 	call: SingleSync,
 }
 
--- The next jetpack level, from the shop window (the trainer is upgraded at its pad instead).
+-- The next jetpack level, from the shop window.
 event UpgradeJetpack = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}
+
+-- The next trainer level, from the sign over the trainer pad.
+event UpgradeTrainer = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,

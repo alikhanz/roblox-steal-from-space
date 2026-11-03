@@ -6,14 +6,18 @@
 
 local CollectionService = game:GetService("CollectionService")
 local LocalizationService = game:GetService("LocalizationService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
+local ProfileState = require(script.Parent.Parent.State.ProfileState)
+local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
@@ -22,9 +26,11 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 local WorldLabel = require(script.Parent.Parent.UI.WorldLabel)
 
 local PART_WAIT_TIMEOUT = 10
+local PLAYER_GUI_WAIT_TIMEOUT = 30
 local SIGN_STUDS_ABOVE = 1.2
 -- Over the head of whoever stands on the pad.
 local TRAINER_STUDS_ABOVE = 5
+local PODS_SIGN_STUDS_ABOVE = 0.5
 local ALIEN_STUDS_ABOVE = 2
 local INCUBATOR_STUDS_ABOVE = 4
 -- The owner's name reads from across the platform; what stands in the bay only up close, or
@@ -33,6 +39,11 @@ local SIGN_MAX_DISTANCE = 120
 local CONTENTS_MAX_DISTANCE = 35
 -- Countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
+
+export type Dependencies = {
+	-- The owner's own data: the buy buttons on their bay's signs need the coins and the pods.
+	profile: ProfileState.ProfileState,
+}
 
 export type BayViewController = {
 	name: string,
@@ -47,9 +58,34 @@ type View = {
 
 local BayViewController = {}
 
-function BayViewController.new(): BayViewController
+function BayViewController.new(dependencies: Dependencies): BayViewController
 	local views: { [Instance]: View } = {}
 	local locale: Text.Locale = "en"
+	local profile = dependencies.profile
+
+	local function isOwn(bay: Instance): boolean
+		return bay:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE) == Players.LocalPlayer.UserId
+	end
+
+	local function canAfford(price: BigNum.BigNum): boolean
+		return not BigNum.lessThan(profile.coins(), price)
+	end
+
+	-- A number attribute of `instance` as a source that follows it; the connection goes with
+	-- the mount scope.
+	local function attributeSource(instance: Instance, name: string): () -> number
+		local value = Vide.source(0)
+		local function read()
+			local raw = instance:GetAttribute(name)
+			value(if type(raw) == "number" then raw else 0)
+		end
+		read()
+		local connection = instance:GetAttributeChangedSignal(name):Connect(read)
+		Vide.cleanup(function()
+			connection:Disconnect()
+		end)
+		return value
+	end
 
 	-- Drops the view of `instance` and of anything labelled inside it (a bay's trainer pad).
 	local function remove(instance: Instance)
@@ -62,7 +98,17 @@ function BayViewController.new(): BayViewController
 	end
 
 	-- Mounts a label once the part is there; the server builds models part by part.
-	local function label(instance: Instance, partName: string?, build: (BasePart) -> (BillboardGui, (() -> ())?))
+	-- Signs with buttons mount here: a BillboardGui takes clicks only from inside PlayerGui.
+	local playerGui: Instance? = nil
+
+	-- Mounts a label once the part is there; the server builds models part by part. `clickable`
+	-- puts the sign into PlayerGui (adorned to the part) so its button works.
+	local function label(
+		instance: Instance,
+		partName: string?,
+		build: (BasePart) -> (BillboardGui, (() -> ())?),
+		clickable: boolean?
+	)
 		task.spawn(function()
 			local part: Instance? = if partName then instance:WaitForChild(partName, PART_WAIT_TIMEOUT) else instance
 			if views[instance] or not instance:IsDescendantOf(workspace) then
@@ -73,11 +119,12 @@ function BayViewController.new(): BayViewController
 				return
 			end
 			local countdown: (() -> ())? = nil
+			local parent: Instance = if clickable and playerGui then playerGui else instance
 			local unmount = Vide.mount(function()
 				local gui, tick = build(part)
 				countdown = tick
 				return gui
-			end, instance)
+			end, parent)
 			views[instance] = { unmount = unmount, countdown = countdown }
 		end)
 	end
@@ -107,17 +154,11 @@ function BayViewController.new(): BayViewController
 				return
 			end
 			label(pad, nil, function(part)
-				local level = Vide.source(0)
-				local function readLevel()
-					local value = instance:GetAttribute(BayConfig.TRAINER_LEVEL_ATTRIBUTE)
-					level(if type(value) == "number" then value else 0)
+				local level = attributeSource(instance, BayConfig.TRAINER_LEVEL_ATTRIBUTE)
+				local function price(): BigNum.BigNum
+					return Upgrades.trainerPrice(level(), UpgradeConfig.TUNING)
 				end
-				readLevel()
-				local connection =
-					instance:GetAttributeChangedSignal(BayConfig.TRAINER_LEVEL_ATTRIBUTE):Connect(readLevel)
-				Vide.cleanup(function()
-					connection:Disconnect()
-				end)
+				local own = isOwn(instance)
 				return WorldLabel({
 					adornee = part,
 					title = function()
@@ -130,9 +171,75 @@ function BayViewController.new(): BayViewController
 					valueColor = Theme.SPEED,
 					studsAbove = TRAINER_STUDS_ABOVE,
 					maxDistance = CONTENTS_MAX_DISTANCE,
+					-- The owner buys the next level right here.
+					button = if own
+						then {
+							text = function()
+								return Text.get(locale, "trainer.upgrade.button", { price = BigNum.format(price()) })
+							end,
+							enabled = function()
+								return canAfford(price())
+							end,
+							visible = function()
+								return true
+							end,
+							onClick = function()
+								Remotes.UpgradeTrainer.Fire()
+							end,
+						}
+						else nil,
 				}),
 					nil
-			end)
+			end, isOwn(instance))
+		end)
+
+		-- The pods' sign between the rows: how many, and for the owner a button for the next.
+		task.spawn(function()
+			local anchor = instance:WaitForChild(BayConfig.PODS_SIGN_NAME, PART_WAIT_TIMEOUT)
+			if not anchor or not instance:IsDescendantOf(workspace) then
+				return
+			end
+			label(anchor, nil, function(part)
+				local count = attributeSource(instance, BayConfig.POD_COUNT_ATTRIBUTE)
+				local function price(): BigNum.BigNum
+					return Bay.podPrice(
+						count(),
+						BayConfig.STARTING_PODS,
+						BayConfig.POD_PRICE_BASE,
+						BayConfig.POD_PRICE_GROWTH
+					)
+				end
+				local function hasRoom(): boolean
+					return count() < BayConfig.MAX_PODS
+				end
+				local own = isOwn(instance)
+				return WorldLabel({
+					adornee = part,
+					title = function()
+						return Text.get(locale, "bay.podsSign.title", { count = count(), max = BayConfig.MAX_PODS })
+					end,
+					value = function()
+						return Text.get(locale, if hasRoom() then "bay.podsSign.hint" else "bay.podsFull.hint")
+					end,
+					studsAbove = PODS_SIGN_STUDS_ABOVE,
+					maxDistance = CONTENTS_MAX_DISTANCE,
+					button = if own
+						then {
+							text = function()
+								return Text.get(locale, "bay.buyPodSign.button", { price = BigNum.format(price()) })
+							end,
+							enabled = function()
+								return hasRoom() and canAfford(price())
+							end,
+							visible = hasRoom,
+							onClick = function()
+								Remotes.BuyPod.Fire()
+							end,
+						}
+						else nil,
+				}),
+					nil
+			end, isOwn(instance))
 		end)
 	end
 
@@ -214,6 +321,7 @@ function BayViewController.new(): BayViewController
 
 	local function start()
 		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		observe(BayConfig.TAG, watchBay)
 		observe(BayConfig.ALIEN_TAG, watchAlien)
 

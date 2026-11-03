@@ -12,12 +12,13 @@ local EggModel = {}
 local GLOW_RANGE = 14
 local GLOW_BRIGHTNESS = 2
 
--- `dimmed` builds the egg without its glow: for a pile in an incubator, where twenty lights
--- would wash out the whole station.
-function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, dimmed: boolean?): Part
+-- `glowScale` (default 1) scales the light of a glowing egg: a pile in an incubator keeps its
+-- shine but not twelve full lights.
+function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, glowScale: number?): Part
 	local config = EggLooks.RARITIES[rarity]
 	local sizeConfig = EggConfig.SIZES[size]
-	local glows = config.glow > 0 and not dimmed
+	local glow = config.glow * (glowScale or 1)
+	local glows = glow > 0
 
 	local egg = Instance.new("Part")
 	egg.Name = "Egg"
@@ -38,8 +39,8 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, dimm
 	if glows then
 		local light = Instance.new("PointLight")
 		light.Color = config.color
-		light.Range = GLOW_RANGE * config.glow
-		light.Brightness = GLOW_BRIGHTNESS * config.glow
+		light.Range = GLOW_RANGE * glow
+		light.Brightness = GLOW_BRIGHTNESS * glow
 		light.Parent = egg
 	end
 
