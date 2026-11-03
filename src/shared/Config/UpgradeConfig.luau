@@ -6,25 +6,26 @@ local BigNum = require("../Domain/BigNum")
 local Upgrades = require("../Domain/Upgrades")
 
 local TUNING: Upgrades.Tuning = {
-	-- Speed points per second on a level-0 trainer, and the gain per trainer level.
-	trainerBaseRate = BigNum.fromNumber(0.3),
-	trainerRateGrowth = BigNum.fromNumber(1.6),
-	-- Trainer level n costs 300 * 5^(n-1) coins.
+	-- Speed points per second on a level-0 trainer, and the gain per trainer level. Fast from
+	-- the start: a new player sees their 10 double within seconds.
+	trainerBaseRate = BigNum.fromNumber(3),
+	trainerRateGrowth = BigNum.fromNumber(1.5),
+	-- Trainer level n costs 300 * 6^(n-1) coins.
 	trainerCostBase = BigNum.fromNumber(300),
-	trainerCostGrowth = BigNum.fromNumber(5),
+	trainerCostGrowth = BigNum.fromNumber(6),
 
 	-- Each jetpack level multiplies the whole speed stat by this.
 	jetpackMultiplier = BigNum.fromNumber(2),
-	-- Jetpack level n costs 2000 * 8^(n-1) coins.
+	-- Jetpack level n costs 2000 * 10^(n-1) coins.
 	jetpackCostBase = BigNum.fromNumber(2000),
-	jetpackCostGrowth = BigNum.fromNumber(8),
+	jetpackCostGrowth = BigNum.fromNumber(10),
 }
 
 return table.freeze({
 	TUNING = table.freeze(TUNING),
 
-	-- The trainer pays out this often while its owner stands on it (CONVENTIONS, performance).
-	TRAINING_TICK_SECONDS = 1,
+	-- The trainer pays out this often while its owner stands on it: quick numbers feel alive.
+	TRAINING_TICK_SECONDS = 0.25,
 
 	-- Names of the jetpacks by level (level 0 first); levels past the list keep the last name
 	-- with a "+n" (Names.jetpack). JetpackLooks describes the same levels.

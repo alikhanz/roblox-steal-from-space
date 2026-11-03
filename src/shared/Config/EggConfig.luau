@@ -46,39 +46,41 @@ local MAGNET: Grab.MagnetTuning = {
 }
 
 local RARITIES: { [RarityId]: Rarity } = {
+	-- Common eggs hatch within a couple of minutes so the first aliens (and the first income)
+	-- come fast; the rarest take hours.
 	Common = {
 		nameKey = "egg.common.title",
 		grabSeconds = 2,
 		weight = 0.1,
-		hatchSeconds = { min = 30, max = 10 * 60 },
+		hatchSeconds = { min = 10, max = 2 * 60 },
 		luck = 0,
 	},
 	Uncommon = {
 		nameKey = "egg.uncommon.title",
 		grabSeconds = 2.5,
 		weight = 0.18,
-		hatchSeconds = { min = 5 * 60, max = 40 * 60 },
+		hatchSeconds = { min = 60, max = 6 * 60 },
 		luck = 0.35,
 	},
 	Rare = {
 		nameKey = "egg.rare.title",
 		grabSeconds = 3,
 		weight = 0.28,
-		hatchSeconds = { min = 20 * 60, max = 2 * 60 * 60 },
+		hatchSeconds = { min = 5 * 60, max = 30 * 60 },
 		luck = 0.7,
 	},
 	Epic = {
 		nameKey = "egg.epic.title",
 		grabSeconds = 3.5,
 		weight = 0.38,
-		hatchSeconds = { min = 60 * 60, max = 3.5 * 60 * 60 },
+		hatchSeconds = { min = 30 * 60, max = 2 * 60 * 60 },
 		luck = 1,
 	},
 	Legendary = {
 		nameKey = "egg.legendary.title",
 		grabSeconds = 4,
 		weight = 0.5,
-		hatchSeconds = { min = 2 * 60 * 60, max = 5 * 60 * 60 },
+		hatchSeconds = { min = 1.5 * 60 * 60, max = 5 * 60 * 60 },
 		luck = 1.4,
 	},
 }

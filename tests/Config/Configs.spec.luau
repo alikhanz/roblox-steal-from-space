@@ -132,12 +132,15 @@ describe("GuardianConfig", function()
 		)
 	end)
 
-	it("grows the recommendation by the growth factor and flies level with it", function()
+	it("grows the recommendation by ever smaller steps and flies level with it", function()
 		local posts = GuardianConfig.POSTS
 		expect(posts[1].recommended).toEqual(GuardianConfig.FIRST_RECOMMENDED)
+		local previousStep = math.huge
 		for index = 2, #posts do
-			local expected = BigNum.mul(posts[index - 1].recommended, GuardianConfig.RECOMMENDED_GROWTH)
-			expect(BigNum.toNumber(posts[index].recommended)).toBeCloseTo(BigNum.toNumber(expected), 1e-9)
+			local step = BigNum.toNumber(posts[index].recommended) / BigNum.toNumber(posts[index - 1].recommended)
+			expect(step < previousStep).toBe(true)
+			expect(step > 2 and step <= GuardianConfig.RECOMMENDED_GROWTH_START).toBe(true)
+			previousStep = step
 		end
 		for index, post in posts do
 			expect(post.index).toBe(index)

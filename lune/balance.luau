@@ -64,9 +64,9 @@ local function toNumber(value: BigNum.BigNum): number
 	return BigNum.toNumber(value)
 end
 
--- The speed recommended over guardian k, from the configured posts or extrapolated past them.
+-- The speed recommended over guardian k (the config's formula works past the configured posts).
 local function recommendedFor(post: number): number
-	return toNumber(GuardianConfig.FIRST_RECOMMENDED) * toNumber(GuardianConfig.RECOMMENDED_GROWTH) ^ (post - 1)
+	return toNumber(GuardianConfig.recommendedFor(post))
 end
 
 -- Income of every alien by id: the configured ones, plus synthetic ids for grades past the

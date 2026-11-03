@@ -51,14 +51,28 @@ export type Post = {
 	read kind: KindId,
 	read nameKey: keyof<typeof(Strings)>,
 	-- The stat that flies level with this guardian while carrying a typical egg: what the
-	-- player sees. Guardian k recommends FIRST_RECOMMENDED * RECOMMENDED_GROWTH^(k-1), so a new
-	-- player at the starting speed sees "10" over the first guardian and goes for it.
+	-- player sees (see recommendedFor). A new player at the starting speed sees "10" over the
+	-- first guardian and goes for it.
 	read recommended: BigNum.BigNum,
 	read speed: BigNum.BigNum,
 }
 
+-- Guardian k recommends FIRST_RECOMMENDED times the product of the first k-1 steps, where step
+-- i is RECOMMENDED_GROWTH_START * RECOMMENDED_GROWTH_DECAY^(i-1): the first guardians are far
+-- apart (a new one is a real jump) and the last ones close together, so progress keeps
+-- coming late in the game. With 24 posts the last one lands near a trillion.
 local FIRST_RECOMMENDED = BigNum.fromNumber(10)
-local RECOMMENDED_GROWTH = BigNum.fromNumber(3)
+local RECOMMENDED_GROWTH_START = 4.2
+local RECOMMENDED_GROWTH_DECAY = 0.97
+
+local function recommendedFor(index: number): BigNum.BigNum
+	assert(index >= 1 and index % 1 == 0, `post index must be a whole number, got {index}`)
+	local value = FIRST_RECOMMENDED
+	for step = 1, index - 1 do
+		value = BigNum.mul(value, BigNum.fromNumber(RECOMMENDED_GROWTH_START * RECOMMENDED_GROWTH_DECAY ^ (step - 1)))
+	end
+	return value
+end
 
 -- The recommended speed over a guardian assumes an egg of this weight: a common one of the
 -- typical size. Lighter eggs need less, heavier ones more; that is part of the gamble.
@@ -103,7 +117,7 @@ assert(#POST_LIST == #AlienConfig.GRADES, "GuardianConfig posts and AlienConfig.
 local POSTS: { Post } = {}
 local POSTS_BY_ID: { [PostId]: Post } = {}
 for index, entry in POST_LIST do
-	local recommended = BigNum.mul(FIRST_RECOMMENDED, BigNum.pow(RECOMMENDED_GROWTH, index - 1))
+	local recommended = recommendedFor(index)
 	local zone = ZoneConfig.zoneOfPost(index)
 	local post: Post = table.freeze({
 		id = entry.id,
@@ -129,7 +143,10 @@ local BRAIN: GuardianBrain.Tuning = {
 
 return table.freeze({
 	FIRST_RECOMMENDED = FIRST_RECOMMENDED,
-	RECOMMENDED_GROWTH = RECOMMENDED_GROWTH,
+	RECOMMENDED_GROWTH_START = RECOMMENDED_GROWTH_START,
+	RECOMMENDED_GROWTH_DECAY = RECOMMENDED_GROWTH_DECAY,
+	-- The recommendation over post `index`, for any index (the calculator looks past the list).
+	recommendedFor = recommendedFor,
 	-- Every post, from the station outwards; POSTS[k] guards grade k.
 	POSTS = table.freeze(POSTS),
 	POSTS_BY_ID = table.freeze(POSTS_BY_ID),

@@ -18,8 +18,9 @@ return table.freeze({
 	STARTING_PODS = 3,
 	MAX_PODS = 12,
 	-- Bought pod number n (counting the starting ones) costs
-	-- POD_PRICE_BASE * POD_PRICE_GROWTH^(n - STARTING_PODS - 1).
-	POD_PRICE_BASE = BigNum.fromNumber(250),
+	-- POD_PRICE_BASE * POD_PRICE_GROWTH^(n - STARTING_PODS - 1). The first ones are cheap: a
+	-- new player should grow their income within minutes.
+	POD_PRICE_BASE = BigNum.fromNumber(100),
 	POD_PRICE_GROWTH = BigNum.fromNumber(3),
 
 	INVENTORY_SLOTS = 10,
