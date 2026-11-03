@@ -23,4 +23,20 @@ function Bounds.limitVelocity(position: Vector3, velocity: Vector3, center: Vect
 	return velocity - outward * outwardSpeed
 end
 
+-- The opposite: the velocity with its inward component removed while inside a sphere, for things
+-- that must stay out of it (guardians and the station dome).
+function Bounds.keepOutside(position: Vector3, velocity: Vector3, center: Vector3, radius: number): Vector3
+	local offset = position - center
+	local distance = offset.Magnitude
+	if distance >= radius or distance < 1e-4 then
+		return velocity
+	end
+	local outward = offset.Unit
+	local inwardSpeed = -velocity:Dot(outward)
+	if inwardSpeed <= 0 then
+		return velocity
+	end
+	return velocity + outward * inwardSpeed
+end
+
 return table.freeze(Bounds)

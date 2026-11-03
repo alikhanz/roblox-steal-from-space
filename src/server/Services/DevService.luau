@@ -4,7 +4,7 @@
 -- ServerStorage.DevCommands, which only server code can reach. Does nothing outside Studio.
 --
 -- Examples (server):
---   game.ServerStorage.DevCommands.SpawnEggNearPlayer:Invoke("Rare")
+--   game.ServerStorage.DevCommands.SpawnEggNearPlayer:Invoke("Rare", "Large")
 --   game.ServerStorage.DevCommands.SetInfiniteOxygen:Invoke(true)
 --   game.ServerStorage.DevCommands.SetSpeed:Invoke(2500)
 
@@ -23,7 +23,7 @@ local FOLDER_NAME = "DevCommands"
 local SPAWN_DISTANCE = 5
 
 export type Dependencies = {
-	spawnLooseEgg: (rarity: EggConfig.RarityId, nestId: string, position: Vector3) -> (),
+	spawnLooseEgg: (rarity: EggConfig.RarityId, size: EggConfig.SizeId, nestId: string, position: Vector3) -> (),
 	setSpeed: (player: Player, speed: BigNum.BigNum) -> (),
 }
 
@@ -48,15 +48,18 @@ function DevService.new(dependencies: Dependencies): DevService
 
 	local commands: { [string]: (...any) -> any } = {
 		-- Floats an egg in front of the first player; it returns to `nestId` (default Nest1) later.
-		SpawnEggNearPlayer = function(rarity: string?, nestId: string?): string
+		SpawnEggNearPlayer = function(rarity: string?, size: string?, nestId: string?): string
 			local _, root = firstPlayerRoot()
 			if not root then
 				return "no character"
 			end
-			local chosen = (rarity or "Common") :: EggConfig.RarityId
-			assert(EggConfig.RARITIES[chosen], `Unknown rarity {chosen}`)
+			local chosenRarity = (rarity or "Common") :: EggConfig.RarityId
+			local chosenSize = (size or EggConfig.TYPICAL_SIZE) :: EggConfig.SizeId
+			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)
+			assert(EggConfig.SIZES[chosenSize], `Unknown size {chosenSize}`)
 			dependencies.spawnLooseEgg(
-				chosen,
+				chosenRarity,
+				chosenSize,
 				nestId or "Nest1",
 				root.Position + root.CFrame.LookVector * SPAWN_DISTANCE
 			)

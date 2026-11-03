@@ -24,6 +24,23 @@ describe("Bounds.isOutside", function()
 	end)
 end)
 
+describe("Bounds.keepOutside", function()
+	it("leaves velocity alone outside the sphere", function()
+		local velocity = Vector3.new(-50, 0, 0)
+		expectVector(Bounds.keepOutside(Vector3.new(120, 0, 0), velocity, CENTER, RADIUS), velocity)
+	end)
+
+	it("removes the inward component inside the sphere", function()
+		local limited = Bounds.keepOutside(Vector3.new(90, 0, 0), Vector3.new(-50, 10, 0), CENTER, RADIUS)
+		expectVector(limited, Vector3.new(0, 10, 0))
+	end)
+
+	it("keeps velocity pointing out", function()
+		local velocity = Vector3.new(50, 0, 0)
+		expectVector(Bounds.keepOutside(Vector3.new(90, 0, 0), velocity, CENTER, RADIUS), velocity)
+	end)
+end)
+
 describe("Bounds.limitVelocity", function()
 	it("leaves velocity alone inside the edge", function()
 		local velocity = Vector3.new(50, 10, 0)

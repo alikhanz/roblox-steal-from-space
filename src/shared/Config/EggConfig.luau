@@ -73,8 +73,8 @@ return table.freeze({
 	GRAB_REACH = 9,
 	-- An empty nest grows a new egg after this long, seconds.
 	RESPAWN_SECONDS = 20,
-	-- A dropped egg floats this long before flying back to its nest, seconds.
-	LOOSE_SECONDS = 10,
+	-- A dropped egg nobody touches for this long flies back to its nest, seconds.
+	LOOSE_SECONDS = 180,
 
 	-- Egg size, studs (an elongated sphere).
 	EGG_SIZE = Vector3.new(1.6, 2.1, 1.6),
@@ -83,17 +83,20 @@ return table.freeze({
 	NEST_TAG = "Nest",
 	NEST_HAS_EGG_ATTRIBUTE = "HasEgg",
 	NEST_RARITY_ATTRIBUTE = "Rarity",
+	NEST_SIZE_ATTRIBUTE = "Size",
 	NEST_EGG_POSITION_ATTRIBUTE = "EggPosition",
 	-- Name of the egg part inside a nest model.
 	NEST_EGG_NAME = "Egg",
 	-- Loose eggs floating in space after a drop.
 	LOOSE_EGG_TAG = "LooseEgg",
 	LOOSE_EGG_RARITY_ATTRIBUTE = "Rarity",
+	LOOSE_EGG_SIZE_ATTRIBUTE = "Size",
 
 	-- Character attributes.
 	GRAB_PROGRESS_ATTRIBUTE = "GrabProgress",
 	GRAB_TARGET_ATTRIBUTE = "GrabTarget",
 	CARRIED_RARITY_ATTRIBUTE = "CarriedEgg",
+	CARRIED_SIZE_ATTRIBUTE = "CarriedEggSize",
 	-- Player attribute: eggs delivered this session (stage 3 replaces it with saved data).
 	DELIVERED_ATTRIBUTE = "EggsDelivered",
 })

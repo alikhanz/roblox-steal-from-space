@@ -67,6 +67,17 @@ local function carriedRarity(character: Model): EggConfig.RarityId?
 	return nil
 end
 
+-- Share of the stat the carried egg takes away; 0 without an egg.
+local function carriedWeight(character: Model): number
+	local rarity = carriedRarity(character)
+	if not rarity then
+		return 0
+	end
+	local sizeValue = character:GetAttribute(EggConfig.CARRIED_SIZE_ATTRIBUTE)
+	local size = EggConfig.SIZES[sizeValue :: EggConfig.SizeId] or EggConfig.SIZES[EggConfig.TYPICAL_SIZE]
+	return Speed.eggWeight(EggConfig.RARITIES[rarity].weight, size.weightFactor)
+end
+
 -- Top flight speed without an egg, studs per second: set by the server from the speed stat.
 local function flightSpeed(character: Model): number
 	local value = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
@@ -76,9 +87,7 @@ end
 local function fly(rig: Rig, context: Instance, deltaTime: number)
 	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
 	local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
-	local rarity = carriedRarity(rig.character)
-	-- Every carried egg counts as medium until eggs get sizes (stage 2, guardians step).
-	local carryMultiplier = if rarity then Speed.carryMultiplier(EggConfig.RARITIES[rarity].weight) else 1
+	local carryMultiplier = Speed.carryMultiplier(carriedWeight(rig.character))
 	local maxSpeed = flightSpeed(rig.character)
 	local velocity = Flight.nextVelocity(
 		rig.root.AssemblyLinearVelocity,

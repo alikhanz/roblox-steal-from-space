@@ -46,7 +46,7 @@ rojo serve            # синхронизация в Studio
 - Плейтест через MCP: `start_stop_play`, ввод — `user_keyboard_input`, проверки — `execute_luau` в `Server`/`Client`, вывод — `get_console_output`.
 - **Команды разработчика** (только Studio, `src/server/Services/DevService.luau`) — `BindableFunction` в `ServerStorage.DevCommands`, вызываются из серверного `execute_luau`:
   - `SetInfiniteOxygen:Invoke(true/false)` — кислород не тратится в этом плейтесте (по умолчанию — из `DevConfig.STUDIO_INFINITE_OXYGEN`, в коммитах `false`);
-  - `SpawnEggNearPlayer:Invoke("Rare")` — выпавшее яйцо перед игроком;
+  - `SpawnEggNearPlayer:Invoke("Rare", "Large")` — выпавшее яйцо перед игроком (размер: Small / Medium / Large);
   - `RefillOxygen:Invoke()` — полный баллон;
   - `SetSpeed:Invoke(2500)` — скорость ⚡ первого игрока (HUD и скорость полёта обновляются сразу).
 - Не переноси персонажа далеко через `PivotTo` в тестах: перенос на сотни studs рвёт физические суставы, и персонаж может остаться мёртвым без респауна. Для теста подноси объекты к игроку (команды разработчика) или лети.
