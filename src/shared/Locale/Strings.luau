@@ -180,6 +180,18 @@ local Strings = {
 		ru = "Рывок",
 		en = "Dash",
 	},
+	["pvp.newbie.title"] = {
+		ru = "Новичок",
+		en = "Newbie",
+	},
+	["pvp.newbieStat.title"] = {
+		ru = "Защита новичка",
+		en = "Newbie shield",
+	},
+	["time.minutesShort.hint"] = {
+		ru = "{count} мин",
+		en = "{count} min",
+	},
 	["pvp.harpoonLocked.hint"] = {
 		ru = "Гарпун: цель в прицеле",
 		en = "Harpoon: target locked",

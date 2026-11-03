@@ -418,8 +418,22 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		Dash = dash,
 	}
 
+	-- Seconds of newbie protection left, on the player for every client's view: the sign over
+	-- a newbie, and the newbie's own HUD. Written only when the whole second changes.
+	local function publishNewbie(player: Player)
+		local data = dependencies.getData(player)
+		if not data then
+			return
+		end
+		local left = math.max(math.ceil(PvpConfig.RULES.newbieSeconds - data.playSeconds), 0)
+		if player:GetAttribute(PvpConfig.NEWBIE_ATTRIBUTE) ~= left then
+			player:SetAttribute(PvpConfig.NEWBIE_ATTRIBUTE, left)
+		end
+	end
+
 	local function tick()
 		for player, state in states do
+			publishNewbie(player)
 			local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
 			for _, kind in ABILITY_ORDER do
 				local pressed = context ~= nil and FlightInputs.isPressed(context, INPUT_ACTIONS[kind])

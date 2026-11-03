@@ -65,6 +65,8 @@ function HudController.new(dependencies: Dependencies): HudController
 	local harpoonLocked = source(false)
 	-- Keyboard, gamepad or touch: the key hints follow it.
 	local inputMode = source(UserInputService.PreferredInput)
+	-- Seconds of newbie protection left, from the player attribute.
+	local newbieSecondsLeft = source(0)
 
 	-- The same cone the server checks, on what this client can see: other characters that
 	-- carry an egg, and test dummies.
@@ -293,6 +295,21 @@ function HudController.new(dependencies: Dependencies): HudController
 						end,
 						layoutOrder = 2,
 					}),
+					-- How long nobody can rob this player (and they cannot rob anyone).
+					StatBadge({
+						name = "NewbieBadge",
+						title = Text.get(locale, "pvp.newbieStat.title"),
+						icon = "🛡",
+						color = Theme.TOAST_GOOD,
+						value = function()
+							local minutes = math.ceil(newbieSecondsLeft() / 60)
+							return Text.get(locale, "time.minutesShort.hint", { count = minutes })
+						end,
+						visible = function()
+							return newbieSecondsLeft() > 0
+						end,
+						layoutOrder = 4,
+					}),
 					-- The egg in hand: the thief sees their own back, so the HUD says it.
 					StatBadge({
 						name = "EggBadge",
@@ -345,6 +362,12 @@ function HudController.new(dependencies: Dependencies): HudController
 		UserInputService:GetPropertyChangedSignal("PreferredInput"):Connect(function()
 			inputMode(UserInputService.PreferredInput)
 		end)
+		local function readNewbie()
+			local value = player:GetAttribute(PvpConfig.NEWBIE_ATTRIBUTE)
+			newbieSecondsLeft(if type(value) == "number" then value else 0)
+		end
+		player:GetAttributeChangedSignal(PvpConfig.NEWBIE_ATTRIBUTE):Connect(readNewbie)
+		readNewbie()
 		-- The hit and the carried egg are written by the server onto the predicted character:
 		-- changed signals do not fire for that on the client, so they are polled (see CLAUDE.md,
 		-- Studio notes). Taking an egg and dropping it are announced here; a delivery is

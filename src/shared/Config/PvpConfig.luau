@@ -65,8 +65,9 @@ return table.freeze({
 	-- Character attributes the abilities write and the simulation and clients read.
 	SHIELD_UNTIL_ATTRIBUTE = "ShieldUntil",
 	DASH_UNTIL_ATTRIBUTE = "DashUntil",
-	-- Player attribute: true while the newbie protection holds (for the sign over the player).
-	NEWBIE_ATTRIBUTE = "Newbie",
+	-- Player attribute: seconds of newbie protection left, 0 once it is over (for the sign over
+	-- the player and the newbie's own HUD).
+	NEWBIE_ATTRIBUTE = "NewbieSecondsLeft",
 	-- Test targets (playtests) carry this tag so the client's aim sees them like carriers.
 	DUMMY_TAG = "PvpDummy",
 
