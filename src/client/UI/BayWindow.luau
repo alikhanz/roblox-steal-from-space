@@ -37,8 +37,9 @@ export type Texts = {
 	incubator: string,
 	incubatorEmpty: string,
 	inventory: () -> string,
-	floor: string,
-	floorHint: string,
+	floor: () -> string,
+	-- How to pick them up, or why not right now.
+	floorHint: () -> string,
 	autoPlace: string,
 	crossbreed: string,
 	crossbreedHint: string,

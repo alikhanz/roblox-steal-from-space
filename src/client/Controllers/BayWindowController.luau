@@ -313,8 +313,14 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 								{ count = #profile.bay().inventory, max = BayConfig.INVENTORY_SLOTS }
 							)
 						end,
-						floor = text("bay.floor.title"),
-						floorHint = text("bay.pickUpFloor.hint"),
+						floor = function()
+							return text("bay.floor.title", { count = #profile.bay().floor })
+						end,
+						floorHint = function()
+							return if #profile.bay().inventory < BayConfig.INVENTORY_SLOTS
+								then text("bay.pickUpFloor.hint")
+								else text("bay.floorFull.hint")
+						end,
 						autoPlace = text("bay.autoPlace.button"),
 						crossbreed = text("bay.crossbreed.button"),
 						crossbreedHint = text("bay.crossbreed.hint"),
@@ -477,8 +483,22 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			local args = { name = Names.alien(locale, alienId) or "?", place = placeText(location) }
 			toast(text(key, args), Theme.TOAST_GOOD)
 		end
+		-- Hatches arrive one event each; a batch (offline eggs, a full incubator) becomes one toast.
+		local pendingHatches: { { alienId: string, location: ProfileState.Location } } = {}
 		profile.hatched.connect(function(alienId, location)
-			announce("alien.hatched.toast", alienId, location)
+			table.insert(pendingHatches, { alienId = alienId, location = location })
+			if #pendingHatches > 1 then
+				return
+			end
+			task.defer(function()
+				local batch = pendingHatches
+				pendingHatches = {}
+				if #batch == 1 then
+					announce("alien.hatched.toast", batch[1].alienId, batch[1].location)
+				else
+					toast(text("alien.hatchedMany.toast", { count = #batch }), Theme.TOAST_GOOD)
+				end
+			end)
 		end)
 		profile.crossbred.connect(function(alienId, location)
 			announce("alien.crossbred.toast", alienId, location)

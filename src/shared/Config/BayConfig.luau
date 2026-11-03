@@ -44,8 +44,16 @@ return table.freeze({
 	TRAINER_TOLERANCE = 1.2,
 	TRAINER_PROMPT_DISTANCE = 8,
 
+	-- The bay shows at most this many incubator eggs and floor aliens as models; the rest stay
+	-- in the profile and the window (a pile of eighty glowing eggs lit the whole station).
+	INCUBATOR_SHOWN_MAX = 12,
+	FLOOR_SHOWN_MAX = 24,
+
 	-- Bay model attributes and tags (replicated for the client views).
 	TAG = "Bay",
+	-- On the incubator part: how many eggs it holds and the server time the next one hatches.
+	INCUBATOR_COUNT_ATTRIBUTE = "EggCount",
+	INCUBATOR_NEXT_HATCH_ATTRIBUTE = "NextHatchAt",
 	OWNER_ID_ATTRIBUTE = "OwnerUserId",
 	OWNER_NAME_ATTRIBUTE = "OwnerName",
 	-- Instance names inside a bay model.

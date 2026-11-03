@@ -213,12 +213,32 @@ local Strings = {
 		en = "Inventory {count}/{max}",
 	},
 	["bay.floor.title"] = {
-		ru = "На полу",
-		en = "On the floor",
+		ru = "На полу: {count}",
+		en = "On the floor: {count}",
 	},
 	["bay.pickUpFloor.hint"] = {
 		ru = "Подойди и подбери, чтобы положить в инвентарь",
 		en = "Walk over and pick them up to put them in your inventory",
+	},
+	["bay.floorFull.hint"] = {
+		ru = "Инвентарь полный: продай или скрести кого-нибудь, тогда сможешь подбирать",
+		en = "Inventory full: sell or crossbreed someone, then you can pick them up",
+	},
+	["bay.incubatorSign.title"] = {
+		ru = "Инкубатор · яиц: {count}",
+		en = "Incubator · eggs: {count}",
+	},
+	["bay.incubatorIdle.hint"] = {
+		ru = "Пусто",
+		en = "Empty",
+	},
+	["alien.hatchedMany.toast"] = {
+		ru = {
+			one = "Вылупился {count} пришелец!",
+			few = "Вылупилось {count} пришельца!",
+			many = "Вылупилось {count} пришельцев!",
+		},
+		en = { one = "{count} alien hatched!", other = "{count} aliens hatched!" },
 	},
 	["bay.autoPlace.button"] = {
 		ru = "Лучших в капсулы",

@@ -10,6 +10,8 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 local source = Vide.source
 
 local TOAST_SECONDS = 3.5
+-- Older toasts give way: a burst of events never covers the screen.
+local MAX_TOASTS = 4
 
 export type ToastState = {
 	toasts: Vide.Source<{ Toasts.Toast }>,
@@ -28,6 +30,9 @@ function ToastState.new(): ToastState
 		local id = counter
 		local list = table.clone(toasts())
 		table.insert(list, { id = id, text = text, color = color })
+		while #list > MAX_TOASTS do
+			table.remove(list, 1)
+		end
 		toasts(list)
 		task.delay(TOAST_SECONDS, function()
 			local remaining = {}

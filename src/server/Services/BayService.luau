@@ -118,7 +118,7 @@ function BayService.new(dependencies: Dependencies): BayService
 			warn(`[BayService] Unknown egg {egg.rarity} {egg.size} (uid {egg.uid}); not shown`)
 			return
 		end
-		local part = EggModel.build(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId)
+		local part = EggModel.build(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, true)
 		part.Name = `Egg{egg.uid}`
 		part.Anchored = true
 		part.CFrame = cframe
@@ -181,12 +181,24 @@ function BayService.new(dependencies: Dependencies): BayService
 				placeAlien(pod.alien, BayModel.podAlienCFrame(bay.origin, index), contents)
 			end
 		end
+		local nextHatchAt: number? = nil
 		for index, egg in data.incubator do
-			placeEgg(egg, BayModel.eggCFrame(bay.origin, index), contents)
+			if index <= BayConfig.INCUBATOR_SHOWN_MAX then
+				placeEgg(egg, BayModel.eggCFrame(bay.origin, index), contents)
+			end
+			nextHatchAt = math.min(nextHatchAt or math.huge, egg.hatchAt)
+		end
+		local incubator = bay.model:FindFirstChild(BayConfig.INCUBATOR_NAME)
+		if incubator then
+			incubator:SetAttribute(BayConfig.INCUBATOR_COUNT_ATTRIBUTE, #data.incubator)
+			incubator:SetAttribute(BayConfig.INCUBATOR_NEXT_HATCH_ATTRIBUTE, nextHatchAt)
 		end
 		-- Floor aliens can be picked up only while the inventory has room: no prompt otherwise.
 		local hasRoom = #data.inventory < BayConfig.INVENTORY_SLOTS
 		for index, alien in data.floor do
+			if index > BayConfig.FLOOR_SHOWN_MAX then
+				break
+			end
 			local model = placeAlien(alien, BayModel.floorCFrame(bay.origin, index), contents)
 			if model and hasRoom then
 				addPickUpPrompt(player, model, alien.uid)

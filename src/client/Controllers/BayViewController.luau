@@ -1,7 +1,8 @@
 --!strict
 -- The client side of bays: the owner's name on the sign, a label over every alien (what it is
--- and what it earns) and a countdown over every incubator egg. Everything is keyed by the
--- instance and torn down when it goes, since bays stream and are rebuilt by the server.
+-- and what it earns), one countdown over the incubator and the trainer's sign. Everything is
+-- keyed by the instance and torn down when it goes, since bays stream and are rebuilt by the
+-- server.
 
 local CollectionService = game:GetService("CollectionService")
 local LocalizationService = game:GetService("LocalizationService")
@@ -12,7 +13,6 @@ local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
-local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -26,7 +26,7 @@ local SIGN_STUDS_ABOVE = 1.2
 -- Over the head of whoever stands on the pad.
 local TRAINER_STUDS_ABOVE = 5
 local ALIEN_STUDS_ABOVE = 2
-local EGG_STUDS_ABOVE = 1.6
+local INCUBATOR_STUDS_ABOVE = 4
 -- The owner's name reads from across the platform; what stands in the bay only up close, or
 -- the labels pile up on each other.
 local SIGN_MAX_DISTANCE = 120
@@ -82,6 +82,9 @@ function BayViewController.new(): BayViewController
 		end)
 	end
 
+	-- Defined below; a bay's sign and its incubator's sign are set up together.
+	local watchIncubator: (bay: Instance) -> ()
+
 	local function watchBay(instance: Instance)
 		label(instance, BayConfig.SIGN_NAME, function(part)
 			local owner = instance:GetAttribute(BayConfig.OWNER_NAME_ATTRIBUTE)
@@ -94,6 +97,8 @@ function BayViewController.new(): BayViewController
 			}),
 				nil
 		end)
+
+		watchIncubator(instance)
 
 		-- The trainer pad's own sign: the level and the rate, following the bay's attribute.
 		task.spawn(function()
@@ -152,33 +157,50 @@ function BayViewController.new(): BayViewController
 		end)
 	end
 
-	local function watchEgg(instance: Instance)
-		local rarity = instance:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
-		local name = if type(rarity) == "string" then Names.egg(locale, rarity) else nil
-		local hatchAt = instance:GetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE)
-		if not name or type(hatchAt) ~= "number" then
-			warn(`[BayViewController] {instance:GetFullName()} is not a complete egg; no label`)
-			return
-		end
-		label(instance, nil, function(part)
-			local value = Vide.source("")
-			local function tick()
-				local left = hatchAt - workspace:GetServerTimeNow()
-				value(
-					if left > 0
-						then Text.get(locale, "egg.hatchIn.hint", { time = Duration.describe(locale, left) })
-						else Text.get(locale, "egg.hatching.hint")
-				)
+	-- One sign for the whole incubator (a sign per egg piles up once there are dozens): how
+	-- many eggs lie in it and when the next one hatches, from the incubator's attributes.
+	function watchIncubator(bay: Instance)
+		task.spawn(function()
+			local incubator = bay:WaitForChild(BayConfig.INCUBATOR_NAME, PART_WAIT_TIMEOUT)
+			if not incubator or not bay:IsDescendantOf(workspace) then
+				return
 			end
-			tick()
-			return WorldLabel({
-				adornee = part,
-				title = name,
-				value = value,
-				studsAbove = EGG_STUDS_ABOVE,
-				maxDistance = CONTENTS_MAX_DISTANCE,
-			}),
-				tick
+			label(incubator, nil, function(part)
+				local count = Vide.source(0)
+				local value = Vide.source("")
+				local function tick()
+					local eggs = incubator:GetAttribute(BayConfig.INCUBATOR_COUNT_ATTRIBUTE)
+					local nextHatchAt = incubator:GetAttribute(BayConfig.INCUBATOR_NEXT_HATCH_ATTRIBUTE)
+					count(if type(eggs) == "number" then eggs else 0)
+					if type(nextHatchAt) ~= "number" or count() == 0 then
+						value(Text.get(locale, "bay.incubatorIdle.hint"))
+						return
+					end
+					local left = nextHatchAt - workspace:GetServerTimeNow()
+					value(
+						if left > 0
+							then Text.get(locale, "egg.hatchIn.hint", { time = Duration.describe(locale, left) })
+							else Text.get(locale, "egg.hatching.hint")
+					)
+				end
+				tick()
+				local connection =
+					incubator:GetAttributeChangedSignal(BayConfig.INCUBATOR_COUNT_ATTRIBUTE):Connect(tick)
+				Vide.cleanup(function()
+					connection:Disconnect()
+				end)
+				return WorldLabel({
+					adornee = part,
+					title = function()
+						return Text.get(locale, "bay.incubatorSign.title", { count = count() })
+					end,
+					value = value,
+					valueColor = Theme.SPEED,
+					studsAbove = INCUBATOR_STUDS_ABOVE,
+					maxDistance = CONTENTS_MAX_DISTANCE,
+				}),
+					tick
+			end)
 		end)
 	end
 
@@ -194,7 +216,6 @@ function BayViewController.new(): BayViewController
 		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
 		observe(BayConfig.TAG, watchBay)
 		observe(BayConfig.ALIEN_TAG, watchAlien)
-		observe(BayConfig.INCUBATOR_EGG_TAG, watchEgg)
 
 		local sinceCountdown = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
