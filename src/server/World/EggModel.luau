@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 
 local EggModel = {}
 
@@ -12,12 +13,12 @@ local GLOW_RANGE = 14
 local GLOW_BRIGHTNESS = 2
 
 function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId): Part
-	local config = EggConfig.RARITIES[rarity]
+	local config = EggLooks.RARITIES[rarity]
 	local sizeConfig = EggConfig.SIZES[size]
 
 	local egg = Instance.new("Part")
 	egg.Name = "Egg"
-	egg.Size = EggConfig.EGG_SIZE * sizeConfig.scale
+	egg.Size = EggLooks.EGG_SIZE * sizeConfig.scale
 	egg.Color = config.color
 	egg.Material = if config.glow > 0 then Enum.Material.Neon else Enum.Material.SmoothPlastic
 	egg.CanCollide = false

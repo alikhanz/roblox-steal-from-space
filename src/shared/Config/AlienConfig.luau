@@ -46,7 +46,7 @@ local TIERS: { [TierId]: Tier } = {
 -- The common alien of guardian k earns INCOME_BASE * INCOME_GROWTH^(k-1) coins per second. Income
 -- grows slower than guardian speed (x1.8 against x3), so money matters more with every zone.
 local INCOME_BASE = BigNum.fromNumber(1)
-local INCOME_GROWTH = BigNum.fromNumber(1.8)
+local INCOME_GROWTH = BigNum.fromNumber(1.7)
 -- One grade per guardian post of the Debris Belt; GuardianConfig checks its posts against this.
 local DEBRIS_BELT_GRADES = 3
 
@@ -83,6 +83,8 @@ return table.freeze({
 	TIER_POSITIONS = table.freeze(TIER_POSITIONS),
 	-- Hatch odds in tier order: the shape Hatch.shiftedWeights takes.
 	HATCH_ENTRIES = table.freeze(HATCH_ENTRIES),
+	INCOME_BASE = INCOME_BASE,
+	INCOME_GROWTH = INCOME_GROWTH,
 	DEBRIS_BELT_GRADES = DEBRIS_BELT_GRADES,
 	GRADES = table.freeze(GRADES),
 	ALIENS = table.freeze(ALIENS),

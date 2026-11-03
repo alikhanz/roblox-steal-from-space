@@ -29,6 +29,7 @@ lune run check
 | `lune run format` | Отформатировать код |
 | `lune run test [фильтр]` | Тесты |
 | `lune run net` | Перегенерировать сеть после правки `net/remotes.zap` |
+| `lune run balance [дней]` | Калькулятор баланса: темп игры по конфигам |
 | `rojo serve` | Синхронизация в Studio |
 
 ## Документация

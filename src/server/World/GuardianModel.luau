@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 
 local GuardianModel = {}
 
@@ -23,7 +24,7 @@ local function addEye(body: BasePart, side: number, model: Model)
 	eye.Name = GuardianConfig.EYE_NAME
 	eye.Size = EYE_SIZE
 	eye.Material = Enum.Material.Neon
-	eye.Color = GuardianConfig.EYE_COLORS.Sleep
+	eye.Color = GuardianLooks.EYE_COLORS.Sleep
 	eye.Massless = true
 	ghost(eye)
 	eye.CFrame = body.CFrame * CFrame.new(side * body.Size.X * 0.2, body.Size.Y * 0.15, -body.Size.Z / 2)
@@ -57,7 +58,7 @@ local function addMovers(body: BasePart)
 	align.Parent = body
 end
 
-function GuardianModel.build(kind: GuardianConfig.Kind, color: Color3?): Model
+function GuardianModel.build(kind: GuardianLooks.KindLook, color: Color3?): Model
 	local model = Instance.new("Model")
 	model.Name = "Guardian"
 

@@ -1,5 +1,6 @@
 --!strict
--- Eggs, nests and the theft loop: rarities, loot, grabbing and timings.
+-- Eggs, nests and the theft loop: rarities, loot, grabbing and timings. Looks live in EggLooks.
+-- Pure Luau: the balance calculator and tests load it in Lune.
 
 local Grab = require("../Domain/Grab")
 local Hatch = require("../Domain/Hatch")
@@ -17,9 +18,6 @@ export type Rarity = {
 	read hatchSeconds: Hatch.Range,
 	-- Tilts hatch odds toward the top tiers (see Hatch.shiftedWeights); adds up with the size's.
 	read luck: number,
-	read color: Color3,
-	-- Glow around the egg: 0 for none. Rarer eggs shine brighter and are easier to spot.
-	read glow: number,
 }
 
 export type Size = {
@@ -56,24 +54,18 @@ local RARITIES: { [RarityId]: Rarity } = {
 		weight = 0.1,
 		hatchSeconds = { min = 30, max = 10 * 60 },
 		luck = 0,
-		color = Color3.fromRGB(226, 230, 240),
-		glow = 0,
 	},
 	Uncommon = {
 		grabSeconds = 2.5,
 		weight = 0.18,
 		hatchSeconds = { min = 5 * 60, max = 40 * 60 },
 		luck = 0.35,
-		color = Color3.fromRGB(120, 235, 130),
-		glow = 0.6,
 	},
 	Rare = {
 		grabSeconds = 3,
 		weight = 0.28,
 		hatchSeconds = { min = 20 * 60, max = 2 * 60 * 60 },
 		luck = 0.7,
-		color = Color3.fromRGB(90, 170, 255),
-		glow = 1,
 	},
 }
 
@@ -103,9 +95,6 @@ return table.freeze({
 	RESPAWN_SECONDS = 20,
 	-- A dropped egg nobody touches for this long flies back to its nest, seconds.
 	LOOSE_SECONDS = 180,
-
-	-- Egg size, studs (an elongated sphere).
-	EGG_SIZE = Vector3.new(1.6, 2.1, 1.6),
 
 	-- Nest attributes (replicated to clients for the HUD and to the simulation for grabbing).
 	NEST_TAG = "Nest",

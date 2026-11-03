@@ -1,6 +1,7 @@
 --!strict
--- Guardians of the nests: what each kind looks like, which nests get which guardian, how they
--- chase and what a catch does. Every guardian behaves the same; kinds differ in look and speed.
+-- Guardians of the nests: which nests get which guardian, how they chase and what a catch does.
+-- Every guardian behaves the same; kinds differ in look (GuardianLooks) and posts in speed.
+-- Pure Luau: the balance calculator and tests load it in Lune.
 
 local AlienConfig = require("./AlienConfig")
 local BigNum = require("../Domain/BigNum")
@@ -14,9 +15,6 @@ export type KindId = "SlimeWarden" | "CrabDrone"
 
 export type Kind = {
 	read nameKey: keyof<typeof(Strings)>,
-	read bodyShape: Enum.PartType,
-	read bodySize: Vector3,
-	read color: Color3,
 }
 
 -- A post is a guardian placed at a nest: its kind and its speed stat. Posts are handed out to
@@ -24,30 +22,25 @@ export type Kind = {
 export type Post = {
 	read kind: KindId,
 	read speed: BigNum.BigNum,
-	-- Overrides the kind's color, so same-kind guardians of different tiers are told apart.
-	read color: Color3?,
 }
 
 local KINDS: { [KindId]: Kind } = {
-	SlimeWarden = {
-		nameKey = "guardian.slimeWarden.title",
-		bodyShape = Enum.PartType.Ball,
-		bodySize = Vector3.new(6, 5, 6),
-		color = Color3.fromRGB(120, 220, 90),
-	},
-	CrabDrone = {
-		nameKey = "guardian.crabDrone.title",
-		bodyShape = Enum.PartType.Block,
-		bodySize = Vector3.new(7, 3, 5),
-		color = Color3.fromRGB(230, 90, 70),
-	},
+	SlimeWarden = { nameKey = "guardian.slimeWarden.title" },
+	CrabDrone = { nameKey = "guardian.crabDrone.title" },
 }
 
--- Guardian k has speed 10 * 3^(k-1) (see GAME_DESIGN, pacing).
+-- Guardian k has speed FIRST_SPEED * SPEED_GROWTH^(k-1) (see GAME_DESIGN, pacing).
+local FIRST_SPEED = BigNum.fromNumber(10)
+local SPEED_GROWTH = BigNum.fromNumber(3)
+
+local function speedOfPost(index: number): BigNum.BigNum
+	return BigNum.mul(FIRST_SPEED, BigNum.pow(SPEED_GROWTH, index - 1))
+end
+
 local DEBRIS_BELT_POSTS: { Post } = {
-	{ kind = "SlimeWarden", speed = BigNum.fromNumber(10) },
-	{ kind = "CrabDrone", speed = BigNum.fromNumber(30) },
-	{ kind = "CrabDrone", speed = BigNum.fromNumber(90), color = Color3.fromRGB(150, 60, 200) },
+	{ kind = "SlimeWarden", speed = speedOfPost(1) },
+	{ kind = "CrabDrone", speed = speedOfPost(2) },
+	{ kind = "CrabDrone", speed = speedOfPost(3) },
 }
 -- Post k's eggs hatch into grade k: the two lists must agree.
 assert(
@@ -63,17 +56,12 @@ local BRAIN: GuardianBrain.Tuning = {
 	catchRadius = 7,
 }
 
-local EYE_COLORS: { [GuardianBrain.State]: Color3 } = {
-	Sleep = Color3.fromRGB(70, 70, 90),
-	Chase = Color3.fromRGB(255, 40, 40),
-	Return = Color3.fromRGB(255, 170, 40),
-}
-
 return table.freeze({
 	KINDS = table.freeze(KINDS),
+	FIRST_SPEED = FIRST_SPEED,
+	SPEED_GROWTH = SPEED_GROWTH,
 	DEBRIS_BELT_POSTS = table.freeze(DEBRIS_BELT_POSTS),
 	BRAIN = table.freeze(BRAIN),
-	EYE_COLORS = table.freeze(EYE_COLORS),
 	-- The recommended speed over a guardian assumes an egg of this weight: a common one of the
 	-- typical size. Lighter eggs need less, heavier ones more; that is part of the gamble.
 	TYPICAL_WEIGHT = Speed.eggWeight(

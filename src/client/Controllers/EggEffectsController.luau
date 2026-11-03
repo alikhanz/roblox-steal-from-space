@@ -6,6 +6,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 
 local TRAIL_LIFETIME = 0.4
 local TRAIL_WIDTH_OFFSET = 0.6
@@ -22,7 +23,7 @@ local function addTrail(instance: Instance)
 		return
 	end
 	local rarity = instance:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
-	local config = EggConfig.RARITIES[rarity :: EggConfig.RarityId]
+	local config = EggLooks.RARITIES[rarity :: EggConfig.RarityId]
 	if not config then
 		warn(`[EggEffectsController] {instance:GetFullName()} has no rarity; no trail`)
 		return

@@ -18,6 +18,7 @@ lune run format       # если check упал на форматировани�
 lune run test [фильтр]
 lune run content      # только проверка строк локализации
 lune run net          # после правки net/remotes.zap
+lune run balance      # темп игры по конфигам; после правки экономических конфигов
 rojo serve            # синхронизация в Studio
 ```
 

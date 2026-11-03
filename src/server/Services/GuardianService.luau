@@ -15,6 +15,7 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local GuardianModel = require(script.Parent.Parent.World.GuardianModel)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
@@ -58,10 +59,10 @@ type Guardian = {
 local GuardianService = {}
 
 -- Nests are handed posts from the nearest to the station outwards, in equal groups.
-local function postFor(index: number, nestCount: number): GuardianConfig.Post
+local function postFor(index: number, nestCount: number): (GuardianConfig.Post, number)
 	local posts = GuardianConfig.DEBRIS_BELT_POSTS
-	local tier = math.clamp(math.ceil(index / nestCount * #posts), 1, #posts)
-	return posts[tier]
+	local postIndex = math.clamp(math.ceil(index / nestCount * #posts), 1, #posts)
+	return posts[postIndex], postIndex
 end
 
 local function thiefRoot(player: Player): (Model?, BasePart?)
@@ -205,9 +206,9 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		end
 	end
 
-	local function place(site: WorldService.NestSite, post: GuardianConfig.Post, folder: Instance)
-		local kind = GuardianConfig.KINDS[post.kind]
-		local model = GuardianModel.build(kind, post.color)
+	local function place(site: WorldService.NestSite, post: GuardianConfig.Post, postIndex: number, folder: Instance)
+		local look = GuardianLooks.KINDS[post.kind]
+		local model = GuardianModel.build(look, GuardianLooks.DEBRIS_BELT_POST_COLORS[postIndex])
 		local body = model.PrimaryPart :: BasePart
 		local home = site.eggCFrame.Position + Vector3.yAxis * GuardianConfig.HOVER_HEIGHT
 		model:PivotTo(CFrame.new(home))
@@ -252,7 +253,8 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			return (a.eggCFrame.Position - center).Magnitude < (b.eggCFrame.Position - center).Magnitude
 		end)
 		for index, site in sites do
-			place(site, postFor(index, #sites), folder)
+			local post, postIndex = postFor(index, #sites)
+			place(site, post, postIndex, folder)
 		end
 
 		dependencies.scheduler.every(GuardianConfig.TICK_SECONDS, tick)

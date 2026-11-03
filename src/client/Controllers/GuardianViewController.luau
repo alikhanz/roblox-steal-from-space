@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
+local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -41,7 +42,7 @@ end
 
 local function paintEyes(model: Model)
 	local state = model:GetAttribute(GuardianConfig.STATE_ATTRIBUTE)
-	local color = GuardianConfig.EYE_COLORS[state :: any] or GuardianConfig.EYE_COLORS.Sleep
+	local color = GuardianLooks.EYE_COLORS[state :: any] or GuardianLooks.EYE_COLORS.Sleep
 	for _, child in model:GetChildren() do
 		if child.Name == GuardianConfig.EYE_NAME and child:IsA("BasePart") then
 			child.Color = color
