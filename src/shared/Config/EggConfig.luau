@@ -2,6 +2,7 @@
 -- Eggs, nests and the theft loop: rarities, loot, grabbing and timings.
 
 local Grab = require("../Domain/Grab")
+local Hatch = require("../Domain/Hatch")
 local Loot = require("../Domain/Loot")
 
 export type RarityId = "Common" | "Uncommon" | "Rare"
@@ -11,6 +12,11 @@ export type Rarity = {
 	read grabSeconds: number,
 	-- Share of the speed stat a medium egg takes away while carried (see Speed.eggWeight).
 	read weight: number,
+	-- Time in the incubator, rolled between min and max (see Hatch.duration). The rarest eggs of
+	-- the game take up to 5 hours.
+	read hatchSeconds: Hatch.Range,
+	-- Tilts hatch odds toward the top tiers (see Hatch.shiftedWeights); adds up with the size's.
+	read luck: number,
 	read color: Color3,
 	-- Glow around the egg: 0 for none. Rarer eggs shine brighter and are easier to spot.
 	read glow: number,
@@ -21,12 +27,14 @@ export type Size = {
 	read weightFactor: number,
 	-- Multiplies the egg model size.
 	read scale: number,
+	-- Tilts hatch odds toward the top tiers; adds up with the rarity's.
+	read luck: number,
 }
 
 local SIZES: { [SizeId]: Size } = {
-	Small = { weightFactor = 0.7, scale = 0.8 },
-	Medium = { weightFactor = 1, scale = 1 },
-	Large = { weightFactor = 1.4, scale = 1.25 },
+	Small = { weightFactor = 0.7, scale = 0.8, luck = 0 },
+	Medium = { weightFactor = 1, scale = 1, luck = 0.15 },
+	Large = { weightFactor = 1.4, scale = 1.25, luck = 0.3 },
 }
 
 local DEBRIS_BELT_SIZE_LOOT: { Loot.Entry<SizeId> } = {
@@ -46,18 +54,24 @@ local RARITIES: { [RarityId]: Rarity } = {
 	Common = {
 		grabSeconds = 2,
 		weight = 0.1,
+		hatchSeconds = { min = 30, max = 10 * 60 },
+		luck = 0,
 		color = Color3.fromRGB(226, 230, 240),
 		glow = 0,
 	},
 	Uncommon = {
 		grabSeconds = 2.5,
 		weight = 0.18,
+		hatchSeconds = { min = 5 * 60, max = 40 * 60 },
+		luck = 0.35,
 		color = Color3.fromRGB(120, 235, 130),
 		glow = 0.6,
 	},
 	Rare = {
 		grabSeconds = 3,
 		weight = 0.28,
+		hatchSeconds = { min = 20 * 60, max = 2 * 60 * 60 },
+		luck = 0.7,
 		color = Color3.fromRGB(90, 170, 255),
 		glow = 1,
 	},

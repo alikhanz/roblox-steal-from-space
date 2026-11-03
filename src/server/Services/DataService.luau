@@ -7,15 +7,22 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local ProfileStoreAdapter = require(script.Parent.Parent.Data.ProfileStoreAdapter)
 local SessionManager = require(script.Parent.Parent.Data.SessionManager)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 
 local STORE_NAME = "PlayerData"
 local LOAD_TIMEOUT_SECONDS = 30
+-- What a new profile starts with; also fills fields that older profiles lack.
+local DEFAULTS: PlayerData.Defaults = {
+	startingSpeed = SpeedConfig.STARTING_SPEED,
+	startingPods = BayConfig.STARTING_PODS,
+}
 -- Every session transition is printed in Studio to make playtests easy to follow.
 local LOG_TRANSITIONS = RunService:IsStudio()
 
@@ -89,10 +96,12 @@ function DataService.new(): DataService
 		manager = SessionManager.new({
 			port = ProfileStoreAdapter.new({
 				storeName = STORE_NAME,
-				template = PlayerData.template() :: any,
+				template = PlayerData.template(DEFAULTS) :: any,
 				keyFor = keyFor,
 			}),
-			loadData = PlayerData.load,
+			loadData = function(saved)
+				return PlayerData.load(saved, DEFAULTS)
+			end,
 			clock = os.clock,
 			loadTimeout = LOAD_TIMEOUT_SECONDS,
 			onStateChanged = onStateChanged,

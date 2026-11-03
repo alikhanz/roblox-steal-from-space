@@ -40,6 +40,26 @@ local Strings = {
 		ru = "Поймали!",
 		en = "Caught!",
 	},
+	["tier.common.title"] = {
+		ru = "Обычный",
+		en = "Common",
+	},
+	["tier.uncommon.title"] = {
+		ru = "Необычный",
+		en = "Uncommon",
+	},
+	["tier.rare.title"] = {
+		ru = "Редкий",
+		en = "Rare",
+	},
+	["tier.epic.title"] = {
+		ru = "Эпический",
+		en = "Epic",
+	},
+	["tier.legendary.title"] = {
+		ru = "Легендарный",
+		en = "Legendary",
+	},
 	["speed.stat.title"] = {
 		ru = "Скорость",
 		en = "Speed",

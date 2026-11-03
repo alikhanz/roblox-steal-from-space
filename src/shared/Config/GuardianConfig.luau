@@ -2,6 +2,7 @@
 -- Guardians of the nests: what each kind looks like, which nests get which guardian, how they
 -- chase and what a catch does. Every guardian behaves the same; kinds differ in look and speed.
 
+local AlienConfig = require("./AlienConfig")
 local BigNum = require("../Domain/BigNum")
 local EggConfig = require("./EggConfig")
 local GuardianBrain = require("../Domain/GuardianBrain")
@@ -48,6 +49,11 @@ local DEBRIS_BELT_POSTS: { Post } = {
 	{ kind = "CrabDrone", speed = BigNum.fromNumber(30) },
 	{ kind = "CrabDrone", speed = BigNum.fromNumber(90), color = Color3.fromRGB(150, 60, 200) },
 }
+-- Post k's eggs hatch into grade k: the two lists must agree.
+assert(
+	#DEBRIS_BELT_POSTS == AlienConfig.DEBRIS_BELT_GRADES,
+	"GuardianConfig.DEBRIS_BELT_POSTS and AlienConfig.DEBRIS_BELT_GRADES disagree"
+)
 
 local BRAIN: GuardianBrain.Tuning = {
 	aggroDelaySeconds = 1,
