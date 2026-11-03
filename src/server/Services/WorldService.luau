@@ -322,12 +322,19 @@ local function buildLandmarks(parent: Instance)
 	folder.Parent = parent
 end
 
+-- The visible edge of the map. A part cannot be wider than MAX_PART_SIZE, so the sphere is a
+-- mesh scaled past it; the real wall is in the simulation (Bounds).
+local MAX_PART_SIZE = 2048
+
 local function buildBoundary(parent: Instance)
 	local shell = Instance.new("Part")
 	shell.Name = "Boundary"
-	shell.Shape = Enum.PartType.Ball
-	shell.Size = Vector3.one * WorldConfig.BOUNDARY_RADIUS * 2
+	shell.Size = Vector3.one * MAX_PART_SIZE
 	shell.CFrame = CFrame.new(StationConfig.PLATFORM_CENTER)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Scale = Vector3.one * (WorldConfig.BOUNDARY_RADIUS * 2 / MAX_PART_SIZE)
+	mesh.Parent = shell
 	shell.Material = Enum.Material.ForceField
 	shell.Color = BOUNDARY_COLOR
 	shell.Transparency = BOUNDARY_TRANSPARENCY

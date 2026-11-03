@@ -15,7 +15,6 @@ local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
-local BODY_WAIT_TIMEOUT = 10
 -- The strike: the body swells and snaps back.
 local STRIKE_SCALE = 1.35
 local STRIKE_TWEEN = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true)
@@ -52,16 +51,28 @@ end
 
 function GuardianViewController.new(): GuardianViewController
 	local views: { [Instance]: View } = {}
+	-- Body watchers of every tagged guardian, present body or not.
+	local tracked: { [Instance]: { RBXScriptConnection } } = {}
 
-	-- The model's parts may replicate after its tag; wait for the body before building the sign.
-	local function watch(instance: Instance, locale: Text.Locale)
-		local body = instance:WaitForChild(GuardianConfig.BODY_NAME, BODY_WAIT_TIMEOUT)
-		if views[instance] or not instance:IsDescendantOf(workspace) then
+	local function forget(instance: Instance)
+		local view = views[instance]
+		if view then
+			views[instance] = nil
+			for _, connection in view.connections do
+				connection:Disconnect()
+			end
+			view.unmount()
+		end
+	end
+
+	-- Builds the sign and eye painting for a guardian whose body is present.
+	local function show(instance: Instance, body: Instance, locale: Text.Locale)
+		if views[instance] then
 			return
 		end
 		local postId = instance:GetAttribute(GuardianConfig.POST_ATTRIBUTE)
 		local post = GuardianConfig.POSTS_BY_ID[postId :: GuardianConfig.PostId]
-		if not instance:IsA("Model") or not body or not body:IsA("BasePart") or not post then
+		if not instance:IsA("Model") or not body:IsA("BasePart") or not post then
 			warn(`[GuardianViewController] {instance:GetFullName()} is not a complete guardian; no sign`)
 			return
 		end
@@ -88,25 +99,50 @@ function GuardianViewController.new(): GuardianViewController
 		}
 	end
 
-	local function forget(instance: Instance)
-		local view = views[instance]
-		if view then
-			views[instance] = nil
-			for _, connection in view.connections do
+	-- Far guardians stream in as a model whose parts follow by distance, and stream out part by
+	-- part: the sign is built whenever the body is there and dropped whenever it leaves.
+	local function watch(instance: Instance, locale: Text.Locale)
+		if tracked[instance] then
+			return
+		end
+		tracked[instance] = {
+			instance.ChildAdded:Connect(function(child)
+				if child.Name == GuardianConfig.BODY_NAME then
+					forget(instance)
+					show(instance, child, locale)
+				end
+			end),
+			instance.ChildRemoved:Connect(function(child)
+				if child.Name == GuardianConfig.BODY_NAME then
+					forget(instance)
+				end
+			end),
+		}
+		local body = instance:FindFirstChild(GuardianConfig.BODY_NAME)
+		if body then
+			show(instance, body, locale)
+		end
+	end
+
+	local function untrack(instance: Instance)
+		local connections = tracked[instance]
+		if connections then
+			tracked[instance] = nil
+			for _, connection in connections do
 				connection:Disconnect()
 			end
-			view.unmount()
 		end
+		forget(instance)
 	end
 
 	local function start()
 		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
 		CollectionService:GetInstanceAddedSignal(GuardianConfig.TAG):Connect(function(instance)
-			task.spawn(watch, instance, locale)
+			watch(instance, locale)
 		end)
-		CollectionService:GetInstanceRemovedSignal(GuardianConfig.TAG):Connect(forget)
+		CollectionService:GetInstanceRemovedSignal(GuardianConfig.TAG):Connect(untrack)
 		for _, instance in CollectionService:GetTagged(GuardianConfig.TAG) do
-			task.spawn(watch, instance, locale)
+			watch(instance, locale)
 		end
 	end
 
