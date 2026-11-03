@@ -8,9 +8,11 @@ local BayService = require(script.Parent.Services.BayService)
 local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
+local EconomyService = require(script.Parent.Services.EconomyService)
 local GuardianService = require(script.Parent.Services.GuardianService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local NestService = require(script.Parent.Services.NestService)
+local NetService = require(script.Parent.Services.NetService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
@@ -34,6 +36,20 @@ local bayService = BayService.new({
 	getData = profile.getData,
 	update = profile.update,
 	scheduler = scheduler,
+})
+local economyService = EconomyService.new({
+	getData = profile.getData,
+	update = profile.update,
+	refresh = bayService.refresh,
+})
+local netService = NetService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	economy = economyService,
+	bayChanged = bayService.changed,
+	coinsChanged = bayService.coinsChanged,
+	offlineSettled = bayService.offlineSettled,
+	hatched = bayService.hatched,
 })
 local spaceService = SpaceService.new({ getSpawn = worldService.getSpawn })
 local carryService = CarryService.new({
@@ -74,6 +90,8 @@ Lifecycle.run({
 	carryService,
 	guardianService,
 	bayService,
+	economyService,
+	netService,
 	devService,
 }, function(callback)
 	task.spawn(callback)

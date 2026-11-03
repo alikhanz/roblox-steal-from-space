@@ -1,0 +1,43 @@
+--!strict
+
+local RateLimit = require("../../src/shared/Domain/RateLimit")
+local Test = require("../../lune/lib/Test")
+local describe, it, expect = Test.describe, Test.it, Test.expect
+
+describe("RateLimit.allow", function()
+	it("allows up to the limit within the window", function()
+		local limit = RateLimit.new(3, 1)
+		expect(limit.allow("a", 0)).toBe(true)
+		expect(limit.allow("a", 0.2)).toBe(true)
+		expect(limit.allow("a", 0.4)).toBe(true)
+		expect(limit.allow("a", 0.6)).toBe(false)
+	end)
+
+	it("frees room as events leave the window", function()
+		local limit = RateLimit.new(2, 1)
+		expect(limit.allow("a", 0)).toBe(true)
+		expect(limit.allow("a", 0.5)).toBe(true)
+		expect(limit.allow("a", 0.9)).toBe(false)
+		expect(limit.allow("a", 1)).toBe(true)
+		expect(limit.allow("a", 1.4)).toBe(false)
+		expect(limit.allow("a", 1.5)).toBe(true)
+	end)
+
+	it("keeps keys apart and forgets them", function()
+		local limit = RateLimit.new(1, 10)
+		expect(limit.allow("a", 0)).toBe(true)
+		expect(limit.allow("b", 0)).toBe(true)
+		expect(limit.allow("a", 1)).toBe(false)
+		limit.forget("a")
+		expect(limit.allow("a", 1)).toBe(true)
+	end)
+
+	it("rejects a bad limit or window", function()
+		expect(function()
+			RateLimit.new(0, 1)
+		end).toThrow("limit")
+		expect(function()
+			RateLimit.new(1, 0)
+		end).toThrow("window")
+	end)
+end)

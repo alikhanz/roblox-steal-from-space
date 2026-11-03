@@ -55,6 +55,12 @@ export type BayService = {
 	hastenHatching: (player: Player) -> boolean,
 	-- Fires when an egg hatches: the player, the alien and where it went.
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
+	-- Fires after the bay was rebuilt from the profile.
+	changed: Signal.Signal<Player>,
+	-- Fires when the player's coins change, with the new total.
+	coinsChanged: Signal.Signal<Player, BigNum.BigNum>,
+	-- Fires when offline income was paid: the amount and the seconds it covered.
+	offlineSettled: Signal.Signal<Player, BigNum.BigNum, number>,
 }
 
 type PlayerBay = {
@@ -80,6 +86,9 @@ function BayService.new(dependencies: Dependencies): BayService
 	local folder: Folder? = nil
 	local random = Random.new()
 	local hatched = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
+	local changed = Signal.new() :: Signal.Signal<Player>
+	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
+	local offlineSettled = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number>
 	-- Defined below; picking up an alien rebuilds the bay.
 	local refresh: (player: Player) -> ()
 
@@ -181,6 +190,7 @@ function BayService.new(dependencies: Dependencies): BayService
 				addPickUpPrompt(player, model, alien.uid)
 			end
 		end
+		changed.fire(player)
 	end
 
 	local function freeSlot(): number?
@@ -196,6 +206,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	-- meanwhile come out on the first tick, like any ready egg.
 	local function settleOffline(player: Player)
 		local earned = BigNum.ZERO
+		local total = BigNum.ZERO
 		local awaySeconds = 0
 		dependencies.update(player, function(data)
 			local current = now()
@@ -203,10 +214,16 @@ function BayService.new(dependencies: Dependencies): BayService
 			earned = Offline.income(Bay.incomePerSecond(data, incomeOf), awaySeconds)
 			data.coins = BigNum.add(data.coins, earned)
 			data.lastSeenAt = current
+			total = data.coins
 		end)
-		if LOG and awaySeconds > 0 then
+		if BigNum.isZero(earned) then
+			return
+		end
+		if LOG then
 			print(`[BayService] {player.Name} was away {math.floor(awaySeconds)}s and earned {BigNum.format(earned)}`)
 		end
+		coinsChanged.fire(player, total)
+		offlineSettled.fire(player, earned, awaySeconds)
 	end
 
 	local function assign(player: Player)
@@ -311,6 +328,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		local earnedSeconds = BigNum.fromNumber(deltaTime)
 		for player in bays do
 			local results: { { id: AlienConfig.AlienId, location: Bay.Location } } = {}
+			local coins: BigNum.BigNum? = nil
 			dependencies.update(player, function(data)
 				for _, egg in Bay.takeHatched(data, current) do
 					local alienId, location = hatchEgg(data, egg)
@@ -321,9 +339,13 @@ function BayService.new(dependencies: Dependencies): BayService
 				local income = Bay.incomePerSecond(data, incomeOf)
 				if not BigNum.isZero(income) then
 					data.coins = BigNum.add(data.coins, BigNum.mul(income, earnedSeconds))
+					coins = data.coins
 				end
 				data.lastSeenAt = current
 			end)
+			if coins then
+				coinsChanged.fire(player, coins)
+			end
 			if #results > 0 then
 				refresh(player)
 				for _, result in results do
@@ -360,6 +382,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		addAlien = addAlien,
 		hastenHatching = hastenHatching,
 		hatched = hatched,
+		changed = changed,
+		coinsChanged = coinsChanged,
+		offlineSettled = offlineSettled,
 	}
 end
 

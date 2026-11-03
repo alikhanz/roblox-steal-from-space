@@ -104,6 +104,10 @@ local Strings = {
 		ru = "Легендарный",
 		en = "Legendary",
 	},
+	["coins.stat.title"] = {
+		ru = "Монеты",
+		en = "Coins",
+	},
 	["speed.stat.title"] = {
 		ru = "Скорость",
 		en = "Speed",

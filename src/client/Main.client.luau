@@ -12,11 +12,15 @@ local HitEffectsController = require(script.Parent.Controllers.HitEffectsControl
 local HudController = require(script.Parent.Controllers.HudController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
+local ProfileState = require(script.Parent.State.ProfileState)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 
+local profileState = ProfileState.new()
+
 Lifecycle.run({
+	profileState,
 	AimController.new(),
-	HudController.new(),
+	HudController.new({ coins = profileState.coins }),
 	GrabPromptController.new(),
 	GuardianViewController.new(),
 	BayViewController.new(),

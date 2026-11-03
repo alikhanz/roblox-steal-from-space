@@ -1,6 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The speed stat in the top-left corner: the player's one number to grow.
+-- A stat the player watches grow: a title and a big number with an icon. Stacked in the
+-- top-left corner by the HUD (speed, coins).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -14,9 +15,14 @@ local GAP = 8
 local VALUE_TEXT_SIZE = 24
 
 export type Props = {
+	name: string,
 	title: string,
+	-- Shown before the number, e.g. "⚡".
+	icon: string,
+	color: Color3,
 	-- Formatted stat, e.g. "1.5K".
 	value: () -> string,
+	layoutOrder: number,
 }
 
 -- Vide's instance types do not list UIPadding, so it is made directly.
@@ -42,10 +48,10 @@ local function label(name: string, order: number, size: number, color: Color3, t
 	}) :: TextLabel
 end
 
-local function SpeedBadge(props: Props): Frame
+local function StatBadge(props: Props): Frame
 	return create("Frame")({
-		Name = "SpeedBadge",
-		Position = UDim2.fromOffset(Theme.MARGIN, Theme.MARGIN),
+		Name = props.name,
+		LayoutOrder = props.layoutOrder,
 		AutomaticSize = Enum.AutomaticSize.XY,
 		BackgroundColor3 = Theme.PANEL,
 		BackgroundTransparency = Theme.PANEL_TRANSPARENCY,
@@ -60,10 +66,10 @@ local function SpeedBadge(props: Props): Frame
 		}),
 
 		label("Title", 1, Theme.TEXT_SIZE, Theme.TEXT, props.title),
-		label("Value", 2, VALUE_TEXT_SIZE, Theme.SPEED, function()
-			return `⚡ {props.value()}`
+		label("Value", 2, VALUE_TEXT_SIZE, props.color, function()
+			return `{props.icon} {props.value()}`
 		end),
 	}) :: Frame
 end
 
-return SpeedBadge
+return StatBadge

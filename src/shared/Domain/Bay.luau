@@ -143,6 +143,18 @@ function Bay.autoPlace(data: Data, incomeOf: IncomeOf, inventorySlots: number)
 	end
 end
 
+-- Price of the next pod for a player who owns `ownedPods`: the first bought pod costs `base`,
+-- each one after it `growth` times more.
+function Bay.podPrice(
+	ownedPods: number,
+	startingPods: number,
+	base: BigNum.BigNum,
+	growth: BigNum.BigNum
+): BigNum.BigNum
+	local bought = math.max(0, ownedPods - startingPods)
+	return BigNum.mul(base, BigNum.pow(growth, bought))
+end
+
 -- Removes and returns the eggs whose time has come, oldest first.
 function Bay.takeHatched(data: Data, now: number): { PlayerData.EggRecord }
 	local hatched = {}

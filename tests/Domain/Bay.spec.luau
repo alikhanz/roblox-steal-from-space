@@ -158,6 +158,19 @@ describe("Bay.autoPlace", function()
 	end)
 end)
 
+describe("Bay.podPrice", function()
+	it("grows from the first bought pod", function()
+		local base, growth = BigNum.fromNumber(250), BigNum.fromNumber(3)
+		expect(Bay.podPrice(3, 3, base, growth).mantissa).toBe(250)
+		expect(Bay.podPrice(4, 3, base, growth).mantissa).toBe(750)
+		expect(Bay.podPrice(5, 3, base, growth).mantissa).toBe(2250)
+	end)
+
+	it("never charges less than the base for a short profile", function()
+		expect(Bay.podPrice(1, 3, BigNum.fromNumber(250), BigNum.fromNumber(3)).mantissa).toBe(250)
+	end)
+end)
+
 describe("Bay.takeHatched", function()
 	local function egg(uid: number, hatchAt: number): PlayerData.EggRecord
 		return { uid = uid, rarity = "Common", size = "Small", grade = 1, hatchAt = hatchAt }

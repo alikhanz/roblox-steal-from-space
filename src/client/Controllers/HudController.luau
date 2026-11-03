@@ -1,7 +1,8 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The in-game HUD: speed stat, oxygen bar, low-oxygen warning and, on touch devices, flight
--- buttons. Reads the local character's simulation attributes (predicted, so the HUD is lag-free).
+-- The in-game HUD: speed and coins, oxygen bar, low-oxygen warning and, on touch devices,
+-- flight buttons. Reads the local character's simulation attributes (predicted, so the HUD is
+-- lag-free) and the profile copy for coins.
 
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
@@ -18,9 +19,10 @@ local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
-local SpeedBadge = require(script.Parent.Parent.UI.SpeedBadge)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
+local StatBadge = require(script.Parent.Parent.UI.StatBadge)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local Theme = require(script.Parent.Parent.UI.Theme)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -28,6 +30,11 @@ local create = Vide.create
 local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
+local STAT_GAP = 8
+
+export type Dependencies = {
+	coins: () -> BigNum.BigNum,
+}
 
 export type HudController = {
 	name: string,
@@ -36,7 +43,7 @@ export type HudController = {
 
 local HudController = {}
 
-function HudController.new(): HudController
+function HudController.new(dependencies: Dependencies): HudController
 	local oxygen = source(OxygenConfig.CAPACITY)
 	local inSpace = source(false)
 	local speed = source(SpeedConfig.STARTING_SPEED)
@@ -96,11 +103,36 @@ function HudController.new(): HudController
 					visible = stunned,
 					text = Text.get(locale, "guardian.caught.toast"),
 				}),
-				SpeedBadge({
-					title = Text.get(locale, "speed.stat.title"),
-					value = function()
-						return BigNum.format(speed())
-					end,
+				create("Frame")({
+					Name = "Stats",
+					Position = UDim2.fromOffset(Theme.MARGIN, Theme.MARGIN),
+					AutomaticSize = Enum.AutomaticSize.XY,
+					BackgroundTransparency = 1,
+					create("UIListLayout")({
+						FillDirection = Enum.FillDirection.Vertical,
+						Padding = UDim.new(0, STAT_GAP),
+						SortOrder = Enum.SortOrder.LayoutOrder,
+					}),
+					StatBadge({
+						name = "SpeedBadge",
+						title = Text.get(locale, "speed.stat.title"),
+						icon = "⚡",
+						color = Theme.SPEED,
+						value = function()
+							return BigNum.format(speed())
+						end,
+						layoutOrder = 1,
+					}),
+					StatBadge({
+						name = "CoinsBadge",
+						title = Text.get(locale, "coins.stat.title"),
+						icon = "●",
+						color = Theme.COINS,
+						value = function()
+							return BigNum.format(dependencies.coins())
+						end,
+						layoutOrder = 2,
+					}),
 				}),
 				OxygenBar({
 					fraction = fraction,
