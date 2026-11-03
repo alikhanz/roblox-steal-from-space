@@ -25,6 +25,8 @@ export type Harpoon = {
 export type Bomb = {
 	read throwSpeed: number,
 	read fuseSeconds: number,
+	-- The bomb goes off early when it comes this close to someone.
+	read contactStuds: number,
 	read radiusStuds: number,
 	read cooldownSeconds: number,
 }

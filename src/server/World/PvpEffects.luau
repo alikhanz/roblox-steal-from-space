@@ -67,9 +67,16 @@ function PvpEffects.harpoonBeam(from: BasePart, target: Vector3)
 	end)
 end
 
--- A bomb that flies straight from `start` at `velocity` for `fuseSeconds`, then calls
--- `onExplode` with where it ended up. Moved by hand: space has no drag and no gravity for it.
-function PvpEffects.throwBomb(start: Vector3, velocity: Vector3, fuseSeconds: number, onExplode: (Vector3) -> ())
+-- A bomb that flies straight from `start` at `velocity` until `fuseSeconds` pass or `touches`
+-- says it reached someone, then calls `onExplode` with where it ended up. Moved by hand:
+-- space has no drag and no gravity for it.
+function PvpEffects.throwBomb(
+	start: Vector3,
+	velocity: Vector3,
+	fuseSeconds: number,
+	touches: (Vector3) -> boolean,
+	onExplode: (Vector3) -> ()
+)
 	local bomb = Instance.new("Part")
 	bomb.Name = PvpConfig.BOMB_NAME
 	bomb.Shape = Enum.PartType.Ball
@@ -87,7 +94,7 @@ function PvpEffects.throwBomb(start: Vector3, velocity: Vector3, fuseSeconds: nu
 		elapsed += deltaTime
 		position += velocity * deltaTime
 		bomb.CFrame = CFrame.new(position)
-		if elapsed >= fuseSeconds then
+		if elapsed >= fuseSeconds or touches(position) then
 			connection:Disconnect()
 			bomb:Destroy()
 			onExplode(position)

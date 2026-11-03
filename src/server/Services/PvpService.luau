@@ -360,9 +360,20 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		end
 		state.lastUsedAt.Bomb = time()
 		local start = root.Position + direction * 3
-		PvpEffects.throwBomb(start, direction * PvpConfig.BOMB.throwSpeed, PvpConfig.BOMB.fuseSeconds, function(center)
+		-- Goes off early when it reaches someone, so a throw at a player lands on them.
+		local function touches(position: Vector3): boolean
+			for _, target in targetsFor(player) do
+				if (target.root.Position - position).Magnitude <= PvpConfig.BOMB.contactStuds then
+					return true
+				end
+			end
+			return false
+		end
+		local function onExplode(center: Vector3)
 			explode(player, character, center)
-		end)
+		end
+		local velocity = direction * PvpConfig.BOMB.throwSpeed
+		PvpEffects.throwBomb(start, velocity, PvpConfig.BOMB.fuseSeconds, touches, onExplode)
 	end
 
 	local ATTACKS: { [AbilityKind]: (Player, PlayerState) -> () } = {

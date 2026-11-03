@@ -13,7 +13,7 @@
 --   game.ServerStorage.DevCommands.DumpProfile:Invoke()
 --   game.ServerStorage.DevCommands.SimulateAway:Invoke(3600)
 --   game.ServerStorage.DevCommands.GiveCoins:Invoke(5000)
---   game.ServerStorage.DevCommands.SpawnDummyThief:Invoke("Rare")
+--   game.ServerStorage.DevCommands.SpawnDummyThief:Invoke("Rare", 10)
 --   game.ServerStorage.DevCommands.SetPlayTime:Invoke(3600)
 --   game.ServerStorage.DevCommands.PvpStats:Invoke()
 
@@ -122,15 +122,16 @@ function DevService.new(dependencies: Dependencies): DevService
 		-- A strike target that keeps flying ahead of the first player, where they aim: a dummy
 		-- thief holding an egg. A hit knocks the egg loose and removes the dummy. Only works out
 		-- in space (there is no drag there, so a target that stood still would be left behind).
-		SpawnDummyThief = function(rarity: string?): string
+		SpawnDummyThief = function(rarity: string?, distance: number?): string
 			local player, root = firstPlayerRoot()
 			if not player or not root then
 				return "no character"
 			end
+			local studsAhead = distance or DUMMY_DISTANCE
 			local function ahead(): CFrame
 				local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
 				local aim = (if context then FlightInputs.readAim(context) else nil) or root.CFrame.LookVector
-				return CFrame.lookAt(root.Position + aim.Unit * DUMMY_DISTANCE, root.Position)
+				return CFrame.lookAt(root.Position + aim.Unit * studsAhead, root.Position)
 			end
 			local chosenRarity = (rarity or "Common") :: EggConfig.RarityId
 			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)

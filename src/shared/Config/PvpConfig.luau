@@ -38,6 +38,7 @@ local HARPOON: Abilities.Harpoon = {
 local BOMB: Abilities.Bomb = {
 	throwSpeed = 40,
 	fuseSeconds = 1,
+	contactStuds = 6,
 	radiusStuds = 25,
 	cooldownSeconds = 45,
 }
