@@ -23,9 +23,12 @@ function Layout.maxSize(width: number, height: number): UISizeConstraint
 	return instance
 end
 
--- An outline that follows `visible`.
+-- An outline around the element that follows `visible`. The mode is set explicitly: the
+-- default (Contextual) outlines the text of a text element, which for a button with no text is
+-- nothing at all.
 function Layout.stroke(color: Color3, thickness: number, visible: () -> boolean): UIStroke
 	local instance = Instance.new("UIStroke")
+	instance.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	instance.Thickness = thickness
 	instance.Color = color
 	Vide.effect(function()

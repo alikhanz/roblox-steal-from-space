@@ -172,6 +172,23 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return true
 	end
 
+	-- The line above the buttons: what is selected and what can happen to it.
+	local function status(): string
+		local records = selectedRecords()
+		if #records == 0 then
+			return text("bay.select.hint")
+		elseif #records == 1 then
+			local entry = records[1]
+			local name = Names.alien(locale, entry.record.id) or "?"
+			return if entry.location == "Pod"
+				then text("bay.selectedPod.hint", { name = name })
+				else text("bay.selected.hint", { name = name })
+		elseif canCrossbreed() then
+			return text("bay.crossbreedReady.hint")
+		end
+		return text("bay.crossbreedPick.hint", { count = #records })
+	end
+
 	local function podPrice(): BigNum.BigNum
 		return Bay.podPrice(
 			#profile.bay().pods,
@@ -282,7 +299,13 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							return text("bay.sell.button")
 						end,
 						toPod = text("bay.toPod.button"),
-						toInventory = text("bay.toInventory.button"),
+						toInventory = function()
+							local entry = single()
+							return if entry and entry.location == "Pod"
+								then text("bay.fromPod.button")
+								else text("bay.toInventory.button")
+						end,
+						status = status,
 					},
 					alienName = function(alienId)
 						return Names.alien(locale, alienId)
@@ -407,6 +430,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 		profile.hatched.connect(function(alienId)
 			toast(text("alien.hatched.toast", { name = Names.alien(locale, alienId) or "?" }), Theme.TOAST_GOOD)
+		end)
+		profile.crossbred.connect(function(alienId)
+			toast(text("alien.crossbred.toast", { name = Names.alien(locale, alienId) or "?" }), Theme.TOAST_GOOD)
 		end)
 		profile.notice.connect(function(notice)
 			toast(text(NOTICE_KEYS[notice] or "notice.unknownAlien.toast"), Theme.TOAST_BAD)

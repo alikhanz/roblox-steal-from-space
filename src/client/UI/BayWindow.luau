@@ -25,6 +25,7 @@ local TITLE_TEXT_SIZE = 24
 local SECTION_TEXT_SIZE = 18
 local HINT_TEXT_SIZE = 14
 local ACTION_BAR_HEIGHT = 48
+local STATUS_HEIGHT = 36
 local CLOSE_SIZE = 36
 
 export type Texts = {
@@ -43,7 +44,10 @@ export type Texts = {
 	crossbreedHint: string,
 	sell: () -> string,
 	toPod: string,
-	toInventory: string,
+	-- "To inventory", or "Out of the pod" while the selected alien stands in one.
+	toInventory: () -> string,
+	-- What the selection means right now and what to do next; sits above the action buttons.
+	status: () -> string,
 }
 
 export type Props = {
@@ -219,7 +223,7 @@ local function BayWindow(props: Props): Frame
 		create("ScrollingFrame")({
 			Name = "Sections",
 			Position = UDim2.fromOffset(0, CLOSE_SIZE + GAP),
-			Size = UDim2.new(1, 0, 1, -(CLOSE_SIZE + ACTION_BAR_HEIGHT + GAP * 2)),
+			Size = UDim2.new(1, 0, 1, -(CLOSE_SIZE + STATUS_HEIGHT + ACTION_BAR_HEIGHT + GAP * 3)),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ScrollBarThickness = 6,
@@ -253,14 +257,30 @@ local function BayWindow(props: Props): Frame
 				eggs,
 			}),
 			sectionTitle(texts.inventory, 5),
-			grid("Inventory", 6, inventory),
-			sectionTitle(texts.floor, 7, function()
+			hint(texts.crossbreedHint, 6),
+			grid("Inventory", 7, inventory),
+			sectionTitle(texts.floor, 8, function()
 				return #props.bay().floor > 0
 			end),
-			hint(texts.floorHint, 8, function()
+			hint(texts.floorHint, 9, function()
 				return #props.bay().floor > 0
 			end),
-			grid("Floor", 9, floor),
+			grid("Floor", 10, floor),
+		}),
+
+		create("TextLabel")({
+			Name = "Status",
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 0, 1, -(ACTION_BAR_HEIGHT + GAP)),
+			Size = UDim2.new(1, 0, 0, STATUS_HEIGHT),
+			BackgroundTransparency = 1,
+			FontFace = Theme.FONT,
+			TextSize = HINT_TEXT_SIZE,
+			TextColor3 = Theme.SPEED,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Bottom,
+			TextWrapped = true,
+			Text = texts.status,
 		}),
 
 		create("Frame")({

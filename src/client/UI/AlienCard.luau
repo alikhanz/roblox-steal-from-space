@@ -1,7 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- A card in the bay window: one alien (color of its tier, name, income) or an empty slot.
--- Tapping it toggles its selection.
+-- Tapping it toggles its selection, shown by an outline and a tinted background.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -35,7 +35,9 @@ local function AlienCard(props: Props): TextButton
 	return create("TextButton")({
 		Name = "AlienCard",
 		LayoutOrder = props.layoutOrder,
-		BackgroundColor3 = Theme.PANEL,
+		BackgroundColor3 = function()
+			return if props.selected() then Theme.SELECTED else Theme.PANEL
+		end,
 		BackgroundTransparency = function()
 			return if hasAlien() then 0 else Theme.PANEL_TRANSPARENCY
 		end,

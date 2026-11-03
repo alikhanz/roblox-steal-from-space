@@ -13,6 +13,8 @@ return table.freeze({
 	DANGER = Color3.fromRGB(255, 80, 80),
 	-- Buttons and selection.
 	ACCENT = Color3.fromRGB(50, 120, 220),
+	-- Background of a selected card.
+	SELECTED = Color3.fromRGB(34, 70, 130),
 	-- Secondary text.
 	MUTED = Color3.fromRGB(160, 168, 190),
 	-- Toast backgrounds.

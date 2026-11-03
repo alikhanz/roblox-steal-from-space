@@ -101,6 +101,17 @@ event Hatched = {
 	},
 }
 
+-- Three aliens became one (see Crossbreed below).
+event Crossbred = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		alienId: string.utf8,
+		location: enum { Pod, Inventory, Floor },
+	},
+}
+
 event NoticeSent = {
 	from: Server,
 	type: Reliable,

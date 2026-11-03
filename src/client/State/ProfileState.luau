@@ -36,8 +36,10 @@ export type ProfileState = {
 	loaded: Vide.Source<boolean>,
 	-- Offline income paid on login: the amount and the seconds it covered.
 	offlineReward: Signal.Signal<BigNum.BigNum, number>,
-	-- An alien hatched or was crossbred.
+	-- An egg hatched: the alien and where it went.
 	hatched: Signal.Signal<string, Location>,
+	-- Three aliens were crossbred into this one.
+	crossbred: Signal.Signal<string, Location>,
 	notice: Signal.Signal<Notice>,
 }
 
@@ -53,6 +55,7 @@ function ProfileState.new(): ProfileState
 	local loaded = source(false)
 	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, number>
 	local hatched = Signal.new() :: Signal.Signal<string, Location>
+	local crossbred = Signal.new() :: Signal.Signal<string, Location>
 	local notice = Signal.new() :: Signal.Signal<Notice>
 
 	local function readCoins(value: { mantissa: number, exponent: number })
@@ -83,6 +86,9 @@ function ProfileState.new(): ProfileState
 		Remotes.Hatched.SetCallback(function(event)
 			hatched.fire(event.alienId, event.location)
 		end)
+		Remotes.Crossbred.SetCallback(function(event)
+			crossbred.fire(event.alienId, event.location)
+		end)
 		Remotes.NoticeSent.SetCallback(function(value)
 			notice.fire(value)
 		end)
@@ -98,6 +104,7 @@ function ProfileState.new(): ProfileState
 		loaded = loaded,
 		offlineReward = offlineReward,
 		hatched = hatched,
+		crossbred = crossbred,
 		notice = notice,
 	}
 end

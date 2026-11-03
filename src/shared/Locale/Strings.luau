@@ -113,12 +113,32 @@ local Strings = {
 		en = "Best to pods",
 	},
 	["bay.crossbreed.button"] = {
-		ru = "Скрестить",
-		en = "Crossbreed",
+		ru = "Скрестить 3 → 1",
+		en = "Crossbreed 3→1",
 	},
 	["bay.crossbreed.hint"] = {
-		ru = "Выбери 3 пришельцев одного стража",
-		en = "Pick 3 aliens of one guardian",
+		ru = "Скрещивание: 3 пришельца одного стража → 1 новый, с шансом на ступень выше",
+		en = "Crossbreed: 3 aliens of one guardian → 1 new one, with a shot at a higher tier",
+	},
+	["bay.select.hint"] = {
+		ru = "Нажми на пришельца, чтобы выбрать его: переставить, продать или скрестить",
+		en = "Tap an alien to select it, then move, sell or crossbreed it",
+	},
+	["bay.selected.hint"] = {
+		ru = "Выбран: {name}",
+		en = "Selected: {name}",
+	},
+	["bay.selectedPod.hint"] = {
+		ru = "Выбран: {name}. Он в капсуле: «Из капсулы» уберёт его в инвентарь",
+		en = "Selected: {name}. It is in a pod: “Out of the pod” moves it to the inventory",
+	},
+	["bay.crossbreedPick.hint"] = {
+		ru = "Для скрещивания выбрано {count} из 3: нужны пришельцы одного стража",
+		en = "{count} of 3 picked to crossbreed: they must be of one guardian",
+	},
+	["bay.crossbreedReady.hint"] = {
+		ru = "Готово: нажми «Скрестить 3 → 1», и трое станут одним",
+		en = "Ready: tap “Crossbreed 3→1” and three become one",
 	},
 	["bay.sell.button"] = {
 		ru = "Продать",
@@ -136,9 +156,17 @@ local Strings = {
 		ru = "В инвентарь",
 		en = "To inventory",
 	},
+	["bay.fromPod.button"] = {
+		ru = "Из капсулы",
+		en = "Out of the pod",
+	},
 	["alien.hatched.toast"] = {
 		ru = "Вылупился: {name}!",
 		en = "Hatched: {name}!",
+	},
+	["alien.crossbred.toast"] = {
+		ru = "Скрестили! Получился {name}",
+		en = "Crossbred! Say hi to {name}",
 	},
 	["notice.inventoryFull.toast"] = {
 		ru = "Инвентарь полный: продай или скрести",

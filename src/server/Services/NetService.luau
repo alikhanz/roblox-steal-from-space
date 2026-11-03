@@ -93,11 +93,12 @@ function NetService.new(dependencies: Dependencies): NetService
 		dependencies.offlineSettled.connect(function(player, coins, seconds)
 			Remotes.OfflineReward.Fire(player, { coins = wire(coins), seconds = seconds })
 		end)
-		local function announceAlien(player: Player, alienId: AlienConfig.AlienId, location: Bay.Location)
+		dependencies.hatched.connect(function(player, alienId, location)
 			Remotes.Hatched.Fire(player, { alienId = alienId, location = location })
-		end
-		dependencies.hatched.connect(announceAlien)
-		economy.crossbred.connect(announceAlien)
+		end)
+		economy.crossbred.connect(function(player, alienId, location)
+			Remotes.Crossbred.Fire(player, { alienId = alienId, location = location })
+		end)
 
 		Remotes.RequestSnapshot.SetCallback(guarded(function(player)
 			sendSnapshot(player)
