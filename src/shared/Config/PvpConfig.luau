@@ -67,6 +67,8 @@ return table.freeze({
 	DASH_UNTIL_ATTRIBUTE = "DashUntil",
 	-- Player attribute: true while the newbie protection holds (for the sign over the player).
 	NEWBIE_ATTRIBUTE = "Newbie",
+	-- Test targets (playtests) carry this tag so the client's aim sees them like carriers.
+	DUMMY_TAG = "PvpDummy",
 
 	-- Greybox effects, seconds on screen. The harpoon's hook flies out to the target and back
 	-- along the beam over its whole time.
@@ -75,4 +77,5 @@ return table.freeze({
 	-- Names of the effect instances (the client could dress them up later).
 	HARPOON_BEAM_NAME = "HarpoonBeam",
 	BOMB_NAME = "GravityBomb",
+	SHIELD_NAME = "ShieldBubble",
 })

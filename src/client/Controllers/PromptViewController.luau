@@ -75,6 +75,9 @@ function PromptViewController.new(): PromptViewController
 					return adornee
 				end,
 				progress = progress,
+				showBar = function()
+					return prompt.HoldDuration > 0
+				end,
 				badgeText = function()
 					return badgeFor(prompt)
 				end,

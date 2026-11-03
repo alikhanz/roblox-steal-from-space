@@ -6,6 +6,7 @@ local LocalizationService = game:GetService("LocalizationService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
@@ -31,6 +32,12 @@ function PvpViewController.new(dependencies: Dependencies): PvpViewController
 			Bomb = { egg = "pvp.bombEgg.toast", hit = "pvp.bombHit.toast", miss = "pvp.bombMiss.toast" },
 		}
 		dependencies.profile.abilityResult.connect(function(kind, hit, droppedEgg)
+			if kind == "Shield" then
+				local seconds = PvpConfig.SHIELD.seconds
+				local message = Text.get(locale, "pvp.shieldOn.toast", { seconds = seconds })
+				dependencies.toasts.push(message, Theme.TOAST_GOOD)
+				return
+			end
 			local keys = KEYS[kind]
 			if not keys then
 				return

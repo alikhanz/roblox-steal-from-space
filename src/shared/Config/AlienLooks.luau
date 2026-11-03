@@ -13,9 +13,9 @@ export type TierLook = {
 local TIERS: { [AlienConfig.TierId]: TierLook } = {
 	Common = { color = Color3.fromRGB(190, 196, 210), glow = 0 },
 	Uncommon = { color = Color3.fromRGB(110, 225, 130), glow = 0 },
-	Rare = { color = Color3.fromRGB(80, 160, 255), glow = 0.5 },
-	Epic = { color = Color3.fromRGB(190, 90, 255), glow = 0.9 },
-	Legendary = { color = Color3.fromRGB(255, 190, 60), glow = 1.4 },
+	Rare = { color = Color3.fromRGB(80, 160, 255), glow = 0.9 },
+	Epic = { color = Color3.fromRGB(190, 90, 255), glow = 1.3 },
+	Legendary = { color = Color3.fromRGB(255, 190, 60), glow = 1.8 },
 }
 
 return table.freeze({

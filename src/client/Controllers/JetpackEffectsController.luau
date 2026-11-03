@@ -13,6 +13,7 @@ local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
 local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 
@@ -73,6 +74,11 @@ function JetpackEffectsController.new(): JetpackEffectsController
 				effects.burstUntil = now + JetpackConfig.FLAME_BURST_SECONDS
 			end
 			effects.stalled = stunned
+			-- A dash burns at full burst for as long as it lasts.
+			local dashUntil = character:GetAttribute(PvpConfig.DASH_UNTIL_ATTRIBUTE)
+			if type(dashUntil) == "number" and workspace:GetServerTimeNow() < dashUntil then
+				effects.burstUntil = math.max(effects.burstUntil, now + JetpackConfig.FLAME_BURST_SECONDS)
+			end
 
 			local flying = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true and not stunned
 			local maxSpeed = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)

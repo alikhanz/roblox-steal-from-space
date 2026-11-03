@@ -22,6 +22,8 @@ export type Props = {
 	target: () -> BasePart?,
 	-- Grab progress, 0..1.
 	progress: () -> number,
+	-- The hold bar; absent for a prompt that is a single press.
+	showBar: (() -> boolean)?,
 	-- Text on the badge: the key to hold, or a touch symbol.
 	badgeText: () -> string,
 	hint: () -> string,
@@ -83,6 +85,7 @@ local function GrabPrompt(props: Props): BillboardGui
 			Size = UDim2.fromOffset(BAR_SIZE.X, BAR_SIZE.Y),
 			BackgroundColor3 = Theme.PANEL,
 			BackgroundTransparency = Theme.PANEL_TRANSPARENCY,
+			Visible = props.showBar or true,
 			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
 			create("Frame")({
 				Name = "Fill",

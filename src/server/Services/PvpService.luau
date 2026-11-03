@@ -1,10 +1,11 @@
 --!strict
--- Player versus player: the attacks. Every attack is an input action in the flight context
+-- Player versus player: the abilities. Every one is an input action in the flight context
 -- (the server sees the press itself, no remote), aimed where the camera looks, checked against
 -- Domain/Pvp's rules and counted, so the numbers say whether players fight at all.
 --   Strike: a wind-up, then whoever is in the corridor ahead takes a guardian's hit.
 --   Harpoon: the nearest egg carrier in a narrow cone loses the egg toward the shooter.
---   Bomb: flies ahead for a second, then throws everyone around it and knocks eggs loose.
+--   Bomb: flies ahead until it reaches someone, then throws everyone around it.
+--   Shield: nothing lands on the player for a while. Dash: a burst of flight speed.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -76,13 +77,22 @@ type PlayerState = {
 	spawnedAt: number,
 }
 
--- Which input action triggers which attack.
+-- Which input action triggers which ability.
 local INPUT_ACTIONS: { [AbilityKind]: string } = {
 	Strike = FlightInputs.STRIKE,
 	Harpoon = FlightInputs.HARPOON,
 	Bomb = FlightInputs.BOMB,
+	Shield = FlightInputs.SHIELD,
+	Dash = FlightInputs.DASH,
 }
-local ATTACK_ORDER: { AbilityKind } = { "Strike", "Harpoon", "Bomb" }
+local ABILITY_ORDER: { AbilityKind } = { "Strike", "Harpoon", "Bomb", "Shield", "Dash" }
+local COOLDOWNS: { [AbilityKind]: number } = {
+	Strike = PvpConfig.STRIKE.cooldownSeconds,
+	Harpoon = PvpConfig.HARPOON.cooldownSeconds,
+	Bomb = PvpConfig.BOMB.cooldownSeconds,
+	Shield = PvpConfig.SHIELD.cooldownSeconds,
+	Dash = PvpConfig.DASH.cooldownSeconds,
+}
 
 local PvpService = {}
 
@@ -132,13 +142,16 @@ function PvpService.new(dependencies: Dependencies): PvpService
 	local function sideOf(player: Player, character: Model): Pvp.Side
 		local data = dependencies.getData(player)
 		local state = states[player]
+		-- The shield's end is kept in server time (the simulation on every client reads it);
+		-- the rules run on the server clock.
 		local shieldUntil = character:GetAttribute(PvpConfig.SHIELD_UNTIL_ATTRIBUTE)
+		local shieldLeft = if type(shieldUntil) == "number" then shieldUntil - workspace:GetServerTimeNow() else 0
 		return {
 			speed = dependencies.getSpeed(player),
 			playSeconds = if data then data.playSeconds else 0,
 			isInStation = not isInSpace(character),
 			spawnedAt = if state then state.spawnedAt else 0,
-			shieldUntil = if type(shieldUntil) == "number" then shieldUntil else 0,
+			shieldUntil = time() + shieldLeft,
 		}
 	end
 
@@ -232,11 +245,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		if Knockback.isStunned(character) then
 			return nil, nil, nil
 		end
-		local cooldown = if kind == "Strike"
-			then PvpConfig.STRIKE.cooldownSeconds
-			elseif kind == "Harpoon" then PvpConfig.HARPOON.cooldownSeconds
-			else PvpConfig.BOMB.cooldownSeconds
-		if not Abilities.isReady(state.lastUsedAt[kind] or 0, time(), cooldown) then
+		if not Abilities.isReady(state.lastUsedAt[kind] or 0, time(), COOLDOWNS[kind]) then
 			dependencies.notify(player, "NotReady")
 			return nil, nil, nil
 		end
@@ -376,19 +385,46 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		PvpEffects.throwBomb(start, velocity, PvpConfig.BOMB.fuseSeconds, touches, onExplode)
 	end
 
-	local ATTACKS: { [AbilityKind]: (Player, PlayerState) -> () } = {
+	-- The shield: nothing lands on the player for a while. Written in server time for the
+	-- rules and every client's view.
+	local function shield(player: Player, state: PlayerState)
+		local character = prepare(player, state, "Shield")
+		if not character then
+			return
+		end
+		state.lastUsedAt.Shield = time()
+		local until_ = workspace:GetServerTimeNow() + PvpConfig.SHIELD.seconds
+		character:SetAttribute(PvpConfig.SHIELD_UNTIL_ATTRIBUTE, until_)
+		PvpEffects.shieldBubble(character, PvpConfig.SHIELD.seconds)
+		resolved(player, "Shield", true, false)
+	end
+
+	-- The dash: the simulation multiplies the flight speed while the attribute holds.
+	local function dash(player: Player, state: PlayerState)
+		local character = prepare(player, state, "Dash")
+		if not character then
+			return
+		end
+		state.lastUsedAt.Dash = time()
+		character:SetAttribute(PvpConfig.DASH_UNTIL_ATTRIBUTE, workspace:GetServerTimeNow() + PvpConfig.DASH.seconds)
+		resolved(player, "Dash", true, false)
+	end
+
+	local ABILITIES: { [AbilityKind]: (Player, PlayerState) -> () } = {
 		Strike = strike,
 		Harpoon = harpoon,
 		Bomb = bomb,
+		Shield = shield,
+		Dash = dash,
 	}
 
 	local function tick()
 		for player, state in states do
 			local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
-			for _, kind in ATTACK_ORDER do
+			for _, kind in ABILITY_ORDER do
 				local pressed = context ~= nil and FlightInputs.isPressed(context, INPUT_ACTIONS[kind])
 				if pressed and not state.pressed[kind] then
-					ATTACKS[kind](player, state)
+					ABILITIES[kind](player, state)
 				end
 				state.pressed[kind] = pressed
 			end

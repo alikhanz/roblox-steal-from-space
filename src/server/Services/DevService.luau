@@ -17,6 +17,7 @@
 --   game.ServerStorage.DevCommands.SetPlayTime:Invoke(3600)
 --   game.ServerStorage.DevCommands.PvpStats:Invoke()
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -31,6 +32,7 @@ local EggModel = require(script.Parent.Parent.World.EggModel)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 
 local FOLDER_NAME = "DevCommands"
 -- Spawned eggs float this far in front of the player, studs.
@@ -151,6 +153,7 @@ function DevService.new(dependencies: Dependencies): DevService
 			egg.CFrame = body.CFrame * CFrame.new(0, -0.2, -1.2)
 			egg.Parent = model
 			model.PrimaryPart = body
+			CollectionService:AddTag(model, PvpConfig.DUMMY_TAG)
 			model.Parent = workspace
 			local follow: RBXScriptConnection
 			follow = RunService.Heartbeat:Connect(function()

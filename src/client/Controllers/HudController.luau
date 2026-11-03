@@ -4,15 +4,18 @@
 -- flight buttons. Reads the local character's simulation attributes (predicted, so the HUD is
 -- lag-free) and the profile copy for coins.
 
+local CollectionService = game:GetService("CollectionService")
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
 local AbilityChips = require(script.Parent.Parent.UI.AbilityChips)
 local AbilityState = require(script.Parent.Parent.State.AbilityState)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local Crosshair = require(script.Parent.Parent.UI.Crosshair)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
@@ -23,6 +26,7 @@ local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local StatBadge = require(script.Parent.Parent.UI.StatBadge)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
@@ -57,6 +61,46 @@ function HudController.new(dependencies: Dependencies): HudController
 	local stunned = source(false)
 	-- True while the current hit came from a guardian (the words differ for a player's strike).
 	local hitByGuardian = source(true)
+	-- True while an egg carrier is in the harpoon's reach of the camera's aim.
+	local harpoonLocked = source(false)
+
+	-- The same cone the server checks, on what this client can see: other characters that
+	-- carry an egg, and test dummies.
+	local function findHarpoonTarget(player: Player): boolean
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local camera = workspace.CurrentCamera
+		if not character or not root or not root:IsA("BasePart") or not camera then
+			return false
+		end
+		local origin = root.Position
+		local facing = camera.CFrame.LookVector
+		local function inReach(part: BasePart): boolean
+			return Abilities.isInCone(
+				{ x = origin.X, y = origin.Y, z = origin.Z },
+				{ x = facing.X, y = facing.Y, z = facing.Z },
+				{ x = part.Position.X, y = part.Position.Y, z = part.Position.Z },
+				PvpConfig.HARPOON.rangeStuds,
+				PvpConfig.HARPOON.halfAngleRadians
+			)
+		end
+		for _, other in Players:GetPlayers() do
+			local otherCharacter = other.Character
+			local otherRoot = otherCharacter and otherCharacter:FindFirstChild("HumanoidRootPart")
+			if other ~= player and otherCharacter and otherRoot and otherRoot:IsA("BasePart") then
+				if otherCharacter:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE) ~= nil and inReach(otherRoot) then
+					return true
+				end
+			end
+		end
+		for _, dummy in CollectionService:GetTagged(PvpConfig.DUMMY_TAG) do
+			local dummyRoot = dummy:FindFirstChild("HumanoidRootPart")
+			if dummyRoot and dummyRoot:IsA("BasePart") and inReach(dummyRoot) then
+				return true
+			end
+		end
+		return false
+	end
 	-- Rarity of the egg in the player's hands; nil with empty hands.
 	local carried = source(nil :: string?)
 	local readCarried = carried :: () -> string?
@@ -125,6 +169,16 @@ function HudController.new(dependencies: Dependencies): HudController
 				action = FlightInputs.BOMB,
 				text = Text.get(locale, "pvp.bomb.button"),
 			},
+			{
+				kind = "Shield" :: AbilityState.Kind,
+				action = FlightInputs.SHIELD,
+				text = Text.get(locale, "pvp.shield.button"),
+			},
+			{
+				kind = "Dash" :: AbilityState.Kind,
+				action = FlightInputs.DASH,
+				text = Text.get(locale, "pvp.dash.button"),
+			},
 		}
 		local function coolingOf(kind: AbilityState.Kind): () -> boolean
 			return function()
@@ -150,6 +204,11 @@ function HudController.new(dependencies: Dependencies): HudController
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
 			local children: { Instance } = {
+				Crosshair({
+					visible = inSpace,
+					locked = harpoonLocked,
+					lockedText = Text.get(locale, "pvp.harpoonLocked.hint"),
+				}),
 				AbilityChips({ visible = inSpace, chips = chips }),
 				HitFlash({
 					visible = stunned,
@@ -254,6 +313,8 @@ function HudController.new(dependencies: Dependencies): HudController
 					stunned(false)
 				end
 			end
+
+			harpoonLocked(inSpace() and findHarpoonTarget(player))
 
 			local rarity = character and character:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE)
 			local now = if type(rarity) == "string" then rarity else nil

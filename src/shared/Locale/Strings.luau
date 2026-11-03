@@ -172,6 +172,22 @@ local Strings = {
 		ru = "Бомба",
 		en = "Bomb",
 	},
+	["pvp.shield.button"] = {
+		ru = "Щит",
+		en = "Shield",
+	},
+	["pvp.dash.button"] = {
+		ru = "Рывок",
+		en = "Dash",
+	},
+	["pvp.harpoonLocked.hint"] = {
+		ru = "Гарпун: цель в прицеле",
+		en = "Harpoon: target locked",
+	},
+	["pvp.shieldOn.toast"] = {
+		ru = "Щит включён: {seconds} с тебя не взять",
+		en = "Shield up: untouchable for {seconds}s",
+	},
 	["pvp.harpoonEgg.toast"] = {
 		ru = "Гарпун попал! Яйцо летит к тебе",
 		en = "Harpoon hit! The egg flies to you",
