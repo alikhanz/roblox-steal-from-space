@@ -29,8 +29,7 @@ local ASSUMPTIONS = {
 	-- One theft loop at the nearest guardian, plus this much per post farther out.
 	theftBaseSeconds = 40,
 	theftPerPostSeconds = 5,
-	-- The thief gets away when their speed with a typical egg is at least this share of the
-	-- guardian's: the head start covers the rest.
+	-- The thief gets away at this share of the recommended speed: the head start covers the rest.
 	escapeRatio = 0.9,
 	-- The training gamepass and the big Robux package (a day's worth of trainer rate).
 	trainingPass = 2,
@@ -63,9 +62,9 @@ local function toNumber(value: BigNum.BigNum): number
 	return BigNum.toNumber(value)
 end
 
--- Guardian k's speed, from the configured posts or extrapolated past them.
-local function guardianSpeed(post: number): number
-	return toNumber(GuardianConfig.FIRST_SPEED) * toNumber(GuardianConfig.SPEED_GROWTH) ^ (post - 1)
+-- The speed recommended over guardian k, from the configured posts or extrapolated past them.
+local function recommendedFor(post: number): number
+	return toNumber(GuardianConfig.FIRST_RECOMMENDED) * toNumber(GuardianConfig.RECOMMENDED_GROWTH) ^ (post - 1)
 end
 
 -- Income of every alien by id: the configured ones, plus synthetic ids for grades past the
@@ -125,7 +124,7 @@ local function simulate(profile: Profile, seed: number): Run
 			* profile.pass
 	end
 	local function canBeat(post: number): boolean
-		return speed() * (1 - GuardianConfig.TYPICAL_WEIGHT) >= guardianSpeed(post) * ASSUMPTIONS.escapeRatio
+		return speed() >= recommendedFor(post) * ASSUMPTIONS.escapeRatio
 	end
 	local function refreshIncome()
 		incomeRate = toNumber(Bay.incomePerSecond(data, incomeOf))
@@ -292,7 +291,7 @@ print("Balance: first beat of each guardian (average of", ASSUMPTIONS.runs, "run
 print(
 	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, {ASSUMPTIONS.trainShare * 100}% of it training, `
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
-		.. `escape at {ASSUMPTIONS.escapeRatio} of the guardian's speed, pack = {ASSUMPTIONS.packageHours}h of training`
+		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
 )
 print("")
 
@@ -306,13 +305,13 @@ for _, profile in PROFILES do
 end
 
 local POST_WIDTH, SPEED_WIDTH, COLUMN_WIDTH = 5, 10, 13
-local header = pad("post", POST_WIDTH) .. pad("speed", SPEED_WIDTH)
+local header = pad("post", POST_WIDTH) .. pad("recomm.", SPEED_WIDTH)
 for _, profile in PROFILES do
 	header ..= pad(profile.name, COLUMN_WIDTH)
 end
 print(header)
 for post = 1, ASSUMPTIONS.guardianCount do
-	local line = pad(tostring(post), POST_WIDTH) .. pad(formatNumber(guardianSpeed(post)), SPEED_WIDTH)
+	local line = pad(tostring(post), POST_WIDTH) .. pad(formatNumber(recommendedFor(post)), SPEED_WIDTH)
 	for _, profile in PROFILES do
 		line ..= pad(formatTime(averageFirstBeat(runsByProfile[profile.name], post)), COLUMN_WIDTH)
 	end

@@ -17,10 +17,15 @@ export type Kind = {
 	read nameKey: keyof<typeof(Strings)>,
 }
 
--- A post is a guardian placed at a nest: its kind and its speed stat. Posts are handed out to
--- nests from the nearest to the station outwards, so farther nests get faster guardians.
+-- A post is a guardian placed at a nest: its kind, the speed the sign over it recommends and
+-- its own speed stat. Posts are handed out to nests from the nearest to the station outwards,
+-- so farther nests get faster guardians.
 export type Post = {
 	read kind: KindId,
+	-- The stat that flies level with this guardian while carrying a typical egg: what the
+	-- player sees. Guardian k recommends FIRST_RECOMMENDED * RECOMMENDED_GROWTH^(k-1), so a new
+	-- player at the starting speed sees "10" over the first guardian and goes for it.
+	read recommended: BigNum.BigNum,
 	read speed: BigNum.BigNum,
 }
 
@@ -29,18 +34,27 @@ local KINDS: { [KindId]: Kind } = {
 	CrabDrone = { nameKey = "guardian.crabDrone.title" },
 }
 
--- Guardian k has speed FIRST_SPEED * SPEED_GROWTH^(k-1) (see GAME_DESIGN, pacing).
-local FIRST_SPEED = BigNum.fromNumber(10)
-local SPEED_GROWTH = BigNum.fromNumber(3)
+local FIRST_RECOMMENDED = BigNum.fromNumber(10)
+local RECOMMENDED_GROWTH = BigNum.fromNumber(3)
 
-local function speedOfPost(index: number): BigNum.BigNum
-	return BigNum.mul(FIRST_SPEED, BigNum.pow(SPEED_GROWTH, index - 1))
+-- The recommended speed over a guardian assumes an egg of this weight: a common one of the
+-- typical size. Lighter eggs need less, heavier ones more; that is part of the gamble.
+local TYPICAL_WEIGHT =
+	Speed.eggWeight(EggConfig.RARITIES.Common.weight, EggConfig.SIZES[EggConfig.TYPICAL_SIZE].weightFactor)
+
+local function post(index: number, kind: KindId): Post
+	local recommended = BigNum.mul(FIRST_RECOMMENDED, BigNum.pow(RECOMMENDED_GROWTH, index - 1))
+	return {
+		kind = kind,
+		recommended = recommended,
+		speed = Speed.withEgg(recommended, TYPICAL_WEIGHT),
+	}
 end
 
 local DEBRIS_BELT_POSTS: { Post } = {
-	{ kind = "SlimeWarden", speed = speedOfPost(1) },
-	{ kind = "CrabDrone", speed = speedOfPost(2) },
-	{ kind = "CrabDrone", speed = speedOfPost(3) },
+	post(1, "SlimeWarden"),
+	post(2, "CrabDrone"),
+	post(3, "CrabDrone"),
 }
 -- Post k's eggs hatch into grade k: the two lists must agree.
 assert(
@@ -58,16 +72,11 @@ local BRAIN: GuardianBrain.Tuning = {
 
 return table.freeze({
 	KINDS = table.freeze(KINDS),
-	FIRST_SPEED = FIRST_SPEED,
-	SPEED_GROWTH = SPEED_GROWTH,
+	FIRST_RECOMMENDED = FIRST_RECOMMENDED,
+	RECOMMENDED_GROWTH = RECOMMENDED_GROWTH,
 	DEBRIS_BELT_POSTS = table.freeze(DEBRIS_BELT_POSTS),
 	BRAIN = table.freeze(BRAIN),
-	-- The recommended speed over a guardian assumes an egg of this weight: a common one of the
-	-- typical size. Lighter eggs need less, heavier ones more; that is part of the gamble.
-	TYPICAL_WEIGHT = Speed.eggWeight(
-		EggConfig.RARITIES.Common.weight,
-		EggConfig.SIZES[EggConfig.TYPICAL_SIZE].weightFactor
-	),
+	TYPICAL_WEIGHT = TYPICAL_WEIGHT,
 	-- A sleeping guardian hovers this far above its nest's egg, studs.
 	HOVER_HEIGHT = 8,
 	-- Guardians never come closer to the dome sphere than this, studs.

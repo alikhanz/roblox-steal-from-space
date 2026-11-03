@@ -7,6 +7,8 @@ local BigNum = require("../../src/shared/Domain/BigNum")
 local EggConfig = require("../../src/shared/Config/EggConfig")
 local GuardianConfig = require("../../src/shared/Config/GuardianConfig")
 local Loot = require("../../src/shared/Domain/Loot")
+local Speed = require("../../src/shared/Domain/Speed")
+local SpeedConfig = require("../../src/shared/Config/SpeedConfig")
 local Strings = require("../../src/shared/Locale/Strings")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
@@ -71,15 +73,25 @@ describe("EggConfig", function()
 end)
 
 describe("GuardianConfig", function()
-	it("speeds posts up by the growth factor", function()
+	it("recommends the starting speed over the first guardian", function()
+		expect(BigNum.toNumber(GuardianConfig.DEBRIS_BELT_POSTS[1].recommended)).toBeCloseTo(
+			BigNum.toNumber(SpeedConfig.STARTING_SPEED),
+			1e-9
+		)
+	end)
+
+	it("grows the recommendation by the growth factor and flies level with it", function()
 		local posts = GuardianConfig.DEBRIS_BELT_POSTS
-		expect(posts[1].speed).toEqual(GuardianConfig.FIRST_SPEED)
+		expect(posts[1].recommended).toEqual(GuardianConfig.FIRST_RECOMMENDED)
 		for index = 2, #posts do
-			local expected = BigNum.mul(posts[index - 1].speed, GuardianConfig.SPEED_GROWTH)
-			expect(BigNum.toNumber(posts[index].speed)).toBeCloseTo(BigNum.toNumber(expected), 1e-9)
+			local expected = BigNum.mul(posts[index - 1].recommended, GuardianConfig.RECOMMENDED_GROWTH)
+			expect(BigNum.toNumber(posts[index].recommended)).toBeCloseTo(BigNum.toNumber(expected), 1e-9)
 		end
 		for _, post in posts do
 			expect(GuardianConfig.KINDS[post.kind]).toBeTruthy()
+			-- A thief at the recommended speed with a typical egg matches the guardian exactly.
+			local withEgg = Speed.withEgg(post.recommended, GuardianConfig.TYPICAL_WEIGHT)
+			expect(BigNum.toNumber(withEgg)).toBeCloseTo(BigNum.toNumber(post.speed), 1e-9)
 		end
 	end)
 end)

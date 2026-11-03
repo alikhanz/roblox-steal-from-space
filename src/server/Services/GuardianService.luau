@@ -208,7 +208,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		local home = site.eggCFrame.Position + Vector3.yAxis * GuardianConfig.HOVER_HEIGHT
 		model:PivotTo(CFrame.new(home))
 
-		local recommended = Speed.recommended(post.speed, GuardianConfig.TYPICAL_WEIGHT)
+		local recommended = post.recommended
 		model:SetAttribute(GuardianConfig.KIND_ATTRIBUTE, post.kind)
 		model:SetAttribute(GuardianConfig.STATE_ATTRIBUTE, "Sleep")
 		model:SetAttribute(GuardianConfig.RECOMMENDED_MANTISSA_ATTRIBUTE, recommended.mantissa)
