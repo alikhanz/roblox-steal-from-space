@@ -25,16 +25,22 @@ local PvpViewController = {}
 function PvpViewController.new(dependencies: Dependencies): PvpViewController
 	local function start()
 		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		local KEYS: { [string]: { egg: Text.Key, hit: Text.Key, miss: Text.Key } } = {
+			Strike = { egg = "pvp.strikeEgg.toast", hit = "pvp.strikeHit.toast", miss = "pvp.strikeMiss.toast" },
+			Harpoon = { egg = "pvp.harpoonEgg.toast", hit = "pvp.harpoonEgg.toast", miss = "pvp.harpoonMiss.toast" },
+			Bomb = { egg = "pvp.bombEgg.toast", hit = "pvp.bombHit.toast", miss = "pvp.bombMiss.toast" },
+		}
 		dependencies.profile.abilityResult.connect(function(kind, hit, droppedEgg)
-			if kind ~= "Strike" then
+			local keys = KEYS[kind]
+			if not keys then
 				return
 			end
 			if droppedEgg then
-				dependencies.toasts.push(Text.get(locale, "pvp.strikeEgg.toast"), Theme.TOAST_GOOD)
+				dependencies.toasts.push(Text.get(locale, keys.egg), Theme.TOAST_GOOD)
 			elseif hit then
-				dependencies.toasts.push(Text.get(locale, "pvp.strikeHit.toast"), Theme.TOAST_GOOD)
+				dependencies.toasts.push(Text.get(locale, keys.hit), Theme.TOAST_GOOD)
 			else
-				dependencies.toasts.push(Text.get(locale, "pvp.strikeMiss.toast"), Theme.TOAST_BAD)
+				dependencies.toasts.push(Text.get(locale, keys.miss), Theme.TOAST_BAD)
 			end
 		end)
 	end

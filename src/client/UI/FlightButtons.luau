@@ -22,9 +22,8 @@ export type Props = {
 	onButton: (actionName: string, button: GuiButton) -> (),
 	ascendAction: string,
 	descendAction: string,
-	strikeAction: string,
-	-- The strike button's word; the others are arrows.
-	strikeText: string,
+	-- The attacks, top to bottom, each with its word.
+	abilities: { { action: string, text: string } },
 }
 
 local function FlightButton(
@@ -53,6 +52,15 @@ local function FlightButton(
 end
 
 local function FlightButtons(props: Props): Frame
+	local abilityButtons: { TextButton } = {}
+	for order, ability in props.abilities do
+		table.insert(
+			abilityButtons,
+			FlightButton(ability.text, order, Theme.TEXT_SIZE, Theme.DANGER, function(button)
+				props.onButton(ability.action, button)
+			end)
+		)
+	end
 	return create("Frame")({
 		Name = "FlightButtons",
 		AnchorPoint = Vector2.new(1, 1),
@@ -67,13 +75,11 @@ local function FlightButtons(props: Props): Frame
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 
-		FlightButton(props.strikeText, 1, Theme.TEXT_SIZE, Theme.DANGER, function(button)
-			props.onButton(props.strikeAction, button)
-		end),
-		FlightButton("▲", 2, BUTTON_SIZE / 2, Theme.PANEL, function(button)
+		abilityButtons,
+		FlightButton("▲", #props.abilities + 1, BUTTON_SIZE / 2, Theme.PANEL, function(button)
 			props.onButton(props.ascendAction, button)
 		end),
-		FlightButton("▼", 3, BUTTON_SIZE / 2, Theme.PANEL, function(button)
+		FlightButton("▼", #props.abilities + 2, BUTTON_SIZE / 2, Theme.PANEL, function(button)
 			props.onButton(props.descendAction, button)
 		end),
 	}) :: Frame

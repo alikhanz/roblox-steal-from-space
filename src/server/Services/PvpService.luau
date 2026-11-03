@@ -1,9 +1,10 @@
 --!strict
--- Player versus player: the abilities. The strike is read from the input context like any
--- flight input (the server sees the press itself, no remote), aimed where the camera looks;
--- after a wind-up whoever is in the corridor ahead takes the same hit a guardian deals, and
--- their egg flies loose. Every use is checked against Domain/Pvp's rules and counted, so the
--- numbers say whether players fight at all.
+-- Player versus player: the attacks. Every attack is an input action in the flight context
+-- (the server sees the press itself, no remote), aimed where the camera looks, checked against
+-- Domain/Pvp's rules and counted, so the numbers say whether players fight at all.
+--   Strike: a wind-up, then whoever is in the corridor ahead takes a guardian's hit.
+--   Harpoon: the nearest egg carrier in a narrow cone loses the egg toward the shooter.
+--   Bomb: flies ahead for a second, then throws everyone around it and knocks eggs loose.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +22,7 @@ local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local Pvp = require(ReplicatedStorage.Shared.Domain.Pvp)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
+local PvpEffects = require(script.Parent.Parent.World.PvpEffects)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 
@@ -35,6 +37,8 @@ export type Notice = Pvp.Refusal | "NotReady" | "NoProfile"
 export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	getSpeed: (player: Player) -> BigNum.BigNum,
+	-- True while the player carries an egg.
+	isCarrying: (player: Player) -> boolean,
 	-- Knocks the carried egg loose; false when the player carried nothing.
 	dropEgg: (player: Player, launch: Vector3?) -> boolean,
 	-- Tells a player why an ability was refused.
@@ -42,14 +46,17 @@ export type Dependencies = {
 	scheduler: Scheduler.Scheduler,
 }
 
--- Something a strike can land on: a player's character, or a test dummy.
+-- Something an attack can land on: a player's character, or a test dummy.
 export type Target = {
 	model: Model,
 	root: BasePart,
 	player: Player?,
 	side: () -> Pvp.Side,
-	-- Takes the hit; returns true if an egg came loose.
+	isCarrying: () -> boolean,
+	-- Takes a hit thrown along `direction`; returns true if an egg came loose.
 	onHit: (direction: Vector3) -> boolean,
+	-- Loses the egg (no throw), launched along `launch`; returns true if an egg came loose.
+	onHarpoon: (launch: Vector3) -> boolean,
 }
 
 export type PvpService = {
@@ -64,10 +71,18 @@ export type PvpService = {
 }
 
 type PlayerState = {
-	lastStrikeAt: number,
-	strikePressed: boolean,
+	lastUsedAt: { [AbilityKind]: number },
+	pressed: { [AbilityKind]: boolean },
 	spawnedAt: number,
 }
+
+-- Which input action triggers which attack.
+local INPUT_ACTIONS: { [AbilityKind]: string } = {
+	Strike = FlightInputs.STRIKE,
+	Harpoon = FlightInputs.HARPOON,
+	Bomb = FlightInputs.BOMB,
+}
+local ATTACK_ORDER: { AbilityKind } = { "Strike", "Harpoon", "Bomb" }
 
 local PvpService = {}
 
@@ -82,6 +97,12 @@ end
 local function rootOf(character: Model?): BasePart?
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	return if root and root:IsA("BasePart") then root else nil
+end
+
+-- A unit vector at a right angle to `direction`, for the tumble axis and the egg's launch.
+local function sidewaysOf(direction: Vector3): Vector3
+	local sideways = direction:Cross(Vector3.yAxis)
+	return if sideways.Magnitude > 1e-3 then sideways.Unit else Vector3.xAxis
 end
 
 function PvpService.new(dependencies: Dependencies): PvpService
@@ -99,6 +120,15 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		usage[kind] = entry
 	end
 
+	local function resolved(player: Player, kind: AbilityKind, hit: boolean, droppedEgg: boolean)
+		count(kind, hit)
+		abilityUsed.fire(player, kind, hit, droppedEgg)
+		if LOG then
+			local outcome = if not hit then "missed" elseif droppedEgg then "hit, egg loose" else "hit"
+			print(`[PvpService] {player.Name} {kind}: {outcome}`)
+		end
+	end
+
 	local function sideOf(player: Player, character: Model): Pvp.Side
 		local data = dependencies.getData(player)
 		local state = states[player]
@@ -112,10 +142,9 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		}
 	end
 
-	-- The same hit a guardian deals: thrown along the strike, tumbling, egg knocked sideways.
+	-- The same hit a guardian deals: thrown along `direction`, tumbling, egg knocked sideways.
 	local function hitPlayer(victim: Player, character: Model, direction: Vector3, by: string): boolean
-		local sideways = direction:Cross(Vector3.yAxis)
-		sideways = if sideways.Magnitude > 1e-3 then sideways.Unit else Vector3.xAxis
+		local sideways = sidewaysOf(direction)
 		local launch = (sideways * 0.8 + direction * 0.6).Unit * EggConfig.DROP_SPEED
 		local dropped = dependencies.dropEgg(victim, launch)
 		Knockback.apply(
@@ -128,12 +157,12 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		return dropped
 	end
 
-	local function playerTargets(except: Player): { Target }
+	local function targetsFor(attacker: Player): { Target }
 		local targets: { Target } = {}
 		for _, other in Players:GetPlayers() do
 			local character = other.Character
 			local root = rootOf(character)
-			if other == except or not character or not root then
+			if other == attacker or not character or not root then
 				continue
 			end
 			local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -147,8 +176,14 @@ function PvpService.new(dependencies: Dependencies): PvpService
 				side = function()
 					return sideOf(other, character)
 				end,
+				isCarrying = function()
+					return dependencies.isCarrying(other)
+				end,
 				onHit = function(direction)
-					return hitPlayer(other, character, direction, except.Name)
+					return hitPlayer(other, character, direction, attacker.Name)
+				end,
+				onHarpoon = function(launch)
+					return dependencies.dropEgg(other, launch)
 				end,
 			})
 		end
@@ -156,6 +191,60 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			table.insert(targets, dummy)
 		end
 		return targets
+	end
+
+	-- The nearest target in the cone ahead of `root`, among those passing `filter`.
+	local function findInCone(
+		root: BasePart,
+		direction: Vector3,
+		targets: { Target },
+		reach: number,
+		halfAngle: number,
+		filter: (Target) -> boolean
+	): Target?
+		local candidates: { { id: number, position: Abilities.Vector } } = {}
+		for index, target in targets do
+			if filter(target) then
+				table.insert(candidates, { id = index, position = toVector(target.root.Position) })
+			end
+		end
+		local index =
+			Abilities.nearestInCone(toVector(root.Position), toVector(direction), candidates, reach, halfAngle)
+		return if index then targets[index] else nil
+	end
+
+	-- Shared preamble of every attack: a live character out in space, off cooldown. Returns
+	-- the character, its root and the aim, or nil after telling the player why not.
+	local function prepare(player: Player, state: PlayerState, kind: AbilityKind): (Model?, BasePart?, Vector3?)
+		local character = player.Character
+		local root = rootOf(character)
+		if not character or not root then
+			return nil, nil, nil
+		end
+		if not dependencies.getData(player) then
+			dependencies.notify(player, "NoProfile")
+			return nil, nil, nil
+		end
+		if not isInSpace(character) then
+			dependencies.notify(player, "AttackerInStation")
+			return nil, nil, nil
+		end
+		if Knockback.isStunned(character) then
+			return nil, nil, nil
+		end
+		local cooldown = if kind == "Strike"
+			then PvpConfig.STRIKE.cooldownSeconds
+			elseif kind == "Harpoon" then PvpConfig.HARPOON.cooldownSeconds
+			else PvpConfig.BOMB.cooldownSeconds
+		if not Abilities.isReady(state.lastUsedAt[kind] or 0, time(), cooldown) then
+			dependencies.notify(player, "NotReady")
+			return nil, nil, nil
+		end
+		local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
+		local aim = if context then FlightInputs.readAim(context) else nil
+		local sanitized = Flight.sanitizeAim(aim or root.CFrame.LookVector)
+		local direction = if sanitized and sanitized.Magnitude > 1e-3 then sanitized.Unit else root.CFrame.LookVector
+		return character, root, direction
 	end
 
 	-- The wind-up is over: whoever stands in the corridor takes the hit, or the attacker
@@ -166,20 +255,11 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			return
 		end
 		local attacker = sideOf(player, character)
-		local targets = playerTargets(player)
-		local candidates: { { id: number, position: Abilities.Vector } } = {}
-		for index, target in targets do
-			table.insert(candidates, { id = index, position = toVector(target.root.Position) })
-		end
 		local reach = PvpConfig.STRIKE.lungeStuds + PvpConfig.STRIKE.reachStuds
-		local index = Abilities.nearestInCone(
-			toVector(root.Position),
-			toVector(direction),
-			candidates,
-			reach,
-			PvpConfig.STRIKE.halfAngleRadians
-		)
-		local target = if index then targets[index] else nil
+		local function anyone()
+			return true
+		end
+		local target = findInCone(root, direction, targetsFor(player), reach, PvpConfig.STRIKE.halfAngleRadians, anyone)
 		if target then
 			local refusal = Pvp.refusal(attacker, target.side(), time(), PvpConfig.RULES)
 			if refusal then
@@ -190,69 +270,122 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			end
 			local away = target.root.Position - root.Position
 			local push = if away.Magnitude > 1e-3 then away.Unit else direction
-			local dropped = target.onHit(push)
-			count("Strike", true)
-			if LOG then
-				local outcome = if dropped then "knocked the egg loose" else "no egg"
-				print(`[PvpService] {player.Name} struck {target.model.Name}: {outcome}`)
-			end
-			abilityUsed.fire(player, "Strike", true, dropped)
+			resolved(player, "Strike", true, target.onHit(push))
 			return
 		end
 		-- A miss: the attacker keeps their speed but cannot steer for a moment.
-		Knockback.apply(
-			character,
-			root.AssemblyLinearVelocity,
-			Vector3.zero,
-			PvpConfig.STRIKE.missStallSeconds,
-			player.Name
-		)
-		count("Strike", false)
-		abilityUsed.fire(player, "Strike", false, false)
+		local stall = PvpConfig.STRIKE.missStallSeconds
+		Knockback.apply(character, root.AssemblyLinearVelocity, Vector3.zero, stall, player.Name)
+		resolved(player, "Strike", false, false)
 	end
 
 	local function strike(player: Player, state: PlayerState)
-		local character = player.Character
-		local root = rootOf(character)
-		if not character or not root then
+		local character, _, direction = prepare(player, state, "Strike")
+		if not character or not direction then
 			return
 		end
-		if not dependencies.getData(player) then
-			dependencies.notify(player, "NoProfile")
-			return
-		end
-		if not isInSpace(character) then
-			dependencies.notify(player, "AttackerInStation")
-			return
-		end
-		if Knockback.isStunned(character) then
-			return
-		end
-		if not Abilities.isReady(state.lastStrikeAt, time(), PvpConfig.STRIKE.cooldownSeconds) then
-			dependencies.notify(player, "NotReady")
-			return
-		end
-		local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
-		local aim = if context then FlightInputs.readAim(context) else nil
-		local sanitized = Flight.sanitizeAim(aim or root.CFrame.LookVector)
-		local direction = if sanitized and sanitized.Magnitude > 1e-3 then sanitized.Unit else root.CFrame.LookVector
-		state.lastStrikeAt = time()
+		state.lastUsedAt.Strike = time()
 		task.delay(PvpConfig.STRIKE.windupSeconds, resolveStrike, player, character, direction)
 	end
+
+	-- The harpoon: the nearest egg carrier in a narrow cone loses the egg, which flies toward
+	-- the shooter. Nothing else happens to the carrier.
+	local function harpoon(player: Player, state: PlayerState)
+		local character, root, direction = prepare(player, state, "Harpoon")
+		if not character or not root or not direction then
+			return
+		end
+		local attacker = sideOf(player, character)
+		local target = findInCone(
+			root,
+			direction,
+			targetsFor(player),
+			PvpConfig.HARPOON.rangeStuds,
+			PvpConfig.HARPOON.halfAngleRadians,
+			function(candidate)
+				return candidate.isCarrying()
+			end
+		)
+		if not target then
+			local discount = PvpConfig.HARPOON.cooldownSeconds - PvpConfig.HARPOON.missCooldownSeconds
+			state.lastUsedAt.Harpoon = time() - discount
+			PvpEffects.harpoonBeam(root, root.Position + direction * PvpConfig.HARPOON.rangeStuds)
+			resolved(player, "Harpoon", false, false)
+			return
+		end
+		local refusal = Pvp.refusal(attacker, target.side(), time(), PvpConfig.RULES)
+		if refusal then
+			dependencies.notify(player, refusal)
+			count("Harpoon", false)
+			return
+		end
+		state.lastUsedAt.Harpoon = time()
+		local toShooter = root.Position - target.root.Position
+		local launch = (if toShooter.Magnitude > 1e-3 then toShooter.Unit else -direction) * EggConfig.DROP_SPEED
+		PvpEffects.harpoonBeam(root, target.root.Position)
+		resolved(player, "Harpoon", true, target.onHarpoon(launch))
+	end
+
+	-- The bomb flies straight ahead for the fuse, then everyone around it is thrown outward
+	-- and their eggs come loose; the thrower is spared, and so is anyone the rules protect.
+	local function explode(player: Player, character: Model, center: Vector3)
+		PvpEffects.bombFlash(center, PvpConfig.BOMB.radiusStuds)
+		if character.Parent == nil then
+			return
+		end
+		local attacker = sideOf(player, character)
+		local targets = targetsFor(player)
+		local candidates: { { id: number, position: Abilities.Vector } } = {}
+		for index, target in targets do
+			table.insert(candidates, { id = index, position = toVector(target.root.Position) })
+		end
+		local hit, dropped = false, false
+		for _, index in Abilities.withinRadius(toVector(center), candidates, PvpConfig.BOMB.radiusStuds) do
+			local target = targets[index]
+			if Pvp.refusal(attacker, target.side(), time(), PvpConfig.RULES) then
+				continue
+			end
+			local away = target.root.Position - center
+			local push = if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis
+			hit = true
+			dropped = target.onHit(push) or dropped
+		end
+		resolved(player, "Bomb", hit, dropped)
+	end
+
+	local function bomb(player: Player, state: PlayerState)
+		local character, root, direction = prepare(player, state, "Bomb")
+		if not character or not root or not direction then
+			return
+		end
+		state.lastUsedAt.Bomb = time()
+		local start = root.Position + direction * 3
+		PvpEffects.throwBomb(start, direction * PvpConfig.BOMB.throwSpeed, PvpConfig.BOMB.fuseSeconds, function(center)
+			explode(player, character, center)
+		end)
+	end
+
+	local ATTACKS: { [AbilityKind]: (Player, PlayerState) -> () } = {
+		Strike = strike,
+		Harpoon = harpoon,
+		Bomb = bomb,
+	}
 
 	local function tick()
 		for player, state in states do
 			local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
-			local pressed = context ~= nil and FlightInputs.isPressed(context, FlightInputs.STRIKE)
-			if pressed and not state.strikePressed then
-				strike(player, state)
+			for _, kind in ATTACK_ORDER do
+				local pressed = context ~= nil and FlightInputs.isPressed(context, INPUT_ACTIONS[kind])
+				if pressed and not state.pressed[kind] then
+					ATTACKS[kind](player, state)
+				end
+				state.pressed[kind] = pressed
 			end
-			state.strikePressed = pressed
 		end
 	end
 
 	local function watch(player: Player)
-		local state: PlayerState = { lastStrikeAt = 0, strikePressed = false, spawnedAt = time() }
+		local state: PlayerState = { lastUsedAt = {}, pressed = {}, spawnedAt = time() }
 		states[player] = state
 		player.CharacterAdded:Connect(function()
 			state.spawnedAt = time()
@@ -275,7 +408,11 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			side = function()
 				return seasoned
 			end,
+			isCarrying = function()
+				return true
+			end,
 			onHit = onHit,
+			onHarpoon = onHit,
 		}
 		table.insert(dummies, target)
 		model.Destroying:Once(function()

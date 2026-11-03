@@ -31,6 +31,8 @@ local HARPOON: Abilities.Harpoon = {
 	-- Half-angle of the aim cone a carrier must be in.
 	halfAngleRadians = math.rad(8),
 	cooldownSeconds = 20,
+	-- A shot that finds nobody costs less.
+	missCooldownSeconds = 5,
 }
 
 local BOMB: Abilities.Bomb = {
@@ -64,4 +66,11 @@ return table.freeze({
 	DASH_UNTIL_ATTRIBUTE = "DashUntil",
 	-- Player attribute: true while the newbie protection holds (for the sign over the player).
 	NEWBIE_ATTRIBUTE = "Newbie",
+
+	-- Greybox effects, seconds on screen.
+	HARPOON_BEAM_SECONDS = 0.35,
+	BOMB_FLASH_SECONDS = 0.4,
+	-- Names of the effect instances (the client could dress them up later).
+	HARPOON_BEAM_NAME = "HarpoonBeam",
+	BOMB_NAME = "GravityBomb",
 })

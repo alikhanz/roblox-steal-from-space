@@ -174,8 +174,11 @@ function HudController.new(dependencies: Dependencies): HudController
 						visible = inSpace,
 						ascendAction = FlightInputs.ASCEND,
 						descendAction = FlightInputs.DESCEND,
-						strikeAction = FlightInputs.STRIKE,
-						strikeText = Text.get(locale, "pvp.strike.button"),
+						abilities = {
+							{ action = FlightInputs.STRIKE, text = Text.get(locale, "pvp.strike.button") },
+							{ action = FlightInputs.HARPOON, text = Text.get(locale, "pvp.harpoon.button") },
+							{ action = FlightInputs.BOMB, text = Text.get(locale, "pvp.bomb.button") },
+						},
 						onButton = function(actionName, button)
 							task.spawn(TouchBindings.bind, player, actionName, button)
 						end,
@@ -229,6 +232,9 @@ function HudController.new(dependencies: Dependencies): HudController
 				dependencies.toast(Text.get(locale, "egg.grabbed.toast"), Theme.TOAST_GOOD)
 			elseif isStunned then
 				dependencies.toast(Text.get(locale, "egg.dropped.toast"), Theme.TOAST_BAD)
+			elseif inSpace() then
+				-- Lost out in space without a hit: only a harpoon does that.
+				dependencies.toast(Text.get(locale, "pvp.harpooned.toast"), Theme.TOAST_BAD)
 			end
 		end)
 		-- Mantissa and exponent arrive separately; reading both on either change is harmless.

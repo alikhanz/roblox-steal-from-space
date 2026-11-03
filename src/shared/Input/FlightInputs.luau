@@ -10,8 +10,10 @@ FlightInputs.ASCEND = "Ascend"
 FlightInputs.DESCEND = "Descend"
 -- Hold next to an egg to grab it.
 FlightInputs.GRAB = "Grab"
--- The strike at another player (PvP); the server reads the press like any other input.
+-- The attacks (PvP); the server reads the presses like any other input.
 FlightInputs.STRIKE = "Strike"
+FlightInputs.HARPOON = "Harpoon"
+FlightInputs.BOMB = "Bomb"
 -- Where the camera looks. Fed by the client through a Scriptable binding; untrusted on the server.
 FlightInputs.AIM = "Aim"
 FlightInputs.AIM_BINDING = "Camera"
@@ -55,6 +57,8 @@ function FlightInputs.create(): InputContext
 	keyAction(FlightInputs.DESCEND, { Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonL1 }).Parent = context
 	keyAction(FlightInputs.GRAB, { Enum.KeyCode.E, Enum.KeyCode.ButtonX }).Parent = context
 	keyAction(FlightInputs.STRIKE, { Enum.KeyCode.MouseLeftButton, Enum.KeyCode.ButtonR2 }).Parent = context
+	keyAction(FlightInputs.HARPOON, { Enum.KeyCode.F, Enum.KeyCode.ButtonY }).Parent = context
+	keyAction(FlightInputs.BOMB, { Enum.KeyCode.G, Enum.KeyCode.ButtonB }).Parent = context
 	aimAction().Parent = context
 	return context
 end

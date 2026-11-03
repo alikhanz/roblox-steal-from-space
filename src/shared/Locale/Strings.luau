@@ -164,6 +164,38 @@ local Strings = {
 		ru = "Удар",
 		en = "Strike",
 	},
+	["pvp.harpoon.button"] = {
+		ru = "Гарпун",
+		en = "Harpoon",
+	},
+	["pvp.bomb.button"] = {
+		ru = "Бомба",
+		en = "Bomb",
+	},
+	["pvp.harpoonEgg.toast"] = {
+		ru = "Гарпун попал! Яйцо летит к тебе",
+		en = "Harpoon hit! The egg flies to you",
+	},
+	["pvp.harpoonMiss.toast"] = {
+		ru = "Гарпун никого не зацепил",
+		en = "The harpoon caught nobody",
+	},
+	["pvp.bombEgg.toast"] = {
+		ru = "Бах! Яйцо выбито",
+		en = "Boom! An egg is loose",
+	},
+	["pvp.bombHit.toast"] = {
+		ru = "Бах! Кого-то снесло",
+		en = "Boom! Someone went flying",
+	},
+	["pvp.bombMiss.toast"] = {
+		ru = "Бах! Никого рядом",
+		en = "Boom! Nobody around",
+	},
+	["pvp.harpooned.toast"] = {
+		ru = "Яйцо вырвали гарпуном!",
+		en = "A harpoon took your egg!",
+	},
 	["pvp.notReady.toast"] = {
 		ru = "Ещё не готово",
 		en = "Not ready yet",

@@ -19,6 +19,7 @@ export type Harpoon = {
 	read rangeStuds: number,
 	read halfAngleRadians: number,
 	read cooldownSeconds: number,
+	read missCooldownSeconds: number,
 }
 
 export type Bomb = {

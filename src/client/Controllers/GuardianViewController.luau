@@ -77,10 +77,13 @@ function GuardianViewController.new(): GuardianViewController
 			return
 		end
 
+		-- The key is checked at the config; it passes through `any` because the union of every
+		-- string key is too much for the type checker here.
+		local nameKey: any = post.nameKey
 		local unmount = Vide.mount(function()
 			return GuardianLabel({
 				adornee = body,
-				name = Text.get(locale, post.nameKey),
+				name = Text.get(locale, nameKey),
 				recommended = recommendedText(instance),
 			})
 		end, instance)
