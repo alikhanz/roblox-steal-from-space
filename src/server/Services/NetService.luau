@@ -13,6 +13,7 @@ local NetConfig = require(ReplicatedStorage.Shared.Config.NetConfig)
 local OfflineService = require(script.Parent.OfflineService)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
+local PvpService = require(script.Parent.PvpService)
 local RateLimit = require(ReplicatedStorage.Shared.Domain.RateLimit)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
@@ -28,13 +29,17 @@ export type Dependencies = {
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	-- Trainer payouts to forward.
 	trained: Signal.Signal<Player, BigNum.BigNum>,
+	-- Ability results to forward.
+	abilityUsed: Signal.Signal<Player, PvpService.AbilityKind, boolean, boolean>,
 }
+
+export type Notice = EconomyService.Notice | PvpService.Notice
 
 export type NetService = {
 	name: string,
 	start: () -> (),
 	-- Tells a player why something was refused (for commands that do not come through a remote).
-	notify: (player: Player, notice: EconomyService.Notice) -> (),
+	notify: (player: Player, notice: Notice) -> (),
 }
 
 local NetService = {}
@@ -77,7 +82,7 @@ function NetService.new(dependencies: Dependencies): NetService
 		end
 	end
 
-	local function notify(player: Player, notice: EconomyService.Notice)
+	local function notify(player: Player, notice: Notice)
 		Remotes.NoticeSent.Fire(player, notice)
 	end
 
@@ -115,6 +120,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		end)
 		dependencies.trained.connect(function(player, gain)
 			Remotes.Trained.Fire(player, wire(gain))
+		end)
+		dependencies.abilityUsed.connect(function(player, kind, hit, droppedEgg)
+			Remotes.AbilityResult.Fire(player, { kind = kind, hit = hit, droppedEgg = droppedEgg })
 		end)
 		economy.trainerUpgraded.connect(sendUpgrades)
 		economy.jetpackUpgraded.connect(sendUpgrades)

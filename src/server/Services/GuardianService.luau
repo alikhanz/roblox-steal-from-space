@@ -17,6 +17,7 @@ local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local GuardianModel = require(script.Parent.Parent.World.GuardianModel)
+local Knockback = require(script.Parent.Parent.Character.Knockback)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
@@ -121,14 +122,13 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			return
 		end
 
-		character:SetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE, direction * GuardianConfig.KNOCKBACK_SPEED)
-		character:SetAttribute(GuardianConfig.HIT_AXIS_ATTRIBUTE, sideways)
-		task.delay(GuardianConfig.STUN_SECONDS, function()
-			if character.Parent then
-				character:SetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE, nil)
-				character:SetAttribute(GuardianConfig.HIT_AXIS_ATTRIBUTE, nil)
-			end
-		end)
+		Knockback.apply(
+			character,
+			direction * GuardianConfig.KNOCKBACK_SPEED,
+			sideways,
+			GuardianConfig.STUN_SECONDS,
+			GuardianConfig.HIT_BY_GUARDIAN
+		)
 
 		guardian.velocity.VectorVelocity = direction * GuardianConfig.LUNGE_SPEED
 		guardian.model:SetAttribute(GuardianConfig.LAST_CATCH_ATTRIBUTE, time())

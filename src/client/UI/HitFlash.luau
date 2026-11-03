@@ -14,7 +14,8 @@ local SHOUT_TEXT_SIZE = 44
 
 export type Props = {
 	visible: () -> boolean,
-	text: string,
+	-- Static, or a source when the words depend on who hit.
+	text: string | () -> string,
 }
 
 local function HitFlash(props: Props): Frame

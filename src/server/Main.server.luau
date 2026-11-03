@@ -15,6 +15,7 @@ local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
 local OfflineService = require(script.Parent.Services.OfflineService)
+local PvpService = require(script.Parent.Services.PvpService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
@@ -53,10 +54,12 @@ local offlineService = OfflineService.new({
 	getIncomePerSecond = bayService.getIncomePerSecond,
 	publishSpeed = speedService.publish,
 })
--- The net service needs the training payouts and the trainer needs the net service's notices,
--- so the trainer's own dependencies are bound after both exist.
+-- The net service forwards the trainer's payouts and the abilities' results, and both of those
+-- services send notices through the net service, so their dependencies are bound after it exists.
 local trainingDependencies = {} :: TrainingService.Dependencies
 local trainingService = TrainingService.new(trainingDependencies)
+local pvpDependencies = {} :: PvpService.Dependencies
+local pvpService = PvpService.new(pvpDependencies)
 local netService = NetService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -66,6 +69,7 @@ local netService = NetService.new({
 	offlineSettled = offlineService.settled,
 	hatched = bayService.hatched,
 	trained = trainingService.trained,
+	abilityUsed = pvpService.abilityUsed,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -94,6 +98,12 @@ local carryService = CarryService.new({
 	deliverEgg = bayService.addEgg,
 })
 
+pvpDependencies.getData = profile.getData
+pvpDependencies.getSpeed = speedService.getSpeed
+pvpDependencies.dropEgg = carryService.dropEgg
+pvpDependencies.notify = netService.notify
+pvpDependencies.scheduler = scheduler
+
 local guardianService = GuardianService.new({
 	getNestSites = worldService.getNestSites,
 	getNestGrade = nestService.getGrade,
@@ -115,6 +125,8 @@ local devService = DevService.new({
 	getData = dataService.getData,
 	update = dataService.update,
 	refresh = bayService.refresh,
+	addDummy = pvpService.addDummy,
+	getPvpUsage = pvpService.getUsage,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
@@ -131,6 +143,7 @@ Lifecycle.run({
 	economyService,
 	netService,
 	trainingService,
+	pvpService,
 	-- After the net service, so the snapshot goes out before the settlement's deltas.
 	offlineService,
 	devService,

@@ -52,6 +52,8 @@ function HudController.new(dependencies: Dependencies): HudController
 	local inSpace = source(false)
 	local speed = source(SpeedConfig.STARTING_SPEED)
 	local stunned = source(false)
+	-- True while the current hit came from a guardian (the words differ for a player's strike).
+	local hitByGuardian = source(true)
 	-- Rarity of the egg in the player's hands; nil with empty hands.
 	local carried = source(nil :: string?)
 	local readCarried = carried :: () -> string?
@@ -108,7 +110,9 @@ function HudController.new(dependencies: Dependencies): HudController
 			local children: { Instance } = {
 				HitFlash({
 					visible = stunned,
-					text = Text.get(locale, "guardian.caught.toast"),
+					text = function()
+						return Text.get(locale, if hitByGuardian() then "guardian.caught.toast" else "pvp.struck.toast")
+					end,
 				}),
 				create("Frame")({
 					Name = "Stats",
@@ -170,6 +174,8 @@ function HudController.new(dependencies: Dependencies): HudController
 						visible = inSpace,
 						ascendAction = FlightInputs.ASCEND,
 						descendAction = FlightInputs.DESCEND,
+						strikeAction = FlightInputs.STRIKE,
+						strikeText = Text.get(locale, "pvp.strike.button"),
 						onButton = function(actionName, button)
 							task.spawn(TouchBindings.bind, player, actionName, button)
 						end,
@@ -198,6 +204,14 @@ function HudController.new(dependencies: Dependencies): HudController
 			local character = player.Character
 			local isStunned = character ~= nil and character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) ~= nil
 			stunned(isStunned)
+			if isStunned and character then
+				local by = character:GetAttribute(GuardianConfig.HIT_BY_ATTRIBUTE)
+				-- Hitting oneself is the strike's own miss stall: no words for that.
+				hitByGuardian(by == nil or by == GuardianConfig.HIT_BY_GUARDIAN)
+				if by == player.Name then
+					stunned(false)
+				end
+			end
 
 			local rarity = character and character:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE)
 			local now = if type(rarity) == "string" then rarity else nil

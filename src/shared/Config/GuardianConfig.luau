@@ -193,4 +193,7 @@ return table.freeze({
 	HIT_VELOCITY_ATTRIBUTE = "HitVelocity",
 	HIT_AXIS_ATTRIBUTE = "HitAxis",
 	HIT_ANGLE_ATTRIBUTE = "HitAngle",
+	-- Who dealt the hit: HIT_BY_GUARDIAN or a player's name (the HUD words it differently).
+	HIT_BY_ATTRIBUTE = "HitBy",
+	HIT_BY_GUARDIAN = "Guardian",
 })

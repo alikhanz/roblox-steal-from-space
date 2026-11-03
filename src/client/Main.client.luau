@@ -14,6 +14,7 @@ local HudController = require(script.Parent.Controllers.HudController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local ProfileState = require(script.Parent.State.ProfileState)
+local PvpViewController = require(script.Parent.Controllers.PvpViewController)
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local ToastState = require(script.Parent.State.ToastState)
@@ -32,6 +33,7 @@ Lifecycle.run({
 	BayWindowController.new({ profile = profileState, toasts = toastState }),
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({ profile = profileState }),
+	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	EggEffectsController.new(),
 	HitEffectsController.new(),
 	JetpackEffectsController.new(),

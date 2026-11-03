@@ -27,6 +27,15 @@ export type Notice =
 	| "WrongCount"
 	| "MixedGrades"
 	| "TooFast"
+	| "NotReady"
+	| "AttackerInStation"
+	| "VictimInStation"
+	| "AttackerNewbie"
+	| "VictimNewbie"
+	| "VictimJustSpawned"
+	| "VictimShielded"
+	| "VictimTooWeak"
+export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield" | "Dash"
 
 export type ProfileState = {
 	name: string,
@@ -45,6 +54,8 @@ export type ProfileState = {
 	-- Three aliens were crossbred into this one.
 	crossbred: Signal.Signal<string, Location>,
 	notice: Signal.Signal<Notice>,
+	-- An ability resolved: which, did it hit, did an egg come loose.
+	abilityResult: Signal.Signal<AbilityKind, boolean, boolean>,
 }
 
 local ProfileState = {}
@@ -63,6 +74,7 @@ function ProfileState.new(): ProfileState
 	local hatched = Signal.new() :: Signal.Signal<string, Location>
 	local crossbred = Signal.new() :: Signal.Signal<string, Location>
 	local notice = Signal.new() :: Signal.Signal<Notice>
+	local abilityResult = Signal.new() :: Signal.Signal<AbilityKind, boolean, boolean>
 
 	local function readCoins(value: { mantissa: number, exponent: number })
 		local restored = BigNum.fromSaved(value)
@@ -109,6 +121,9 @@ function ProfileState.new(): ProfileState
 		Remotes.NoticeSent.SetCallback(function(value)
 			notice.fire(value)
 		end)
+		Remotes.AbilityResult.SetCallback(function(result)
+			abilityResult.fire(result.kind, result.hit, result.droppedEgg)
+		end)
 		-- The profile may have activated before these callbacks were set.
 		Remotes.RequestSnapshot.Fire()
 	end
@@ -125,6 +140,7 @@ function ProfileState.new(): ProfileState
 		hatched = hatched,
 		crossbred = crossbred,
 		notice = notice,
+		abilityResult = abilityResult,
 	}
 end
 

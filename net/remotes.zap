@@ -58,6 +58,23 @@ type Notice = enum {
 	WrongCount,
 	MixedGrades,
 	TooFast,
+	-- Abilities (PvP).
+	NotReady,
+	AttackerInStation,
+	VictimInStation,
+	AttackerNewbie,
+	VictimNewbie,
+	VictimJustSpawned,
+	VictimShielded,
+	VictimTooWeak,
+}
+
+type AbilityKind = enum {
+	Strike,
+	Harpoon,
+	Bomb,
+	Shield,
+	Dash,
 }
 
 -- Server -> client: the owner's private data. A snapshot on login, then the section that changed.
@@ -132,6 +149,18 @@ event Crossbred = {
 	data: struct {
 		alienId: string.utf8,
 		location: enum { Pod, Inventory, Floor },
+	},
+}
+
+-- An ability the player used has resolved: did it land, did an egg come loose.
+event AbilityResult = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		kind: AbilityKind,
+		hit: boolean,
+		droppedEgg: boolean,
 	},
 }
 

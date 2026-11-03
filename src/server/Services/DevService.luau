@@ -13,6 +13,9 @@
 --   game.ServerStorage.DevCommands.DumpProfile:Invoke()
 --   game.ServerStorage.DevCommands.SimulateAway:Invoke(3600)
 --   game.ServerStorage.DevCommands.GiveCoins:Invoke(5000)
+--   game.ServerStorage.DevCommands.SpawnDummyThief:Invoke("Rare")
+--   game.ServerStorage.DevCommands.SetPlayTime:Invoke(3600)
+--   game.ServerStorage.DevCommands.PvpStats:Invoke()
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,12 +27,16 @@ local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggModel = require(script.Parent.Parent.World.EggModel)
+local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 
 local FOLDER_NAME = "DevCommands"
 -- Spawned eggs float this far in front of the player, studs.
 local SPAWN_DISTANCE = 5
+-- The dummy thief stands this far ahead: inside the strike's corridor.
+local DUMMY_DISTANCE = 10
 
 export type Dependencies = {
 	spawnLooseEgg: (
@@ -48,6 +55,9 @@ export type Dependencies = {
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
 	-- Rebuilds the bay (which also sends the client its coins).
 	refresh: (player: Player) -> (),
+	-- Registers a strike target that is not a player, and reads the ability counters.
+	addDummy: (model: Model, root: BasePart, onHit: (direction: Vector3) -> boolean) -> (),
+	getPvpUsage: () -> { [string]: { used: number, hit: number } },
 }
 
 export type DevService = {
@@ -108,6 +118,80 @@ function DevService.new(dependencies: Dependencies): DevService
 				return "profile not active yet"
 			end
 			return `speed set to {BigNum.format(speed)}`
+		end,
+		-- A strike target that keeps flying ahead of the first player, where they aim: a dummy
+		-- thief holding an egg. A hit knocks the egg loose and removes the dummy. Only works out
+		-- in space (there is no drag there, so a target that stood still would be left behind).
+		SpawnDummyThief = function(rarity: string?): string
+			local player, root = firstPlayerRoot()
+			if not player or not root then
+				return "no character"
+			end
+			local function ahead(): CFrame
+				local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
+				local aim = (if context then FlightInputs.readAim(context) else nil) or root.CFrame.LookVector
+				return CFrame.lookAt(root.Position + aim.Unit * DUMMY_DISTANCE, root.Position)
+			end
+			local chosenRarity = (rarity or "Common") :: EggConfig.RarityId
+			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)
+			local model = Instance.new("Model")
+			model.Name = "DummyThief"
+			local body = Instance.new("Part")
+			body.Name = "HumanoidRootPart"
+			body.Size = Vector3.new(2, 4, 1)
+			body.Color = Color3.fromRGB(230, 90, 160)
+			body.Material = Enum.Material.Neon
+			body.Anchored = true
+			body.CanCollide = false
+			body.CFrame = ahead()
+			body.Parent = model
+			local egg = EggModel.build(chosenRarity, EggConfig.TYPICAL_SIZE)
+			egg.Anchored = true
+			egg.CFrame = body.CFrame * CFrame.new(0, -0.2, -1.2)
+			egg.Parent = model
+			model.PrimaryPart = body
+			model.Parent = workspace
+			local follow: RBXScriptConnection
+			follow = RunService.Heartbeat:Connect(function()
+				if not model.Parent or not root.Parent then
+					follow:Disconnect()
+					return
+				end
+				body.CFrame = ahead()
+				egg.CFrame = body.CFrame * CFrame.new(0, -0.2, -1.2)
+			end)
+			dependencies.addDummy(model, body, function(direction)
+				dependencies.spawnLooseEgg(
+					chosenRarity,
+					EggConfig.TYPICAL_SIZE,
+					"DebrisBeltNest1",
+					egg.Position,
+					direction * EggConfig.DROP_SPEED
+				)
+				model:Destroy()
+				return true
+			end)
+			return "dummy thief ahead"
+		end,
+		-- Sets the first player's total play time (to leave or re-enter the newbie protection).
+		SetPlayTime = function(seconds: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(type(seconds) == "number" and seconds >= 0, "SetPlayTime expects seconds, zero or more")
+			local written = dependencies.update(player, function(data)
+				data.playSeconds = seconds
+			end)
+			return if written then `play time set to {seconds}s` else "profile not active yet"
+		end,
+		-- How many times each ability was used in this server and how many landed.
+		PvpStats = function(): string
+			local lines = {}
+			for kind, entry in dependencies.getPvpUsage() do
+				table.insert(lines, `{kind}: used {entry.used}, hit {entry.hit}`)
+			end
+			return if #lines > 0 then table.concat(lines, " | ") else "no abilities used yet"
 		end,
 		-- Adds coins to the first player's profile (to try purchases without earning them).
 		GiveCoins = function(amount: number): string

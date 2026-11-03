@@ -1,7 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- On-screen up/down buttons for touch devices, shown while flying.
--- The buttons drive the Ascend/Descend input actions through UIButton bindings.
+-- On-screen buttons for touch devices, shown while flying: strike, up, down.
+-- The buttons drive the input actions through UIButton bindings.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -22,17 +22,26 @@ export type Props = {
 	onButton: (actionName: string, button: GuiButton) -> (),
 	ascendAction: string,
 	descendAction: string,
+	strikeAction: string,
+	-- The strike button's word; the others are arrows.
+	strikeText: string,
 }
 
-local function FlightButton(symbol: string, order: number, onCreated: (GuiButton) -> ()): TextButton
+local function FlightButton(
+	symbol: string,
+	order: number,
+	textSize: number,
+	color: Color3,
+	onCreated: (GuiButton) -> ()
+): TextButton
 	return create("TextButton")({
 		Name = symbol,
 		LayoutOrder = order,
 		Size = UDim2.fromOffset(BUTTON_SIZE, BUTTON_SIZE),
-		BackgroundColor3 = Theme.PANEL,
+		BackgroundColor3 = color,
 		BackgroundTransparency = Theme.PANEL_TRANSPARENCY,
 		FontFace = Theme.FONT,
-		TextSize = BUTTON_SIZE / 2,
+		TextSize = textSize,
 		TextColor3 = Theme.TEXT,
 		Text = symbol,
 		AutoButtonColor = true,
@@ -58,10 +67,13 @@ local function FlightButtons(props: Props): Frame
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 
-		FlightButton("▲", 1, function(button)
+		FlightButton(props.strikeText, 1, Theme.TEXT_SIZE, Theme.DANGER, function(button)
+			props.onButton(props.strikeAction, button)
+		end),
+		FlightButton("▲", 2, BUTTON_SIZE / 2, Theme.PANEL, function(button)
 			props.onButton(props.ascendAction, button)
 		end),
-		FlightButton("▼", 2, function(button)
+		FlightButton("▼", 3, BUTTON_SIZE / 2, Theme.PANEL, function(button)
 			props.onButton(props.descendAction, button)
 		end),
 	}) :: Frame

@@ -144,6 +144,54 @@ local Strings = {
 		ru = "Поймали!",
 		en = "Caught!",
 	},
+	["pvp.struck.toast"] = {
+		ru = "Тебя ударили!",
+		en = "You got hit!",
+	},
+	["pvp.strikeEgg.toast"] = {
+		ru = "Попал! Яйцо выбито, хватай",
+		en = "Hit! The egg is loose, grab it",
+	},
+	["pvp.strikeHit.toast"] = {
+		ru = "Попал!",
+		en = "Hit!",
+	},
+	["pvp.strikeMiss.toast"] = {
+		ru = "Мимо",
+		en = "Miss",
+	},
+	["pvp.strike.button"] = {
+		ru = "Удар",
+		en = "Strike",
+	},
+	["pvp.notReady.toast"] = {
+		ru = "Ещё не готово",
+		en = "Not ready yet",
+	},
+	["pvp.inStation.toast"] = {
+		ru = "Под куполом драться нельзя",
+		en = "No fighting under the dome",
+	},
+	["pvp.youAreNewbie.toast"] = {
+		ru = "Ты новичок: 20 минут мира",
+		en = "You are new: 20 minutes of peace",
+	},
+	["pvp.victimNewbie.toast"] = {
+		ru = "Это новичок, его трогать нельзя",
+		en = "That is a newbie, hands off",
+	},
+	["pvp.victimJustSpawned.toast"] = {
+		ru = "Только появился, дай секунду",
+		en = "Just spawned, give them a second",
+	},
+	["pvp.victimShielded.toast"] = {
+		ru = "У него щит",
+		en = "Shielded",
+	},
+	["pvp.victimTooWeak.toast"] = {
+		ru = "Слишком слабый соперник для тебя",
+		en = "Too weak a target for you",
+	},
 	["egg.common.title"] = {
 		ru = "Обычное яйцо",
 		en = "Common egg",

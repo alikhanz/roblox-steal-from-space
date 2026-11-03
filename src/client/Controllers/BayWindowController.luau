@@ -46,6 +46,14 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	WrongCount = "notice.wrongAliens.toast",
 	MixedGrades = "notice.wrongAliens.toast",
 	TooFast = "notice.tooFast.toast",
+	NotReady = "pvp.notReady.toast",
+	AttackerInStation = "pvp.inStation.toast",
+	VictimInStation = "pvp.inStation.toast",
+	AttackerNewbie = "pvp.youAreNewbie.toast",
+	VictimNewbie = "pvp.victimNewbie.toast",
+	VictimJustSpawned = "pvp.victimJustSpawned.toast",
+	VictimShielded = "pvp.victimShielded.toast",
+	VictimTooWeak = "pvp.victimTooWeak.toast",
 }
 
 export type Dependencies = {
@@ -92,7 +100,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	}
 
 	local function placeText(location: ProfileState.Location): string
-		return text(PLACE_KEYS[location] or "place.floor.hint")
+		-- Looked up through `any`: the union of every string key is too much for the checker.
+		local key: Text.Key = (PLACE_KEYS :: any)[location] or "place.floor.hint"
+		return text(key)
 	end
 
 	local function selectedRecords(): { { record: ProfileState.Alien, location: ProfileState.Location } }
@@ -504,7 +514,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			announce("alien.crossbred.toast", alienId, location)
 		end)
 		profile.notice.connect(function(notice)
-			toast(text(NOTICE_KEYS[notice] or "notice.unknownAlien.toast"), Theme.TOAST_BAD)
+			local key: Text.Key = (NOTICE_KEYS :: any)[notice] or "notice.unknownAlien.toast"
+			toast(text(key), Theme.TOAST_BAD)
 		end)
 		profile.offlineReward.connect(function(coins, speed, seconds)
 			reward({ coins = coins, speed = speed, seconds = seconds })
