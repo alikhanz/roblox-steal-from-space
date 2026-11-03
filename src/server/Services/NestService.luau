@@ -7,8 +7,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
+local Posts = require(ReplicatedStorage.Shared.Domain.Posts)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
+local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldService = require(script.Parent.WorldService)
 
 -- Respawns are measured in seconds: 10 checks per second is plenty.
@@ -26,12 +29,16 @@ export type NestService = {
 	takeEgg: (nestId: string) -> (EggConfig.RarityId?, EggConfig.SizeId?),
 	-- Puts a dropped egg back; ignored if the nest has grown a new one meanwhile.
 	returnEgg: (nestId: string, rarity: EggConfig.RarityId, size: EggConfig.SizeId) -> (),
+	-- Guardian post (and alien grade) of a nest, or nil for an unknown nest.
+	getGrade: (nestId: string) -> number?,
 	-- Where the egg of a nest rests, or nil for an unknown nest.
 	getEggCFrame: (nestId: string) -> CFrame?,
 }
 
 type Nest = {
 	site: WorldService.NestSite,
+	-- Guardian post of this nest; its eggs hatch into this grade.
+	grade: number,
 	rarity: EggConfig.RarityId?,
 	size: EggConfig.SizeId?,
 	egg: Part?,
@@ -102,8 +109,21 @@ function NestService.new(dependencies: Dependencies): NestService
 	end
 
 	local function start()
-		for _, site in dependencies.getNestSites() do
-			local nest: Nest = { site = site, rarity = nil, size = nil, egg = nil, respawnAt = nil }
+		-- Nests are ranked by distance from the station: the farther, the higher the grade.
+		local sites: { WorldService.NestSite } = table.clone(dependencies.getNestSites())
+		local center = StationConfig.PLATFORM_CENTER
+		table.sort(sites, function(a: WorldService.NestSite, b: WorldService.NestSite)
+			return (a.eggCFrame.Position - center).Magnitude < (b.eggCFrame.Position - center).Magnitude
+		end)
+		for rank, site in sites do
+			local nest: Nest = {
+				site = site,
+				grade = Posts.indexFor(rank, #sites, #GuardianConfig.DEBRIS_BELT_POSTS),
+				rarity = nil,
+				size = nil,
+				egg = nil,
+				respawnAt = nil,
+			}
 			nests[site.id] = nest
 			site.model:SetAttribute(EggConfig.NEST_EGG_POSITION_ATTRIBUTE, site.eggCFrame.Position)
 			CollectionService:AddTag(site.model, EggConfig.NEST_TAG)
@@ -117,6 +137,10 @@ function NestService.new(dependencies: Dependencies): NestService
 		start = start,
 		takeEgg = takeEgg,
 		returnEgg = returnEgg,
+		getGrade = function(nestId: string): number?
+			local nest = nests[nestId]
+			return if nest then nest.grade else nil
+		end,
 		getEggCFrame = function(nestId: string): CFrame?
 			local nest = nests[nestId]
 			return if nest then nest.site.eggCFrame else nil

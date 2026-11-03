@@ -121,6 +121,4 @@ return table.freeze({
 	GRAB_TARGET_ATTRIBUTE = "GrabTarget",
 	CARRIED_RARITY_ATTRIBUTE = "CarriedEgg",
 	CARRIED_SIZE_ATTRIBUTE = "CarriedEggSize",
-	-- Player attribute: eggs delivered this session (stage 3 replaces it with saved data).
-	DELIVERED_ATTRIBUTE = "EggsDelivered",
 })

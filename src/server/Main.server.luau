@@ -29,16 +29,24 @@ local profile = {
 	update = dataService.update,
 }
 local speedService = SpeedService.new(profile)
-local bayService = BayService.new(profile)
+local bayService = BayService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	update = profile.update,
+	scheduler = scheduler,
+})
 local spaceService = SpaceService.new({ getSpawn = worldService.getSpawn })
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
 	returnNestEgg = nestService.returnEgg,
 	getNestEggCFrame = nestService.getEggCFrame,
+	getNestGrade = nestService.getGrade,
+	deliverEgg = bayService.addEgg,
 })
 
 local guardianService = GuardianService.new({
 	getNestSites = worldService.getNestSites,
+	getNestGrade = nestService.getGrade,
 	findCarrier = carryService.findCarrier,
 	getCarried = carryService.getCarried,
 	dropEgg = carryService.dropEgg,
@@ -52,6 +60,8 @@ local devService = DevService.new({
 	setSpeed = speedService.setSpeed,
 	addAlien = bayService.addAlien,
 	addEgg = bayService.addEgg,
+	hastenHatching = bayService.hastenHatching,
+	getData = dataService.getData,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.

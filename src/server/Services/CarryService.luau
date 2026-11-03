@@ -1,6 +1,6 @@
 --!strict
 -- Owns eggs once they leave a nest: confirms grabs requested by the simulation, holds the egg
--- in the thief's arms, counts deliveries at the station, drops the egg when its carrier is
+-- in the thief's arms, hands it to the bay at the station, drops the egg when its carrier is
 -- caught or dies, and returns floating eggs to their nests after a while.
 -- Runs after each simulation step (PostSimulation): it creates and destroys instances.
 
@@ -23,6 +23,10 @@ export type Dependencies = {
 	takeNestEgg: (nestId: string) -> (EggConfig.RarityId?, EggConfig.SizeId?),
 	returnNestEgg: (nestId: string, rarity: EggConfig.RarityId, size: EggConfig.SizeId) -> (),
 	getNestEggCFrame: (nestId: string) -> CFrame?,
+	getNestGrade: (nestId: string) -> number?,
+	-- Takes a delivered egg into the player's bay. False when the bay cannot take it yet (no
+	-- active profile): the egg then stays in the thief's arms.
+	deliverEgg: (player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number) -> boolean,
 }
 
 export type Carried = {
@@ -219,12 +223,19 @@ function CarryService.new(dependencies: Dependencies): CarryService
 	end
 
 	local function deliver(player: Player)
-		if releaseCarried(player) then
-			local delivered = player:GetAttribute(EggConfig.DELIVERED_ATTRIBUTE)
-			player:SetAttribute(
-				EggConfig.DELIVERED_ATTRIBUTE,
-				(if type(delivered) == "number" then delivered else 0) + 1
-			)
+		local entry = carried[player]
+		if not entry then
+			return
+		end
+		local grade = dependencies.getNestGrade(entry.nestId)
+		if not grade then
+			warn(`[CarryService] {entry.nestId} has no grade; egg returned`)
+			releaseCarried(player)
+			dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
+			return
+		end
+		if dependencies.deliverEgg(player, entry.rarity, entry.size, grade) then
+			releaseCarried(player)
 		end
 	end
 

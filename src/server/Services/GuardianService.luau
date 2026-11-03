@@ -28,6 +28,8 @@ local FOLDER_NAME = "Guardians"
 
 export type Dependencies = {
 	getNestSites: () -> { WorldService.NestSite },
+	-- The post of a nest (NestService ranks nests by distance).
+	getNestGrade: (nestId: string) -> number?,
 	findCarrier: (nestId: string) -> Player?,
 	getCarried: (player: Player) -> CarryService.Carried?,
 	dropEgg: (player: Player, launch: Vector3?) -> boolean,
@@ -57,13 +59,6 @@ type Guardian = {
 }
 
 local GuardianService = {}
-
--- Nests are handed posts from the nearest to the station outwards, in equal groups.
-local function postFor(index: number, nestCount: number): (GuardianConfig.Post, number)
-	local posts = GuardianConfig.DEBRIS_BELT_POSTS
-	local postIndex = math.clamp(math.ceil(index / nestCount * #posts), 1, #posts)
-	return posts[postIndex], postIndex
-end
 
 local function thiefRoot(player: Player): (Model?, BasePart?)
 	local character = player.Character
@@ -247,13 +242,13 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		folder.Name = FOLDER_NAME
 		folder.Parent = workspace:FindFirstChild("World") or workspace
 
-		local sites: { WorldService.NestSite } = table.clone(dependencies.getNestSites())
-		local center = StationConfig.PLATFORM_CENTER
-		table.sort(sites, function(a: WorldService.NestSite, b: WorldService.NestSite)
-			return (a.eggCFrame.Position - center).Magnitude < (b.eggCFrame.Position - center).Magnitude
-		end)
-		for index, site in sites do
-			local post, postIndex = postFor(index, #sites)
+		for _, site in dependencies.getNestSites() do
+			local postIndex = dependencies.getNestGrade(site.id)
+			local post = postIndex and GuardianConfig.DEBRIS_BELT_POSTS[postIndex]
+			if not postIndex or not post then
+				warn(`[GuardianService] {site.id} has no post; no guardian`)
+				continue
+			end
 			place(site, post, postIndex, folder)
 		end
 

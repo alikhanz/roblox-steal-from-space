@@ -64,6 +64,10 @@ local Strings = {
 		ru = "Отсек {name}",
 		en = "{name}'s bay",
 	},
+	["alien.pickUp.button"] = {
+		ru = "Подобрать",
+		en = "Pick up",
+	},
 	["alien.income.hint"] = {
 		ru = "{income} монет/с",
 		en = "{income} coins/s",

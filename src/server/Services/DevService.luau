@@ -9,6 +9,8 @@
 --   game.ServerStorage.DevCommands.SetSpeed:Invoke(2500)
 --   game.ServerStorage.DevCommands.GiveAlien:Invoke(2, "Rare")
 --   game.ServerStorage.DevCommands.GiveEgg:Invoke("Uncommon", "Large", 1)
+--   game.ServerStorage.DevCommands.HatchNow:Invoke()
+--   game.ServerStorage.DevCommands.DumpProfile:Invoke()
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +23,7 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
+local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 
 local FOLDER_NAME = "DevCommands"
 -- Spawned eggs float this far in front of the player, studs.
@@ -37,6 +40,8 @@ export type Dependencies = {
 	setSpeed: (player: Player, speed: BigNum.BigNum) -> boolean,
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
 	addEgg: (player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number) -> boolean,
+	hastenHatching: (player: Player) -> boolean,
+	getData: (player: Player) -> PlayerData.PlayerData?,
 }
 
 export type DevService = {
@@ -120,6 +125,36 @@ function DevService.new(dependencies: Dependencies): DevService
 			assert(EggConfig.SIZES[chosenSize], `Unknown size {chosenSize}`)
 			local added = dependencies.addEgg(player, chosenRarity, chosenSize, grade or 1)
 			return if added then "egg in the incubator" else "profile not active yet"
+		end,
+		-- Every egg in the first player's incubator hatches on the next tick.
+		HatchNow = function(): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			return if dependencies.hastenHatching(player) then "hatching" else "profile not active yet"
+		end,
+		-- A readable summary of the first player's profile.
+		DumpProfile = function(): string
+			local player = firstPlayerRoot()
+			local data = player and dependencies.getData(player)
+			if not data then
+				return "profile not active yet"
+			end
+			local pods = {}
+			for _, pod in data.pods do
+				table.insert(pods, if pod.alien then pod.alien.id else "-")
+			end
+			local function ids(list: { PlayerData.AlienRecord }): string
+				local names = {}
+				for _, alien in list do
+					table.insert(names, alien.id)
+				end
+				return table.concat(names, ", ")
+			end
+			local podList = table.concat(pods, ", ")
+			return `coins {BigNum.format(data.coins)} | speed {BigNum.format(data.speed)} | pods [{podList}]`
+				.. ` | inventory [{ids(data.inventory)}] | floor [{ids(data.floor)}] | eggs {#data.incubator}`
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).
 		SetInfiniteOxygen = function(enabled: boolean): string
