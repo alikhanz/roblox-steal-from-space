@@ -186,6 +186,23 @@ describe("BigNum saved data", function()
 	end)
 end)
 
+describe("BigNum log10", function()
+	it("works for plain and scientific values", function()
+		expect(BigNum.log10(n(1000))).toBeCloseTo(3, 1e-9)
+		expect(BigNum.log10(n(0.01))).toBeCloseTo(-2, 1e-9)
+		expect(BigNum.log10(BigNum.new(2, 400))).toBeCloseTo(400 + math.log10(2), 1e-9)
+	end)
+
+	it("rejects zero and negative values", function()
+		expect(function()
+			BigNum.log10(n(0))
+		end).toThrow()
+		expect(function()
+			BigNum.log10(n(-5))
+		end).toThrow()
+	end)
+end)
+
 describe("BigNum format", function()
 	local cases: { { value: BigNum.BigNum, text: string } } = {
 		{ value = n(0), text = "0" },

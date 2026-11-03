@@ -4,14 +4,34 @@
 local Loot = require("../Domain/Loot")
 
 export type RarityId = "Common" | "Uncommon" | "Rare"
+export type SizeId = "Small" | "Medium" | "Large"
 
 export type Rarity = {
 	read grabSeconds: number,
-	-- Share of top flight speed lost while carrying (see Carry.speedMultiplier).
+	-- Share of the speed stat a medium egg takes away while carried (see Speed.eggWeight).
 	read weight: number,
 	read color: Color3,
 	-- Glow around the egg: 0 for none. Rarer eggs shine brighter and are easier to spot.
 	read glow: number,
+}
+
+export type Size = {
+	-- Multiplies the rarity weight.
+	read weightFactor: number,
+	-- Multiplies the egg model size.
+	read scale: number,
+}
+
+local SIZES: { [SizeId]: Size } = {
+	Small = { weightFactor = 0.7, scale = 0.8 },
+	Medium = { weightFactor = 1, scale = 1 },
+	Large = { weightFactor = 1.4, scale = 1.25 },
+}
+
+local DEBRIS_BELT_SIZE_LOOT: { Loot.Entry<SizeId> } = {
+	{ id = "Small", weight = 50 },
+	{ id = "Medium", weight = 35 },
+	{ id = "Large", weight = 15 },
 }
 
 local RARITIES: { [RarityId]: Rarity } = {
@@ -43,7 +63,11 @@ local DEBRIS_BELT_LOOT: { Loot.Entry<RarityId> } = {
 
 return table.freeze({
 	RARITIES = table.freeze(RARITIES),
+	SIZES = table.freeze(SIZES),
 	DEBRIS_BELT_LOOT = table.freeze(DEBRIS_BELT_LOOT),
+	DEBRIS_BELT_SIZE_LOOT = table.freeze(DEBRIS_BELT_SIZE_LOOT),
+	-- The guardian's recommended speed is computed for an egg of this size.
+	TYPICAL_SIZE = "Medium" :: SizeId,
 
 	-- A player can grab an egg within this distance of it, studs.
 	GRAB_REACH = 9,

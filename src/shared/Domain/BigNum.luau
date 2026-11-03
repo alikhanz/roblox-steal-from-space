@@ -312,6 +312,14 @@ function BigNum.toNumber(value: BigNum): number
 	return value.mantissa * 10 ^ value.exponent
 end
 
+-- Decimal logarithm of a positive value, exact across the scientific range (where toNumber
+-- would overflow). Lets ratios of huge values be compared on a plain number scale.
+function BigNum.log10(value: BigNum): number
+	assert(value.mantissa > 0, `BigNum.log10 expects a positive value, got {value.mantissa}e{value.exponent}`)
+	local mantissa, exponent = toScientific(value)
+	return math.log10(mantissa) + exponent
+end
+
 local function truncate(value: number, decimals: number): number
 	local scale = 10 ^ decimals
 	return math.floor(value * scale + FORMAT_EPSILON) / scale

@@ -7,7 +7,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Carry = require("../Domain/Carry")
 local DevConfig = require("../Config/DevConfig")
 local EggConfig = require("../Config/EggConfig")
 local EggTargets = require("./EggTargets")
@@ -19,6 +18,7 @@ local Grab = require("../Domain/Grab")
 local JetpackConfig = require("../Config/JetpackConfig")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
+local Speed = require("../Domain/Speed")
 local StationConfig = require("../Config/StationConfig")
 local Zones = require("../Domain/Zones")
 
@@ -68,8 +68,8 @@ local function fly(rig: Rig, context: Instance, deltaTime: number)
 	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
 	local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
 	local rarity = carriedRarity(rig.character)
-	-- Strength (stage 4) will offset the egg's weight; untrained for now.
-	local speedMultiplier = if rarity then Carry.speedMultiplier(EggConfig.RARITIES[rarity].weight, 0) else 1
+	-- Every carried egg counts as medium until eggs get sizes (stage 2, guardians step).
+	local speedMultiplier = if rarity then Speed.carryMultiplier(EggConfig.RARITIES[rarity].weight) else 1
 	local velocity =
 		Flight.nextVelocity(rig.root.AssemblyLinearVelocity, direction, deltaTime, FlightConfig.TUNING, speedMultiplier)
 

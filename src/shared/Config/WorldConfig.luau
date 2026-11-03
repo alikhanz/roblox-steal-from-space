@@ -9,6 +9,8 @@ return table.freeze({
 	OUTER_RADIUS = 900,
 	-- The field is flattened into a thick disc: max height above or below the station.
 	VERTICAL_SPREAD = 250,
+	-- Hard edge of the map: a sphere around the station nobody flies out of (see Bounds).
+	BOUNDARY_RADIUS = 1000,
 	MIN_SIZE = 8,
 	MAX_SIZE = 45,
 	-- Nests of the Debris Belt: dedicated asteroids spread around a ring outside the dome.
