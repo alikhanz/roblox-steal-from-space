@@ -189,7 +189,9 @@ function DevService.new(dependencies: Dependencies): DevService
 					table.insert(names, player.Name)
 				end
 			end
-			return if #names > 0 then `play time set to {seconds}s for {table.concat(names, ", ")}` else "no active profiles"
+			return if #names > 0
+				then `play time set to {seconds}s for {table.concat(names, ", ")}`
+				else "no active profiles"
 		end,
 		-- How many times each ability was used in this server and how many landed.
 		PvpStats = function(): string
