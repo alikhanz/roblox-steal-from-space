@@ -43,6 +43,7 @@ describe("PlayerData.template", function()
 		expect(data.pods[1].alien).toBeNil()
 		expect(data.nextUid).toBe(1)
 		expect(data.lastSeenAt).toBe(0)
+		expect(data.playSeconds).toBe(0)
 	end)
 end)
 
@@ -229,6 +230,12 @@ describe("PlayerData.load", function()
 				end,
 				detail = "lastSeenAt is invalid",
 			},
+			{
+				patch = function(data)
+					data.playSeconds = "lots"
+				end,
+				detail = "playSeconds is invalid",
+			},
 		}
 		for _, case in cases do
 			local saved = savedTemplate()
@@ -293,12 +300,28 @@ describe("PlayerData migration v2 -> v3", function()
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
 			local data = outcome.data
-			expect(data.schemaVersion).toBe(3)
+			expect(data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(data.trained.mantissa).toBe(2500)
 			expect(data.trainerLevel).toBe(0)
 			expect(data.jetpackLevel).toBe(0)
 			expect((data :: any).speed).toBeNil()
 			expect(data.pods[1].alien).toEqual(alien(1))
+		end
+	end)
+end)
+
+describe("PlayerData migration v3 -> v4", function()
+	it("starts the play time at zero and keeps the rest", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 3
+		saved.playSeconds = nil
+		saved.trainerLevel = 4
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(4)
+			expect(outcome.data.playSeconds).toBe(0)
+			expect(outcome.data.trainerLevel).toBe(4)
 		end
 	end)
 end)

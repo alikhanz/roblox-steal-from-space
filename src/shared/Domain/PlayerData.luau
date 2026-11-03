@@ -46,6 +46,8 @@ export type PlayerData = {
 	nextUid: number,
 	-- Unix time the player was last seen; offline progress is paid from here. 0: never.
 	lastSeenAt: number,
+	-- Seconds spent in the game, all sessions together; the newbie protection runs on it.
+	playSeconds: number,
 }
 
 -- Starting values that come from configs; the domain never reads configs itself.
@@ -60,7 +62,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 3
+PlayerData.SCHEMA_VERSION = 4
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -72,6 +74,9 @@ PlayerData.MIGRATIONS = {
 		data.trained = data.speed
 		data.speed = nil
 	end,
+	-- v4 adds playSeconds, filled from the template. A player from before counts as a newbie
+	-- for one more protection period; that is the safer side.
+	[3] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -92,6 +97,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		incubator = {},
 		nextUid = 1,
 		lastSeenAt = 0,
+		playSeconds = 0,
 	}
 end
 
@@ -210,6 +216,9 @@ local function validate(data: { [string]: any }): string?
 	end
 	if not isFinite(data.lastSeenAt) or data.lastSeenAt < 0 then
 		return "lastSeenAt is invalid"
+	end
+	if not isFinite(data.playSeconds) or data.playSeconds < 0 then
+		return "playSeconds is invalid"
 	end
 	return nil
 end

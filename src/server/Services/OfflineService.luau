@@ -1,7 +1,8 @@
 --!strict
 -- Progress while the player was away, paid once when their profile activates: the pods' income
--- and the trainer's gain, each with its own cap, in one profile update. Owns the last-seen
--- mark: moves it once a second while the player is online.
+-- and the trainer's gain, each with its own cap, in one profile update. Owns the profile's
+-- clock: once a second while the player is online it moves the last-seen mark and adds to
+-- their play time.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -93,13 +94,14 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 		settled.fire(player, paid)
 	end
 
-	-- Moves every online player's mark forward.
-	local function mark()
+	-- Moves every online player's mark forward and counts their play time.
+	local function mark(deltaTime: number)
 		local current = now()
 		for _, player in game:GetService("Players"):GetPlayers() do
 			if dependencies.getData(player) then
 				dependencies.update(player, function(data)
 					data.lastSeenAt = current
+					data.playSeconds += deltaTime
 				end)
 			end
 		end
