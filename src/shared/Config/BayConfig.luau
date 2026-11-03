@@ -2,6 +2,15 @@
 -- A player's bay on the station: pods, inventory, crossbreeding, selling and offline income.
 
 local BigNum = require("../Domain/BigNum")
+local Trainer = require("../Domain/Trainer")
+
+-- The trainer pad in the bay's frame (X right, -Z toward the platform center, Y up).
+local TRAINER_PAD: Trainer.Pad = {
+	x = 0,
+	z = -8.6,
+	radius = 1.8,
+	height = 6,
+}
 
 return table.freeze({
 	-- Pods a new player owns; more are bought with coins.
@@ -27,6 +36,12 @@ return table.freeze({
 	-- Pods pay out this often (CONVENTIONS, performance: income at 1 Hz).
 	INCOME_TICK_SECONDS = 1,
 
+	-- The trainer pad: the owner trains while standing on it (Domain/Trainer), with this much
+	-- slack past its edge, studs. The upgrade prompt works from this far.
+	TRAINER_PAD = table.freeze(TRAINER_PAD),
+	TRAINER_TOLERANCE = 1.2,
+	TRAINER_PROMPT_DISTANCE = 8,
+
 	-- Bay model attributes and tags (replicated for the client views).
 	TAG = "Bay",
 	OWNER_ID_ATTRIBUTE = "OwnerUserId",
@@ -34,7 +49,10 @@ return table.freeze({
 	-- Instance names inside a bay model.
 	SIGN_NAME = "Sign",
 	INCUBATOR_NAME = "Incubator",
+	TRAINER_NAME = "Trainer",
 	CONTENTS_NAME = "Contents",
+	-- On the bay model: the owner's trainer level, for the sign over the pad.
+	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
 	-- Alien models standing in pods or waiting on the floor.
 	ALIEN_TAG = "Alien",
 	ALIEN_ID_ATTRIBUTE = "AlienId",

@@ -12,6 +12,7 @@
 --   game.ServerStorage.DevCommands.HatchNow:Invoke()
 --   game.ServerStorage.DevCommands.DumpProfile:Invoke()
 --   game.ServerStorage.DevCommands.SimulateAway:Invoke(3600)
+--   game.ServerStorage.DevCommands.GiveCoins:Invoke(5000)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -45,6 +46,8 @@ export type Dependencies = {
 	settleOffline: (player: Player) -> (),
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
+	-- Rebuilds the bay (which also sends the client its coins).
+	refresh: (player: Player) -> (),
 }
 
 export type DevService = {
@@ -104,6 +107,22 @@ function DevService.new(dependencies: Dependencies): DevService
 				return "profile not active yet"
 			end
 			return `speed set to {BigNum.format(speed)}`
+		end,
+		-- Adds coins to the first player's profile (to try purchases without earning them).
+		GiveCoins = function(amount: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(type(amount) == "number" and amount > 0, "GiveCoins expects a positive number")
+			local written = dependencies.update(player, function(data)
+				data.coins = BigNum.add(data.coins, BigNum.fromNumber(amount))
+			end)
+			if not written then
+				return "profile not active yet"
+			end
+			dependencies.refresh(player)
+			return `added {BigNum.format(BigNum.fromNumber(amount))} coins`
 		end,
 		-- Gives the first player an alien of `grade` (guardian post number) and `tier`.
 		GiveAlien = function(grade: number?, tier: string?): string

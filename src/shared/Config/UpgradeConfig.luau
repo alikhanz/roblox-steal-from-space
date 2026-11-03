@@ -23,6 +23,9 @@ local TUNING: Upgrades.Tuning = {
 return table.freeze({
 	TUNING = table.freeze(TUNING),
 
+	-- The trainer pays out this often while its owner stands on it (CONVENTIONS, performance).
+	TRAINING_TICK_SECONDS = 1,
+
 	-- Training keeps going while the player is away: at this share of the rate, up to this long.
 	OFFLINE_TRAINING_FACTOR = 0.5,
 	OFFLINE_TRAINING_CAP_SECONDS = 8 * 60 * 60,

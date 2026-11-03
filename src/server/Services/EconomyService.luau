@@ -1,7 +1,8 @@
 --!strict
 -- What a player can do with their bay and coins: place and move aliens, crossbreed, sell, buy
--- pods. Every command checks the profile and the request, then applies one change; the bay is
--- rebuilt afterwards. Returns nil on success or why the command was refused.
+-- pods and upgrades. Every command checks the profile and the request, then applies one
+-- change; the bay is rebuilt afterwards (which also sends the client its coins). Returns nil
+-- on success or why the command was refused.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,6 +14,8 @@ local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 
 export type Notice =
 	"NoProfile"
@@ -40,8 +43,13 @@ export type EconomyService = {
 	crossbreed: (player: Player, uids: { number }) -> Notice?,
 	sell: (player: Player, uid: number) -> Notice?,
 	buyPod: (player: Player) -> Notice?,
+	-- Buys the next level of the trainer or the jetpack.
+	upgradeTrainer: (player: Player) -> Notice?,
+	upgradeJetpack: (player: Player) -> Notice?,
 	-- Fires when a crossbreed produces an alien: the player, the alien and where it went.
 	crossbred: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
+	trainerUpgraded: Signal.Signal<Player>,
+	jetpackUpgraded: Signal.Signal<Player>,
 }
 
 local EconomyService = {}
@@ -58,6 +66,8 @@ end
 function EconomyService.new(dependencies: Dependencies): EconomyService
 	local random = Random.new()
 	local crossbred = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
+	local trainerUpgraded = Signal.new() :: Signal.Signal<Player>
+	local jetpackUpgraded = Signal.new() :: Signal.Signal<Player>
 
 	-- Runs `check` on the live profile, then `apply` as one update, then rebuilds the bay.
 	local function command(
@@ -202,6 +212,46 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		end)
 	end
 
+	-- Spends coins on the next level of an upgrade; `priceOf` and `level` read the live profile.
+	local function upgrade(
+		player: Player,
+		priceOf: (data: PlayerData.PlayerData) -> BigNum.BigNum,
+		raise: (data: PlayerData.PlayerData) -> (),
+		upgraded: Signal.Signal<Player>
+	): Notice?
+		local notice = command(player, function(data)
+			return if BigNum.lessThan(data.coins, priceOf(data)) then "NotEnoughCoins" else nil
+		end, function(data)
+			local cost = priceOf(data)
+			-- Checked again inside the update: the profile is the one that counts.
+			if BigNum.lessThan(data.coins, cost) then
+				return
+			end
+			data.coins = BigNum.sub(data.coins, cost)
+			raise(data)
+		end)
+		if not notice then
+			upgraded.fire(player)
+		end
+		return notice
+	end
+
+	local function upgradeTrainer(player: Player): Notice?
+		return upgrade(player, function(data)
+			return Upgrades.trainerPrice(data.trainerLevel, UpgradeConfig.TUNING)
+		end, function(data)
+			data.trainerLevel += 1
+		end, trainerUpgraded)
+	end
+
+	local function upgradeJetpack(player: Player): Notice?
+		return upgrade(player, function(data)
+			return Upgrades.jetpackPrice(data.jetpackLevel, UpgradeConfig.TUNING)
+		end, function(data)
+			data.jetpackLevel += 1
+		end, jetpackUpgraded)
+	end
+
 	return {
 		name = "EconomyService",
 		autoPlace = autoPlace,
@@ -210,7 +260,11 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		crossbreed = crossbreed,
 		sell = sell,
 		buyPod = buyPod,
+		upgradeTrainer = upgradeTrainer,
+		upgradeJetpack = upgradeJetpack,
 		crossbred = crossbred,
+		trainerUpgraded = trainerUpgraded,
+		jetpackUpgraded = jetpackUpgraded,
 	}
 end
 

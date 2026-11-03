@@ -15,6 +15,7 @@ local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffect
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local ProfileState = require(script.Parent.State.ProfileState)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
+local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
 
 local profileState = ProfileState.new()
 
@@ -26,6 +27,7 @@ Lifecycle.run({
 	GuardianViewController.new(),
 	BayViewController.new(),
 	BayWindowController.new({ profile = profileState }),
+	TrainingViewController.new({ profile = profileState }),
 	EggEffectsController.new(),
 	HitEffectsController.new(),
 	JetpackEffectsController.new(),

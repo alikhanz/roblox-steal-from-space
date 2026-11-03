@@ -18,7 +18,7 @@ return table.freeze({
 	RING_RADIUS = RING_RADIUS,
 	BAY_COUNT = BAY_COUNT,
 
-	BASE_SIZE = Vector3.new(26, 0.4, 18),
+	BASE_SIZE = Vector3.new(26, 0.4, 22),
 	BASE_COLOR = Color3.fromRGB(44, 50, 72),
 	EDGE_COLOR = Color3.fromRGB(90, 200, 255),
 
@@ -46,6 +46,14 @@ return table.freeze({
 	POD_GLASS_HEIGHT = 3.4,
 	POD_GLASS_COLOR = Color3.fromRGB(140, 220, 255),
 	POD_GLASS_TRANSPARENCY = 0.65,
+
+	-- The trainer pad at the front of the bay (its place and size are in BayConfig.TRAINER_PAD):
+	-- a metal disc with a glowing ring around it.
+	TRAINER_HEIGHT = 0.3,
+	TRAINER_COLOR = Color3.fromRGB(70, 78, 104),
+	TRAINER_RING_WIDTH = 0.4,
+	TRAINER_RING_HEIGHT = 0.12,
+	TRAINER_RING_COLOR = Color3.fromRGB(255, 214, 90),
 
 	-- Aliens with no pod wait along the sides of the bay.
 	FLOOR_SPOT_X = 11,

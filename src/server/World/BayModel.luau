@@ -108,6 +108,35 @@ function BayModel.podAlienCFrame(origin: CFrame, index: number): CFrame
 	return BayModel.podCFrame(origin, index) * CFrame.new(0, BayLooks.POD_STAND_HEIGHT, 0)
 end
 
+-- The trainer pad: a walkable disc at the front of the bay, ringed with light.
+local function buildTrainer(origin: CFrame, parent: Instance)
+	local pad = BayConfig.TRAINER_PAD
+	local center = origin * CFrame.new(pad.x, 0, pad.z)
+
+	local plate = disc(
+		BayConfig.TRAINER_NAME,
+		center * CFrame.new(0, BayLooks.TRAINER_HEIGHT / 2, 0),
+		pad.radius,
+		BayLooks.TRAINER_HEIGHT
+	)
+	plate.Material = Enum.Material.Metal
+	plate.Color = BayLooks.TRAINER_COLOR
+	scenery(plate)
+	plate.Parent = parent
+
+	local ring = disc(
+		"TrainerRing",
+		center * CFrame.new(0, BayLooks.TRAINER_RING_HEIGHT / 2, 0),
+		pad.radius + BayLooks.TRAINER_RING_WIDTH,
+		BayLooks.TRAINER_RING_HEIGHT
+	)
+	ring.Material = Enum.Material.Neon
+	ring.Color = BayLooks.TRAINER_RING_COLOR
+	ring.CanCollide = false
+	scenery(ring)
+	ring.Parent = parent
+end
+
 function BayModel.build(slot: number, origin: CFrame): Model
 	local model = Instance.new("Model")
 	model.Name = `Bay{slot}`
@@ -151,6 +180,8 @@ function BayModel.build(slot: number, origin: CFrame): Model
 	incubator.Color = BayLooks.INCUBATOR_COLOR
 	scenery(incubator)
 	incubator.Parent = model
+
+	buildTrainer(origin, model)
 
 	local contents = Instance.new("Folder")
 	contents.Name = BayConfig.CONTENTS_NAME

@@ -16,6 +16,7 @@ local NetService = require(script.Parent.Services.NetService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
+local TrainingService = require(script.Parent.Services.TrainingService)
 local WorldService = require(script.Parent.Services.WorldService)
 
 -- One Heartbeat drives every periodic server job (see CONVENTIONS, performance).
@@ -42,6 +43,10 @@ local economyService = EconomyService.new({
 	update = profile.update,
 	refresh = bayService.refresh,
 })
+-- The net service needs the training payouts and the trainer needs the net service's notices,
+-- so the trainer's own dependencies are bound after both exist.
+local trainingDependencies = {} :: TrainingService.Dependencies
+local trainingService = TrainingService.new(trainingDependencies)
 local netService = NetService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -50,7 +55,17 @@ local netService = NetService.new({
 	coinsChanged = bayService.coinsChanged,
 	offlineSettled = bayService.offlineSettled,
 	hatched = bayService.hatched,
+	trained = trainingService.trained,
 })
+trainingDependencies.getData = profile.getData
+trainingDependencies.update = profile.update
+trainingDependencies.scheduler = scheduler
+trainingDependencies.bayAssigned = bayService.assigned
+trainingDependencies.getBayOrigin = bayService.getOrigin
+trainingDependencies.publishSpeed = speedService.publish
+trainingDependencies.upgradeTrainer = economyService.upgradeTrainer
+trainingDependencies.trainerUpgraded = economyService.trainerUpgraded
+trainingDependencies.notify = netService.notify
 local spaceService = SpaceService.new({ getSpawn = worldService.getSpawn })
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
@@ -80,6 +95,7 @@ local devService = DevService.new({
 	settleOffline = bayService.settleOffline,
 	getData = dataService.getData,
 	update = dataService.update,
+	refresh = bayService.refresh,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
@@ -94,6 +110,7 @@ Lifecycle.run({
 	bayService,
 	economyService,
 	netService,
+	trainingService,
 	devService,
 }, function(callback)
 	task.spawn(callback)

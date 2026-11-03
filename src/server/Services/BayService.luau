@@ -58,6 +58,8 @@ export type BayService = {
 	settleOffline: (player: Player) -> (),
 	-- Fires when an egg hatches: the player, the alien and where it went.
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
+	-- Fires once a player gets their bay, with its model.
+	assigned: Signal.Signal<Player, Model>,
 	-- Fires after the bay was rebuilt from the profile.
 	changed: Signal.Signal<Player>,
 	-- Fires when the player's coins change, with the new total.
@@ -89,6 +91,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	local folder: Folder? = nil
 	local random = Random.new()
 	local hatched = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
+	local assigned = Signal.new() :: Signal.Signal<Player, Model>
 	local changed = Signal.new() :: Signal.Signal<Player>
 	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
 	local offlineSettled = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number>
@@ -250,6 +253,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		bays[player] = { slot = slot, origin = origin, model = model }
 		settleOffline(player)
 		refresh(player)
+		assigned.fire(player, model)
 	end
 
 	local function release(player: Player)
@@ -386,6 +390,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		hastenHatching = hastenHatching,
 		settleOffline = settleOffline,
 		hatched = hatched,
+		assigned = assigned,
 		changed = changed,
 		coinsChanged = coinsChanged,
 		offlineSettled = offlineSettled,

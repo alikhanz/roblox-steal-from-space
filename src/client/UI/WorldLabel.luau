@@ -17,8 +17,8 @@ local VALUE_TEXT_SIZE = 16
 
 export type Props = {
 	adornee: BasePart,
-	title: string,
-	-- Static, or a source for values that change (countdowns).
+	-- Static, or sources for lines that change (countdowns, levels).
+	title: string | () -> string,
 	value: string | () -> string,
 	valueColor: Color3?,
 	-- Height of the sign above the adornee's center, studs.

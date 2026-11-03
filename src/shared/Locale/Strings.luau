@@ -208,6 +208,22 @@ local Strings = {
 		ru = "Забрать",
 		en = "Collect",
 	},
+	["trainer.level.hint"] = {
+		ru = "Тренажёр · уровень {level}",
+		en = "Trainer · level {level}",
+	},
+	["trainer.stand.hint"] = {
+		ru = "Встань сюда: +{rate} ⚡/с",
+		en = "Stand here: +{rate} ⚡/s",
+	},
+	["trainer.upgrade.button"] = {
+		ru = "Улучшить: {price} ●",
+		en = "Upgrade: {price} ●",
+	},
+	["trainer.gain.hint"] = {
+		ru = "+{gain} ⚡",
+		en = "+{gain} ⚡",
+	},
 	["alien.pickUp.button"] = {
 		ru = "Подобрать",
 		en = "Pick up",

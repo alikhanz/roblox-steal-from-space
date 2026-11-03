@@ -25,11 +25,15 @@ export type Dependencies = {
 	coinsChanged: Signal.Signal<Player, BigNum.BigNum>,
 	offlineSettled: Signal.Signal<Player, BigNum.BigNum, number>,
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
+	-- Trainer payouts to forward.
+	trained: Signal.Signal<Player, BigNum.BigNum>,
 }
 
 export type NetService = {
 	name: string,
 	start: () -> (),
+	-- Tells a player why something was refused (for commands that do not come through a remote).
+	notify: (player: Player, notice: EconomyService.Notice) -> (),
 }
 
 local NetService = {}
@@ -51,11 +55,29 @@ end
 function NetService.new(dependencies: Dependencies): NetService
 	local limiter = RateLimit.new(NetConfig.COMMAND_LIMIT, NetConfig.COMMAND_WINDOW_SECONDS)
 
+	local function upgradesOf(data: PlayerData.PlayerData)
+		return { trainerLevel = data.trainerLevel, jetpackLevel = data.jetpackLevel }
+	end
+
 	local function sendSnapshot(player: Player)
 		local data = dependencies.getData(player)
 		if data then
-			Remotes.ProfileSnapshot.Fire(player, { coins = wire(data.coins), bay = bayOf(data) })
+			Remotes.ProfileSnapshot.Fire(
+				player,
+				{ coins = wire(data.coins), bay = bayOf(data), upgrades = upgradesOf(data) }
+			)
 		end
+	end
+
+	local function sendUpgrades(player: Player)
+		local data = dependencies.getData(player)
+		if data then
+			Remotes.UpgradesChanged.Fire(player, upgradesOf(data))
+		end
+	end
+
+	local function notify(player: Player, notice: EconomyService.Notice)
+		Remotes.NoticeSent.Fire(player, notice)
 	end
 
 	-- Wraps a command handler with the rate limit and the profile check; a refusal becomes a
@@ -85,8 +107,16 @@ function NetService.new(dependencies: Dependencies): NetService
 			local data = dependencies.getData(player)
 			if data then
 				Remotes.BayChanged.Fire(player, bayOf(data))
+				-- Most bay changes cost or pay coins; the income tick only reports coins while
+				-- something earns, so they travel together.
+				Remotes.CoinsChanged.Fire(player, wire(data.coins))
 			end
 		end)
+		dependencies.trained.connect(function(player, gain)
+			Remotes.Trained.Fire(player, wire(gain))
+		end)
+		economy.trainerUpgraded.connect(sendUpgrades)
+		economy.jetpackUpgraded.connect(sendUpgrades)
 		dependencies.coinsChanged.connect(function(player, coins)
 			Remotes.CoinsChanged.Fire(player, wire(coins))
 		end)
@@ -131,6 +161,7 @@ function NetService.new(dependencies: Dependencies): NetService
 	return {
 		name = "NetService",
 		start = start,
+		notify = notify,
 	}
 end
 

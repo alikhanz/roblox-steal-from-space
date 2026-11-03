@@ -41,6 +41,12 @@ type Bay = struct {
 	incubator: Egg[],
 }
 
+-- The owner's upgrade levels (the speed stat itself travels as player attributes).
+type Upgrades = struct {
+	trainerLevel: u16,
+	jetpackLevel: u16,
+}
+
 -- Why a command was refused, for a toast on the client.
 type Notice = enum {
 	NoProfile,
@@ -63,10 +69,26 @@ event ProfileSnapshot = {
 	data: struct {
 		coins: BigNum,
 		bay: Bay,
+		upgrades: Upgrades,
 	},
 }
 
 event CoinsChanged = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: BigNum,
+}
+
+event UpgradesChanged = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: Upgrades,
+}
+
+-- One payout of the trainer: speed points gained this tick, for the floating number.
+event Trained = {
 	from: Server,
 	type: Reliable,
 	call: SingleSync,

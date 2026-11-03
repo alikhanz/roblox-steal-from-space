@@ -15,6 +15,7 @@ export type Alien = { uid: number, id: string }
 export type Pod = { alien: Alien? }
 export type Egg = { uid: number, rarity: string, size: string, grade: number, hatchAt: number }
 export type Bay = { pods: { Pod }, inventory: { Alien }, floor: { Alien }, incubator: { Egg } }
+export type Upgrades = { trainerLevel: number, jetpackLevel: number }
 export type Location = "Pod" | "Inventory" | "Floor"
 export type Notice =
 	"NoProfile"
@@ -32,8 +33,11 @@ export type ProfileState = {
 	start: () -> (),
 	coins: Vide.Source<BigNum.BigNum>,
 	bay: Vide.Source<Bay>,
+	upgrades: Vide.Source<Upgrades>,
 	-- True once the first snapshot arrived.
 	loaded: Vide.Source<boolean>,
+	-- The trainer paid out: speed points gained this tick.
+	trained: Signal.Signal<BigNum.BigNum>,
 	-- Offline income paid on login: the amount and the seconds it covered.
 	offlineReward: Signal.Signal<BigNum.BigNum, number>,
 	-- An egg hatched: the alien and where it went.
@@ -52,7 +56,9 @@ end
 function ProfileState.new(): ProfileState
 	local coins = source(BigNum.ZERO)
 	local bay = source(emptyBay())
+	local upgrades = source({ trainerLevel = 0, jetpackLevel = 0 } :: Upgrades)
 	local loaded = source(false)
+	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, number>
 	local hatched = Signal.new() :: Signal.Signal<string, Location>
 	local crossbred = Signal.new() :: Signal.Signal<string, Location>
@@ -71,9 +77,19 @@ function ProfileState.new(): ProfileState
 		Remotes.ProfileSnapshot.SetCallback(function(snapshot)
 			readCoins(snapshot.coins)
 			bay(snapshot.bay)
+			upgrades(snapshot.upgrades)
 			loaded(true)
 		end)
 		Remotes.CoinsChanged.SetCallback(readCoins)
+		Remotes.UpgradesChanged.SetCallback(function(value)
+			upgrades(value)
+		end)
+		Remotes.Trained.SetCallback(function(value)
+			local gain = BigNum.fromSaved(value)
+			if gain then
+				trained.fire(gain)
+			end
+		end)
 		Remotes.BayChanged.SetCallback(function(value)
 			bay(value)
 		end)
@@ -101,7 +117,9 @@ function ProfileState.new(): ProfileState
 		start = start,
 		coins = coins,
 		bay = bay,
+		upgrades = upgrades,
 		loaded = loaded,
+		trained = trained,
 		offlineReward = offlineReward,
 		hatched = hatched,
 		crossbred = crossbred,

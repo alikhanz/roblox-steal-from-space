@@ -16,11 +16,15 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
+local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WorldLabel = require(script.Parent.Parent.UI.WorldLabel)
 
 local PART_WAIT_TIMEOUT = 10
 local SIGN_STUDS_ABOVE = 1.2
+-- Over the head of whoever stands on the pad.
+local TRAINER_STUDS_ABOVE = 5
 local ALIEN_STUDS_ABOVE = 2
 local EGG_STUDS_ABOVE = 1.6
 -- The owner's name reads from across the platform; what stands in the bay only up close, or
@@ -47,11 +51,13 @@ function BayViewController.new(): BayViewController
 	local views: { [Instance]: View } = {}
 	local locale: Text.Locale = "en"
 
+	-- Drops the view of `instance` and of anything labelled inside it (a bay's trainer pad).
 	local function remove(instance: Instance)
-		local view = views[instance]
-		if view then
-			views[instance] = nil
-			view.unmount()
+		for key, view in views do
+			if key == instance or key:IsDescendantOf(instance) then
+				views[key] = nil
+				view.unmount()
+			end
 		end
 	end
 
@@ -87,6 +93,41 @@ function BayViewController.new(): BayViewController
 				maxDistance = SIGN_MAX_DISTANCE,
 			}),
 				nil
+		end)
+
+		-- The trainer pad's own sign: the level and the rate, following the bay's attribute.
+		task.spawn(function()
+			local pad = instance:WaitForChild(BayConfig.TRAINER_NAME, PART_WAIT_TIMEOUT)
+			if not pad or not instance:IsDescendantOf(workspace) then
+				return
+			end
+			label(pad, nil, function(part)
+				local level = Vide.source(0)
+				local function readLevel()
+					local value = instance:GetAttribute(BayConfig.TRAINER_LEVEL_ATTRIBUTE)
+					level(if type(value) == "number" then value else 0)
+				end
+				readLevel()
+				local connection =
+					instance:GetAttributeChangedSignal(BayConfig.TRAINER_LEVEL_ATTRIBUTE):Connect(readLevel)
+				Vide.cleanup(function()
+					connection:Disconnect()
+				end)
+				return WorldLabel({
+					adornee = part,
+					title = function()
+						return Text.get(locale, "trainer.level.hint", { level = level() })
+					end,
+					value = function()
+						local rate = Upgrades.trainerRate(level(), UpgradeConfig.TUNING)
+						return Text.get(locale, "trainer.stand.hint", { rate = BigNum.format(rate) })
+					end,
+					valueColor = Theme.SPEED,
+					studsAbove = TRAINER_STUDS_ABOVE,
+					maxDistance = CONTENTS_MAX_DISTANCE,
+				}),
+					nil
+			end)
 		end)
 	end
 
