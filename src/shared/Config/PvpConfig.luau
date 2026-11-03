@@ -68,8 +68,9 @@ return table.freeze({
 	-- Player attribute: true while the newbie protection holds (for the sign over the player).
 	NEWBIE_ATTRIBUTE = "Newbie",
 
-	-- Greybox effects, seconds on screen.
-	HARPOON_BEAM_SECONDS = 0.35,
+	-- Greybox effects, seconds on screen. The harpoon's hook flies out to the target and back
+	-- along the beam over its whole time.
+	HARPOON_BEAM_SECONDS = 0.8,
 	BOMB_FLASH_SECONDS = 0.4,
 	-- Names of the effect instances (the client could dress them up later).
 	HARPOON_BEAM_NAME = "HarpoonBeam",

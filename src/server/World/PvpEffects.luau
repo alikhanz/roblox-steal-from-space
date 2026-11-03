@@ -8,7 +8,10 @@ local RunService = game:GetService("RunService")
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 
 local BEAM_COLOR = Color3.fromRGB(120, 230, 255)
-local BEAM_WIDTH = 0.4
+local BEAM_WIDTH = 0.9
+local HOOK_SIZE = 1.4
+-- The beam starts at the hand when the rig has one, so it is seen leaving the character.
+local HAND_NAME = "RightHand"
 local BOMB_RADIUS = 1
 local BOMB_COLOR = Color3.fromRGB(150, 90, 255)
 local FLASH_COLOR = Color3.fromRGB(200, 150, 255)
@@ -36,8 +39,13 @@ local function ghost(part: BasePart)
 	part.CastShadow = false
 end
 
--- A beam from the shooter to `target` for a moment.
+-- The harpoon: a beam from the shooter's hand to `target`, with a glowing hook that flies out
+-- along it and back.
 function PvpEffects.harpoonBeam(from: BasePart, target: Vector3)
+	local character = from.Parent
+	local hand = character and character:FindFirstChild(HAND_NAME)
+	local origin: BasePart = if hand and hand:IsA("BasePart") then hand else from
+
 	local anchor = Instance.new("Part")
 	anchor.Name = PvpConfig.HARPOON_BEAM_NAME
 	anchor.Size = Vector3.one * 0.2
@@ -46,7 +54,7 @@ function PvpEffects.harpoonBeam(from: BasePart, target: Vector3)
 	ghost(anchor)
 
 	local a0 = Instance.new("Attachment")
-	a0.Parent = from
+	a0.Parent = origin
 	local a1 = Instance.new("Attachment")
 	a1.Parent = anchor
 
@@ -61,9 +69,31 @@ function PvpEffects.harpoonBeam(from: BasePart, target: Vector3)
 	beam.Parent = anchor
 	anchor.Parent = effectsFolder()
 
-	task.delay(PvpConfig.HARPOON_BEAM_SECONDS, function()
-		a0:Destroy()
-		anchor:Destroy()
+	local hook = Instance.new("Part")
+	hook.Name = "HarpoonHook"
+	hook.Shape = Enum.PartType.Ball
+	hook.Size = Vector3.one * HOOK_SIZE
+	hook.Color = BEAM_COLOR
+	hook.Material = Enum.Material.Neon
+	ghost(hook)
+	hook.CFrame = CFrame.new(origin.Position)
+	hook.Parent = effectsFolder()
+
+	-- Out for the first half, back for the second.
+	local total = PvpConfig.HARPOON_BEAM_SECONDS
+	local elapsed = 0
+	local connection: RBXScriptConnection
+	connection = RunService.Heartbeat:Connect(function(deltaTime)
+		elapsed += deltaTime
+		local phase = math.clamp(elapsed / total, 0, 1)
+		local along = if phase < 0.5 then phase * 2 else (1 - phase) * 2
+		hook.CFrame = CFrame.new(origin.Position:Lerp(target, along))
+		if elapsed >= total then
+			connection:Disconnect()
+			hook:Destroy()
+			a0:Destroy()
+			anchor:Destroy()
+		end
 	end)
 end
 
