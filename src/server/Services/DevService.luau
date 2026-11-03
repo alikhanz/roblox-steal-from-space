@@ -23,7 +23,13 @@ local FOLDER_NAME = "DevCommands"
 local SPAWN_DISTANCE = 5
 
 export type Dependencies = {
-	spawnLooseEgg: (rarity: EggConfig.RarityId, size: EggConfig.SizeId, nestId: string, position: Vector3) -> (),
+	spawnLooseEgg: (
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		nestId: string,
+		position: Vector3,
+		launch: Vector3?
+	) -> (),
 	setSpeed: (player: Player, speed: BigNum.BigNum) -> (),
 }
 

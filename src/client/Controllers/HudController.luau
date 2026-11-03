@@ -6,12 +6,15 @@
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
@@ -37,6 +40,7 @@ function HudController.new(): HudController
 	local oxygen = source(OxygenConfig.CAPACITY)
 	local inSpace = source(false)
 	local speed = source(SpeedConfig.STARTING_SPEED)
+	local stunned = source(false)
 	local characterConnections: { RBXScriptConnection } = {}
 
 	local function readSpeed(player: Player)
@@ -88,6 +92,10 @@ function HudController.new(): HudController
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
 			local children: { Instance } = {
+				HitFlash({
+					visible = stunned,
+					text = Text.get(locale, "guardian.caught.toast"),
+				}),
 				SpeedBadge({
 					title = Text.get(locale, "speed.stat.title"),
 					value = function()
@@ -126,6 +134,12 @@ function HudController.new(): HudController
 		if player.Character then
 			watchCharacter(player.Character)
 		end
+		-- The hit is written by the server onto the predicted character: changed signals do not
+		-- fire for that on the client, so it is polled (see CLAUDE.md, Studio notes).
+		RunService.Heartbeat:Connect(function()
+			local character = player.Character
+			stunned(character ~= nil and character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) ~= nil)
+		end)
 		-- Mantissa and exponent arrive separately; reading both on either change is harmless.
 		player:GetAttributeChangedSignal(SpeedConfig.MANTISSA_ATTRIBUTE):Connect(function()
 			readSpeed(player)

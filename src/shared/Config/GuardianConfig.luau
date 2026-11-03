@@ -87,9 +87,12 @@ return table.freeze({
 	-- Force budget of the movers: enough to cancel gravity and turn sharply.
 	MAX_FORCE = 1e6,
 	ALIGN_RESPONSIVENESS = 20,
-	-- A caught thief is thrown away at this speed and cannot steer for the stun.
+	-- A caught thief is thrown away at this speed, tumbles and cannot steer for the stun.
 	KNOCKBACK_SPEED = 60,
-	STUN_SECONDS = 0.8,
+	STUN_SECONDS = 1.2,
+	TUMBLE_SPIN_RATE = math.rad(540),
+	-- The guardian's strike: a short dash into the thief on the catch, studs per second.
+	LUNGE_SPEED = 90,
 	-- One catch per this many seconds: a drop is never followed by an instant second hit.
 	CATCH_COOLDOWN_SECONDS = 2,
 
@@ -97,6 +100,8 @@ return table.freeze({
 	-- Guardian model attributes (replicated for the client view).
 	KIND_ATTRIBUTE = "Kind",
 	STATE_ATTRIBUTE = "State",
+	-- Server clock of the last catch; clients play the strike when it changes.
+	LAST_CATCH_ATTRIBUTE = "LastCatchAt",
 	RECOMMENDED_MANTISSA_ATTRIBUTE = "RecommendedMantissa",
 	RECOMMENDED_EXPONENT_ATTRIBUTE = "RecommendedExponent",
 	-- Instance names inside a guardian model.
@@ -104,7 +109,10 @@ return table.freeze({
 	EYE_NAME = "Eye",
 	VELOCITY_NAME = "GuardianVelocity",
 	ALIGN_NAME = "GuardianAlign",
-	-- Character attributes set when a guardian catches the thief; the simulation applies them.
+	-- Character attributes of a catch. The server sets the velocity and spin axis for the stun
+	-- and clears them when it ends (their presence is the stun: no clocks to agree on); the
+	-- simulation applies them and keeps the tumble angle, which is predicted state.
 	HIT_VELOCITY_ATTRIBUTE = "HitVelocity",
-	HIT_UNTIL_ATTRIBUTE = "HitUntil",
+	HIT_AXIS_ATTRIBUTE = "HitAxis",
+	HIT_ANGLE_ATTRIBUTE = "HitAngle",
 })

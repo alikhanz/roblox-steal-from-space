@@ -6,6 +6,7 @@
 local CollectionService = game:GetService("CollectionService")
 local LocalizationService = game:GetService("LocalizationService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
@@ -14,6 +15,9 @@ local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local BODY_WAIT_TIMEOUT = 10
+-- The strike: the body swells and snaps back.
+local STRIKE_SCALE = 1.35
+local STRIKE_TWEEN = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true)
 
 export type GuardianViewController = {
 	name: string,
@@ -22,7 +26,7 @@ export type GuardianViewController = {
 
 type View = {
 	unmount: () -> (),
-	connection: RBXScriptConnection,
+	connections: { RBXScriptConnection },
 }
 
 local GuardianViewController = {}
@@ -69,11 +73,17 @@ function GuardianViewController.new(): GuardianViewController
 			})
 		end, instance)
 		paintEyes(instance)
+		local restSize = body.Size
 		views[instance] = {
 			unmount = unmount,
-			connection = instance:GetAttributeChangedSignal(GuardianConfig.STATE_ATTRIBUTE):Connect(function()
-				paintEyes(instance)
-			end),
+			connections = {
+				instance:GetAttributeChangedSignal(GuardianConfig.STATE_ATTRIBUTE):Connect(function()
+					paintEyes(instance)
+				end),
+				instance:GetAttributeChangedSignal(GuardianConfig.LAST_CATCH_ATTRIBUTE):Connect(function()
+					TweenService:Create(body, STRIKE_TWEEN, { Size = restSize * STRIKE_SCALE }):Play()
+				end),
+			},
 		}
 	end
 
@@ -81,7 +91,9 @@ function GuardianViewController.new(): GuardianViewController
 		local view = views[instance]
 		if view then
 			views[instance] = nil
-			view.connection:Disconnect()
+			for _, connection in view.connections do
+				connection:Disconnect()
+			end
 			view.unmount()
 		end
 	end

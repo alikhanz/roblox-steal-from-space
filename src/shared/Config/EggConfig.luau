@@ -1,6 +1,7 @@
 --!strict
 -- Eggs, nests and the theft loop: rarities, loot, grabbing and timings.
 
+local Grab = require("../Domain/Grab")
 local Loot = require("../Domain/Loot")
 
 export type RarityId = "Common" | "Uncommon" | "Rare"
@@ -32,6 +33,13 @@ local DEBRIS_BELT_SIZE_LOOT: { Loot.Entry<SizeId> } = {
 	{ id = "Small", weight = 50 },
 	{ id = "Medium", weight = 35 },
 	{ id = "Large", weight = 15 },
+}
+
+-- The magnetic grab: holding the grab input in reach locks the flyer onto the egg.
+local MAGNET: Grab.MagnetTuning = {
+	speed = 14,
+	holdDistance = 3.5,
+	response = 6,
 }
 
 local RARITIES: { [RarityId]: Rarity } = {
@@ -68,6 +76,12 @@ return table.freeze({
 	DEBRIS_BELT_SIZE_LOOT = table.freeze(DEBRIS_BELT_SIZE_LOOT),
 	-- The guardian's recommended speed is computed for an egg of this size.
 	TYPICAL_SIZE = "Medium" :: SizeId,
+	MAGNET = table.freeze(MAGNET),
+
+	-- A knocked-out egg flies off at this speed, keeps this share of it per second and tumbles.
+	DROP_SPEED = 40,
+	DROP_RETENTION_PER_SECOND = 0.1,
+	DROP_SPIN_RATE = math.rad(360),
 
 	-- A player can grab an egg within this distance of it, studs.
 	GRAB_REACH = 9,

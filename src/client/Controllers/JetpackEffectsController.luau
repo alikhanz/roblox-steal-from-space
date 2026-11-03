@@ -1,6 +1,7 @@
 --!strict
 -- Client-side jetpack visuals for every character: flames and their glow grow with speed while
--- flying and switch off under the dome. Purely cosmetic, so it runs outside the simulation.
+-- flying and switch off under the dome; a guardian's hit stalls the engine, which restarts with
+-- a burst when the stun ends. Purely cosmetic, so it runs outside the simulation.
 -- Also registers the flight pose in Studio so this client can play it (see FlightAnimation).
 
 local Players = game:GetService("Players")
@@ -9,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local FlightAnimation = require(ReplicatedStorage.Shared.Character.FlightAnimation)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 
@@ -21,12 +23,15 @@ export type JetpackEffectsController = {
 type Effects = {
 	flames: { ParticleEmitter },
 	lights: { PointLight },
+	-- True while the character was stunned on the last update; the restart burst follows.
+	stalled: boolean,
+	burstUntil: number,
 }
 
 local JetpackEffectsController = {}
 
 local function collectEffects(model: Model): Effects
-	local effects: Effects = { flames = {}, lights = {} }
+	local effects: Effects = { flames = {}, lights = {}, stalled = false, burstUntil = 0 }
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("ParticleEmitter") and descendant.Name == JetpackConfig.FLAME_NAME then
 			table.insert(effects.flames, descendant)
@@ -51,6 +56,7 @@ function JetpackEffectsController.new(): JetpackEffectsController
 	end
 
 	local function update()
+		local now = os.clock()
 		for _, player in Players:GetPlayers() do
 			local character = player.Character
 			local model = character and character:FindFirstChild(JetpackConfig.MODEL_NAME)
@@ -58,16 +64,24 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			if not character or not model or not model:IsA("Model") or not root or not root:IsA("BasePart") then
 				continue
 			end
+			local effects = effectsFor(model)
 
-			local flying = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true
+			local stunned = character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) ~= nil
+			if effects.stalled and not stunned then
+				effects.burstUntil = now + JetpackConfig.FLAME_BURST_SECONDS
+			end
+			effects.stalled = stunned
+
+			local flying = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true and not stunned
 			local maxSpeed = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
 			local thrust = if type(maxSpeed) == "number" and maxSpeed > 0
 				then math.clamp(root.AssemblyLinearVelocity.Magnitude / maxSpeed, 0, 1)
 				else 0
-			local rate = JetpackConfig.FLAME_RATE_IDLE
-				+ (JetpackConfig.FLAME_RATE_FULL - JetpackConfig.FLAME_RATE_IDLE) * thrust
+			local rate = if now < effects.burstUntil
+				then JetpackConfig.FLAME_BURST_RATE
+				else JetpackConfig.FLAME_RATE_IDLE
+					+ (JetpackConfig.FLAME_RATE_FULL - JetpackConfig.FLAME_RATE_IDLE) * thrust
 
-			local effects = effectsFor(model)
 			for _, flame in effects.flames do
 				flame.Enabled = flying
 				flame.Rate = rate

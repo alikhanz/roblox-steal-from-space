@@ -34,14 +34,21 @@ export type Carried = {
 export type CarryService = {
 	name: string,
 	start: () -> (),
-	-- Knocks the carried egg loose (when a guardian catches the carrier). Returns true if dropped.
-	dropEgg: (player: Player) -> boolean,
+	-- Knocks the carried egg loose (when a guardian catches the carrier), flying off at `launch`
+	-- if given. Returns true if dropped.
+	dropEgg: (player: Player, launch: Vector3?) -> boolean,
 	-- What the player carries, or nil when not carrying.
 	getCarried: (player: Player) -> Carried?,
 	-- Who carries the egg of `nestId` right now, or nil.
 	findCarrier: (nestId: string) -> Player?,
 	-- Puts a floating egg at `position` that returns to `nestId` when it expires.
-	spawnLooseEgg: (rarity: EggConfig.RarityId, size: EggConfig.SizeId, nestId: string, position: Vector3) -> (),
+	spawnLooseEgg: (
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		nestId: string,
+		position: Vector3,
+		launch: Vector3?
+	) -> (),
 }
 
 type CarriedEntry = {
@@ -57,7 +64,12 @@ type LooseEgg = {
 	nestId: string,
 	part: Part,
 	expiresAt: number,
+	-- Drift left from the knock-out; the egg coasts to a stop and tumbles meanwhile.
+	velocity: Vector3,
 }
+
+-- Below this speed a knocked-out egg is considered at rest, studs per second.
+local DRIFT_REST_SPEED = 0.5
 
 local CarryService = {}
 
@@ -113,7 +125,13 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		return entry
 	end
 
-	local function spawnLoose(rarity: EggConfig.RarityId, size: EggConfig.SizeId, nestId: string, position: Vector3)
+	local function spawnLoose(
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		nestId: string,
+		position: Vector3,
+		launch: Vector3?
+	)
 		local folder = looseFolder
 		if not folder then
 			dependencies.returnNestEgg(nestId, rarity, size)
@@ -132,29 +150,40 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			nestId = nestId,
 			part = part,
 			expiresAt = os.clock() + EggConfig.LOOSE_SECONDS,
+			velocity = launch or Vector3.zero,
 		}
 	end
 
-	local function dropAt(player: Player, position: Vector3): boolean
+	local function dropEgg(player: Player, launch: Vector3?): boolean
 		local entry = releaseCarried(player)
 		if not entry then
 			return false
 		end
-		spawnLoose(entry.rarity, entry.size, entry.nestId, position)
-		return true
-	end
-
-	local function dropEgg(player: Player): boolean
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not root or not root:IsA("BasePart") then
-			local entry = releaseCarried(player)
-			if entry then
-				dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
-			end
-			return entry ~= nil
+			dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
+			return true
 		end
-		return dropAt(player, root.Position)
+		spawnLoose(entry.rarity, entry.size, entry.nestId, root.Position, launch)
+		return true
+	end
+
+	-- Knocked-out eggs coast and tumble until they stop; they are anchored, so this moves them.
+	local function driftLooseEggs(deltaTime: number)
+		for _, egg in loose do
+			if egg.velocity.Magnitude < DRIFT_REST_SPEED then
+				continue
+			end
+			local spin = EggConfig.DROP_SPIN_RATE * deltaTime
+			egg.part.CFrame = CFrame.new(egg.part.Position + egg.velocity * deltaTime)
+				* egg.part.CFrame.Rotation
+				* CFrame.Angles(spin, spin * 0.6, 0)
+			egg.velocity *= EggConfig.DROP_RETENTION_PER_SECOND ^ deltaTime
+			if egg.velocity.Magnitude < DRIFT_REST_SPEED then
+				egg.velocity = Vector3.zero
+			end
+		end
 	end
 
 	-- Confirms a grab the simulation completed: the egg must still be there and within reach.
@@ -199,7 +228,8 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 	end
 
-	local function postSimulation()
+	local function postSimulation(deltaTime: number)
+		driftLooseEggs(deltaTime)
 		for _, player in Players:GetPlayers() do
 			local character = player.Character
 			local root = character and character:FindFirstChild("HumanoidRootPart")

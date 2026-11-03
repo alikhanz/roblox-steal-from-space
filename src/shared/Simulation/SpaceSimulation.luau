@@ -36,6 +36,12 @@ type Rig = {
 	align: AlignOrientation,
 }
 
+-- A guardian's hit in progress: where the thief is thrown and the axis they tumble about.
+type Hit = {
+	velocity: Vector3,
+	axis: Vector3,
+}
+
 local function findRig(player: Player): Rig?
 	local character = player.Character
 	if not character then
@@ -85,23 +91,49 @@ local function flightSpeed(character: Model): number
 	return if type(value) == "number" then value else SpeedConfig.FLIGHT.minFlightSpeed
 end
 
-local function fly(rig: Rig, context: Instance, deltaTime: number)
-	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
-	local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
-	local carryMultiplier = Speed.carryMultiplier(carriedWeight(rig.character))
+local function currentHit(character: Model): Hit?
+	local velocity = character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE)
+	if typeof(velocity) ~= "Vector3" then
+		return nil
+	end
+	local axis = character:GetAttribute(GuardianConfig.HIT_AXIS_ATTRIBUTE)
+	return {
+		velocity = velocity,
+		axis = if typeof(axis) == "Vector3" and axis.Magnitude > 1e-3 then axis.Unit else Vector3.xAxis,
+	}
+end
+
+-- Advances the tumble while hit and clears it afterwards. The angle is predicted state, so it
+-- lives in an attribute like everything else the simulation owns.
+local function tumbleAngle(character: Model, hit: Hit?, deltaTime: number): number
+	local previous = character:GetAttribute(GuardianConfig.HIT_ANGLE_ATTRIBUTE)
+	if not hit then
+		if previous ~= nil then
+			character:SetAttribute(GuardianConfig.HIT_ANGLE_ATTRIBUTE, nil)
+		end
+		return 0
+	end
+	local angle = (if type(previous) == "number" then previous else 0) + GuardianConfig.TUMBLE_SPIN_RATE * deltaTime
+	character:SetAttribute(GuardianConfig.HIT_ANGLE_ATTRIBUTE, angle)
+	return angle
+end
+
+local function fly(rig: Rig, context: Instance, deltaTime: number, target: EggTargets.Target?, hit: Hit?)
+	local current = rig.root.AssemblyLinearVelocity
 	local maxSpeed = flightSpeed(rig.character)
-	local velocity = Flight.nextVelocity(
-		rig.root.AssemblyLinearVelocity,
-		direction,
-		deltaTime,
-		maxSpeed * carryMultiplier,
-		FlightConfig.TUNING
-	)
-	-- A guardian's hit overrides steering for the stun: the thief is thrown and cannot fight it.
-	local hitUntil = rig.character:GetAttribute(GuardianConfig.HIT_UNTIL_ATTRIBUTE)
-	local hitVelocity = rig.character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE)
-	if type(hitUntil) == "number" and time() < hitUntil and typeof(hitVelocity) == "Vector3" then
-		velocity = hitVelocity
+	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
+
+	local velocity: Vector3
+	if hit then
+		-- Thrown by a guardian: no steering until the stun ends.
+		velocity = hit.velocity
+	elseif target and FlightInputs.isPressed(context, FlightInputs.GRAB) then
+		-- Magnetic grab: lock onto the egg instead of drifting past it.
+		velocity = Grab.magnetVelocity(current, rig.root.Position, target.position, deltaTime, EggConfig.MAGNET)
+	else
+		local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
+		local carryMultiplier = Speed.carryMultiplier(carriedWeight(rig.character))
+		velocity = Flight.nextVelocity(current, direction, deltaTime, maxSpeed * carryMultiplier, FlightConfig.TUNING)
 	end
 	velocity =
 		Bounds.limitVelocity(rig.root.Position, velocity, StationConfig.PLATFORM_CENTER, WorldConfig.BOUNDARY_RADIUS)
@@ -110,17 +142,23 @@ local function fly(rig: Rig, context: Instance, deltaTime: number)
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
 	rig.velocity.VectorVelocity = velocity
 
-	-- Face where the camera looks (level, so the body never tumbles), then lean into the motion.
-	local facing = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.zero
-	if facing.Magnitude < 1e-3 then
-		local look = rig.root.CFrame.LookVector
-		facing = Vector3.new(look.X, 0, look.Z)
-	end
-	if facing.Magnitude > 1e-3 then
-		local heading = CFrame.lookAlong(Vector3.zero, facing)
-		local localVelocity = heading:VectorToObjectSpace(velocity)
-		local pitch, roll = FlightLean.angles(-localVelocity.Z, localVelocity.X, maxSpeed, JetpackConfig.LEAN)
-		rig.align.CFrame = heading * CFrame.Angles(pitch, 0, roll)
+	local angle = tumbleAngle(rig.character, hit, deltaTime)
+	if hit then
+		-- Tumbling: the body spins about the hit axis for the whole stun.
+		rig.align.CFrame = CFrame.fromAxisAngle(hit.axis, angle)
+	else
+		-- Face where the camera looks (level, so the body never tumbles), then lean into the motion.
+		local facing = if aim then Vector3.new(aim.X, 0, aim.Z) else Vector3.zero
+		if facing.Magnitude < 1e-3 then
+			local look = rig.root.CFrame.LookVector
+			facing = Vector3.new(look.X, 0, look.Z)
+		end
+		if facing.Magnitude > 1e-3 then
+			local heading = CFrame.lookAlong(Vector3.zero, facing)
+			local localVelocity = heading:VectorToObjectSpace(velocity)
+			local pitch, roll = FlightLean.angles(-localVelocity.Z, localVelocity.X, maxSpeed, JetpackConfig.LEAN)
+			rig.align.CFrame = heading * CFrame.Angles(pitch, 0, roll)
+		end
 	end
 	rig.align.MaxTorque = FlightConfig.MAX_FORCE
 end
@@ -168,18 +206,16 @@ end
 
 -- Fills the grab progress while the grab input is held next to an egg. Completion is only a
 -- request: the server confirms it outside the simulation (CarryService) and hands over the egg.
-local function grab(rig: Rig, context: Instance, deltaTime: number)
+local function grab(rig: Rig, deltaTime: number, target: EggTargets.Target?, holding: boolean)
 	local character = rig.character
 	local previousProgress = character:GetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE)
 	local previousTarget = character:GetAttribute(EggConfig.GRAB_TARGET_ATTRIBUTE)
 
-	local target = if carriedRarity(character) then nil else EggTargets.nearest(rig.root.Position)
 	local targetId = if target then target.id else nil
 	-- Switching to another egg starts over.
 	local progress = if type(previousProgress) == "number" and previousTarget == targetId then previousProgress else 0
 	local grabSeconds = if target then EggConfig.RARITIES[target.rarity].grabSeconds else 0
-	local nextProgress =
-		Grab.step(progress, FlightInputs.isPressed(context, FlightInputs.GRAB), target ~= nil, grabSeconds, deltaTime)
+	local nextProgress = Grab.step(progress, holding, target ~= nil, grabSeconds, deltaTime)
 
 	if nextProgress ~= previousProgress then
 		character:SetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE, nextProgress)
@@ -206,14 +242,19 @@ local function step(deltaTime: number)
 			rig.character:SetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE, inSpace)
 		end
 
+		local hit = currentHit(rig.character)
+		-- The egg in reach, if any: shared by the magnetic grab and the grab progress.
+		local target = if carriedRarity(rig.character) then nil else EggTargets.nearest(rig.root.Position)
+
 		if inSpace then
-			fly(rig, context, deltaTime)
+			fly(rig, context, deltaTime, target, hit)
 		else
 			walk(rig)
 		end
 		setFlightPose(rig, inSpace)
 		breathe(player, rig, inSpace, deltaTime)
-		grab(rig, context, deltaTime)
+		-- A stunned thief cannot grab: the dropped egg is not snatched straight back.
+		grab(rig, deltaTime, target, FlightInputs.isPressed(context, FlightInputs.GRAB) and hit == nil)
 	end
 end
 

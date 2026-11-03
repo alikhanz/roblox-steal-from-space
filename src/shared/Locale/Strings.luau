@@ -36,6 +36,10 @@ local Strings = {
 		ru = "Краб-дрон",
 		en = "Crab Drone",
 	},
+	["guardian.caught.toast"] = {
+		ru = "Поймали!",
+		en = "Caught!",
+	},
 	["speed.stat.title"] = {
 		ru = "Скорость",
 		en = "Speed",

@@ -34,6 +34,9 @@ return table.freeze({
 	-- Particles per second per nozzle: idle hover and full thrust.
 	FLAME_RATE_IDLE = 35,
 	FLAME_RATE_FULL = 110,
+	-- The engine stalls while a guardian's hit stuns the flyer, then restarts with a burst.
+	FLAME_BURST_RATE = 400,
+	FLAME_BURST_SECONDS = 0.3,
 	FLAME_LIGHT_COLOR = Color3.fromRGB(255, 150, 70),
 	FLAME_LIGHT_BRIGHTNESS = 2,
 	FLAME_LIGHT_RANGE = 10,

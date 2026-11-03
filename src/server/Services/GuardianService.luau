@@ -29,7 +29,7 @@ export type Dependencies = {
 	getNestSites: () -> { WorldService.NestSite },
 	findCarrier: (nestId: string) -> Player?,
 	getCarried: (player: Player) -> CarryService.Carried?,
-	dropEgg: (player: Player) -> boolean,
+	dropEgg: (player: Player, launch: Vector3?) -> boolean,
 	getSpeed: (player: Player) -> BigNum.BigNum,
 	scheduler: Scheduler.Scheduler,
 }
@@ -109,14 +109,33 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		end
 	end
 
+	-- The strike: the thief is thrown and tumbles, the egg flies off sideways, the guardian lunges.
 	local function catchThief(guardian: Guardian, player: Player, character: Model, root: BasePart)
-		if not dependencies.dropEgg(player) then
-			return
-		end
 		local away = root.Position - guardian.body.Position
 		local direction = if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis
+		local sideways = direction:Cross(Vector3.yAxis)
+		if sideways.Magnitude < 1e-3 then
+			sideways = Vector3.xAxis
+		end
+		sideways = sideways.Unit
+
+		-- Away from the thief's throw and off to the side, so getting it back takes a turn.
+		local launch = (sideways * 0.8 - direction * 0.6).Unit * EggConfig.DROP_SPEED
+		if not dependencies.dropEgg(player, launch) then
+			return
+		end
+
 		character:SetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE, direction * GuardianConfig.KNOCKBACK_SPEED)
-		character:SetAttribute(GuardianConfig.HIT_UNTIL_ATTRIBUTE, time() + GuardianConfig.STUN_SECONDS)
+		character:SetAttribute(GuardianConfig.HIT_AXIS_ATTRIBUTE, sideways)
+		task.delay(GuardianConfig.STUN_SECONDS, function()
+			if character.Parent then
+				character:SetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE, nil)
+				character:SetAttribute(GuardianConfig.HIT_AXIS_ATTRIBUTE, nil)
+			end
+		end)
+
+		guardian.velocity.VectorVelocity = direction * GuardianConfig.LUNGE_SPEED
+		guardian.model:SetAttribute(GuardianConfig.LAST_CATCH_ATTRIBUTE, time())
 		guardian.catchReadyAt = time() + GuardianConfig.CATCH_COOLDOWN_SECONDS
 	end
 
