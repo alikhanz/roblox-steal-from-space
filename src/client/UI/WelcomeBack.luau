@@ -1,6 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The screen on login after time away: how long it was and what the pods earned.
+-- The screen on login after time away: how long it was, what the pods earned and what the
+-- trainer added.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -22,8 +23,9 @@ export type Props = {
 	title: string,
 	-- The long line: how long and how much.
 	details: () -> string,
-	-- The big number.
+	-- The big numbers.
 	coins: () -> string,
+	speed: () -> string,
 	claim: string,
 	onClaim: () -> (),
 }
@@ -68,8 +70,20 @@ local function WelcomeBack(props: Props): Frame
 			end,
 		}),
 		create("TextLabel")({
-			Name = "Details",
+			Name = "Speed",
 			LayoutOrder = 3,
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundTransparency = 1,
+			FontFace = Theme.FONT,
+			TextSize = COINS_TEXT_SIZE,
+			TextColor3 = Theme.SPEED,
+			Text = function()
+				return `+{props.speed()} ⚡`
+			end,
+		}),
+		create("TextLabel")({
+			Name = "Details",
+			LayoutOrder = 4,
 			Size = UDim2.fromScale(1, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
@@ -81,7 +95,7 @@ local function WelcomeBack(props: Props): Frame
 		}),
 		Button({
 			name = "Claim",
-			layoutOrder = 4,
+			layoutOrder = 5,
 			text = props.claim,
 			color = Theme.COINS_DARK,
 			onClick = props.onClaim,

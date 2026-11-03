@@ -1,0 +1,121 @@
+--!strict
+-- Progress while the player was away, paid once when their profile activates: the pods' income
+-- and the trainer's gain, each with its own cap, in one profile update. Owns the last-seen
+-- mark: moves it once a second while the player is online.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local Offline = require(ReplicatedStorage.Shared.Domain.Offline)
+local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
+local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
+local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
+
+local MARK_INTERVAL_SECONDS = 1
+local LOG = RunService:IsStudio()
+
+export type Dependencies = {
+	activated: Signal.Signal<Player>,
+	getData: (player: Player) -> PlayerData.PlayerData?,
+	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
+	scheduler: Scheduler.Scheduler,
+	-- What the player's pods earn per second right now.
+	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
+	-- Re-publishes the speed stat after the trained speed changed.
+	publishSpeed: (player: Player) -> (),
+}
+
+-- What one settlement paid: coins, speed stat gained (as the player sees it) and the time away.
+export type Reward = {
+	coins: BigNum.BigNum,
+	speed: BigNum.BigNum,
+	seconds: number,
+}
+
+export type OfflineService = {
+	name: string,
+	start: () -> (),
+	-- Pays for the time since the last-seen mark and restarts the clock (done on activation;
+	-- exposed for playtests of the welcome-back screen).
+	settle: (player: Player) -> (),
+	-- Fires after a settlement that paid something.
+	settled: Signal.Signal<Player, Reward>,
+}
+
+local OfflineService = {}
+
+local function now(): number
+	return workspace:GetServerTimeNow()
+end
+
+function OfflineService.new(dependencies: Dependencies): OfflineService
+	local settled = Signal.new() :: Signal.Signal<Player, Reward>
+
+	local function settle(player: Player)
+		local reward: Reward? = nil
+		dependencies.update(player, function(data)
+			local current = now()
+			local incomeSeconds = Offline.seconds(data.lastSeenAt, current, BayConfig.OFFLINE_INCOME_CAP_SECONDS)
+			local trainingSeconds =
+				Offline.seconds(data.lastSeenAt, current, UpgradeConfig.OFFLINE_TRAINING_CAP_SECONDS)
+			local earned = Offline.income(dependencies.getIncomePerSecond(player), incomeSeconds)
+			local rate = Upgrades.trainerRate(data.trainerLevel, UpgradeConfig.TUNING)
+			local gained = Upgrades.trainingGain(rate, trainingSeconds, UpgradeConfig.OFFLINE_TRAINING_FACTOR)
+
+			data.coins = BigNum.add(data.coins, earned)
+			data.trained = BigNum.add(data.trained, gained)
+			-- Whole seconds: the screen says "1 hour", not "1.1 hours", for an hour and a moment.
+			local awaySeconds = if data.lastSeenAt > 0 then math.max(math.floor(current - data.lastSeenAt), 0) else 0
+			data.lastSeenAt = current
+			if not BigNum.isZero(earned) or not BigNum.isZero(gained) then
+				reward = {
+					coins = earned,
+					speed = BigNum.mul(gained, Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)),
+					seconds = awaySeconds,
+				}
+			end
+		end)
+		if not reward then
+			return
+		end
+		local paid = reward :: Reward
+		dependencies.publishSpeed(player)
+		if LOG then
+			print(
+				`[OfflineService] {player.Name} was away {math.floor(paid.seconds)}s: `
+					.. `{BigNum.format(paid.coins)} coins, +{BigNum.format(paid.speed)} speed`
+			)
+		end
+		settled.fire(player, paid)
+	end
+
+	-- Moves every online player's mark forward.
+	local function mark()
+		local current = now()
+		for _, player in game:GetService("Players"):GetPlayers() do
+			if dependencies.getData(player) then
+				dependencies.update(player, function(data)
+					data.lastSeenAt = current
+				end)
+			end
+		end
+	end
+
+	local function start()
+		dependencies.activated.connect(settle)
+		dependencies.scheduler.every(MARK_INTERVAL_SECONDS, mark)
+	end
+
+	return {
+		name = "OfflineService",
+		start = start,
+		settle = settle,
+		settled = settled,
+	}
+end
+
+return table.freeze(OfflineService)

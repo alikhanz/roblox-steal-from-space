@@ -14,6 +14,7 @@ local JetpackService = require(script.Parent.Services.JetpackService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
+local OfflineService = require(script.Parent.Services.OfflineService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
@@ -44,6 +45,14 @@ local economyService = EconomyService.new({
 	update = profile.update,
 	refresh = bayService.refresh,
 })
+local offlineService = OfflineService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	update = profile.update,
+	scheduler = scheduler,
+	getIncomePerSecond = bayService.getIncomePerSecond,
+	publishSpeed = speedService.publish,
+})
 -- The net service needs the training payouts and the trainer needs the net service's notices,
 -- so the trainer's own dependencies are bound after both exist.
 local trainingDependencies = {} :: TrainingService.Dependencies
@@ -54,7 +63,7 @@ local netService = NetService.new({
 	economy = economyService,
 	bayChanged = bayService.changed,
 	coinsChanged = bayService.coinsChanged,
-	offlineSettled = bayService.offlineSettled,
+	offlineSettled = offlineService.settled,
 	hatched = bayService.hatched,
 	trained = trainingService.trained,
 })
@@ -102,7 +111,7 @@ local devService = DevService.new({
 	addAlien = bayService.addAlien,
 	addEgg = bayService.addEgg,
 	hastenHatching = bayService.hastenHatching,
-	settleOffline = bayService.settleOffline,
+	settleOffline = offlineService.settle,
 	getData = dataService.getData,
 	update = dataService.update,
 	refresh = bayService.refresh,
@@ -122,6 +131,8 @@ Lifecycle.run({
 	economyService,
 	netService,
 	trainingService,
+	-- After the net service, so the snapshot goes out before the settlement's deltas.
+	offlineService,
 	devService,
 }, function(callback)
 	task.spawn(callback)

@@ -57,6 +57,9 @@ export type BayWindowController = {
 	start: () -> (),
 }
 
+-- What the welcome-back screen shows.
+type Reward = { coins: BigNum.BigNum, speed: BigNum.BigNum, seconds: number }
+
 local BayWindowController = {}
 
 function BayWindowController.new(dependencies: Dependencies): BayWindowController
@@ -67,11 +70,11 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	-- The alien whose sale waits for a second tap.
 	local pendingSale = source(nil :: number?)
 	local toasts = source({} :: { Toasts.Toast })
-	local reward = source(nil :: { coins: BigNum.BigNum, seconds: number }?)
+	local reward = source(nil :: Reward?)
 	-- Optional sources are read through a plain getter: Vide types a source as an intersection
 	-- of reader and writer, which is ambiguous to call without arguments when T is optional.
 	local readPendingSale = pendingSale :: () -> number?
-	local readReward = reward :: () -> { coins: BigNum.BigNum, seconds: number }?
+	local readReward = reward :: () -> Reward?
 	-- Bumped every second so egg lines recompute.
 	local clock = source(0)
 	local toastCounter = 0
@@ -402,6 +405,10 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						local current = readReward()
 						return if current then BigNum.format(current.coins) else ""
 					end,
+					speed = function()
+						local current = readReward()
+						return if current then BigNum.format(current.speed) else ""
+					end,
 					details = function()
 						local current = readReward()
 						if not current then
@@ -410,6 +417,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						return text("welcome.earned.hint", {
 							time = Duration.describe(locale, current.seconds),
 							coins = BigNum.format(current.coins),
+							speed = BigNum.format(current.speed),
 						})
 					end,
 					claim = text("welcome.claim.button"),
@@ -437,8 +445,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		profile.notice.connect(function(notice)
 			toast(text(NOTICE_KEYS[notice] or "notice.unknownAlien.toast"), Theme.TOAST_BAD)
 		end)
-		profile.offlineReward.connect(function(coins, seconds)
-			reward({ coins = coins, seconds = seconds })
+		profile.offlineReward.connect(function(coins, speed, seconds)
+			reward({ coins = coins, speed = speed, seconds = seconds })
 		end)
 
 		UserInputService.InputBegan:Connect(function(input, gameProcessed)

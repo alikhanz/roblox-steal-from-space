@@ -201,8 +201,8 @@ local Strings = {
 		en = "Welcome back!",
 	},
 	["welcome.earned.hint"] = {
-		ru = "Пока тебя не было {time}, капсулы принесли {coins} монет",
-		en = "While you were away for {time}, your pods earned {coins} coins",
+		ru = "Тебя не было {time}: капсулы принесли {coins} ●, тренажёр добавил {speed} ⚡",
+		en = "You were away {time}: your pods made {coins} ● and your trainer added {speed} ⚡",
 	},
 	["welcome.claim.button"] = {
 		ru = "Забрать",

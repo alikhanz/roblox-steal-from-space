@@ -2,7 +2,8 @@
 -- Owns the bays on the station: one per player, taken when their profile is active and freed
 -- when they leave. The profile is the source of truth; the bay model is its reflection and is
 -- rebuilt from the profile after every change (`refresh`), which at this scale is cheap and
--- cannot drift. Once a second the bays hatch what is ready and pay what the pods earn.
+-- cannot drift. Once a second the bays hatch what is ready and pay what the pods earn; the
+-- time away is paid by OfflineService.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -19,7 +20,6 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
-local Offline = require(ReplicatedStorage.Shared.Domain.Offline)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
@@ -53,9 +53,8 @@ export type BayService = {
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
 	-- Makes every egg in the incubator ready now (playtests; later the Robux instant hatch).
 	hastenHatching: (player: Player) -> boolean,
-	-- Pays the pods' income since the profile's last-seen mark, capped (done on activation;
-	-- exposed for playtests of the welcome-back screen).
-	settleOffline: (player: Player) -> (),
+	-- What the player's pods earn per second; zero without an active profile.
+	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
 	-- Fires when an egg hatches: the player, the alien and where it went.
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	-- Fires once a player gets their bay, with its model.
@@ -64,8 +63,6 @@ export type BayService = {
 	changed: Signal.Signal<Player>,
 	-- Fires when the player's coins change, with the new total.
 	coinsChanged: Signal.Signal<Player, BigNum.BigNum>,
-	-- Fires when offline income was paid: the amount and the seconds it covered.
-	offlineSettled: Signal.Signal<Player, BigNum.BigNum, number>,
 }
 
 type PlayerBay = {
@@ -94,7 +91,6 @@ function BayService.new(dependencies: Dependencies): BayService
 	local assigned = Signal.new() :: Signal.Signal<Player, Model>
 	local changed = Signal.new() :: Signal.Signal<Player>
 	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
-	local offlineSettled = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number>
 	-- Defined below; picking up an alien rebuilds the bay.
 	local refresh: (player: Player) -> ()
 
@@ -208,30 +204,12 @@ function BayService.new(dependencies: Dependencies): BayService
 		return nil
 	end
 
-	-- Pays the pods' income for the time away (capped) and restarts the clock. Eggs that hatched
-	-- meanwhile come out on the first tick, like any ready egg.
-	local function settleOffline(player: Player)
-		local earned = BigNum.ZERO
-		local total = BigNum.ZERO
-		local awaySeconds = 0
-		dependencies.update(player, function(data)
-			local current = now()
-			awaySeconds = Offline.seconds(data.lastSeenAt, current, BayConfig.OFFLINE_INCOME_CAP_SECONDS)
-			earned = Offline.income(Bay.incomePerSecond(data, incomeOf), awaySeconds)
-			data.coins = BigNum.add(data.coins, earned)
-			data.lastSeenAt = current
-			total = data.coins
-		end)
-		if BigNum.isZero(earned) then
-			return
-		end
-		if LOG then
-			print(`[BayService] {player.Name} was away {math.floor(awaySeconds)}s and earned {BigNum.format(earned)}`)
-		end
-		coinsChanged.fire(player, total)
-		offlineSettled.fire(player, earned, awaySeconds)
+	local function getIncomePerSecond(player: Player): BigNum.BigNum
+		local data = dependencies.getData(player)
+		return if data then Bay.incomePerSecond(data, incomeOf) else BigNum.ZERO
 	end
 
+	-- Eggs that hatched while the player was away come out on the first tick, like any ready egg.
 	local function assign(player: Player)
 		if bays[player] or player.Parent ~= Players then
 			return
@@ -251,7 +229,6 @@ function BayService.new(dependencies: Dependencies): BayService
 
 		slotOwners[slot] = player
 		bays[player] = { slot = slot, origin = origin, model = model }
-		settleOffline(player)
 		refresh(player)
 		assigned.fire(player, model)
 	end
@@ -329,7 +306,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end
 
-	-- One tick for every bay: hatch what is ready, pay the pods, move the offline clock.
+	-- One tick for every bay: hatch what is ready, pay the pods.
 	local function tick(deltaTime: number)
 		local current = now()
 		local earnedSeconds = BigNum.fromNumber(deltaTime)
@@ -348,7 +325,6 @@ function BayService.new(dependencies: Dependencies): BayService
 					data.coins = BigNum.add(data.coins, BigNum.mul(income, earnedSeconds))
 					coins = data.coins
 				end
-				data.lastSeenAt = current
 			end)
 			if coins then
 				coinsChanged.fire(player, coins)
@@ -388,12 +364,11 @@ function BayService.new(dependencies: Dependencies): BayService
 		addEgg = addEgg,
 		addAlien = addAlien,
 		hastenHatching = hastenHatching,
-		settleOffline = settleOffline,
+		getIncomePerSecond = getIncomePerSecond,
 		hatched = hatched,
 		assigned = assigned,
 		changed = changed,
 		coinsChanged = coinsChanged,
-		offlineSettled = offlineSettled,
 	}
 end
 

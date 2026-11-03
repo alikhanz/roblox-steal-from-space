@@ -38,8 +38,8 @@ export type ProfileState = {
 	loaded: Vide.Source<boolean>,
 	-- The trainer paid out: speed points gained this tick.
 	trained: Signal.Signal<BigNum.BigNum>,
-	-- Offline income paid on login: the amount and the seconds it covered.
-	offlineReward: Signal.Signal<BigNum.BigNum, number>,
+	-- Paid on login for the time away: coins earned, speed gained and the seconds away.
+	offlineReward: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number>,
 	-- An egg hatched: the alien and where it went.
 	hatched: Signal.Signal<string, Location>,
 	-- Three aliens were crossbred into this one.
@@ -59,7 +59,7 @@ function ProfileState.new(): ProfileState
 	local upgrades = source({ trainerLevel = 0, jetpackLevel = 0 } :: Upgrades)
 	local loaded = source(false)
 	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
-	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, number>
+	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number>
 	local hatched = Signal.new() :: Signal.Signal<string, Location>
 	local crossbred = Signal.new() :: Signal.Signal<string, Location>
 	local notice = Signal.new() :: Signal.Signal<Notice>
@@ -95,8 +95,9 @@ function ProfileState.new(): ProfileState
 		end)
 		Remotes.OfflineReward.SetCallback(function(reward)
 			local earned = BigNum.fromSaved(reward.coins)
-			if earned then
-				offlineReward.fire(earned, reward.seconds)
+			local gained = BigNum.fromSaved(reward.speed)
+			if earned and gained then
+				offlineReward.fire(earned, gained, reward.seconds)
 			end
 		end)
 		Remotes.Hatched.SetCallback(function(event)

@@ -10,6 +10,7 @@ local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EconomyService = require(script.Parent.EconomyService)
 local NetConfig = require(ReplicatedStorage.Shared.Config.NetConfig)
+local OfflineService = require(script.Parent.OfflineService)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local RateLimit = require(ReplicatedStorage.Shared.Domain.RateLimit)
@@ -23,7 +24,7 @@ export type Dependencies = {
 	-- Bay events to forward.
 	bayChanged: Signal.Signal<Player>,
 	coinsChanged: Signal.Signal<Player, BigNum.BigNum>,
-	offlineSettled: Signal.Signal<Player, BigNum.BigNum, number>,
+	offlineSettled: Signal.Signal<Player, OfflineService.Reward>,
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	-- Trainer payouts to forward.
 	trained: Signal.Signal<Player, BigNum.BigNum>,
@@ -120,8 +121,15 @@ function NetService.new(dependencies: Dependencies): NetService
 		dependencies.coinsChanged.connect(function(player, coins)
 			Remotes.CoinsChanged.Fire(player, wire(coins))
 		end)
-		dependencies.offlineSettled.connect(function(player, coins, seconds)
-			Remotes.OfflineReward.Fire(player, { coins = wire(coins), seconds = seconds })
+		dependencies.offlineSettled.connect(function(player, reward)
+			Remotes.OfflineReward.Fire(
+				player,
+				{ coins = wire(reward.coins), speed = wire(reward.speed), seconds = reward.seconds }
+			)
+			local data = dependencies.getData(player)
+			if data then
+				Remotes.CoinsChanged.Fire(player, wire(data.coins))
+			end
 		end)
 		dependencies.hatched.connect(function(player, alienId, location)
 			Remotes.Hatched.Fire(player, { alienId = alienId, location = location })

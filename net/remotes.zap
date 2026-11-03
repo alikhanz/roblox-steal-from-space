@@ -102,13 +102,14 @@ event BayChanged = {
 	data: Bay,
 }
 
--- What the pods earned while the player was away.
+-- What the pods earned and the trainer added while the player was away.
 event OfflineReward = {
 	from: Server,
 	type: Reliable,
 	call: SingleSync,
 	data: struct {
 		coins: BigNum,
+		speed: BigNum,
 		seconds: f64,
 	},
 }
