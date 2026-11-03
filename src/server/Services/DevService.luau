@@ -6,12 +6,14 @@
 -- Examples (server):
 --   game.ServerStorage.DevCommands.SpawnEggNearPlayer:Invoke("Rare")
 --   game.ServerStorage.DevCommands.SetInfiniteOxygen:Invoke(true)
+--   game.ServerStorage.DevCommands.SetSpeed:Invoke(2500)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
+local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
@@ -22,6 +24,7 @@ local SPAWN_DISTANCE = 5
 
 export type Dependencies = {
 	spawnLooseEgg: (rarity: EggConfig.RarityId, nestId: string, position: Vector3) -> (),
+	setSpeed: (player: Player, speed: BigNum.BigNum) -> (),
 }
 
 export type DevService = {
@@ -65,6 +68,17 @@ function DevService.new(dependencies: Dependencies): DevService
 				player.Character:SetAttribute(OxygenConfig.ATTRIBUTE, OxygenConfig.CAPACITY)
 			end
 			return "refilled"
+		end,
+		-- Sets the first player's speed stat (a plain number is enough for playtests).
+		SetSpeed = function(value: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(type(value) == "number" and value > 0, "SetSpeed expects a positive number")
+			local speed = BigNum.fromNumber(value)
+			dependencies.setSpeed(player, speed)
+			return `speed set to {BigNum.format(speed)}`
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).
 		SetInfiniteOxygen = function(enabled: boolean): string

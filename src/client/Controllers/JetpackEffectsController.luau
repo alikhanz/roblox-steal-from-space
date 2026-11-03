@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local FlightAnimation = require(ReplicatedStorage.Shared.Character.FlightAnimation)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
+local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 
 export type JetpackEffectsController = {
 	name: string,
@@ -59,7 +60,10 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			end
 
 			local flying = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true
-			local thrust = math.clamp(root.AssemblyLinearVelocity.Magnitude / FlightConfig.TUNING.maxSpeed, 0, 1)
+			local maxSpeed = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
+			local thrust = if type(maxSpeed) == "number" and maxSpeed > 0
+				then math.clamp(root.AssemblyLinearVelocity.Magnitude / maxSpeed, 0, 1)
+				else 0
 			local rate = JetpackConfig.FLAME_RATE_IDLE
 				+ (JetpackConfig.FLAME_RATE_FULL - JetpackConfig.FLAME_RATE_IDLE) * thrust
 

@@ -1,19 +1,22 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The in-game HUD: oxygen bar, low-oxygen warning and, on touch devices, flight buttons.
--- Reads the local character's simulation attributes (predicted, so the HUD is lag-free).
+-- The in-game HUD: speed stat, oxygen bar, low-oxygen warning and, on touch devices, flight
+-- buttons. Reads the local character's simulation attributes (predicted, so the HUD is lag-free).
 
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
+local SpeedBadge = require(script.Parent.Parent.UI.SpeedBadge)
+local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -33,7 +36,15 @@ local HudController = {}
 function HudController.new(): HudController
 	local oxygen = source(OxygenConfig.CAPACITY)
 	local inSpace = source(false)
+	local speed = source(SpeedConfig.STARTING_SPEED)
 	local characterConnections: { RBXScriptConnection } = {}
+
+	local function readSpeed(player: Player)
+		local mantissa = player:GetAttribute(SpeedConfig.MANTISSA_ATTRIBUTE)
+		local exponent = player:GetAttribute(SpeedConfig.EXPONENT_ATTRIBUTE)
+		local value = BigNum.fromSaved({ mantissa = mantissa, exponent = exponent })
+		speed(value or SpeedConfig.STARTING_SPEED)
+	end
 
 	local function watchCharacter(character: Model)
 		for _, connection in characterConnections do
@@ -77,6 +88,12 @@ function HudController.new(): HudController
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
 			local children: { Instance } = {
+				SpeedBadge({
+					title = Text.get(locale, "speed.stat.title"),
+					value = function()
+						return BigNum.format(speed())
+					end,
+				}),
 				OxygenBar({
 					fraction = fraction,
 					isLow = isLow,
@@ -109,6 +126,14 @@ function HudController.new(): HudController
 		if player.Character then
 			watchCharacter(player.Character)
 		end
+		-- Mantissa and exponent arrive separately; reading both on either change is harmless.
+		player:GetAttributeChangedSignal(SpeedConfig.MANTISSA_ATTRIBUTE):Connect(function()
+			readSpeed(player)
+		end)
+		player:GetAttributeChangedSignal(SpeedConfig.EXPONENT_ATTRIBUTE):Connect(function()
+			readSpeed(player)
+		end)
+		readSpeed(player)
 	end
 
 	return {

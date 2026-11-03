@@ -16,6 +16,9 @@ local HULL_COLOR = Color3.fromRGB(70, 76, 94)
 -- Glowing rim around the platform: makes the station easy to find from the asteroid field.
 local RIM_COLOR = Color3.fromRGB(90, 200, 255)
 local STAR_COUNT = 5000
+-- The map edge: a faint shell so players see where space ends (Bounds stops them there).
+local BOUNDARY_COLOR = Color3.fromRGB(150, 90, 255)
+local BOUNDARY_TRANSPARENCY = 0.9
 local NEST_BOWL_RADIUS = 4.5
 local NEST_BOWL_THICKNESS = 1.2
 local NEST_BOWL_COLOR = Color3.fromRGB(92, 66, 110)
@@ -209,6 +212,20 @@ local function buildNests(parent: Instance): { NestSite }
 	return sites
 end
 
+local function buildBoundary(parent: Instance)
+	local shell = Instance.new("Part")
+	shell.Name = "Boundary"
+	shell.Shape = Enum.PartType.Ball
+	shell.Size = Vector3.one * WorldConfig.BOUNDARY_RADIUS * 2
+	shell.CFrame = CFrame.new(StationConfig.PLATFORM_CENTER)
+	shell.Material = Enum.Material.ForceField
+	shell.Color = BOUNDARY_COLOR
+	shell.Transparency = BOUNDARY_TRANSPARENCY
+	shell.CanCollide = false
+	scenery(shell)
+	shell.Parent = parent
+end
+
 local function configureLighting()
 	Lighting.ClockTime = 0
 	Lighting.Brightness = 3
@@ -246,6 +263,7 @@ function WorldService.new(): WorldService
 		spawn = buildStation(world)
 		buildAsteroids(world)
 		nestSites = buildNests(world)
+		buildBoundary(world)
 		world.Parent = workspace
 		configureLighting()
 	end

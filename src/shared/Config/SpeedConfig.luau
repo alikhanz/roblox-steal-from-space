@@ -23,4 +23,11 @@ return table.freeze({
 	STARTING_SPEED = BigNum.fromNumber(10),
 	FLIGHT = table.freeze(FLIGHT),
 	CHASE = table.freeze(CHASE),
+
+	-- Player attributes: the stat as a BigNum, for the HUD and for anyone looking at a player.
+	MANTISSA_ATTRIBUTE = "SpeedMantissa",
+	EXPONENT_ATTRIBUTE = "SpeedExponent",
+	-- Character attribute: top flight speed without an egg, studs per second (the simulation
+	-- reads it; the server derives it from the stat so the simulation never touches BigNum).
+	FLIGHT_SPEED_ATTRIBUTE = "FlightSpeed",
 })

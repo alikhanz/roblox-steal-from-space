@@ -28,6 +28,10 @@ local Strings = {
 		ru = "Нажми и держи",
 		en = "Tap and hold",
 	},
+	["speed.stat.title"] = {
+		ru = "Скорость",
+		en = "Speed",
+	},
 	["oxygen.low.toast"] = {
 		ru = "Кислород кончается! Лети к станции",
 		en = "Low oxygen! Fly back to the station",

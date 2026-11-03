@@ -5,8 +5,6 @@
 local Flight = {}
 
 export type Tuning = {
-	-- Top speed with full input, studs per second.
-	read maxSpeed: number,
 	-- How fast velocity approaches the input target (higher = snappier), per second.
 	read response: number,
 	-- Share of speed kept after one second without input: the space glide.
@@ -56,17 +54,18 @@ end
 
 -- Velocity for the next simulation step. With input, approaches the target exponentially
 -- (frame-rate independent); without input, keeps gliding and slowly loses speed.
--- `speedMultiplier` scales the top speed, e.g. when carrying a heavy egg (default 1).
+-- `maxSpeed` is the top speed with full input, studs per second (from the speed stat, less the
+-- carried egg's weight).
 function Flight.nextVelocity(
 	current: Vector3,
 	direction: Vector3,
 	deltaTime: number,
-	tuning: Tuning,
-	speedMultiplier: number?
+	maxSpeed: number,
+	tuning: Tuning
 ): Vector3
 	if direction.Magnitude > 0 then
 		local blend = 1 - math.exp(-tuning.response * deltaTime)
-		return current:Lerp(direction * tuning.maxSpeed * (speedMultiplier or 1), blend)
+		return current:Lerp(direction * maxSpeed, blend)
 	end
 	return current * tuning.driftRetentionPerSecond ^ deltaTime
 end

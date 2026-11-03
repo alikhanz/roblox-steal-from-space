@@ -11,7 +11,8 @@ local Vector3 = (roblox :: any).Vector3 :: typeof(Vector3)
 local UP = Vector3.yAxis
 local FORWARD = Vector3.new(0, 0, -1)
 local RIGHT = Vector3.xAxis
-local TUNING: Flight.Tuning = { maxSpeed = 40, response = 4, driftRetentionPerSecond = 0.5 }
+local MAX_SPEED = 40
+local TUNING: Flight.Tuning = { response = 4, driftRetentionPerSecond = 0.5 }
 
 -- Vector3 components are float32, so long iterations accumulate small errors.
 local function expectVector(actual: Vector3, expected: Vector3, tolerance: number?)
@@ -71,26 +72,18 @@ describe("Flight.nextVelocity", function()
 	it("approaches the target speed with input", function()
 		local velocity = Vector3.zero
 		for _ = 1, 600 do
-			velocity = Flight.nextVelocity(velocity, FORWARD, 1 / 60, TUNING)
+			velocity = Flight.nextVelocity(velocity, FORWARD, 1 / 60, MAX_SPEED, TUNING)
 		end
-		expectVector(velocity, FORWARD * TUNING.maxSpeed, 1e-3)
-	end)
-
-	it("approaches a reduced top speed when slowed", function()
-		local velocity = Vector3.zero
-		for _ = 1, 600 do
-			velocity = Flight.nextVelocity(velocity, FORWARD, 1 / 60, TUNING, 0.5)
-		end
-		expectVector(velocity, FORWARD * TUNING.maxSpeed * 0.5, 1e-3)
+		expectVector(velocity, FORWARD * MAX_SPEED, 1e-3)
 	end)
 
 	it("is independent of the frame rate", function()
 		local fast, slow = Vector3.zero, Vector3.zero
 		for _ = 1, 60 do
-			fast = Flight.nextVelocity(fast, FORWARD, 1 / 60, TUNING)
+			fast = Flight.nextVelocity(fast, FORWARD, 1 / 60, MAX_SPEED, TUNING)
 		end
 		for _ = 1, 30 do
-			slow = Flight.nextVelocity(slow, FORWARD, 1 / 30, TUNING)
+			slow = Flight.nextVelocity(slow, FORWARD, 1 / 30, MAX_SPEED, TUNING)
 		end
 		expectVector(fast, slow, 1e-3)
 	end)
@@ -98,7 +91,7 @@ describe("Flight.nextVelocity", function()
 	it("glides and loses the configured share of speed per second without input", function()
 		local velocity = FORWARD * 20
 		for _ = 1, 60 do
-			velocity = Flight.nextVelocity(velocity, Vector3.zero, 1 / 60, TUNING)
+			velocity = Flight.nextVelocity(velocity, Vector3.zero, 1 / 60, MAX_SPEED, TUNING)
 		end
 		expectVector(velocity, FORWARD * 10, 1e-3)
 	end)

@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+local Bounds = require("../Domain/Bounds")
 local DevConfig = require("../Config/DevConfig")
 local EggConfig = require("../Config/EggConfig")
 local EggTargets = require("./EggTargets")
@@ -19,7 +20,9 @@ local JetpackConfig = require("../Config/JetpackConfig")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
 local Speed = require("../Domain/Speed")
+local SpeedConfig = require("../Config/SpeedConfig")
 local StationConfig = require("../Config/StationConfig")
+local WorldConfig = require("../Config/WorldConfig")
 local Zones = require("../Domain/Zones")
 
 local SpaceSimulation = {}
@@ -64,14 +67,28 @@ local function carriedRarity(character: Model): EggConfig.RarityId?
 	return nil
 end
 
+-- Top flight speed without an egg, studs per second: set by the server from the speed stat.
+local function flightSpeed(character: Model): number
+	local value = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
+	return if type(value) == "number" then value else SpeedConfig.FLIGHT.minFlightSpeed
+end
+
 local function fly(rig: Rig, context: Instance, deltaTime: number)
 	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
 	local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
 	local rarity = carriedRarity(rig.character)
 	-- Every carried egg counts as medium until eggs get sizes (stage 2, guardians step).
-	local speedMultiplier = if rarity then Speed.carryMultiplier(EggConfig.RARITIES[rarity].weight) else 1
-	local velocity =
-		Flight.nextVelocity(rig.root.AssemblyLinearVelocity, direction, deltaTime, FlightConfig.TUNING, speedMultiplier)
+	local carryMultiplier = if rarity then Speed.carryMultiplier(EggConfig.RARITIES[rarity].weight) else 1
+	local maxSpeed = flightSpeed(rig.character)
+	local velocity = Flight.nextVelocity(
+		rig.root.AssemblyLinearVelocity,
+		direction,
+		deltaTime,
+		maxSpeed * carryMultiplier,
+		FlightConfig.TUNING
+	)
+	velocity =
+		Bounds.limitVelocity(rig.root.Position, velocity, StationConfig.PLATFORM_CENTER, WorldConfig.BOUNDARY_RADIUS)
 
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
@@ -86,8 +103,7 @@ local function fly(rig: Rig, context: Instance, deltaTime: number)
 	if facing.Magnitude > 1e-3 then
 		local heading = CFrame.lookAlong(Vector3.zero, facing)
 		local localVelocity = heading:VectorToObjectSpace(velocity)
-		local pitch, roll =
-			FlightLean.angles(-localVelocity.Z, localVelocity.X, FlightConfig.TUNING.maxSpeed, JetpackConfig.LEAN)
+		local pitch, roll = FlightLean.angles(-localVelocity.Z, localVelocity.X, maxSpeed, JetpackConfig.LEAN)
 		rig.align.CFrame = heading * CFrame.Angles(pitch, 0, roll)
 	end
 	rig.align.MaxTorque = FlightConfig.MAX_FORCE

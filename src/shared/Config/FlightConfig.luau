@@ -3,8 +3,8 @@
 
 local Flight = require("../Domain/Flight")
 
+-- Top speed comes from the speed stat (SpeedConfig.FLIGHT), not from here.
 local TUNING: Flight.Tuning = {
-	maxSpeed = 48,
 	response = 4,
 	driftRetentionPerSecond = 0.6,
 }
