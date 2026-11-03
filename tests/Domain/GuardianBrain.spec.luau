@@ -5,6 +5,7 @@ local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 local TUNING: GuardianBrain.Tuning = {
+	aggroDelaySeconds = 1,
 	leashRadius = 200,
 	maxChaseSeconds = 20,
 	homeRadius = 3,
@@ -13,8 +14,8 @@ local TUNING: GuardianBrain.Tuning = {
 
 local function situation(overrides: { [string]: any }): GuardianBrain.Situation
 	local base: { [string]: any } = {
-		alertAwake = false,
 		hasTarget = false,
+		stolenSeconds = 0,
 		targetInStation = false,
 		targetDistanceFromNest = 0,
 		distanceToNest = 0,
@@ -27,10 +28,22 @@ local function situation(overrides: { [string]: any }): GuardianBrain.Situation
 end
 
 describe("GuardianBrain.next", function()
-	it("sleeps until the alert is full and a thief is near", function()
-		expect(GuardianBrain.next("Sleep", situation({ alertAwake = false, hasTarget = true }), TUNING)).toBe("Sleep")
-		expect(GuardianBrain.next("Sleep", situation({ alertAwake = true, hasTarget = false }), TUNING)).toBe("Sleep")
-		expect(GuardianBrain.next("Sleep", situation({ alertAwake = true, hasTarget = true }), TUNING)).toBe("Chase")
+	it("sleeps while nobody carries its egg", function()
+		expect(GuardianBrain.next("Sleep", situation({}), TUNING)).toBe("Sleep")
+	end)
+
+	it("wakes up only after the aggro delay", function()
+		local justTaken = situation({ hasTarget = true, stolenSeconds = 0.5 })
+		expect(GuardianBrain.next("Sleep", justTaken, TUNING)).toBe("Sleep")
+		local afterDelay = situation({ hasTarget = true, stolenSeconds = 1 })
+		expect(GuardianBrain.next("Sleep", afterDelay, TUNING)).toBe("Chase")
+	end)
+
+	it("stays asleep if the thief is already safe or out of range", function()
+		local safe = situation({ hasTarget = true, stolenSeconds = 2, targetInStation = true })
+		expect(GuardianBrain.next("Sleep", safe, TUNING)).toBe("Sleep")
+		local far = situation({ hasTarget = true, stolenSeconds = 2, targetDistanceFromNest = 201 })
+		expect(GuardianBrain.next("Sleep", far, TUNING)).toBe("Sleep")
 	end)
 
 	it("keeps chasing a thief in range", function()
@@ -55,9 +68,9 @@ describe("GuardianBrain.next", function()
 		expect(GuardianBrain.next("Return", situation({ distanceToNest = 2 }), TUNING)).toBe("Sleep")
 	end)
 
-	it("does not wake again on the way home", function()
-		local noisy = situation({ alertAwake = true, hasTarget = true, distanceToNest = 50 })
-		expect(GuardianBrain.next("Return", noisy, TUNING)).toBe("Return")
+	it("does not turn back on the way home", function()
+		local thief = situation({ hasTarget = true, stolenSeconds = 5, distanceToNest = 50 })
+		expect(GuardianBrain.next("Return", thief, TUNING)).toBe("Return")
 	end)
 end)
 

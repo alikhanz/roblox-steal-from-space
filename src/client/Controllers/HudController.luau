@@ -15,12 +15,12 @@ local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
 local source = Vide.source
 
-local CONTEXT_WAIT_TIMEOUT = 30
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 
 export type HudController = {
@@ -29,20 +29,6 @@ export type HudController = {
 }
 
 local HudController = {}
-
--- Links an on-screen button to an input action with a local-only UIButton binding.
-local function bindTouchButton(player: Player, actionName: string, button: GuiButton)
-	local context = player:WaitForChild(FlightInputs.CONTEXT_NAME, CONTEXT_WAIT_TIMEOUT)
-	local inputAction = context and FlightInputs.findAction(context, actionName)
-	if not inputAction then
-		warn(`[HudController] Input action {actionName} not found; touch button stays unbound`)
-		return
-	end
-	local binding = Instance.new("InputBinding")
-	binding.Name = FlightInputs.TOUCH_BINDING
-	binding.UIButton = button
-	binding.Parent = inputAction
-end
 
 function HudController.new(): HudController
 	local oxygen = source(OxygenConfig.CAPACITY)
@@ -106,7 +92,7 @@ function HudController.new(): HudController
 						ascendAction = FlightInputs.ASCEND,
 						descendAction = FlightInputs.DESCEND,
 						onButton = function(actionName, button)
-							task.spawn(bindTouchButton, player, actionName, button)
+							task.spawn(TouchBindings.bind, player, actionName, button)
 						end,
 					})
 				)

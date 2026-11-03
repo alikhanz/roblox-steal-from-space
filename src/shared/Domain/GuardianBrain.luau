@@ -1,7 +1,8 @@
 --!strict
 -- The state machine every guardian shares; only how it moves while chasing differs per guardian.
+-- A guardian ignores players until one takes its egg; it wakes up a moment later and chases the thief.
 --
---   Sleep ──(alert full and a thief nearby)──> Chase
+--   Sleep ──(its egg is carried by a thief in range for aggroDelaySeconds)──> Chase
 --   Chase ──(thief lost, safe at the station, out of leash range or chased too long)──> Return
 --   Return ──(back at the nest)──> Sleep
 
@@ -10,6 +11,8 @@ local GuardianBrain = {}
 export type State = "Sleep" | "Chase" | "Return"
 
 export type Tuning = {
+	-- Wakes up this long after its egg is taken, seconds: the thief gets a head start.
+	read aggroDelaySeconds: number,
 	-- Gives up once the thief is this far from the nest, studs.
 	read leashRadius: number,
 	-- Gives up after chasing this long, seconds.
@@ -21,23 +24,30 @@ export type Tuning = {
 }
 
 export type Situation = {
-	alertAwake: boolean,
+	-- Someone carries this guardian's egg.
 	hasTarget: boolean,
+	-- How long the egg has been carried, seconds (0 without a target).
+	stolenSeconds: number,
 	targetInStation: boolean,
 	targetDistanceFromNest: number,
 	distanceToNest: number,
 	chaseSeconds: number,
 }
 
+-- Whether the thief can still be chased at all.
+local function isReachable(situation: Situation, tuning: Tuning): boolean
+	return situation.hasTarget
+		and not situation.targetInStation
+		and situation.targetDistanceFromNest <= tuning.leashRadius
+end
+
 function GuardianBrain.next(state: State, situation: Situation, tuning: Tuning): State
 	if state == "Sleep" then
-		return if situation.alertAwake and situation.hasTarget then "Chase" else "Sleep"
+		local awake = situation.stolenSeconds >= tuning.aggroDelaySeconds
+		return if awake and isReachable(situation, tuning) then "Chase" else "Sleep"
 	elseif state == "Chase" then
-		local lost = not situation.hasTarget
-			or situation.targetInStation
-			or situation.targetDistanceFromNest > tuning.leashRadius
-			or situation.chaseSeconds > tuning.maxChaseSeconds
-		return if lost then "Return" else "Chase"
+		local keepChasing = isReachable(situation, tuning) and situation.chaseSeconds <= tuning.maxChaseSeconds
+		return if keepChasing then "Chase" else "Return"
 	end
 	return if situation.distanceToNest <= tuning.homeRadius then "Sleep" else "Return"
 end

@@ -11,6 +11,8 @@ export type Target = {
 	id: string,
 	position: Vector3,
 	rarity: EggConfig.RarityId,
+	-- The egg part itself, when present on this machine (for the HUD to attach its prompt).
+	part: BasePart?,
 }
 
 local EggTargets = {}
@@ -26,11 +28,16 @@ function EggTargets.nearest(position: Vector3): Target?
 	local best: Target? = nil
 	local bestDistance = EggConfig.GRAB_REACH
 
-	local function consider(id: string, eggPosition: Vector3, rarity: EggConfig.RarityId)
+	local function consider(id: string, eggPosition: Vector3, rarity: EggConfig.RarityId, part: Instance?)
 		local distance = (eggPosition - position).Magnitude
 		if distance <= bestDistance then
 			bestDistance = distance
-			best = { id = id, position = eggPosition, rarity = rarity }
+			best = {
+				id = id,
+				position = eggPosition,
+				rarity = rarity,
+				part = if part and part:IsA("BasePart") then part else nil,
+			}
 		end
 	end
 
@@ -42,14 +49,14 @@ function EggTargets.nearest(position: Vector3): Target?
 			and typeof(eggPosition) == "Vector3"
 			and rarity
 		then
-			consider(nest.Name, eggPosition, rarity)
+			consider(nest.Name, eggPosition, rarity, nest:FindFirstChild(EggConfig.NEST_EGG_NAME))
 		end
 	end
 
 	for _, egg in CollectionService:GetTagged(EggConfig.LOOSE_EGG_TAG) do
 		local rarity = asRarity(egg:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE))
 		if egg:IsA("BasePart") and rarity then
-			consider(egg.Name, egg.Position, rarity)
+			consider(egg.Name, egg.Position, rarity, egg)
 		end
 	end
 

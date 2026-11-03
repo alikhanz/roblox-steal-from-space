@@ -20,6 +20,14 @@ local Strings = {
 		ru = "Вышло обновление игры. Зайди снова, чтобы играть дальше.",
 		en = "The game just got an update. Rejoin to keep playing.",
 	},
+	["egg.grab.hint"] = {
+		ru = "Держи, чтобы взять",
+		en = "Hold to grab",
+	},
+	["egg.grabTouch.hint"] = {
+		ru = "Нажми и держи",
+		en = "Tap and hold",
+	},
 	["oxygen.low.toast"] = {
 		ru = "Кислород кончается! Лети к станции",
 		en = "Low oxygen! Fly back to the station",

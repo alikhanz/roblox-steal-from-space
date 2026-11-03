@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AimController = require(script.Parent.Controllers.AimController)
+local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local HudController = require(script.Parent.Controllers.HudController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
@@ -12,6 +13,7 @@ local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulat
 Lifecycle.run({
 	AimController.new(),
 	HudController.new(),
+	GrabPromptController.new(),
 	JetpackEffectsController.new(),
 	{
 		-- Client-side prediction: the same simulation the server runs.
