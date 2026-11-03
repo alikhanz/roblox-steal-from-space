@@ -8,6 +8,8 @@ describe("Names.alien", function()
 	it("names an alien by its tier and guardian in both languages", function()
 		expect(Names.alien("ru", "DebrisBelt1.Rare")).toBe("Редкий · Слизень-сторож")
 		expect(Names.alien("en", "DebrisBelt2.Legendary")).toBe("Legendary · Crab Drone")
+		expect(Names.alien("en", "IceRings1.Common")).toBe("Common · Ice Worm")
+		expect(Names.alien("ru", "EventHorizon6.Epic")).toBe("Эпический · Космический Кит")
 	end)
 
 	it("returns nil for an unknown alien", function()

@@ -64,7 +64,7 @@
 | `Mythic` | Мифический | Mythic |
 | `Secret` | Секретный | Secret |
 
-Род прилагательного согласуется с существительным: «мифическое яйцо», «мифический пришелец».
+Род прилагательного согласуется с существительным: «мифическое яйцо», «мифический пришелец». В игре пока есть редкости яиц от Обычного до Легендарного; Мифический и Секретный — на будущее.
 
 ## Мутации
 
@@ -87,6 +87,35 @@
 | `StarRay` | Звёздный скат | Star Ray |
 | `SpaceWhale` | Космический Кит | Space Whale |
 | `RecommendedSpeed` | рекомендуемая скорость | recommended speed | Над стражем; не гарантия |
+
+Выше — виды тел. Посты (24 именованных стража, по 6 на зону, от станции наружу):
+
+| Пост | ID | Русский | English | Вид тела |
+|---|---|---|---|---|
+| 1 | `SlimeWarden` | Слизень-сторож | Slime Warden | слизень |
+| 2 | `CrabDrone` | Краб-дрон | Crab Drone | краб |
+| 3 | `VioletCrab` | Лиловый краб | Violet Crab | краб |
+| 4 | `AcidSlime` | Кислотный слизень | Acid Slime | слизень |
+| 5 | `RustyCrab` | Ржавый краб | Rusty Crab | краб |
+| 6 | `SlimeKing` | Король слизней | Slime King | слизень |
+| 7 | `IceWorm` | Ледяной червь | Ice Worm | червь |
+| 8 | `SnowCrab` | Снежный краб | Snow Crab | краб |
+| 9 | `FrostSlime` | Морозный слизень | Frost Slime | слизень |
+| 10 | `CrystalWorm` | Хрустальный червь | Crystal Worm | червь |
+| 11 | `IceRay` | Ледяной скат | Ice Ray | скат |
+| 12 | `WormMother` | Мать червей | Worm Mother | червь |
+| 13 | `DevourerSwarm` | Рой пожирателей | Devourer Swarm | рой |
+| 14 | `StarRay` | Звёздный скат | Star Ray | скат |
+| 15 | `FireSlime` | Огненный слизень | Fire Slime | слизень |
+| 16 | `RedSwarm` | Красный рой | Red Swarm | рой |
+| 17 | `LightningRay` | Скат-молния | Lightning Ray | скат |
+| 18 | `DevourerQueen` | Матка пожирателей | Devourer Queen | рой |
+| 19 | `ShadowWorm` | Теневой червь | Shadow Worm | червь |
+| 20 | `BlackRay` | Чёрный скат | Black Ray | скат |
+| 21 | `VoidSwarm` | Рой пустоты | Void Swarm | рой |
+| 22 | `GravityCrab` | Гравикраб | Gravity Crab | краб |
+| 23 | `WhaleCalf` | Китёнок | Whale Calf | кит |
+| 24 | `SpaceWhale` | Космический Кит | Space Whale | кит |
 
 ## Скорость и прокачка
 

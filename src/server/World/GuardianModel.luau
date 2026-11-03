@@ -58,15 +58,15 @@ local function addMovers(body: BasePart)
 	align.Parent = body
 end
 
-function GuardianModel.build(kind: GuardianLooks.KindLook, color: Color3?): Model
+function GuardianModel.build(kind: GuardianLooks.KindLook, look: GuardianLooks.PostLook): Model
 	local model = Instance.new("Model")
 	model.Name = "Guardian"
 
 	local body = Instance.new("Part")
 	body.Name = GuardianConfig.BODY_NAME
 	body.Shape = kind.bodyShape
-	body.Size = kind.bodySize
-	body.Color = color or kind.color
+	body.Size = kind.bodySize * look.scale
+	body.Color = look.color
 	body.Material = Enum.Material.SmoothPlastic
 	ghost(body)
 	body.Parent = model

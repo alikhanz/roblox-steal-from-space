@@ -4,11 +4,10 @@
 
 local Grab = require("../Domain/Grab")
 local Hatch = require("../Domain/Hatch")
-local Loot = require("../Domain/Loot")
 -- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
 local Strings = require("../Locale/Strings")
 
-export type RarityId = "Common" | "Uncommon" | "Rare"
+export type RarityId = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary"
 export type SizeId = "Small" | "Medium" | "Large"
 
 export type Rarity = {
@@ -37,12 +36,6 @@ local SIZES: { [SizeId]: Size } = {
 	Small = { weightFactor = 0.7, scale = 0.8, luck = 0 },
 	Medium = { weightFactor = 1, scale = 1, luck = 0.15 },
 	Large = { weightFactor = 1.4, scale = 1.25, luck = 0.3 },
-}
-
-local DEBRIS_BELT_SIZE_LOOT: { Loot.Entry<SizeId> } = {
-	{ id = "Small", weight = 50 },
-	{ id = "Medium", weight = 35 },
-	{ id = "Large", weight = 15 },
 }
 
 -- The magnetic grab: holding the grab input in reach locks the flyer onto the egg.
@@ -74,19 +67,29 @@ local RARITIES: { [RarityId]: Rarity } = {
 		hatchSeconds = { min = 20 * 60, max = 2 * 60 * 60 },
 		luck = 0.7,
 	},
+	Epic = {
+		nameKey = "egg.epic.title",
+		grabSeconds = 3.5,
+		weight = 0.38,
+		hatchSeconds = { min = 60 * 60, max = 3.5 * 60 * 60 },
+		luck = 1,
+	},
+	Legendary = {
+		nameKey = "egg.legendary.title",
+		grabSeconds = 4,
+		weight = 0.5,
+		hatchSeconds = { min = 2 * 60 * 60, max = 5 * 60 * 60 },
+		luck = 1.4,
+	},
 }
 
-local DEBRIS_BELT_LOOT: { Loot.Entry<RarityId> } = {
-	{ id = "Common", weight = 70 },
-	{ id = "Uncommon", weight = 25 },
-	{ id = "Rare", weight = 5 },
-}
+-- From the most common up. Which eggs grow where is in ZoneConfig.
+local RARITY_ORDER: { RarityId } = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 
 return table.freeze({
 	RARITIES = table.freeze(RARITIES),
+	RARITY_ORDER = table.freeze(RARITY_ORDER),
 	SIZES = table.freeze(SIZES),
-	DEBRIS_BELT_LOOT = table.freeze(DEBRIS_BELT_LOOT),
-	DEBRIS_BELT_SIZE_LOOT = table.freeze(DEBRIS_BELT_SIZE_LOOT),
 	-- The guardian's recommended speed is computed for an egg of this size.
 	TYPICAL_SIZE = "Medium" :: SizeId,
 	MAGNET = table.freeze(MAGNET),

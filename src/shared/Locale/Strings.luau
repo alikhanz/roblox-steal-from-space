@@ -36,6 +36,110 @@ local Strings = {
 		ru = "Краб-дрон",
 		en = "Crab Drone",
 	},
+	["guardian.violetCrab.title"] = {
+		ru = "Лиловый краб",
+		en = "Violet Crab",
+	},
+	["guardian.acidSlime.title"] = {
+		ru = "Кислотный слизень",
+		en = "Acid Slime",
+	},
+	["guardian.rustyCrab.title"] = {
+		ru = "Ржавый краб",
+		en = "Rusty Crab",
+	},
+	["guardian.slimeKing.title"] = {
+		ru = "Король слизней",
+		en = "Slime King",
+	},
+	["guardian.iceWorm.title"] = {
+		ru = "Ледяной червь",
+		en = "Ice Worm",
+	},
+	["guardian.snowCrab.title"] = {
+		ru = "Снежный краб",
+		en = "Snow Crab",
+	},
+	["guardian.frostSlime.title"] = {
+		ru = "Морозный слизень",
+		en = "Frost Slime",
+	},
+	["guardian.crystalWorm.title"] = {
+		ru = "Хрустальный червь",
+		en = "Crystal Worm",
+	},
+	["guardian.iceRay.title"] = {
+		ru = "Ледяной скат",
+		en = "Ice Ray",
+	},
+	["guardian.wormMother.title"] = {
+		ru = "Мать червей",
+		en = "Worm Mother",
+	},
+	["guardian.devourerSwarm.title"] = {
+		ru = "Рой пожирателей",
+		en = "Devourer Swarm",
+	},
+	["guardian.starRay.title"] = {
+		ru = "Звёздный скат",
+		en = "Star Ray",
+	},
+	["guardian.fireSlime.title"] = {
+		ru = "Огненный слизень",
+		en = "Fire Slime",
+	},
+	["guardian.redSwarm.title"] = {
+		ru = "Красный рой",
+		en = "Red Swarm",
+	},
+	["guardian.lightningRay.title"] = {
+		ru = "Скат-молния",
+		en = "Lightning Ray",
+	},
+	["guardian.devourerQueen.title"] = {
+		ru = "Матка пожирателей",
+		en = "Devourer Queen",
+	},
+	["guardian.shadowWorm.title"] = {
+		ru = "Теневой червь",
+		en = "Shadow Worm",
+	},
+	["guardian.blackRay.title"] = {
+		ru = "Чёрный скат",
+		en = "Black Ray",
+	},
+	["guardian.voidSwarm.title"] = {
+		ru = "Рой пустоты",
+		en = "Void Swarm",
+	},
+	["guardian.gravityCrab.title"] = {
+		ru = "Гравикраб",
+		en = "Gravity Crab",
+	},
+	["guardian.whaleCalf.title"] = {
+		ru = "Китёнок",
+		en = "Whale Calf",
+	},
+	["guardian.spaceWhale.title"] = {
+		ru = "Космический Кит",
+		en = "Space Whale",
+	},
+	["zone.debrisBelt.title"] = {
+		ru = "Пояс обломков",
+		en = "Debris Belt",
+	},
+	["zone.iceRings.title"] = {
+		ru = "Ледяные кольца",
+		en = "Ice Rings",
+	},
+	["zone.redNebula.title"] = {
+		ru = "Красная туманность",
+		en = "Red Nebula",
+	},
+	["zone.eventHorizon.title"] = {
+		ru = "Горизонт событий",
+		en = "Event Horizon",
+	},
 	["guardian.caught.toast"] = {
 		ru = "Поймали!",
 		en = "Caught!",
@@ -51,6 +155,14 @@ local Strings = {
 	["egg.rare.title"] = {
 		ru = "Редкое яйцо",
 		en = "Rare egg",
+	},
+	["egg.epic.title"] = {
+		ru = "Эпическое яйцо",
+		en = "Epic egg",
+	},
+	["egg.legendary.title"] = {
+		ru = "Легендарное яйцо",
+		en = "Legendary egg",
 	},
 	["egg.hatchIn.hint"] = {
 		ru = "Вылупится через {time}",

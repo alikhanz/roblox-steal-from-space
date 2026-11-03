@@ -18,10 +18,11 @@ local PlayerData = require("../src/shared/Domain/PlayerData")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
 local UpgradeConfig = require("../src/shared/Config/UpgradeConfig")
 local Upgrades = require("../src/shared/Domain/Upgrades")
+local ZoneConfig = require("../src/shared/Config/ZoneConfig")
 
 local ASSUMPTIONS = {
-	-- Guardians in the whole game (GAME_DESIGN); posts past the configured ones keep the growth.
-	guardianCount = 24,
+	-- Guardians in the whole game; posts past the configured ones would keep the growth.
+	guardianCount = ZoneConfig.POST_COUNT,
 	days = tonumber(process.args[1]) or 60,
 	stepSeconds = 10,
 	-- One online session a day, half of it on the trainer, the rest stealing.
@@ -137,8 +138,10 @@ local function simulate(profile: Profile, seed: number): Run
 	end
 
 	local function steal(post: number, now: number)
-		local rarity = Loot.pick(EggConfig.DEBRIS_BELT_LOOT, math.random())
-		local size = Loot.pick(EggConfig.DEBRIS_BELT_SIZE_LOOT, math.random())
+		local lastZone = ZoneConfig.ZONE_ORDER[#ZoneConfig.ZONE_ORDER]
+		local zone = ZoneConfig.ZONES[if post <= ZoneConfig.POST_COUNT then ZoneConfig.zoneOfPost(post) else lastZone]
+		local rarity = Loot.pick(zone.rarityLoot, math.random())
+		local size = Loot.pick(zone.sizeLoot, math.random())
 		table.insert(data.incubator, {
 			uid = Bay.newUid(data),
 			rarity = rarity,

@@ -10,6 +10,8 @@ local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local ShopModel = require(script.Parent.Parent.World.ShopModel)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.WorldConfig)
+local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
+local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
 
 local WORLD_FOLDER_NAME = "World"
 local DOME_TRANSPARENCY = 0.75
@@ -31,6 +33,7 @@ local NEST_EGG_LIFT = 1.5
 export type NestSite = {
 	id: string,
 	model: Model,
+	zone: ZoneConfig.ZoneId,
 	-- Where an egg rests in this nest.
 	eggCFrame: CFrame,
 }
@@ -156,7 +159,7 @@ local function buildAsteroids(parent: Instance)
 		asteroid.Size = Vector3.one * random:NextNumber(WorldConfig.MIN_SIZE, WorldConfig.MAX_SIZE)
 		asteroid.CFrame = CFrame.new(randomInField(random))
 		asteroid.Material = Enum.Material.Slate
-		asteroid.Color = WorldConfig.ROCK_COLORS[random:NextInteger(1, #WorldConfig.ROCK_COLORS)]
+		asteroid.Color = ZoneLooks.FIELD_ROCK_COLORS[random:NextInteger(1, #ZoneLooks.FIELD_ROCK_COLORS)]
 		asteroid.Anchored = true
 		asteroid.CanTouch = false
 		asteroid.Parent = folder
@@ -164,55 +167,159 @@ local function buildAsteroids(parent: Instance)
 	folder.Parent = parent
 end
 
--- Nest asteroids: evenly spread around the ring with seeded jitter, each with a nest bowl on top.
+-- A nest asteroid with a bowl on top, in its zone's colors.
+local function buildNest(
+	name: string,
+	center: Vector3,
+	size: number,
+	look: ZoneLooks.ZoneLook,
+	random: Random
+): NestSite
+	local model = Instance.new("Model")
+	model.Name = name
+
+	local rock = Instance.new("Part")
+	rock.Name = "Rock"
+	rock.Shape = Enum.PartType.Ball
+	rock.Size = Vector3.one * size
+	rock.CFrame = CFrame.new(center)
+	rock.Material = look.rockMaterial
+	rock.Color = look.rockColors[random:NextInteger(1, #look.rockColors)]
+	rock.Anchored = true
+	rock.CanTouch = false
+	rock.Parent = model
+
+	-- The bowl sits a little into the rock's top so it looks embedded.
+	local top = center + Vector3.yAxis * (size / 2 - 0.6)
+	local bowl = disc("Bowl", top, NEST_BOWL_RADIUS, NEST_BOWL_THICKNESS)
+	bowl.Material = Enum.Material.Basalt
+	bowl.Color = NEST_BOWL_COLOR
+	bowl.Anchored = true
+	bowl.CanTouch = false
+	bowl.Parent = model
+
+	model.PrimaryPart = rock
+	return {
+		id = name,
+		model = model,
+		-- Filled by the caller.
+		zone = "DebrisBelt",
+		eggCFrame = CFrame.new(top + Vector3.yAxis * NEST_EGG_LIFT),
+	}
+end
+
+-- Nest asteroids zone by zone: evenly spread around each zone's ring with seeded jitter.
 local function buildNests(parent: Instance): { NestSite }
 	local random = Random.new(WorldConfig.SEED + 1)
 	local folder = Instance.new("Folder")
 	folder.Name = "Nests"
 	local sites: { NestSite } = {}
 
-	for index = 1, WorldConfig.NEST_COUNT do
-		local angle = (index - 1 + random:NextNumber(-0.3, 0.3)) / WorldConfig.NEST_COUNT * math.pi * 2
-		local distance = random:NextNumber(WorldConfig.NEST_RING_MIN, WorldConfig.NEST_RING_MAX)
-		local height = random:NextNumber(-WorldConfig.NEST_HEIGHT_SPREAD, WorldConfig.NEST_HEIGHT_SPREAD)
-		local center = StationConfig.PLATFORM_CENTER
-			+ Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance)
-		local size = random:NextNumber(WorldConfig.NEST_ASTEROID_MIN_SIZE, WorldConfig.NEST_ASTEROID_MAX_SIZE)
-
-		local model = Instance.new("Model")
-		model.Name = `Nest{index}`
-
-		local rock = Instance.new("Part")
-		rock.Name = "Rock"
-		rock.Shape = Enum.PartType.Ball
-		rock.Size = Vector3.one * size
-		rock.CFrame = CFrame.new(center)
-		rock.Material = Enum.Material.Slate
-		rock.Color = WorldConfig.ROCK_COLORS[random:NextInteger(1, #WorldConfig.ROCK_COLORS)]
-		rock.Anchored = true
-		rock.CanTouch = false
-		rock.Parent = model
-
-		-- The bowl sits a little into the rock's top so it looks embedded.
-		local top = center + Vector3.yAxis * (size / 2 - 0.6)
-		local bowl = disc("Bowl", top, NEST_BOWL_RADIUS, NEST_BOWL_THICKNESS)
-		bowl.Material = Enum.Material.Basalt
-		bowl.Color = NEST_BOWL_COLOR
-		bowl.Anchored = true
-		bowl.CanTouch = false
-		bowl.Parent = model
-
-		model.PrimaryPart = rock
-		model.Parent = folder
-		table.insert(sites, {
-			id = model.Name,
-			model = model,
-			eggCFrame = CFrame.new(top + Vector3.yAxis * NEST_EGG_LIFT),
-		})
+	for _, zoneId in ZoneConfig.ZONE_ORDER do
+		local zone = ZoneConfig.ZONES[zoneId]
+		local look = ZoneLooks.ZONES[zoneId]
+		for index = 1, zone.nestCount do
+			local angle = (index - 1 + random:NextNumber(-0.3, 0.3)) / zone.nestCount * math.pi * 2
+			local distance = random:NextNumber(zone.ringMin, zone.ringMax)
+			local height = random:NextNumber(-zone.heightSpread, zone.heightSpread)
+			local center = StationConfig.PLATFORM_CENTER
+				+ Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance)
+			local size = random:NextNumber(WorldConfig.NEST_ASTEROID_MIN_SIZE, WorldConfig.NEST_ASTEROID_MAX_SIZE)
+			local site = buildNest(`{zoneId}Nest{index}`, center, size, look, random)
+			site.zone = zoneId
+			site.model.Parent = folder
+			table.insert(sites, site)
+		end
 	end
 
 	folder.Parent = parent
 	return sites
+end
+
+-- Landmarks that tell the zones apart from afar: a band of ice, a red haze, the black hole.
+local function buildLandmarks(parent: Instance)
+	local random = Random.new(WorldConfig.SEED + 2)
+	local folder = Instance.new("Folder")
+	folder.Name = "Landmarks"
+	local center = StationConfig.PLATFORM_CENTER
+
+	local ice = ZoneConfig.ZONES.IceRings
+	for index = 1, ZoneLooks.ICE_CHUNK_COUNT do
+		local angle = random:NextNumber(0, math.pi * 2)
+		local distance = random:NextNumber(ice.ringMin, ice.ringMax)
+		local chunk = Instance.new("Part")
+		chunk.Name = `Ice{index}`
+		chunk.Shape = Enum.PartType.Ball
+		chunk.Size = Vector3.one * random:NextNumber(ZoneLooks.ICE_CHUNK_MIN_SIZE, ZoneLooks.ICE_CHUNK_MAX_SIZE)
+		chunk.CFrame = CFrame.new(
+			center
+				+ Vector3.new(
+					math.cos(angle) * distance,
+					random:NextNumber(-ZoneLooks.ICE_BAND_HEIGHT, ZoneLooks.ICE_BAND_HEIGHT),
+					math.sin(angle) * distance
+				)
+		)
+		chunk.Material = Enum.Material.Ice
+		chunk.Color = ZoneLooks.ICE_COLOR
+		chunk.CanCollide = false
+		scenery(chunk)
+		chunk.Parent = folder
+	end
+
+	local nebula = ZoneConfig.ZONES.RedNebula
+	for index = 1, ZoneLooks.HAZE_COUNT do
+		local angle = random:NextNumber(0, math.pi * 2)
+		local distance = random:NextNumber(nebula.ringMin, nebula.ringMax)
+		local haze = Instance.new("Part")
+		haze.Name = `Haze{index}`
+		haze.Shape = Enum.PartType.Ball
+		haze.Size = Vector3.one * random:NextNumber(ZoneLooks.HAZE_MIN_SIZE, ZoneLooks.HAZE_MAX_SIZE)
+		haze.CFrame = CFrame.new(
+			center
+				+ Vector3.new(
+					math.cos(angle) * distance,
+					random:NextNumber(-nebula.heightSpread, nebula.heightSpread),
+					math.sin(angle) * distance
+				)
+		)
+		haze.Material = Enum.Material.ForceField
+		haze.Color = ZoneLooks.HAZE_COLOR
+		haze.Transparency = ZoneLooks.HAZE_TRANSPARENCY
+		haze.CanCollide = false
+		scenery(haze)
+		haze.Parent = folder
+	end
+
+	local holeAngle = random:NextNumber(0, math.pi * 2)
+	local holeCenter = center
+		+ Vector3.new(
+			math.cos(holeAngle) * ZoneLooks.BLACK_HOLE_DISTANCE,
+			0,
+			math.sin(holeAngle) * ZoneLooks.BLACK_HOLE_DISTANCE
+		)
+	local rim = Instance.new("Part")
+	rim.Name = "BlackHoleRim"
+	rim.Shape = Enum.PartType.Ball
+	rim.Size = Vector3.one * ZoneLooks.BLACK_HOLE_RIM_RADIUS * 2
+	rim.CFrame = CFrame.new(holeCenter)
+	rim.Material = Enum.Material.Neon
+	rim.Color = ZoneLooks.BLACK_HOLE_RIM_COLOR
+	rim.Transparency = ZoneLooks.BLACK_HOLE_RIM_TRANSPARENCY
+	rim.CanCollide = false
+	scenery(rim)
+	rim.Parent = folder
+	local hole = Instance.new("Part")
+	hole.Name = "BlackHole"
+	hole.Shape = Enum.PartType.Ball
+	hole.Size = Vector3.one * ZoneLooks.BLACK_HOLE_RADIUS * 2
+	hole.CFrame = CFrame.new(holeCenter)
+	hole.Material = Enum.Material.SmoothPlastic
+	hole.Color = ZoneLooks.BLACK_HOLE_COLOR
+	hole.CanCollide = false
+	scenery(hole)
+	hole.Parent = folder
+
+	folder.Parent = parent
 end
 
 local function buildBoundary(parent: Instance)
@@ -269,6 +376,7 @@ function WorldService.new(): WorldService
 		shop.Parent = world
 		buildAsteroids(world)
 		nestSites = buildNests(world)
+		buildLandmarks(world)
 		buildBoundary(world)
 		world.Parent = workspace
 		configureLighting()

@@ -7,12 +7,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
-local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local Posts = require(ReplicatedStorage.Shared.Domain.Posts)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldService = require(script.Parent.WorldService)
+local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 -- Respawns are measured in seconds: 10 checks per second is plenty.
 local TICK_SECONDS = 0.1
@@ -65,12 +65,10 @@ function NestService.new(dependencies: Dependencies): NestService
 		nest.site.model:SetAttribute(EggConfig.NEST_SIZE_ATTRIBUTE, size)
 	end
 
+	-- What grows depends on the zone: farther zones give rarer and bigger eggs.
 	local function growEgg(nest: Nest)
-		placeEgg(
-			nest,
-			Loot.pick(EggConfig.DEBRIS_BELT_LOOT, random:NextNumber()),
-			Loot.pick(EggConfig.DEBRIS_BELT_SIZE_LOOT, random:NextNumber())
-		)
+		local zone = ZoneConfig.ZONES[nest.site.zone]
+		placeEgg(nest, Loot.pick(zone.rarityLoot, random:NextNumber()), Loot.pick(zone.sizeLoot, random:NextNumber()))
 	end
 
 	local function takeEgg(nestId: string): (EggConfig.RarityId?, EggConfig.SizeId?)
@@ -108,17 +106,18 @@ function NestService.new(dependencies: Dependencies): NestService
 		end
 	end
 
-	local function start()
-		-- Nests are ranked by distance from the station: the farther, the higher the grade.
-		local sites: { WorldService.NestSite } = table.clone(dependencies.getNestSites())
+	-- Within a zone, nests are ranked by distance from the station and shared out among the
+	-- zone's posts: the farther, the higher the grade.
+	local function assignZone(zoneId: ZoneConfig.ZoneId, sites: { WorldService.NestSite })
 		local center = StationConfig.PLATFORM_CENTER
 		table.sort(sites, function(a: WorldService.NestSite, b: WorldService.NestSite)
 			return (a.eggCFrame.Position - center).Magnitude < (b.eggCFrame.Position - center).Magnitude
 		end)
+		local postCount = ZoneConfig.ZONES[zoneId].postCount
 		for rank, site in sites do
 			local nest: Nest = {
 				site = site,
-				grade = Posts.indexFor(rank, #sites, #GuardianConfig.DEBRIS_BELT_POSTS),
+				grade = ZoneConfig.postIndex(zoneId, Posts.indexFor(rank, #sites, postCount)),
 				rarity = nil,
 				size = nil,
 				egg = nil,
@@ -128,6 +127,17 @@ function NestService.new(dependencies: Dependencies): NestService
 			site.model:SetAttribute(EggConfig.NEST_EGG_POSITION_ATTRIBUTE, site.eggCFrame.Position)
 			CollectionService:AddTag(site.model, EggConfig.NEST_TAG)
 			growEgg(nest)
+		end
+	end
+
+	local function start()
+		local byZone: { [ZoneConfig.ZoneId]: { WorldService.NestSite } } = {}
+		for _, site in dependencies.getNestSites() do
+			byZone[site.zone] = byZone[site.zone] or {}
+			table.insert(byZone[site.zone], site)
+		end
+		for zoneId, sites in byZone do
+			assignZone(zoneId, sites)
 		end
 		dependencies.scheduler.every(TICK_SECONDS, tick)
 	end

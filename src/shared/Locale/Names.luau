@@ -1,6 +1,7 @@
 --!strict
 -- Player-facing names of things that have no name of their own yet: an alien is "<tier> · <its
--- guardian>", an egg is "<rarity> egg". Pure, so the names are testable in Lune.
+-- guardian>", an egg is "<rarity> egg", a jetpack is its level's name. Pure, so the names are
+-- testable in Lune.
 
 local AlienConfig = require("../Config/AlienConfig")
 local EggConfig = require("../Config/EggConfig")
@@ -13,12 +14,12 @@ local Names = {}
 -- Nil for an alien this build does not know.
 function Names.alien(locale: Text.Locale, alienId: string): string?
 	local alien = AlienConfig.ALIENS[alienId]
-	local post = alien and GuardianConfig.DEBRIS_BELT_POSTS[alien.grade]
+	local post = alien and GuardianConfig.POSTS[alien.grade]
 	if not alien or not post then
 		return nil
 	end
 	local tier = Text.get(locale, AlienConfig.TIERS[alien.tier].nameKey)
-	local guardian = Text.get(locale, GuardianConfig.KINDS[post.kind].nameKey)
+	local guardian = Text.get(locale, post.nameKey)
 	return `{tier} · {guardian}`
 end
 

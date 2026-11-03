@@ -1,7 +1,8 @@
 --!strict
--- Guardians of the nests: which nests get which guardian, how they chase and what a catch does.
--- Every guardian behaves the same; kinds differ in look (GuardianLooks) and posts in speed.
--- Pure Luau: the balance calculator and tests load it in Lune.
+-- Guardians of the nests: the 24 posts (one guardian each, six per zone), how they chase and
+-- what a catch does. Every guardian behaves the same; posts differ in name, speed and look
+-- (GuardianLooks), and share a few body kinds. Pure Luau: the balance calculator and tests
+-- load it in Lune.
 
 local AlienConfig = require("./AlienConfig")
 local BigNum = require("../Domain/BigNum")
@@ -10,28 +11,50 @@ local GuardianBrain = require("../Domain/GuardianBrain")
 local Speed = require("../Domain/Speed")
 -- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
 local Strings = require("../Locale/Strings")
+local ZoneConfig = require("./ZoneConfig")
 
-export type KindId = "SlimeWarden" | "CrabDrone"
+-- Body kinds: the models guardians are built from.
+export type KindId = "SlimeWarden" | "CrabDrone" | "IceWorm" | "DevourerSwarm" | "StarRay" | "SpaceWhale"
 
-export type Kind = {
-	read nameKey: keyof<typeof(Strings)>,
-}
+export type PostId =
+	"SlimeWarden"
+	| "CrabDrone"
+	| "VioletCrab"
+	| "AcidSlime"
+	| "RustyCrab"
+	| "SlimeKing"
+	| "IceWorm"
+	| "SnowCrab"
+	| "FrostSlime"
+	| "CrystalWorm"
+	| "IceRay"
+	| "WormMother"
+	| "DevourerSwarm"
+	| "StarRay"
+	| "FireSlime"
+	| "RedSwarm"
+	| "LightningRay"
+	| "DevourerQueen"
+	| "ShadowWorm"
+	| "BlackRay"
+	| "VoidSwarm"
+	| "GravityCrab"
+	| "WhaleCalf"
+	| "SpaceWhale"
 
--- A post is a guardian placed at a nest: its kind, the speed the sign over it recommends and
--- its own speed stat. Posts are handed out to nests from the nearest to the station outwards,
--- so farther nests get faster guardians.
+-- A post is one guardian at its nests: its name, body kind, zone, the speed the sign over it
+-- recommends and its own speed stat. Post k (counted from the station outwards) guards grade k.
 export type Post = {
+	read id: PostId,
+	read index: number,
+	read zone: ZoneConfig.ZoneId,
 	read kind: KindId,
+	read nameKey: keyof<typeof(Strings)>,
 	-- The stat that flies level with this guardian while carrying a typical egg: what the
 	-- player sees. Guardian k recommends FIRST_RECOMMENDED * RECOMMENDED_GROWTH^(k-1), so a new
 	-- player at the starting speed sees "10" over the first guardian and goes for it.
 	read recommended: BigNum.BigNum,
 	read speed: BigNum.BigNum,
-}
-
-local KINDS: { [KindId]: Kind } = {
-	SlimeWarden = { nameKey = "guardian.slimeWarden.title" },
-	CrabDrone = { nameKey = "guardian.crabDrone.title" },
 }
 
 local FIRST_RECOMMENDED = BigNum.fromNumber(10)
@@ -42,25 +65,59 @@ local RECOMMENDED_GROWTH = BigNum.fromNumber(3)
 local TYPICAL_WEIGHT =
 	Speed.eggWeight(EggConfig.RARITIES.Common.weight, EggConfig.SIZES[EggConfig.TYPICAL_SIZE].weightFactor)
 
-local function post(index: number, kind: KindId): Post
+-- Posts in order from the station outwards: six per zone (ZoneConfig.ZONE_ORDER).
+local POST_LIST: { { id: PostId, kind: KindId, nameKey: keyof<typeof(Strings)> } } = {
+	-- Debris Belt
+	{ id = "SlimeWarden", kind = "SlimeWarden", nameKey = "guardian.slimeWarden.title" },
+	{ id = "CrabDrone", kind = "CrabDrone", nameKey = "guardian.crabDrone.title" },
+	{ id = "VioletCrab", kind = "CrabDrone", nameKey = "guardian.violetCrab.title" },
+	{ id = "AcidSlime", kind = "SlimeWarden", nameKey = "guardian.acidSlime.title" },
+	{ id = "RustyCrab", kind = "CrabDrone", nameKey = "guardian.rustyCrab.title" },
+	{ id = "SlimeKing", kind = "SlimeWarden", nameKey = "guardian.slimeKing.title" },
+	-- Ice Rings
+	{ id = "IceWorm", kind = "IceWorm", nameKey = "guardian.iceWorm.title" },
+	{ id = "SnowCrab", kind = "CrabDrone", nameKey = "guardian.snowCrab.title" },
+	{ id = "FrostSlime", kind = "SlimeWarden", nameKey = "guardian.frostSlime.title" },
+	{ id = "CrystalWorm", kind = "IceWorm", nameKey = "guardian.crystalWorm.title" },
+	{ id = "IceRay", kind = "StarRay", nameKey = "guardian.iceRay.title" },
+	{ id = "WormMother", kind = "IceWorm", nameKey = "guardian.wormMother.title" },
+	-- Red Nebula
+	{ id = "DevourerSwarm", kind = "DevourerSwarm", nameKey = "guardian.devourerSwarm.title" },
+	{ id = "StarRay", kind = "StarRay", nameKey = "guardian.starRay.title" },
+	{ id = "FireSlime", kind = "SlimeWarden", nameKey = "guardian.fireSlime.title" },
+	{ id = "RedSwarm", kind = "DevourerSwarm", nameKey = "guardian.redSwarm.title" },
+	{ id = "LightningRay", kind = "StarRay", nameKey = "guardian.lightningRay.title" },
+	{ id = "DevourerQueen", kind = "DevourerSwarm", nameKey = "guardian.devourerQueen.title" },
+	-- Event Horizon
+	{ id = "ShadowWorm", kind = "IceWorm", nameKey = "guardian.shadowWorm.title" },
+	{ id = "BlackRay", kind = "StarRay", nameKey = "guardian.blackRay.title" },
+	{ id = "VoidSwarm", kind = "DevourerSwarm", nameKey = "guardian.voidSwarm.title" },
+	{ id = "GravityCrab", kind = "CrabDrone", nameKey = "guardian.gravityCrab.title" },
+	{ id = "WhaleCalf", kind = "SpaceWhale", nameKey = "guardian.whaleCalf.title" },
+	{ id = "SpaceWhale", kind = "SpaceWhale", nameKey = "guardian.spaceWhale.title" },
+}
+assert(#POST_LIST == ZoneConfig.POST_COUNT, "GuardianConfig posts and ZoneConfig.POST_COUNT disagree")
+-- Post k's eggs hatch into grade k: the two lists must agree.
+assert(#POST_LIST == #AlienConfig.GRADES, "GuardianConfig posts and AlienConfig.GRADES disagree")
+
+local POSTS: { Post } = {}
+local POSTS_BY_ID: { [PostId]: Post } = {}
+for index, entry in POST_LIST do
 	local recommended = BigNum.mul(FIRST_RECOMMENDED, BigNum.pow(RECOMMENDED_GROWTH, index - 1))
-	return {
-		kind = kind,
+	local zone = ZoneConfig.zoneOfPost(index)
+	local post: Post = table.freeze({
+		id = entry.id,
+		index = index,
+		zone = zone,
+		kind = entry.kind,
+		nameKey = entry.nameKey,
 		recommended = recommended,
 		speed = Speed.withEgg(recommended, TYPICAL_WEIGHT),
-	}
+	})
+	POSTS[index] = post
+	assert(not POSTS_BY_ID[entry.id], `guardian post {entry.id} repeats`)
+	POSTS_BY_ID[entry.id] = post
 end
-
-local DEBRIS_BELT_POSTS: { Post } = {
-	post(1, "SlimeWarden"),
-	post(2, "CrabDrone"),
-	post(3, "CrabDrone"),
-}
--- Post k's eggs hatch into grade k: the two lists must agree.
-assert(
-	#DEBRIS_BELT_POSTS == AlienConfig.DEBRIS_BELT_GRADES,
-	"GuardianConfig.DEBRIS_BELT_POSTS and AlienConfig.DEBRIS_BELT_GRADES disagree"
-)
 
 local BRAIN: GuardianBrain.Tuning = {
 	aggroDelaySeconds = 1,
@@ -71,10 +128,11 @@ local BRAIN: GuardianBrain.Tuning = {
 }
 
 return table.freeze({
-	KINDS = table.freeze(KINDS),
 	FIRST_RECOMMENDED = FIRST_RECOMMENDED,
 	RECOMMENDED_GROWTH = RECOMMENDED_GROWTH,
-	DEBRIS_BELT_POSTS = table.freeze(DEBRIS_BELT_POSTS),
+	-- Every post, from the station outwards; POSTS[k] guards grade k.
+	POSTS = table.freeze(POSTS),
+	POSTS_BY_ID = table.freeze(POSTS_BY_ID),
 	BRAIN = table.freeze(BRAIN),
 	TYPICAL_WEIGHT = TYPICAL_WEIGHT,
 	-- A sleeping guardian hovers this far above its nest's egg, studs.
@@ -101,7 +159,7 @@ return table.freeze({
 
 	TAG = "Guardian",
 	-- Guardian model attributes (replicated for the client view).
-	KIND_ATTRIBUTE = "Kind",
+	POST_ATTRIBUTE = "Post",
 	STATE_ATTRIBUTE = "State",
 	-- Server clock of the last catch; clients play the strike when it changes.
 	LAST_CATCH_ATTRIBUTE = "LastCatchAt",

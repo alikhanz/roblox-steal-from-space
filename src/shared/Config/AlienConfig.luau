@@ -1,12 +1,13 @@
 --!strict
--- Aliens: what hatches from eggs. Every guardian has a grade, its own set of five aliens (one
--- per tier) that hatch only from its eggs. Tiers differ in income and odds; grades earn more the
--- farther their guardian is from the station.
+-- Aliens: what hatches from eggs. Every guardian post has a grade, its own set of five aliens
+-- (one per tier) that hatch only from its eggs. Tiers differ in income and odds; grades earn
+-- more the farther their guardian is from the station.
 
 local BigNum = require("../Domain/BigNum")
 local Loot = require("../Domain/Loot")
 -- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
 local Strings = require("../Locale/Strings")
+local ZoneConfig = require("./ZoneConfig")
 
 export type TierId = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary"
 export type AlienId = string
@@ -29,6 +30,7 @@ export type Alien = {
 
 export type Grade = {
 	read index: number,
+	read zone: ZoneConfig.ZoneId,
 	read aliens: { [TierId]: AlienId },
 }
 
@@ -47,8 +49,6 @@ local TIERS: { [TierId]: Tier } = {
 -- grows slower than guardian speed (x1.8 against x3), so money matters more with every zone.
 local INCOME_BASE = BigNum.fromNumber(1)
 local INCOME_GROWTH = BigNum.fromNumber(1.7)
--- One grade per guardian post of the Debris Belt; GuardianConfig checks its posts against this.
-local DEBRIS_BELT_GRADES = 3
 
 local TIER_POSITIONS: { [TierId]: number } = {}
 local HATCH_ENTRIES: { Loot.Entry<TierId> } = {}
@@ -57,14 +57,17 @@ for position, tier in TIER_ORDER do
 	HATCH_ENTRIES[position] = table.freeze({ id = tier, weight = TIERS[tier].hatchWeight })
 end
 
+-- One grade per guardian post, in post order (six per zone). Ids name the zone and the post's
+-- number within it: "IceRings3.Rare".
 local GRADES: { Grade } = {}
 local ALIENS: { [AlienId]: Alien } = {}
-for index = 1, DEBRIS_BELT_GRADES do
+for index = 1, ZoneConfig.POST_COUNT do
+	local zone, localIndex = ZoneConfig.zoneOfPost(index)
 	local baseIncome = BigNum.mul(INCOME_BASE, BigNum.pow(INCOME_GROWTH, index - 1))
 	local aliens: { [TierId]: AlienId } = {}
 	for _, tier in TIER_ORDER do
 		-- Part of the save format: never renumber.
-		local id = `DebrisBelt{index}.{tier}`
+		local id = `{zone}{localIndex}.{tier}`
 		aliens[tier] = id
 		ALIENS[id] = table.freeze({
 			id = id,
@@ -73,7 +76,7 @@ for index = 1, DEBRIS_BELT_GRADES do
 			income = BigNum.mul(baseIncome, BigNum.fromNumber(TIERS[tier].incomeFactor)),
 		})
 	end
-	GRADES[index] = table.freeze({ index = index, aliens = table.freeze(aliens) })
+	GRADES[index] = table.freeze({ index = index, zone = zone, aliens = table.freeze(aliens) })
 end
 
 return table.freeze({
@@ -85,7 +88,6 @@ return table.freeze({
 	HATCH_ENTRIES = table.freeze(HATCH_ENTRIES),
 	INCOME_BASE = INCOME_BASE,
 	INCOME_GROWTH = INCOME_GROWTH,
-	DEBRIS_BELT_GRADES = DEBRIS_BELT_GRADES,
 	GRADES = table.freeze(GRADES),
 	ALIENS = table.freeze(ALIENS),
 })

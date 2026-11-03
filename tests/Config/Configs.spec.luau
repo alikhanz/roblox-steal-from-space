@@ -11,12 +11,20 @@ local Speed = require("../../src/shared/Domain/Speed")
 local SpeedConfig = require("../../src/shared/Config/SpeedConfig")
 local Strings = require("../../src/shared/Locale/Strings")
 local Test = require("../../lune/lib/Test")
+local WorldConfig = require("../../src/shared/Config/WorldConfig")
+local ZoneConfig = require("../../src/shared/Config/ZoneConfig")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 describe("AlienConfig", function()
 	it("has one grade per guardian post with an alien per tier", function()
-		expect(#AlienConfig.GRADES).toBe(#GuardianConfig.DEBRIS_BELT_POSTS)
+		expect(#AlienConfig.GRADES).toBe(#GuardianConfig.POSTS)
+		expect(#AlienConfig.GRADES).toBe(ZoneConfig.POST_COUNT)
+		-- Ids are part of the save format.
+		expect(AlienConfig.GRADES[1].aliens.Common).toBe("DebrisBelt1.Common")
+		expect(AlienConfig.GRADES[7].aliens.Rare).toBe("IceRings1.Rare")
+		expect(AlienConfig.GRADES[24].aliens.Legendary).toBe("EventHorizon6.Legendary")
 		for _, grade in AlienConfig.GRADES do
+			expect(grade.zone).toBe((ZoneConfig.zoneOfPost(grade.index)))
 			for _, tier in AlienConfig.TIER_ORDER do
 				local alien = AlienConfig.ALIENS[grade.aliens[tier]]
 				expect(alien).toBeTruthy()
@@ -53,46 +61,98 @@ describe("AlienConfig", function()
 end)
 
 describe("EggConfig", function()
-	it("rolls loot only for rarities and sizes that exist", function()
-		for _, entry in EggConfig.DEBRIS_BELT_LOOT do
-			expect(EggConfig.RARITIES[entry.id]).toBeTruthy()
-		end
-		for _, entry in EggConfig.DEBRIS_BELT_SIZE_LOOT do
-			expect(EggConfig.SIZES[entry.id]).toBeTruthy()
+	it("names every rarity and keeps the typical size", function()
+		for _, rarity in EggConfig.RARITY_ORDER do
+			expect(EggConfig.RARITIES[rarity]).toBeTruthy()
+			expect((Strings :: { [string]: any })[EggConfig.RARITIES[rarity].nameKey]).toBeTruthy()
 		end
 		expect(EggConfig.SIZES[EggConfig.TYPICAL_SIZE]).toBeTruthy()
 	end)
 
-	it("hatches rarer eggs slower and luckier", function()
-		local common, uncommon, rare = EggConfig.RARITIES.Common, EggConfig.RARITIES.Uncommon, EggConfig.RARITIES.Rare
-		expect(common.hatchSeconds.max < uncommon.hatchSeconds.max).toBe(true)
-		expect(uncommon.hatchSeconds.max < rare.hatchSeconds.max).toBe(true)
-		expect(rare.hatchSeconds.max <= 5 * 60 * 60).toBe(true)
-		expect(common.luck < uncommon.luck and uncommon.luck < rare.luck).toBe(true)
+	it("hatches rarer eggs slower, heavier and luckier, the rarest within 5 hours", function()
+		for position = 2, #EggConfig.RARITY_ORDER do
+			local lower = EggConfig.RARITIES[EggConfig.RARITY_ORDER[position - 1]]
+			local higher = EggConfig.RARITIES[EggConfig.RARITY_ORDER[position]]
+			expect(lower.hatchSeconds.max < higher.hatchSeconds.max).toBe(true)
+			expect(lower.weight < higher.weight).toBe(true)
+			expect(lower.luck < higher.luck).toBe(true)
+		end
+		local rarest = EggConfig.RARITIES[EggConfig.RARITY_ORDER[#EggConfig.RARITY_ORDER]]
+		expect(rarest.hatchSeconds.max <= 5 * 60 * 60).toBe(true)
+	end)
+end)
+
+describe("ZoneConfig", function()
+	it("lays the zones out from the station to the edge of the map", function()
+		local previousMax = 0
+		for _, id in ZoneConfig.ZONE_ORDER do
+			local zone = ZoneConfig.ZONES[id]
+			expect(zone.ringMin > previousMax).toBe(true)
+			expect(zone.ringMax > zone.ringMin).toBe(true)
+			expect(zone.ringMax < WorldConfig.BOUNDARY_RADIUS).toBe(true)
+			expect(zone.nestCount >= zone.postCount).toBe(true)
+			expect((Strings :: { [string]: any })[zone.nameKey]).toBeTruthy()
+			previousMax = zone.ringMax
+		end
+	end)
+
+	it("grows eggs only of rarities and sizes that exist, rarer farther out", function()
+		local previousRare = -1
+		for _, id in ZoneConfig.ZONE_ORDER do
+			local zone = ZoneConfig.ZONES[id]
+			for _, entry in zone.rarityLoot do
+				expect(EggConfig.RARITIES[entry.id]).toBeTruthy()
+			end
+			for _, entry in zone.sizeLoot do
+				expect(EggConfig.SIZES[entry.id]).toBeTruthy()
+			end
+			local rareOrBetter = 1 - Loot.chances(zone.rarityLoot).Common
+			expect(rareOrBetter > previousRare).toBe(true)
+			previousRare = rareOrBetter
+		end
+	end)
+
+	it("maps global posts to zones and back", function()
+		expect({ ZoneConfig.zoneOfPost(1) }).toEqual({ "DebrisBelt", 1 })
+		expect({ ZoneConfig.zoneOfPost(6) }).toEqual({ "DebrisBelt", 6 })
+		expect({ ZoneConfig.zoneOfPost(7) }).toEqual({ "IceRings", 1 })
+		expect({ ZoneConfig.zoneOfPost(24) }).toEqual({ "EventHorizon", 6 })
+		expect(ZoneConfig.postIndex("RedNebula", 2)).toBe(14)
+		expect(function()
+			ZoneConfig.zoneOfPost(25)
+		end).toThrow("out of range")
 	end)
 end)
 
 describe("GuardianConfig", function()
 	it("recommends the starting speed over the first guardian", function()
-		expect(BigNum.toNumber(GuardianConfig.DEBRIS_BELT_POSTS[1].recommended)).toBeCloseTo(
+		expect(BigNum.toNumber(GuardianConfig.POSTS[1].recommended)).toBeCloseTo(
 			BigNum.toNumber(SpeedConfig.STARTING_SPEED),
 			1e-9
 		)
 	end)
 
 	it("grows the recommendation by the growth factor and flies level with it", function()
-		local posts = GuardianConfig.DEBRIS_BELT_POSTS
+		local posts = GuardianConfig.POSTS
 		expect(posts[1].recommended).toEqual(GuardianConfig.FIRST_RECOMMENDED)
 		for index = 2, #posts do
 			local expected = BigNum.mul(posts[index - 1].recommended, GuardianConfig.RECOMMENDED_GROWTH)
 			expect(BigNum.toNumber(posts[index].recommended)).toBeCloseTo(BigNum.toNumber(expected), 1e-9)
 		end
-		for _, post in posts do
-			expect(GuardianConfig.KINDS[post.kind]).toBeTruthy()
+		for index, post in posts do
+			expect(post.index).toBe(index)
+			expect(post.zone).toBe((ZoneConfig.zoneOfPost(index)))
+			expect(GuardianConfig.POSTS_BY_ID[post.id]).toBe(post)
+			expect((Strings :: { [string]: any })[post.nameKey]).toBeTruthy()
 			-- A thief at the recommended speed with a typical egg matches the guardian exactly.
 			local withEgg = Speed.withEgg(post.recommended, GuardianConfig.TYPICAL_WEIGHT)
 			expect(BigNum.toNumber(withEgg)).toBeCloseTo(BigNum.toNumber(post.speed), 1e-9)
 		end
+	end)
+
+	it("puts the last guardian near a trillion", function()
+		local last = GuardianConfig.POSTS[#GuardianConfig.POSTS].recommended
+		expect(BigNum.toNumber(last) > 5e11 and BigNum.toNumber(last) < 2e12).toBe(true)
 	end)
 end)
 

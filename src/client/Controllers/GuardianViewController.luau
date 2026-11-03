@@ -59,9 +59,9 @@ function GuardianViewController.new(): GuardianViewController
 		if views[instance] or not instance:IsDescendantOf(workspace) then
 			return
 		end
-		local kindId = instance:GetAttribute(GuardianConfig.KIND_ATTRIBUTE)
-		local kind = GuardianConfig.KINDS[kindId :: GuardianConfig.KindId]
-		if not instance:IsA("Model") or not body or not body:IsA("BasePart") or not kind then
+		local postId = instance:GetAttribute(GuardianConfig.POST_ATTRIBUTE)
+		local post = GuardianConfig.POSTS_BY_ID[postId :: GuardianConfig.PostId]
+		if not instance:IsA("Model") or not body or not body:IsA("BasePart") or not post then
 			warn(`[GuardianViewController] {instance:GetFullName()} is not a complete guardian; no sign`)
 			return
 		end
@@ -69,7 +69,7 @@ function GuardianViewController.new(): GuardianViewController
 		local unmount = Vide.mount(function()
 			return GuardianLabel({
 				adornee = body,
-				name = Text.get(locale, kind.nameKey),
+				name = Text.get(locale, post.nameKey),
 				recommended = recommendedText(instance),
 			})
 		end, instance)

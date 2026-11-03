@@ -1,29 +1,21 @@
 --!strict
--- Greybox asteroid field around the station. Seeded, so every server builds the same field.
+-- Greybox space around the station: the asteroid field and the hard edge of the map. Where the
+-- zones and their nests lie is in ZoneConfig; colors are in ZoneLooks. Seeded, so every server
+-- builds the same field. Pure Luau: tests load it in Lune.
 
 return table.freeze({
 	SEED = 20261102,
-	ASTEROID_COUNT = 140,
+	ASTEROID_COUNT = 320,
 	-- Distance from the station center, studs.
 	INNER_RADIUS = 160,
-	OUTER_RADIUS = 900,
+	OUTER_RADIUS = 1450,
 	-- The field is flattened into a thick disc: max height above or below the station.
 	VERTICAL_SPREAD = 250,
 	-- Hard edge of the map: a sphere around the station nobody flies out of (see Bounds).
-	BOUNDARY_RADIUS = 1000,
+	BOUNDARY_RADIUS = 1600,
 	MIN_SIZE = 8,
 	MAX_SIZE = 45,
-	-- Nests of the Debris Belt: dedicated asteroids spread around a ring outside the dome.
-	NEST_COUNT = 12,
-	NEST_RING_MIN = 190,
-	NEST_RING_MAX = 320,
-	NEST_HEIGHT_SPREAD = 60,
+	-- Nest asteroids: dedicated rocks with a bowl on top.
 	NEST_ASTEROID_MIN_SIZE = 20,
 	NEST_ASTEROID_MAX_SIZE = 28,
-	ROCK_COLORS = table.freeze({
-		Color3.fromRGB(96, 92, 104),
-		Color3.fromRGB(120, 112, 118),
-		Color3.fromRGB(78, 80, 92),
-		Color3.fromRGB(110, 98, 90),
-	}),
 })

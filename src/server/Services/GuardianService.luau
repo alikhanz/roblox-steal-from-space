@@ -201,15 +201,14 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		end
 	end
 
-	local function place(site: WorldService.NestSite, post: GuardianConfig.Post, postIndex: number, folder: Instance)
-		local look = GuardianLooks.KINDS[post.kind]
-		local model = GuardianModel.build(look, GuardianLooks.DEBRIS_BELT_POST_COLORS[postIndex])
+	local function place(site: WorldService.NestSite, post: GuardianConfig.Post, folder: Instance)
+		local model = GuardianModel.build(GuardianLooks.KINDS[post.kind], GuardianLooks.POSTS[post.id])
 		local body = model.PrimaryPart :: BasePart
 		local home = site.eggCFrame.Position + Vector3.yAxis * GuardianConfig.HOVER_HEIGHT
 		model:PivotTo(CFrame.new(home))
 
 		local recommended = post.recommended
-		model:SetAttribute(GuardianConfig.KIND_ATTRIBUTE, post.kind)
+		model:SetAttribute(GuardianConfig.POST_ATTRIBUTE, post.id)
 		model:SetAttribute(GuardianConfig.STATE_ATTRIBUTE, "Sleep")
 		model:SetAttribute(GuardianConfig.RECOMMENDED_MANTISSA_ATTRIBUTE, recommended.mantissa)
 		model:SetAttribute(GuardianConfig.RECOMMENDED_EXPONENT_ATTRIBUTE, recommended.exponent)
@@ -244,12 +243,12 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 
 		for _, site in dependencies.getNestSites() do
 			local postIndex = dependencies.getNestGrade(site.id)
-			local post = postIndex and GuardianConfig.DEBRIS_BELT_POSTS[postIndex]
+			local post = postIndex and GuardianConfig.POSTS[postIndex]
 			if not postIndex or not post then
 				warn(`[GuardianService] {site.id} has no post; no guardian`)
 				continue
 			end
-			place(site, post, postIndex, folder)
+			place(site, post, folder)
 		end
 
 		dependencies.scheduler.every(GuardianConfig.TICK_SECONDS, tick)
