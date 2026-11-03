@@ -108,7 +108,8 @@ function BayModel.podAlienCFrame(origin: CFrame, index: number): CFrame
 	return BayModel.podCFrame(origin, index) * CFrame.new(0, BayLooks.POD_STAND_HEIGHT, 0)
 end
 
--- The trainer pad: a walkable disc at the front of the bay, ringed with light.
+-- The trainer zone: an outline on the station floor beside the bay (a dark disc inside a glowing
+-- ring), nothing to climb. The prompt and the sign hang on the disc.
 local function buildTrainer(origin: CFrame, parent: Instance)
 	local pad = BayConfig.TRAINER_PAD
 	local center = origin * CFrame.new(pad.x, 0, pad.z)
@@ -119,8 +120,9 @@ local function buildTrainer(origin: CFrame, parent: Instance)
 		pad.radius,
 		BayLooks.TRAINER_HEIGHT
 	)
-	plate.Material = Enum.Material.Metal
+	plate.Material = Enum.Material.SmoothPlastic
 	plate.Color = BayLooks.TRAINER_COLOR
+	plate.CanCollide = false
 	scenery(plate)
 	plate.Parent = parent
 

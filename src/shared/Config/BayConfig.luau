@@ -4,10 +4,11 @@
 local BigNum = require("../Domain/BigNum")
 local Trainer = require("../Domain/Trainer")
 
--- The trainer pad in the bay's frame (X right, -Z toward the platform center, Y up).
+-- The trainer zone in the bay's frame (X right, -Z toward the platform center, Y up): on the
+-- station floor just off the bay's right side, level with the pods.
 local TRAINER_PAD: Trainer.Pad = {
-	x = 0,
-	z = -8.6,
+	x = 16.5,
+	z = -3.75,
 	radius = 1.8,
 	height = 6,
 }
