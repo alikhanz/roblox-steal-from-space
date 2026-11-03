@@ -224,6 +224,78 @@ local Strings = {
 		ru = "+{gain} ⚡",
 		en = "+{gain} ⚡",
 	},
+	["shop.sign.title"] = {
+		ru = "Магазин джетпаков",
+		en = "Jetpack shop",
+	},
+	["shop.open.button"] = {
+		ru = "Открыть",
+		en = "Open",
+	},
+	["shop.window.title"] = {
+		ru = "Магазин джетпаков",
+		en = "Jetpack shop",
+	},
+	["shop.window.hint"] = {
+		ru = "Каждый джетпак удваивает ⚡ и горит ярче",
+		en = "Every jetpack doubles ⚡ and burns brighter",
+	},
+	["shop.multiplier.hint"] = {
+		ru = "⚡ ×{factor}",
+		en = "⚡ ×{factor}",
+	},
+	["shop.owned.hint"] = {
+		ru = "Твой",
+		en = "Yours",
+	},
+	["shop.buy.button"] = {
+		ru = "Купить: {price} ●",
+		en = "Buy: {price} ●",
+	},
+	["shop.locked.hint"] = {
+		ru = "Ещё не доступен",
+		en = "Not yet",
+	},
+	["shop.past.hint"] = {
+		ru = "Был твоим",
+		en = "Outgrown",
+	},
+	["jetpack.level0.title"] = {
+		ru = "Стартовый",
+		en = "Starter",
+	},
+	["jetpack.level1.title"] = {
+		ru = "Искра",
+		en = "Spark",
+	},
+	["jetpack.level2.title"] = {
+		ru = "Комета",
+		en = "Comet",
+	},
+	["jetpack.level3.title"] = {
+		ru = "Плазма",
+		en = "Plasma",
+	},
+	["jetpack.level4.title"] = {
+		ru = "Ион",
+		en = "Ion",
+	},
+	["jetpack.level5.title"] = {
+		ru = "Пульсар",
+		en = "Pulsar",
+	},
+	["jetpack.level6.title"] = {
+		ru = "Квазар",
+		en = "Quasar",
+	},
+	["jetpack.level7.title"] = {
+		ru = "Антиматерия",
+		en = "Antimatter",
+	},
+	["jetpack.beyond.title"] = {
+		ru = "{name} +{extra}",
+		en = "{name} +{extra}",
+	},
 	["alien.pickUp.button"] = {
 		ru = "Подобрать",
 		en = "Pick up",

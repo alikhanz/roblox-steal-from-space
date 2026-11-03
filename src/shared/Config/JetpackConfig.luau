@@ -18,26 +18,21 @@ return table.freeze({
 
 	LEAN = table.freeze(LEAN),
 
-	-- Model
+	-- Model (the parts that change with the jetpack level are in JetpackLooks)
 	MODEL_NAME = "Jetpack",
-	BODY_COLOR = Color3.fromRGB(196, 202, 214),
 	FRAME_COLOR = Color3.fromRGB(52, 56, 70),
-	ACCENT_COLOR = Color3.fromRGB(90, 200, 255),
 	GRIP_COLOR = Color3.fromRGB(40, 42, 52),
 	BUTTON_COLOR = Color3.fromRGB(255, 70, 70),
 	HOSE_COLOR = Color3.fromRGB(34, 36, 44),
 
-	-- Flames (client-side visuals)
+	-- Flames (client-side visuals; colors and scale per level in JetpackLooks)
 	FLAME_TEXTURE = "rbxasset://textures/particles/fire_main.dds",
-	FLAME_COLOR_START = Color3.fromRGB(255, 236, 160),
-	FLAME_COLOR_END = Color3.fromRGB(255, 96, 30),
 	-- Particles per second per nozzle: idle hover and full thrust.
 	FLAME_RATE_IDLE = 35,
 	FLAME_RATE_FULL = 110,
 	-- The engine stalls while a guardian's hit stuns the flyer, then restarts with a burst.
 	FLAME_BURST_RATE = 400,
 	FLAME_BURST_SECONDS = 0.3,
-	FLAME_LIGHT_COLOR = Color3.fromRGB(255, 150, 70),
 	FLAME_LIGHT_BRIGHTNESS = 2,
 	FLAME_LIGHT_RANGE = 10,
 

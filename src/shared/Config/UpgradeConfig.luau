@@ -26,6 +26,21 @@ return table.freeze({
 	-- The trainer pays out this often while its owner stands on it (CONVENTIONS, performance).
 	TRAINING_TICK_SECONDS = 1,
 
+	-- Names of the jetpacks by level (level 0 first); levels past the list keep the last name
+	-- with a "+n" (Names.jetpack). JetpackLooks describes the same levels.
+	JETPACK_NAME_KEYS = table.freeze({
+		"jetpack.level0.title",
+		"jetpack.level1.title",
+		"jetpack.level2.title",
+		"jetpack.level3.title",
+		"jetpack.level4.title",
+		"jetpack.level5.title",
+		"jetpack.level6.title",
+		"jetpack.level7.title",
+	}),
+	-- Player attribute: the jetpack level, so every client can draw the right flames.
+	JETPACK_LEVEL_ATTRIBUTE = "JetpackLevel",
+
 	-- Training keeps going while the player is away: at this share of the rate, up to this long.
 	OFFLINE_TRAINING_FACTOR = 0.5,
 	OFFLINE_TRAINING_CAP_SECONDS = 8 * 60 * 60,

@@ -187,6 +187,13 @@ event BuyPod = {
 	call: SingleSync,
 }
 
+-- The next jetpack level, from the shop window (the trainer is upgraded at its pad instead).
+event UpgradeJetpack = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}
+
 -- The client asks for its snapshot once its controllers are ready, in case the profile
 -- activated before they were.
 event RequestSnapshot = {

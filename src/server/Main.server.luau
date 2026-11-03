@@ -10,6 +10,7 @@ local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local GuardianService = require(script.Parent.Services.GuardianService)
+local JetpackService = require(script.Parent.Services.JetpackService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
@@ -66,7 +67,16 @@ trainingDependencies.publishSpeed = speedService.publish
 trainingDependencies.upgradeTrainer = economyService.upgradeTrainer
 trainingDependencies.trainerUpgraded = economyService.trainerUpgraded
 trainingDependencies.notify = netService.notify
-local spaceService = SpaceService.new({ getSpawn = worldService.getSpawn })
+local jetpackService = JetpackService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	jetpackUpgraded = economyService.jetpackUpgraded,
+	publishSpeed = speedService.publish,
+})
+local spaceService = SpaceService.new({
+	getSpawn = worldService.getSpawn,
+	getJetpackLooks = jetpackService.getLooks,
+})
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
 	returnNestEgg = nestService.returnEgg,
@@ -104,6 +114,7 @@ Lifecycle.run({
 	worldService,
 	nestService,
 	speedService,
+	jetpackService,
 	spaceService,
 	carryService,
 	guardianService,

@@ -152,6 +152,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		Remotes.BuyPod.SetCallback(guarded(function(player)
 			return economy.buyPod(player)
 		end))
+		Remotes.UpgradeJetpack.SetCallback(guarded(function(player)
+			return economy.upgradeJetpack(player)
+		end))
 
 		PlayerEvents.observe(function() end, function(player)
 			limiter.forget(tostring(player.UserId))

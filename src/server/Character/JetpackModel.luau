@@ -6,8 +6,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
+local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
 
 local JetpackModel = {}
+
+-- Part names whose colors follow the jetpack level.
+local BODY_PARTS = { Tank = true, Cap = true }
+local ACCENT_PARTS = { Stripe = true }
 
 -- Fractions of the UpperTorso size.
 local TANK_HEIGHT = 0.95
@@ -53,7 +58,7 @@ local function upright(position: Vector3): CFrame
 	return CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
 end
 
-local function addFlame(nozzle: BasePart, exitOffset: Vector3)
+local function addFlame(nozzle: BasePart, exitOffset: Vector3, looks: JetpackLooks.Looks)
 	local exit = Instance.new("Attachment")
 	exit.Name = JetpackConfig.NOZZLE_ATTACHMENT_NAME
 	-- The nozzle's axis is its local X (pointing up once upright). Turning the attachment 90° about Z
@@ -64,14 +69,10 @@ local function addFlame(nozzle: BasePart, exitOffset: Vector3)
 	local flame = Instance.new("ParticleEmitter")
 	flame.Name = JetpackConfig.FLAME_NAME
 	flame.Texture = JetpackConfig.FLAME_TEXTURE
-	flame.Color = ColorSequence.new(JetpackConfig.FLAME_COLOR_START, JetpackConfig.FLAME_COLOR_END)
+	flame.Color = ColorSequence.new(looks.flameStart, looks.flameEnd)
 	flame.LightEmission = 1
 	-- Wide and bright at the nozzle, tapering and fading over about a stud and a half.
-	flame.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.9),
-		NumberSequenceKeypoint.new(0.4, 0.6),
-		NumberSequenceKeypoint.new(1, 0.1),
-	})
+	flame.Size = JetpackLooks.flameSize(looks.sizeScale)
 	flame.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0),
 		NumberSequenceKeypoint.new(0.6, 0.3),
@@ -89,14 +90,14 @@ local function addFlame(nozzle: BasePart, exitOffset: Vector3)
 
 	local light = Instance.new("PointLight")
 	light.Name = JetpackConfig.FLAME_LIGHT_NAME
-	light.Color = JetpackConfig.FLAME_LIGHT_COLOR
+	light.Color = looks.lightColor
 	light.Brightness = 0
 	light.Range = JetpackConfig.FLAME_LIGHT_RANGE
 	light.Enabled = false
 	light.Parent = exit
 end
 
-local function buildPack(model: Model, torso: BasePart): { [number]: Attachment }
+local function buildPack(model: Model, torso: BasePart, looks: JetpackLooks.Looks): { [number]: Attachment }
 	local size = torso.Size
 	local backZ = size.Z / 2
 	local plateZ = backZ + size.Z * PLATE_THICKNESS / 2
@@ -122,14 +123,13 @@ local function buildPack(model: Model, torso: BasePart): { [number]: Attachment 
 			"Tank",
 			Enum.PartType.Cylinder,
 			Vector3.new(tankHeight, tankDiameter, tankDiameter),
-			JetpackConfig.BODY_COLOR,
+			looks.bodyColor,
 			Enum.Material.Metal
 		)
 		weld(tank, torso, upright(Vector3.new(x, 0, tankZ)))
 		tank.Parent = model
 
-		local cap =
-			decor("Cap", Enum.PartType.Ball, Vector3.one * tankDiameter, JetpackConfig.BODY_COLOR, Enum.Material.Metal)
+		local cap = decor("Cap", Enum.PartType.Ball, Vector3.one * tankDiameter, looks.bodyColor, Enum.Material.Metal)
 		weld(cap, torso, CFrame.new(x, tankHeight / 2, tankZ))
 		cap.Parent = model
 
@@ -137,7 +137,7 @@ local function buildPack(model: Model, torso: BasePart): { [number]: Attachment 
 			"Stripe",
 			Enum.PartType.Cylinder,
 			Vector3.new(tankHeight * 0.08, tankDiameter * 1.04, tankDiameter * 1.04),
-			JetpackConfig.ACCENT_COLOR,
+			looks.accentColor,
 			Enum.Material.Neon
 		)
 		weld(stripe, torso, upright(Vector3.new(x, tankHeight * 0.2, tankZ)))
@@ -153,7 +153,7 @@ local function buildPack(model: Model, torso: BasePart): { [number]: Attachment 
 		)
 		weld(nozzle, torso, upright(Vector3.new(x, -tankHeight / 2 - nozzleLength / 2, tankZ)))
 		-- In the nozzle's own frame its axis is X; the exit is the end pointing down (-X after the upright turn).
-		addFlame(nozzle, Vector3.new(-nozzleLength / 2, 0, 0))
+		addFlame(nozzle, Vector3.new(-nozzleLength / 2, 0, 0), looks)
 		nozzle.Parent = model
 
 		-- On the outer side of the tank, low down. In the upright tank's frame local X points up and
@@ -210,8 +210,25 @@ local function buildGrip(model: Model, hand: BasePart, hoseAnchor: Attachment)
 	hose.Parent = grip
 end
 
--- Attaches a jetpack to `character`. Returns nil (with a warning) for rigs it cannot fit.
-function JetpackModel.attach(character: Model): Model?
+-- Recolors an attached jetpack for a new level: tanks, stripes, flames and their light.
+function JetpackModel.applyLooks(model: Model, looks: JetpackLooks.Looks)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") and BODY_PARTS[descendant.Name] then
+			descendant.Color = looks.bodyColor
+		elseif descendant:IsA("BasePart") and ACCENT_PARTS[descendant.Name] then
+			descendant.Color = looks.accentColor
+		elseif descendant:IsA("ParticleEmitter") and descendant.Name == JetpackConfig.FLAME_NAME then
+			descendant.Color = ColorSequence.new(looks.flameStart, looks.flameEnd)
+			descendant.Size = JetpackLooks.flameSize(looks.sizeScale)
+		elseif descendant:IsA("PointLight") and descendant.Name == JetpackConfig.FLAME_LIGHT_NAME then
+			descendant.Color = looks.lightColor
+		end
+	end
+end
+
+-- Attaches a jetpack with `looks` to `character`. Returns nil (with a warning) for rigs it
+-- cannot fit.
+function JetpackModel.attach(character: Model, looks: JetpackLooks.Looks): Model?
 	local torso = character:FindFirstChild("UpperTorso")
 	local rightHand = character:FindFirstChild("RightHand")
 	local leftHand = character:FindFirstChild("LeftHand")
@@ -231,7 +248,7 @@ function JetpackModel.attach(character: Model): Model?
 
 	local model = Instance.new("Model")
 	model.Name = JetpackConfig.MODEL_NAME
-	local hoseAnchors = buildPack(model, torso)
+	local hoseAnchors = buildPack(model, torso, looks)
 	-- Right hand hoses to the right tank (+X side), left hand to the left one.
 	buildGrip(model, rightHand, hoseAnchors[1])
 	buildGrip(model, leftHand, hoseAnchors[-1])

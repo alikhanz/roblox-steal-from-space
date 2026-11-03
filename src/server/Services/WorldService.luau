@@ -2,9 +2,12 @@
 -- Builds the greybox world at server start: station platform, dome, spawn, asteroid field and
 -- space lighting. Code-owned so the world lives in Git; real models replace the parts later.
 
+local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
+local ShopModel = require(script.Parent.Parent.World.ShopModel)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.WorldConfig)
 
@@ -261,6 +264,9 @@ function WorldService.new(): WorldService
 		local world = Instance.new("Folder")
 		world.Name = WORLD_FOLDER_NAME
 		spawn = buildStation(world)
+		local shop = ShopModel.build()
+		CollectionService:AddTag(shop, ShopConfig.TAG)
+		shop.Parent = world
 		buildAsteroids(world)
 		nestSites = buildNests(world)
 		buildBoundary(world)

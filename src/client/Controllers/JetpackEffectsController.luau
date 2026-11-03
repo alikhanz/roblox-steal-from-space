@@ -12,7 +12,9 @@ local FlightAnimation = require(ReplicatedStorage.Shared.Character.FlightAnimati
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
+local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
+local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 
 export type JetpackEffectsController = {
 	name: string,
@@ -77,6 +79,9 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			local thrust = if type(maxSpeed) == "number" and maxSpeed > 0
 				then math.clamp(root.AssemblyLinearVelocity.Magnitude / maxSpeed, 0, 1)
 				else 0
+			-- A better jetpack burns harder: its level scales the flame and the glow.
+			local level = player:GetAttribute(UpgradeConfig.JETPACK_LEVEL_ATTRIBUTE)
+			local looks = JetpackLooks.forLevel(if type(level) == "number" then level else 0)
 			local rate = if now < effects.burstUntil
 				then JetpackConfig.FLAME_BURST_RATE
 				else JetpackConfig.FLAME_RATE_IDLE
@@ -84,11 +89,11 @@ function JetpackEffectsController.new(): JetpackEffectsController
 
 			for _, flame in effects.flames do
 				flame.Enabled = flying
-				flame.Rate = rate
+				flame.Rate = rate * looks.flameScale
 			end
 			for _, light in effects.lights do
 				light.Enabled = flying
-				light.Brightness = JetpackConfig.FLAME_LIGHT_BRIGHTNESS * (0.5 + 0.5 * thrust)
+				light.Brightness = JetpackConfig.FLAME_LIGHT_BRIGHTNESS * looks.flameScale * (0.5 + 0.5 * thrust)
 			end
 		end
 	end
