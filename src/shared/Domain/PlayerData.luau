@@ -31,8 +31,11 @@ export type Pod = {
 export type PlayerData = {
 	schemaVersion: number,
 	coins: BigNum.BigNum,
-	-- The trained speed stat.
-	speed: BigNum.BigNum,
+	-- Speed points earned on the trainer. The stat the player sees is this times the jetpack
+	-- multiplier (Domain/Upgrades).
+	trained: BigNum.BigNum,
+	trainerLevel: number,
+	jetpackLevel: number,
 	-- Pods the player owns, earning when they hold an alien.
 	pods: { Pod },
 	inventory: { AlienRecord },
@@ -47,6 +50,7 @@ export type PlayerData = {
 
 -- Starting values that come from configs; the domain never reads configs itself.
 export type Defaults = {
+	-- Trained speed of a new player (their whole stat, with no jetpack level yet).
 	read startingSpeed: BigNum.BigNum,
 	read startingPods: number,
 }
@@ -56,12 +60,18 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 2
+PlayerData.SCHEMA_VERSION = 3
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
 	-- v1 held only coins; everything v2 adds is filled from the template by reconcile.
 	[1] = function(_data: { [string]: any }) end,
+	-- v2's `speed` was the whole stat with no jetpack yet, so it is the trained part of v3;
+	-- the levels are filled from the template.
+	[2] = function(data: { [string]: any })
+		data.trained = data.speed
+		data.speed = nil
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -73,7 +83,9 @@ function PlayerData.template(defaults: Defaults): PlayerData
 	return {
 		schemaVersion = PlayerData.SCHEMA_VERSION,
 		coins = BigNum.ZERO,
-		speed = defaults.startingSpeed,
+		trained = defaults.startingSpeed,
+		trainerLevel = 0,
+		jetpackLevel = 0,
 		pods = pods,
 		inventory = {},
 		floor = {},
@@ -164,12 +176,17 @@ end
 
 -- Checks a migrated, reconciled copy and converts saved values into their runtime form in place.
 local function validate(data: { [string]: any }): string?
-	for _, field in { "coins", "speed" } do
+	for _, field in { "coins", "trained" } do
 		local value = BigNum.fromSaved(data[field])
 		if not value then
 			return `{field} is not a valid BigNum`
 		end
 		data[field] = value
+	end
+	for _, field in { "trainerLevel", "jetpackLevel" } do
+		if not isInteger(data[field]) or data[field] < 0 then
+			return `{field} is invalid`
+		end
 	end
 
 	local seen: Uids = {}

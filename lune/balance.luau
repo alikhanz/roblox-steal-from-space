@@ -17,6 +17,7 @@ local Loot = require("../src/shared/Domain/Loot")
 local PlayerData = require("../src/shared/Domain/PlayerData")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
 local UpgradeConfig = require("../src/shared/Config/UpgradeConfig")
+local Upgrades = require("../src/shared/Domain/Upgrades")
 
 local ASSUMPTIONS = {
 	-- Guardians in the whole game (GAME_DESIGN); posts past the configured ones keep the growth.
@@ -116,12 +117,10 @@ local function simulate(profile: Profile, seed: number): Run
 	local run: Run = { firstBeat = {}, snapshots = {} }
 
 	local function speed(): number
-		return trained * toNumber(UpgradeConfig.JETPACK_MULTIPLIER) ^ jetpackLevel
+		return trained * toNumber(Upgrades.jetpackMultiplier(jetpackLevel, UpgradeConfig.TUNING))
 	end
 	local function trainRate(): number
-		return toNumber(UpgradeConfig.TRAINER_BASE_RATE)
-			* toNumber(UpgradeConfig.TRAINER_RATE_GROWTH) ^ trainerLevel
-			* profile.pass
+		return toNumber(Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING)) * profile.pass
 	end
 	local function canBeat(post: number): boolean
 		return speed() >= recommendedFor(post) * ASSUMPTIONS.escapeRatio
@@ -170,10 +169,10 @@ local function simulate(profile: Profile, seed: number): Run
 		return toNumber(BayConfig.POD_PRICE_BASE) * toNumber(BayConfig.POD_PRICE_GROWTH) ^ bought
 	end
 	local function trainerPrice(): number
-		return toNumber(UpgradeConfig.TRAINER_COST_BASE) * toNumber(UpgradeConfig.TRAINER_COST_GROWTH) ^ trainerLevel
+		return toNumber(Upgrades.trainerPrice(trainerLevel, UpgradeConfig.TUNING))
 	end
 	local function jetpackPrice(): number
-		return toNumber(UpgradeConfig.JETPACK_COST_BASE) * toNumber(UpgradeConfig.JETPACK_COST_GROWTH) ^ jetpackLevel
+		return toNumber(Upgrades.jetpackPrice(jetpackLevel, UpgradeConfig.TUNING))
 	end
 
 	-- A pod whenever an alien waits for one; otherwise whichever upgrade gives more speed per coin.
@@ -186,8 +185,8 @@ local function simulate(profile: Profile, seed: number): Run
 				refreshIncome()
 				continue
 			end
-			local trainerGain = (toNumber(UpgradeConfig.TRAINER_RATE_GROWTH) - 1) / trainerPrice()
-			local jetpackGain = (toNumber(UpgradeConfig.JETPACK_MULTIPLIER) - 1) / jetpackPrice()
+			local trainerGain = (toNumber(UpgradeConfig.TUNING.trainerRateGrowth) - 1) / trainerPrice()
+			local jetpackGain = (toNumber(UpgradeConfig.TUNING.jetpackMultiplier) - 1) / jetpackPrice()
 			if trainerGain >= jetpackGain and coins >= trainerPrice() then
 				coins -= trainerPrice()
 				trainerLevel += 1

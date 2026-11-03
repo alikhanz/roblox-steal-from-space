@@ -1,22 +1,27 @@
 --!strict
--- The trainer and jetpack upgrades (stage 4 builds them; the balance calculator already uses
--- the numbers). The speed stat is trained speed x jetpack multiplier.
+-- The trainer and jetpack upgrades (see Domain/Upgrades for the formulas). The speed stat is
+-- trained speed x jetpack multiplier. The balance calculator reads the same numbers.
 
 local BigNum = require("../Domain/BigNum")
+local Upgrades = require("../Domain/Upgrades")
 
-return table.freeze({
+local TUNING: Upgrades.Tuning = {
 	-- Speed points per second on a level-0 trainer, and the gain per trainer level.
-	TRAINER_BASE_RATE = BigNum.fromNumber(0.3),
-	TRAINER_RATE_GROWTH = BigNum.fromNumber(1.6),
-	-- Trainer level n costs TRAINER_COST_BASE * TRAINER_COST_GROWTH^(n-1) coins.
-	TRAINER_COST_BASE = BigNum.fromNumber(300),
-	TRAINER_COST_GROWTH = BigNum.fromNumber(5),
+	trainerBaseRate = BigNum.fromNumber(0.3),
+	trainerRateGrowth = BigNum.fromNumber(1.6),
+	-- Trainer level n costs 300 * 5^(n-1) coins.
+	trainerCostBase = BigNum.fromNumber(300),
+	trainerCostGrowth = BigNum.fromNumber(5),
 
 	-- Each jetpack level multiplies the whole speed stat by this.
-	JETPACK_MULTIPLIER = BigNum.fromNumber(2),
-	-- Jetpack level n costs JETPACK_COST_BASE * JETPACK_COST_GROWTH^(n-1) coins.
-	JETPACK_COST_BASE = BigNum.fromNumber(2000),
-	JETPACK_COST_GROWTH = BigNum.fromNumber(8),
+	jetpackMultiplier = BigNum.fromNumber(2),
+	-- Jetpack level n costs 2000 * 8^(n-1) coins.
+	jetpackCostBase = BigNum.fromNumber(2000),
+	jetpackCostGrowth = BigNum.fromNumber(8),
+}
+
+return table.freeze({
+	TUNING = table.freeze(TUNING),
 
 	-- Training keeps going while the player is away: at this share of the rate, up to this long.
 	OFFLINE_TRAINING_FACTOR = 0.5,

@@ -174,7 +174,8 @@ function DevService.new(dependencies: Dependencies): DevService
 				return table.concat(names, ", ")
 			end
 			local podList = table.concat(pods, ", ")
-			return `coins {BigNum.format(data.coins)} | speed {BigNum.format(data.speed)} | pods [{podList}]`
+			return `coins {BigNum.format(data.coins)} | trained {BigNum.format(data.trained)}`
+				.. ` | trainer {data.trainerLevel} | jetpack {data.jetpackLevel} | pods [{podList}]`
 				.. ` | inventory [{ids(data.inventory)}] | floor [{ids(data.floor)}] | eggs {#data.incubator}`
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).

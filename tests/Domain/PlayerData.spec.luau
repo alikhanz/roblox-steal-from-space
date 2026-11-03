@@ -36,7 +36,9 @@ end
 describe("PlayerData.template", function()
 	it("starts with the configured speed and empty pods", function()
 		local data = PlayerData.template(DEFAULTS)
-		expect(data.speed).toBe(DEFAULTS.startingSpeed)
+		expect(data.trained).toBe(DEFAULTS.startingSpeed)
+		expect(data.trainerLevel).toBe(0)
+		expect(data.jetpackLevel).toBe(0)
 		expect(#data.pods).toBe(3)
 		expect(data.pods[1].alien).toBeNil()
 		expect(data.nextUid).toBe(1)
@@ -51,21 +53,21 @@ describe("PlayerData.load", function()
 		if outcome.ok then
 			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(outcome.data.coins).toBe(BigNum.ZERO)
-			expect(outcome.data.speed).toEqual(DEFAULTS.startingSpeed)
+			expect(outcome.data.trained).toEqual(DEFAULTS.startingSpeed)
 		end
 	end)
 
 	it("restores saved BigNums as immutable values", function()
 		local saved = savedTemplate()
 		saved.coins = { mantissa = 1500, exponent = 0 }
-		saved.speed = { mantissa = 2.5, exponent = 400 }
+		saved.trained = { mantissa = 2.5, exponent = 400 }
 		local outcome = load(saved)
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
 			expect(outcome.data.coins.mantissa).toBe(1500)
-			expect(outcome.data.speed.exponent).toBe(400)
+			expect(outcome.data.trained.exponent).toBe(400)
 			expect(table.isfrozen(outcome.data.coins :: any)).toBe(true)
-			expect(table.isfrozen(outcome.data.speed :: any)).toBe(true)
+			expect(table.isfrozen(outcome.data.trained :: any)).toBe(true)
 		end
 	end)
 
@@ -150,9 +152,21 @@ describe("PlayerData.load", function()
 			},
 			{
 				patch = function(data)
-					data.speed = 10
+					data.trained = 10
 				end,
-				detail = "speed",
+				detail = "trained",
+			},
+			{
+				patch = function(data)
+					data.trainerLevel = -1
+				end,
+				detail = "trainerLevel is invalid",
+			},
+			{
+				patch = function(data)
+					data.jetpackLevel = 1.5
+				end,
+				detail = "jetpackLevel is invalid",
 			},
 			{
 				patch = function(data)
@@ -234,9 +248,11 @@ describe("PlayerData migration v1 -> v2", function()
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
 			local data = outcome.data
-			expect(data.schemaVersion).toBe(2)
+			expect(data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(data.coins.mantissa).toBe(250)
-			expect(data.speed).toEqual(DEFAULTS.startingSpeed)
+			expect(data.trained).toEqual(DEFAULTS.startingSpeed)
+			expect(data.trainerLevel).toBe(0)
+			expect(data.jetpackLevel).toBe(0)
 			expect(#data.pods).toBe(DEFAULTS.startingPods)
 			expect(data.inventory).toEqual({})
 			expect(data.floor).toEqual({})
@@ -255,6 +271,34 @@ describe("PlayerData migration v1 -> v2", function()
 			if second.ok then
 				expect(second.data).toEqual(first.data)
 			end
+		end
+	end)
+end)
+
+describe("PlayerData migration v2 -> v3", function()
+	local function v2Save(): { [string]: any }
+		local saved = savedTemplate()
+		saved.schemaVersion = 2
+		saved.trained = nil
+		saved.trainerLevel = nil
+		saved.jetpackLevel = nil
+		saved.speed = { mantissa = 2500, exponent = 0 }
+		saved.pods = { { alien = alien(1) }, {}, {} }
+		saved.nextUid = 2
+		return saved
+	end
+
+	it("keeps the old speed as the trained speed and starts the levels at zero", function()
+		local outcome = load(v2Save())
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			local data = outcome.data
+			expect(data.schemaVersion).toBe(3)
+			expect(data.trained.mantissa).toBe(2500)
+			expect(data.trainerLevel).toBe(0)
+			expect(data.jetpackLevel).toBe(0)
+			expect((data :: any).speed).toBeNil()
+			expect(data.pods[1].alien).toEqual(alien(1))
 		end
 	end)
 end)
