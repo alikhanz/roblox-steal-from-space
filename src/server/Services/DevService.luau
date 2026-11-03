@@ -177,17 +177,19 @@ function DevService.new(dependencies: Dependencies): DevService
 			end)
 			return "dummy thief ahead"
 		end,
-		-- Sets the first player's total play time (to leave or re-enter the newbie protection).
+		-- Sets every player's total play time (to leave or re-enter the newbie protection).
 		SetPlayTime = function(seconds: number): string
-			local player = firstPlayerRoot()
-			if not player then
-				return "no player"
-			end
 			assert(type(seconds) == "number" and seconds >= 0, "SetPlayTime expects seconds, zero or more")
-			local written = dependencies.update(player, function(data)
-				data.playSeconds = seconds
-			end)
-			return if written then `play time set to {seconds}s` else "profile not active yet"
+			local names = {}
+			for _, player in Players:GetPlayers() do
+				local written = dependencies.update(player, function(data)
+					data.playSeconds = seconds
+				end)
+				if written then
+					table.insert(names, player.Name)
+				end
+			end
+			return if #names > 0 then `play time set to {seconds}s for {table.concat(names, ", ")}` else "no active profiles"
 		end,
 		-- How many times each ability was used in this server and how many landed.
 		PvpStats = function(): string
