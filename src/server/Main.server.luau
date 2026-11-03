@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
+local GuardianService = require(script.Parent.Services.GuardianService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local NestService = require(script.Parent.Services.NestService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
@@ -29,16 +30,31 @@ local carryService = CarryService.new({
 	getNestEggCFrame = nestService.getEggCFrame,
 })
 
+local guardianService = GuardianService.new({
+	getNestSites = worldService.getNestSites,
+	findCarrier = carryService.findCarrier,
+	getCarried = carryService.getCarried,
+	dropEgg = carryService.dropEgg,
+	getSpeed = speedService.getSpeed,
+	scheduler = scheduler,
+})
+
 -- Studio-only playtest commands; inert in live servers.
 local devService = DevService.new({
 	spawnLooseEgg = carryService.spawnLooseEgg,
 	setSpeed = speedService.setSpeed,
 })
 
--- Order matters for start: the world is built before nests and players use it.
-Lifecycle.run(
-	{ dataService, worldService, nestService, speedService, spaceService, carryService, devService },
-	function(callback)
-		task.spawn(callback)
-	end
-)
+-- Order matters for start: the world is built before nests, guardians and players use it.
+Lifecycle.run({
+	dataService,
+	worldService,
+	nestService,
+	speedService,
+	spaceService,
+	carryService,
+	guardianService,
+	devService,
+}, function(callback)
+	task.spawn(callback)
+end)

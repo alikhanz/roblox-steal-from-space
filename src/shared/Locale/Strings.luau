@@ -28,6 +28,14 @@ local Strings = {
 		ru = "Нажми и держи",
 		en = "Tap and hold",
 	},
+	["guardian.slimeWarden.title"] = {
+		ru = "Слизень-сторож",
+		en = "Slime Warden",
+	},
+	["guardian.crabDrone.title"] = {
+		ru = "Краб-дрон",
+		en = "Crab Drone",
+	},
 	["speed.stat.title"] = {
 		ru = "Скорость",
 		en = "Speed",

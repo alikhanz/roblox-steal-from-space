@@ -16,6 +16,7 @@ local FlightConfig = require("../Config/FlightConfig")
 local FlightInputs = require("../Input/FlightInputs")
 local FlightLean = require("../Domain/FlightLean")
 local Grab = require("../Domain/Grab")
+local GuardianConfig = require("../Config/GuardianConfig")
 local JetpackConfig = require("../Config/JetpackConfig")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
@@ -96,6 +97,12 @@ local function fly(rig: Rig, context: Instance, deltaTime: number)
 		maxSpeed * carryMultiplier,
 		FlightConfig.TUNING
 	)
+	-- A guardian's hit overrides steering for the stun: the thief is thrown and cannot fight it.
+	local hitUntil = rig.character:GetAttribute(GuardianConfig.HIT_UNTIL_ATTRIBUTE)
+	local hitVelocity = rig.character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE)
+	if type(hitUntil) == "number" and time() < hitUntil and typeof(hitVelocity) == "Vector3" then
+		velocity = hitVelocity
+	end
 	velocity =
 		Bounds.limitVelocity(rig.root.Position, velocity, StationConfig.PLATFORM_CENTER, WorldConfig.BOUNDARY_RADIUS)
 
