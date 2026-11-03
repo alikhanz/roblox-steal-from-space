@@ -53,6 +53,9 @@ export type BayService = {
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
 	-- Makes every egg in the incubator ready now (playtests; later the Robux instant hatch).
 	hastenHatching: (player: Player) -> boolean,
+	-- Pays the pods' income since the profile's last-seen mark, capped (done on activation;
+	-- exposed for playtests of the welcome-back screen).
+	settleOffline: (player: Player) -> (),
 	-- Fires when an egg hatches: the player, the alien and where it went.
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	-- Fires after the bay was rebuilt from the profile.
@@ -381,6 +384,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		addEgg = addEgg,
 		addAlien = addAlien,
 		hastenHatching = hastenHatching,
+		settleOffline = settleOffline,
 		hatched = hatched,
 		changed = changed,
 		coinsChanged = coinsChanged,

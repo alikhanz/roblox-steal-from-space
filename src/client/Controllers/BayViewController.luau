@@ -13,7 +13,7 @@ local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
-local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -42,17 +42,6 @@ type View = {
 }
 
 local BayViewController = {}
-
-local function alienTitle(locale: Text.Locale, alienId: string): string?
-	local alien = AlienConfig.ALIENS[alienId]
-	local post = alien and GuardianConfig.DEBRIS_BELT_POSTS[alien.grade]
-	if not alien or not post then
-		return nil
-	end
-	local tier = Text.get(locale, AlienConfig.TIERS[alien.tier].nameKey)
-	local guardian = Text.get(locale, GuardianConfig.KINDS[post.kind].nameKey)
-	return `{tier} · {guardian}`
-end
 
 function BayViewController.new(): BayViewController
 	local views: { [Instance]: View } = {}
@@ -103,7 +92,7 @@ function BayViewController.new(): BayViewController
 
 	local function watchAlien(instance: Instance)
 		local alienId = instance:GetAttribute(BayConfig.ALIEN_ID_ATTRIBUTE)
-		local title = if type(alienId) == "string" then alienTitle(locale, alienId) else nil
+		local title = if type(alienId) == "string" then Names.alien(locale, alienId) else nil
 		if not title or type(alienId) ~= "string" then
 			warn(`[BayViewController] {instance:GetFullName()} has no known alien; no label`)
 			return
@@ -123,10 +112,10 @@ function BayViewController.new(): BayViewController
 	end
 
 	local function watchEgg(instance: Instance)
-		local rarity =
-			EggConfig.RARITIES[instance:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE) :: EggConfig.RarityId]
+		local rarity = instance:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
+		local name = if type(rarity) == "string" then Names.egg(locale, rarity) else nil
 		local hatchAt = instance:GetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE)
-		if not rarity or type(hatchAt) ~= "number" then
+		if not name or type(hatchAt) ~= "number" then
 			warn(`[BayViewController] {instance:GetFullName()} is not a complete egg; no label`)
 			return
 		end
@@ -143,7 +132,7 @@ function BayViewController.new(): BayViewController
 			tick()
 			return WorldLabel({
 				adornee = part,
-				title = Text.get(locale, rarity.nameKey),
+				title = name,
 				value = value,
 				studsAbove = EGG_STUDS_ABOVE,
 				maxDistance = CONTENTS_MAX_DISTANCE,

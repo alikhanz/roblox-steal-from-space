@@ -64,6 +64,122 @@ local Strings = {
 		ru = "Отсек {name}",
 		en = "{name}'s bay",
 	},
+	["bay.open.button"] = {
+		ru = "Отсек",
+		en = "Bay",
+	},
+	["bay.window.title"] = {
+		ru = "Твой отсек",
+		en = "Your bay",
+	},
+	["bay.close.button"] = {
+		ru = "Закрыть",
+		en = "Close",
+	},
+	["bay.pods.title"] = {
+		ru = "Капсулы",
+		en = "Pods",
+	},
+	["bay.emptyPod.hint"] = {
+		ru = "Пусто",
+		en = "Empty",
+	},
+	["bay.buyPod.button"] = {
+		ru = "Капсула: {price}",
+		en = "Pod: {price}",
+	},
+	["bay.incubator.title"] = {
+		ru = "Инкубатор",
+		en = "Incubator",
+	},
+	["bay.incubatorEmpty.hint"] = {
+		ru = "Пусто. Укради яйцо и принеси его сюда",
+		en = "Empty. Steal an egg and bring it here",
+	},
+	["bay.inventory.title"] = {
+		ru = "Инвентарь {count}/{max}",
+		en = "Inventory {count}/{max}",
+	},
+	["bay.floor.title"] = {
+		ru = "На полу",
+		en = "On the floor",
+	},
+	["bay.pickUpFloor.hint"] = {
+		ru = "Подойди и подбери, чтобы положить в инвентарь",
+		en = "Walk over and pick them up to put them in your inventory",
+	},
+	["bay.autoPlace.button"] = {
+		ru = "Лучших в капсулы",
+		en = "Best to pods",
+	},
+	["bay.crossbreed.button"] = {
+		ru = "Скрестить",
+		en = "Crossbreed",
+	},
+	["bay.crossbreed.hint"] = {
+		ru = "Выбери 3 пришельцев одного стража",
+		en = "Pick 3 aliens of one guardian",
+	},
+	["bay.sell.button"] = {
+		ru = "Продать",
+		en = "Sell",
+	},
+	["bay.sellConfirm.button"] = {
+		ru = "Точно? +{price}",
+		en = "Sure? +{price}",
+	},
+	["bay.toPod.button"] = {
+		ru = "В капсулу",
+		en = "To a pod",
+	},
+	["bay.toInventory.button"] = {
+		ru = "В инвентарь",
+		en = "To inventory",
+	},
+	["alien.hatched.toast"] = {
+		ru = "Вылупился: {name}!",
+		en = "Hatched: {name}!",
+	},
+	["notice.inventoryFull.toast"] = {
+		ru = "Инвентарь полный: продай или скрести",
+		en = "Inventory full: sell or crossbreed",
+	},
+	["notice.notEnoughCoins.toast"] = {
+		ru = "Не хватает монет. Подожди доход",
+		en = "Not enough coins. Wait for income",
+	},
+	["notice.maxPods.toast"] = {
+		ru = "Больше капсул не поставить",
+		en = "No room for more pods",
+	},
+	["notice.wrongAliens.toast"] = {
+		ru = "Нужны 3 пришельца одного стража",
+		en = "Pick 3 aliens of one guardian",
+	},
+	["notice.unknownAlien.toast"] = {
+		ru = "Этого пришельца уже нет",
+		en = "That alien is gone",
+	},
+	["notice.tooFast.toast"] = {
+		ru = "Не так быстро!",
+		en = "Not so fast!",
+	},
+	["notice.noProfile.toast"] = {
+		ru = "Прогресс ещё грузится",
+		en = "Still loading your progress",
+	},
+	["welcome.back.title"] = {
+		ru = "С возвращением!",
+		en = "Welcome back!",
+	},
+	["welcome.earned.hint"] = {
+		ru = "Пока тебя не было {time}, капсулы принесли {coins} монет",
+		en = "While you were away for {time}, your pods earned {coins} coins",
+	},
+	["welcome.claim.button"] = {
+		ru = "Забрать",
+		en = "Collect",
+	},
 	["alien.pickUp.button"] = {
 		ru = "Подобрать",
 		en = "Pick up",

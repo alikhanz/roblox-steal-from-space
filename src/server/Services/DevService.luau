@@ -11,6 +11,7 @@
 --   game.ServerStorage.DevCommands.GiveEgg:Invoke("Uncommon", "Large", 1)
 --   game.ServerStorage.DevCommands.HatchNow:Invoke()
 --   game.ServerStorage.DevCommands.DumpProfile:Invoke()
+--   game.ServerStorage.DevCommands.SimulateAway:Invoke(3600)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -41,7 +42,9 @@ export type Dependencies = {
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
 	addEgg: (player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number) -> boolean,
 	hastenHatching: (player: Player) -> boolean,
+	settleOffline: (player: Player) -> (),
 	getData: (player: Player) -> PlayerData.PlayerData?,
+	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
 }
 
 export type DevService = {
@@ -133,6 +136,24 @@ function DevService.new(dependencies: Dependencies): DevService
 				return "no player"
 			end
 			return if dependencies.hastenHatching(player) then "hatching" else "profile not active yet"
+		end,
+		-- Pretends the first player was away for `seconds` and pays the offline income, so the
+		-- welcome-back screen can be seen without leaving.
+		SimulateAway = function(seconds: number?): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local away = seconds or 60 * 60
+			assert(type(away) == "number" and away > 0, "SimulateAway expects a positive number of seconds")
+			local written = dependencies.update(player, function(data)
+				data.lastSeenAt = workspace:GetServerTimeNow() - away
+			end)
+			if not written then
+				return "profile not active yet"
+			end
+			dependencies.settleOffline(player)
+			return `settled {away}s away`
 		end,
 		-- A readable summary of the first player's profile.
 		DumpProfile = function(): string

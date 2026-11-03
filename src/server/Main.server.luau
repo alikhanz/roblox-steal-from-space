@@ -77,7 +77,9 @@ local devService = DevService.new({
 	addAlien = bayService.addAlien,
 	addEgg = bayService.addEgg,
 	hastenHatching = bayService.hastenHatching,
+	settleOffline = bayService.settleOffline,
 	getData = dataService.getData,
+	update = dataService.update,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
