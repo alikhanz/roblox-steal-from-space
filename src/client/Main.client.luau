@@ -9,6 +9,7 @@ local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
+local EventController = require(script.Parent.Controllers.EventController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
 local HitEffectsController = require(script.Parent.Controllers.HitEffectsController)
@@ -56,6 +57,7 @@ Lifecycle.run({
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),
+	EventController.new(),
 	EggEffectsController.new(),
 	HitEffectsController.new(),
 	JetpackEffectsController.new(),

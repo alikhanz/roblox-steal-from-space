@@ -9,6 +9,7 @@ local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
 local EconomyService = require(script.Parent.Services.EconomyService)
+local EventService = require(script.Parent.Services.EventService)
 local GuardianService = require(script.Parent.Services.GuardianService)
 local IndexService = require(script.Parent.Services.IndexService)
 local JetpackService = require(script.Parent.Services.JetpackService)
@@ -65,6 +66,7 @@ local trainingDependencies = {} :: TrainingService.Dependencies
 local trainingService = TrainingService.new(trainingDependencies)
 local pvpDependencies = {} :: PvpService.Dependencies
 local pvpService = PvpService.new(pvpDependencies)
+local eventService = EventService.new({ scheduler = scheduler })
 local indexService = IndexService.new({
 	getData = profile.getData,
 	update = profile.update,
@@ -192,6 +194,11 @@ end)
 questService.completed.connect(function(player, kind)
 	metricsService.count(player, "QuestDone", { kind })
 end)
+eventService.changed.connect(function(id, phase)
+	if phase == "Active" then
+		metricsService.serverEvent(id)
+	end
+end)
 indexService.discovered.connect(function(player, alienId)
 	metricsService.found(player, alienId)
 end)
@@ -221,12 +228,16 @@ local devService = DevService.new({
 	newQuestDay = questService.newDay,
 	shiftLoginDays = loginGiftService.shiftDays,
 	discoverAlien = indexService.discover,
+	activateEvent = eventService.activate,
+	queueEvent = eventService.queue,
+	stopEvent = eventService.stop,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
 Lifecycle.run({
 	dataService,
 	worldService,
+	eventService,
 	nestService,
 	speedService,
 	jetpackService,

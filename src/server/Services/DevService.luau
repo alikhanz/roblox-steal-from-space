@@ -29,11 +29,13 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
+local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
+local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local FOLDER_NAME = "DevCommands"
 -- Spawned eggs float this far in front of the player, studs.
@@ -68,6 +70,10 @@ export type Dependencies = {
 	shiftLoginDays: (player: Player, days: number) -> boolean,
 	-- Index: a given alien counts as found, like a hatched one.
 	discoverAlien: (player: Player, alienId: string) -> (),
+	-- Server events: one right now (somewhere in a zone, if given), or back to quiet.
+	activateEvent: (id: EventConfig.EventId, zone: ZoneConfig.ZoneId?) -> (),
+	queueEvent: (id: EventConfig.EventId, seconds: number) -> (),
+	stopEvent: (id: EventConfig.EventId) -> (),
 }
 
 export type DevService = {
@@ -208,6 +214,25 @@ function DevService.new(dependencies: Dependencies): DevService
 				return "no player"
 			end
 			return if dependencies.completeQuests(player) then "quests finished" else "profile not active yet"
+		end,
+		-- Starts a server event right now, with no warning; somewhere in `zone` if given.
+		StartEvent = function(id: string, zone: string?): string
+			assert(EventConfig.EVENTS[id :: EventConfig.EventId], `unknown event {id}`)
+			assert(zone == nil or ZoneConfig.ZONES[zone :: ZoneConfig.ZoneId], `unknown zone {zone}`)
+			dependencies.activateEvent(id :: EventConfig.EventId, zone :: ZoneConfig.ZoneId?)
+			return `{id} started` .. (if zone then ` in {zone}` else "")
+		end,
+		-- Puts a server event on the clock to start in `seconds` (default 30), with its warning.
+		QueueEvent = function(id: string, seconds: number?): string
+			assert(EventConfig.EVENTS[id :: EventConfig.EventId], `unknown event {id}`)
+			dependencies.queueEvent(id :: EventConfig.EventId, seconds or 30)
+			return `{id} in {seconds or 30} s`
+		end,
+		-- Ends a server event now.
+		StopEvent = function(id: string): string
+			assert(EventConfig.EVENTS[id :: EventConfig.EventId], `unknown event {id}`)
+			dependencies.stopEvent(id :: EventConfig.EventId)
+			return `{id} stopped`
 		end,
 		-- Gives the first player a fresh set of quests and a fresh swap, as if a new day began.
 		NewQuestDay = function(): string

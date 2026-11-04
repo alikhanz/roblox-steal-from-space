@@ -26,4 +26,17 @@ function Duration.describe(locale: Text.Locale, seconds: number): string
 	return Text.get(locale, "time.hours.hint", { count = hours })
 end
 
+-- A countdown on a clock face: "4:05", "0:12"; hours as "1:02:05". Rounded up, so it shows 0:00
+-- only when the time is really up.
+function Duration.clock(seconds: number): string
+	local whole = math.max(0, math.ceil(seconds))
+	local hours = whole // SECONDS_PER_HOUR
+	local minutes = (whole % SECONDS_PER_HOUR) // SECONDS_PER_MINUTE
+	local rest = whole % SECONDS_PER_MINUTE
+	if hours > 0 then
+		return string.format("%d:%02d:%02d", hours, minutes, rest)
+	end
+	return string.format("%d:%02d", minutes, rest)
+end
+
 return table.freeze(Duration)

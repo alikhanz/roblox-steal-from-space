@@ -83,6 +83,9 @@ export type MetricsService = {
 	count: (player: Player, eventName: string, fields: { string }?) -> (),
 	-- An alien entered the player's index for the first time.
 	found: (player: Player, alienId: string) -> (),
+	-- A server event began: counted for every player on the server (events are per server, and
+	-- analytics events belong to a player).
+	serverEvent: (eventId: string) -> (),
 }
 
 -- Summed facts of one player, waiting to be sent.
@@ -400,6 +403,11 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 		count = count,
 		found = function(player: Player, alienId: string)
 			count(player, "AlienFound", alienFields(alienId))
+		end,
+		serverEvent = function(eventId: string)
+			for _, player in Players:GetPlayers() do
+				count(player, "EventSeen", { eventId })
+			end
 		end,
 	}
 end
