@@ -1,7 +1,7 @@
 --!strict
--- Keeps the way home in sight: while the player is out in space, a "Station" sign with the
--- distance hangs over the dome, and when the station leaves the view it waits at the screen
--- edge with an arrow pointing to it. Recomputed every frame from the camera.
+-- Keeps the way home in sight: while the player is out in space, a "Station" pin (UI/ScreenPin)
+-- with the distance to the station border hangs over the dome, and waits at the screen edge
+-- with an arrow when the station leaves the view. Recomputed every frame from the camera.
 
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
@@ -9,25 +9,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
-local ScreenMarker = require(ReplicatedStorage.Shared.Domain.ScreenMarker)
-local StationBeacon = require(script.Parent.Parent.UI.StationBeacon)
+local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local Theme = require(script.Parent.Parent.UI.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
-local source = Vide.source
-
 local PLAYER_GUI_WAIT_TIMEOUT = 30
--- The sign marks the top of the dome.
+-- The pin marks the top of the dome.
 local BEACON_POINT = StationConfig.STATION.domeCenter + Vector3.yAxis * StationConfig.STATION.domeRadius
--- Distance of the arrow from the screen edge, pixels.
-local EDGE_MARGIN = 40
--- The sign stands this far inwards from the arrow, pixels.
-local SIGN_FROM_ARROW = 56
--- While the dome is in view the sign floats this far above its top, pixels.
-local SIGN_ABOVE_DOME = 30
--- The distance shown is rounded to this many studs, so it does not flicker.
-local DISTANCE_STEP = 10
 
 export type StationBeaconController = {
 	name: string,
@@ -37,55 +27,24 @@ export type StationBeaconController = {
 local StationBeaconController = {}
 
 function StationBeaconController.new(): StationBeaconController
-	local visible = source(false)
-	local distance = source("")
-	local signPosition = source(Vector2.zero)
-	local arrowVisible = source(false)
-	local arrowPosition = source(Vector2.zero)
-	local arrowAngle = source(0)
+	local pin = ScreenPin.new()
 
 	local function update(locale: Text.Locale)
 		local camera = workspace.CurrentCamera
 		local character = Players.LocalPlayer.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not camera or not character or not root or not root:IsA("BasePart") then
-			visible(false)
+			pin.hide()
 			return
 		end
 		-- The distance counts to the station border, the line where a chase ends; inside it the
-		-- station is right there and the sign is only in the way.
-		local station = StationConfig.STATION
-		local fromBorder = (root.Position - station.domeCenter).Magnitude - StationConfig.BORDER_RADIUS
+		-- station is right there and the pin is only in the way.
+		local fromBorder = (root.Position - StationConfig.STATION.domeCenter).Magnitude - StationConfig.BORDER_RADIUS
 		if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true or fromBorder <= 0 then
-			visible(false)
+			pin.hide()
 			return
 		end
-		visible(true)
-
-		local shown = math.max(math.floor(fromBorder / DISTANCE_STEP + 0.5) * DISTANCE_STEP, DISTANCE_STEP)
-		local text = Text.get(locale, "station.distance.hint", { distance = shown })
-		if text ~= distance() then
-			distance(text)
-		end
-
-		local point = camera:WorldToViewportPoint(BEACON_POINT)
-		local viewport = camera.ViewportSize
-		local placement = ScreenMarker.place(point.X, point.Y, point.Z, {
-			width = viewport.X,
-			height = viewport.Y,
-			margin = EDGE_MARGIN,
-		})
-		local position = Vector2.new(placement.x, placement.y)
-		arrowVisible(not placement.onScreen)
-		if placement.onScreen then
-			signPosition(position - Vector2.new(0, SIGN_ABOVE_DOME))
-		else
-			local radians = math.rad(placement.angle)
-			local towards = Vector2.new(math.cos(radians), math.sin(radians))
-			arrowPosition(position)
-			arrowAngle(placement.angle)
-			signPosition(position - towards * SIGN_FROM_ARROW)
-		end
+		pin.place(camera, BEACON_POINT, ScreenPin.distanceText(locale, fromBorder))
 	end
 
 	local function start()
@@ -96,14 +55,10 @@ function StationBeaconController.new(): StationBeaconController
 			return
 		end
 		Vide.mount(function()
-			return StationBeacon({
+			return pin.view({
+				name = "StationBeacon",
 				title = Text.get(locale, "station.beacon.title"),
-				distance = distance,
-				visible = visible,
-				signPosition = signPosition,
-				arrowVisible = arrowVisible,
-				arrowPosition = arrowPosition,
-				arrowAngle = arrowAngle,
+				color = Theme.OXYGEN,
 			})
 		end, playerGui)
 		RunService.RenderStepped:Connect(function()

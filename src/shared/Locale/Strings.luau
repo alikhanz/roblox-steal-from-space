@@ -548,6 +548,30 @@ local Strings = {
 		ru = "Пробел",
 		en = "Space",
 	},
+	["event.storm.title"] = {
+		ru = "Солнечная буря",
+		en = "Solar storm",
+	},
+	["event.soon.hint"] = {
+		ru = "{name} через {time}",
+		en = "{name} in {time}",
+	},
+	["event.active.hint"] = {
+		ru = "{name}! Ещё {time}",
+		en = "{name}! {time} left",
+	},
+	["event.soon.announce"] = {
+		ru = "{name} через {time}!",
+		en = "{name} in {time}!",
+	},
+	["event.started.announce"] = {
+		ru = "{name} начинается!",
+		en = "{name} is here!",
+	},
+	["event.startedIn.announce"] = {
+		ru = "{name} в зоне «{zone}»!",
+		en = "{name} in {zone}!",
+	},
 	["index.open.button"] = {
 		ru = "Индекс",
 		en = "Index",
@@ -872,7 +896,7 @@ local Strings = {
 		ru = "Станция",
 		en = "Station",
 	},
-	["station.distance.hint"] = {
+	["marker.distance.hint"] = {
 		ru = "{distance} м",
 		en = "{distance} m",
 	},
