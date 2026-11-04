@@ -6,6 +6,7 @@ local BayConfig = require("../../src/shared/Config/BayConfig")
 local BigNum = require("../../src/shared/Domain/BigNum")
 local EggConfig = require("../../src/shared/Config/EggConfig")
 local GuardianConfig = require("../../src/shared/Config/GuardianConfig")
+local IndexConfig = require("../../src/shared/Config/IndexConfig")
 local Loot = require("../../src/shared/Domain/Loot")
 local Speed = require("../../src/shared/Domain/Speed")
 local SpeedConfig = require("../../src/shared/Config/SpeedConfig")
@@ -174,5 +175,29 @@ describe("BayConfig", function()
 	it("keeps the starting pods within the maximum", function()
 		expect(BayConfig.STARTING_PODS <= BayConfig.MAX_PODS).toBe(true)
 		expect(BayConfig.CROSSBREED_COUNT <= BayConfig.INVENTORY_SLOTS).toBe(true)
+	end)
+end)
+
+describe("IndexConfig", function()
+	it("holds every alien of the registry in exactly one set, by grade", function()
+		local seen: { [string]: boolean } = {}
+		for grade, set in IndexConfig.SETS do
+			expect(set.grade).toBe(grade)
+			expect(#set.aliens).toBe(#AlienConfig.TIER_ORDER)
+			for _, alienId in set.aliens do
+				expect(AlienConfig.ALIENS[alienId].grade).toBe(grade)
+				expect(seen[alienId]).toBeNil()
+				seen[alienId] = true
+			end
+		end
+		for alienId in AlienConfig.ALIENS do
+			expect(seen[alienId]).toBe(true)
+		end
+	end)
+
+	it("pays every tier", function()
+		for _, tier in AlienConfig.TIER_ORDER do
+			expect(IndexConfig.REWARD_MINUTES[tier] > 0).toBe(true)
+		end
 	end)
 end)

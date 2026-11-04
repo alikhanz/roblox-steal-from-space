@@ -4,6 +4,7 @@
 -- To change the shape: bump SCHEMA_VERSION, add MIGRATIONS[old version], update the template
 -- and `validate`, and cover the migration with a test on old saved data.
 
+local AlienIndex = require("./AlienIndex")
 local BigNum = require("./BigNum")
 local LoginGift = require("./LoginGift")
 local Migrations = require("./Migrations")
@@ -61,6 +62,8 @@ export type PlayerData = {
 	quests: Quests.State,
 	-- The login gift streak (Domain/LoginGift).
 	loginGift: LoginGift.State,
+	-- Every alien the player has ever had, and which rewards are taken (Domain/AlienIndex).
+	index: AlienIndex.State,
 }
 
 -- Starting values that come from configs; the domain never reads configs itself.
@@ -75,7 +78,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 8
+PlayerData.SCHEMA_VERSION = 9
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -102,6 +105,26 @@ PlayerData.MIGRATIONS = {
 	[6] = function(_data: { [string]: any }) end,
 	-- v8 adds loginGift, filled from the template: everyone starts a streak at day 1.
 	[7] = function(_data: { [string]: any }) end,
+	-- v9 adds the alien index: the aliens a player has now are found, with their rewards taken
+	-- (the index pays for new finds, not for the past).
+	[8] = function(data: { [string]: any })
+		local index = AlienIndex.empty()
+		local owned: { string } = {}
+		for _, pod in if type(data.pods) == "table" then data.pods else {} do
+			if type(pod) == "table" and type(pod.alien) == "table" and type(pod.alien.id) == "string" then
+				table.insert(owned, pod.alien.id)
+			end
+		end
+		for _, field in { "inventory", "floor" } do
+			for _, alien in if type(data[field]) == "table" then data[field] else {} do
+				if type(alien) == "table" and type(alien.id) == "string" then
+					table.insert(owned, alien.id)
+				end
+			end
+		end
+		AlienIndex.seed(index, owned)
+		data.index = index
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -128,6 +151,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		bestPost = 0,
 		quests = Quests.empty(),
 		loginGift = LoginGift.empty(),
+		index = AlienIndex.empty(),
 	}
 end
 
@@ -246,6 +270,28 @@ local function validateQuests(quests: any): string?
 	return validateList(quests.list, "quests", validateQuest, {})
 end
 
+local function validateIndex(index: any): string?
+	if type(index) ~= "table" or type(index.found) ~= "table" or type(index.sets) ~= "table" then
+		return "index is not a table"
+	end
+	for alienId, taken in index.found do
+		if type(alienId) ~= "string" or type(taken) ~= "boolean" then
+			return "index found is invalid"
+		end
+	end
+	local count = 0
+	for key, grade in index.sets do
+		if not isInteger(key) or key < 1 or key > #index.sets or not isInteger(grade) or grade < 1 then
+			return "index sets is invalid"
+		end
+		count += 1
+	end
+	if count ~= #index.sets then
+		return "index sets is invalid"
+	end
+	return nil
+end
+
 -- Checks a migrated, reconciled copy and converts saved values into their runtime form in place.
 local function validate(data: { [string]: any }): string?
 	for _, field in { "coins", "coinsEarned", "trained" } do
@@ -309,7 +355,7 @@ local function validate(data: { [string]: any }): string?
 			return `loginGift {field} is invalid`
 		end
 	end
-	return nil
+	return validateIndex(data.index)
 end
 
 -- Loads saved data without touching it: all work happens on a copy, which is returned on success.

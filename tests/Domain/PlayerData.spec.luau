@@ -404,6 +404,37 @@ describe("PlayerData migration v6 -> v7", function()
 	end)
 end)
 
+describe("PlayerData migration v8 -> v9", function()
+	it("finds the aliens the player has, with their rewards taken", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 8
+		saved.index = nil
+		saved.pods = { { alien = alien(1, "DebrisBelt1.Common") }, {}, { alien = alien(2, "IceRings2.Epic") } }
+		saved.inventory = { alien(3, "DebrisBelt1.Rare") }
+		saved.floor = { alien(4, "DebrisBelt1.Common") }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.index.found).toEqual({
+				["DebrisBelt1.Common"] = true,
+				["IceRings2.Epic"] = true,
+				["DebrisBelt1.Rare"] = true,
+			})
+			expect(outcome.data.index.sets).toEqual({})
+		end
+	end)
+
+	it("rejects a broken index", function()
+		local saved = savedTemplate()
+		saved.index = { found = { ["DebrisBelt1.Common"] = "yes" }, sets = {} }
+		expectCorrupted(saved, "index found is invalid")
+		local other = savedTemplate()
+		other.index = { found = {}, sets = { 0 } }
+		expectCorrupted(other, "index sets is invalid")
+	end)
+end)
+
 describe("PlayerData migration v7 -> v8", function()
 	it("starts the login gift streak from nothing and keeps the rest", function()
 		local saved = savedTemplate()
