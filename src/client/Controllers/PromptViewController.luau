@@ -82,8 +82,9 @@ function PromptViewController.new(): PromptViewController
 				showBar = function()
 					return prompt.HoldDuration > 0
 				end,
-				-- Drawn only within the prompt's own reach, whatever the engine decides to show.
-				maxDistance = prompt.MaxActivationDistance + PROMPT_DISTANCE_SLACK,
+				-- No billboard distance: it counts from the camera, which stands farther back than
+				-- the reach, so the badge would vanish while the prompt still works. The picture
+				-- goes away with the prompt instead (PromptHidden and the reach check below).
 				badgeText = function()
 					return badgeFor(prompt)
 				end,
