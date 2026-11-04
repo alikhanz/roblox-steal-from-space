@@ -8,11 +8,16 @@ local ServerConfig = require("./ServerConfig")
 local RING_RADIUS = 42
 local BAY_COUNT = ServerConfig.MAX_PLAYERS
 
-local POD_ROWS = 2
-local PODS_PER_ROW = 6
+-- Pods stand in two tiers of three rows: the lower tier on the floor fills first, the upper
+-- one floats right above it, so 30 pods fit in the footprint of the bay.
+local POD_TIERS = 2
+local POD_ROWS = 3
+local PODS_PER_ROW = 5
 local POD_SPACING = 3.2
--- Front row (toward the center) and back row, bay-local Z.
-local POD_ROW_Z = { -2, -5.5 }
+-- Front row (toward the center) to back row, bay-local Z.
+local POD_ROW_Z = { -2, -5, -8 }
+-- How far above the lower tier the upper one stands, studs: a pod's stand and glass, plus air.
+local POD_TIER_HEIGHT = 4.4
 
 return table.freeze({
 	RING_RADIUS = RING_RADIUS,
@@ -25,8 +30,9 @@ return table.freeze({
 	-- The sign post at the back of the bay, where the owner's name hangs.
 	SIGN_POSITION = Vector3.new(0, 4, 7.5),
 	SIGN_SIZE = Vector3.new(6, 1.2, 0.4),
-	-- An invisible anchor between the pod rows for the pods' sign (count, price, buy button).
-	PODS_SIGN_POSITION = Vector3.new(0, 4.5, -3.75),
+	-- An invisible anchor over the pods for the pods' sign (count, price, buy button), above the
+	-- upper tier.
+	PODS_SIGN_POSITION = Vector3.new(0, 9.5, -5),
 
 	-- The incubator: a glowing disc where delivered eggs lie in a ring.
 	INCUBATOR_POSITION = Vector3.new(0, 0.3, 3.5),
@@ -40,6 +46,8 @@ return table.freeze({
 	EGG_RING_SLOTS = 10,
 	EGG_STACK_HEIGHT = 1.4,
 
+	POD_TIERS = POD_TIERS,
+	POD_TIER_HEIGHT = POD_TIER_HEIGHT,
 	POD_ROWS = POD_ROWS,
 	PODS_PER_ROW = PODS_PER_ROW,
 	POD_SPACING = POD_SPACING,

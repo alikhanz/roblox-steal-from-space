@@ -16,7 +16,8 @@ local TRAINER_PAD: Trainer.Pad = {
 return table.freeze({
 	-- Pods a new player owns; more are bought with coins.
 	STARTING_PODS = 3,
-	MAX_PODS = 12,
+	-- Room for them is in BayLooks (two tiers of 15).
+	MAX_PODS = 30,
 	-- Bought pod number n (counting the starting ones) costs
 	-- POD_PRICE_BASE * POD_PRICE_GROWTH^(n - STARTING_PODS - 1). The first ones are cheap: a
 	-- new player should grow their income within minutes.

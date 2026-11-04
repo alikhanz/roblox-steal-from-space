@@ -40,13 +40,26 @@ function BayModel.origin(slot: number): CFrame
 	return CFrame.lookAt(position, Vector3.new(center.X, position.Y, center.Z))
 end
 
--- Where pod `index` (1-based) stands: the front row fills first.
+local PODS_PER_TIER = BayLooks.POD_ROWS * BayLooks.PODS_PER_ROW
+assert(
+	BayConfig.MAX_PODS <= PODS_PER_TIER * BayLooks.POD_TIERS,
+	`BayLooks has room for {PODS_PER_TIER * BayLooks.POD_TIERS} pods, BayConfig.MAX_PODS is {BayConfig.MAX_PODS}`
+)
+
+-- The tier (1: on the floor) of pod `index`.
+local function tierOf(index: number): number
+	return (index - 1) // PODS_PER_TIER + 1
+end
+
+-- Where pod `index` (1-based) stands: the lower tier fills first, front row first.
 function BayModel.podCFrame(origin: CFrame, index: number): CFrame
-	local row = math.ceil(index / BayLooks.PODS_PER_ROW)
-	local column = (index - 1) % BayLooks.PODS_PER_ROW
+	local inTier = (index - 1) % PODS_PER_TIER
+	local row = inTier // BayLooks.PODS_PER_ROW + 1
+	local column = inTier % BayLooks.PODS_PER_ROW
 	local x = (column - (BayLooks.PODS_PER_ROW - 1) / 2) * BayLooks.POD_SPACING
+	local y = BayLooks.BASE_SIZE.Y + (tierOf(index) - 1) * BayLooks.POD_TIER_HEIGHT
 	local z = BayLooks.POD_ROW_Z[math.clamp(row, 1, #BayLooks.POD_ROW_Z)]
-	return origin * CFrame.new(x, BayLooks.BASE_SIZE.Y, z)
+	return origin * CFrame.new(x, y, z)
 end
 
 -- Where egg `index` (1-based) lies on the incubator: round the ring, then a level higher.
@@ -82,6 +95,8 @@ function BayModel.buildPod(origin: CFrame, index: number): Model
 	stand.Material = Enum.Material.Metal
 	stand.Color = BayLooks.POD_STAND_COLOR
 	scenery(stand)
+	-- Upper-tier stands float at head height: nobody should bump into them.
+	stand.CanCollide = tierOf(index) == 1
 
 	local glass = disc(
 		"Glass",
