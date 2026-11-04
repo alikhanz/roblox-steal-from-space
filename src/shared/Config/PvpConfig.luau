@@ -62,9 +62,9 @@ return table.freeze({
 	STRIKE_LUNGE_ATTRIBUTE = "StrikeLunge",
 	STRIKE_COOLDOWN_ATTRIBUTE = "StrikeCooldown",
 	STRIKE_AIM_ATTRIBUTE = "StrikeAim",
-	-- The punch animation, uploaded from ServerStorage.Strike (see StrikePose); empty: no
-	-- animation, the lunge works without it.
-	STRIKE_ANIMATION_ID = "",
+	-- The punch animation, uploaded from ServerStorage.Strike (see StrikePose; re-upload over the
+	-- same asset after changing the pose). Empty: no animation, the lunge works without it.
+	STRIKE_ANIMATION_ID = "rbxassetid://82493247842000",
 	STRIKE_ANIMATION_INSTANCE_NAME = "StrikeAnimation",
 	STRIKE_ANIMATION_FADE_SECONDS = 0.05,
 	-- Player attribute: seconds of newbie protection left, 0 once it is over (for the sign over
