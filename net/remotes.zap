@@ -74,7 +74,6 @@ type AbilityKind = enum {
 	Harpoon,
 	Bomb,
 	Shield,
-	Dash,
 }
 
 -- Server -> client: the owner's private data. A snapshot on login, then the section that changed.

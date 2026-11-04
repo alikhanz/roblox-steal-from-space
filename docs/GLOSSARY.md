@@ -30,7 +30,6 @@
 | `Jetpack` | джетпак | jetpack | Не «реактивный ранец» |
 | `JetpackShop` | магазин джетпаков | jetpack shop | Киоск на станции, один на всех |
 | `Oxygen` | кислород | oxygen | |
-| `Dash` | рывок | dash | |
 | `Shield` | щит | shield | |
 | `Harpoon` | гарпун | harpoon | Полное: «магнитный гарпун» / magnet harpoon |
 | `GravityBomb` | гравибомба | gravity bomb | |

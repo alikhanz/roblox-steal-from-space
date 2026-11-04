@@ -33,10 +33,8 @@ local function cooldownFor(kind: ProfileState.AbilityKind, hit: boolean): number
 		return if hit then PvpConfig.HARPOON.cooldownSeconds else PvpConfig.HARPOON.missCooldownSeconds
 	elseif kind == "Bomb" then
 		return PvpConfig.BOMB.cooldownSeconds
-	elseif kind == "Shield" then
-		return PvpConfig.SHIELD.cooldownSeconds
 	end
-	return PvpConfig.DASH.cooldownSeconds
+	return PvpConfig.SHIELD.cooldownSeconds
 end
 
 function AbilityState.new(profile: ProfileState.ProfileState): AbilityState

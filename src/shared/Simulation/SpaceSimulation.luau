@@ -20,7 +20,6 @@ local GuardianConfig = require("../Config/GuardianConfig")
 local JetpackConfig = require("../Config/JetpackConfig")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
-local PvpConfig = require("../Config/PvpConfig")
 local Speed = require("../Domain/Speed")
 local SpeedConfig = require("../Config/SpeedConfig")
 local StationConfig = require("../Config/StationConfig")
@@ -134,13 +133,7 @@ local function fly(rig: Rig, context: Instance, deltaTime: number, target: EggTa
 	else
 		local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
 		local carryMultiplier = Speed.carryMultiplier(carriedWeight(rig.character))
-		-- The dash (PvP): a burst of top speed while the server's mark holds.
-		local dashUntil = rig.character:GetAttribute(PvpConfig.DASH_UNTIL_ATTRIBUTE)
-		local dashMultiplier = if type(dashUntil) == "number" and workspace:GetServerTimeNow() < dashUntil
-			then PvpConfig.DASH.multiplier
-			else 1
-		local topSpeed = maxSpeed * carryMultiplier * dashMultiplier
-		velocity = Flight.nextVelocity(current, direction, deltaTime, topSpeed, FlightConfig.TUNING)
+		velocity = Flight.nextVelocity(current, direction, deltaTime, maxSpeed * carryMultiplier, FlightConfig.TUNING)
 	end
 	velocity =
 		Bounds.limitVelocity(rig.root.Position, velocity, StationConfig.PLATFORM_CENTER, WorldConfig.BOUNDARY_RADIUS)

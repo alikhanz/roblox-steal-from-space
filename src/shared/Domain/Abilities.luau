@@ -36,12 +36,6 @@ export type Shield = {
 	read cooldownSeconds: number,
 }
 
-export type Dash = {
-	read seconds: number,
-	read multiplier: number,
-	read cooldownSeconds: number,
-}
-
 -- True once `cooldownSeconds` passed since `lastUsedAt` (0: never used).
 function Abilities.isReady(lastUsedAt: number, now: number, cooldownSeconds: number): boolean
 	return lastUsedAt <= 0 or now - lastUsedAt >= cooldownSeconds

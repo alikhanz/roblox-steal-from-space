@@ -5,7 +5,7 @@
 --   Strike: a wind-up, then whoever is in the corridor ahead takes a guardian's hit.
 --   Harpoon: the nearest egg carrier in a narrow cone loses the egg toward the shooter.
 --   Bomb: flies ahead until it reaches someone, then throws everyone around it.
---   Shield: nothing lands on the player for a while. Dash: a burst of flight speed.
+--   Shield: nothing lands on the player for a while.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,7 +32,7 @@ local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local TICK_SECONDS = 1 / 15
 local LOG = RunService:IsStudio()
 
-export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield" | "Dash"
+export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield"
 export type Notice = Pvp.Refusal | "NotReady" | "NoProfile"
 
 export type Dependencies = {
@@ -83,15 +83,13 @@ local INPUT_ACTIONS: { [AbilityKind]: string } = {
 	Harpoon = FlightInputs.HARPOON,
 	Bomb = FlightInputs.BOMB,
 	Shield = FlightInputs.SHIELD,
-	Dash = FlightInputs.DASH,
 }
-local ABILITY_ORDER: { AbilityKind } = { "Strike", "Harpoon", "Bomb", "Shield", "Dash" }
+local ABILITY_ORDER: { AbilityKind } = { "Strike", "Harpoon", "Bomb", "Shield" }
 local COOLDOWNS: { [AbilityKind]: number } = {
 	Strike = PvpConfig.STRIKE.cooldownSeconds,
 	Harpoon = PvpConfig.HARPOON.cooldownSeconds,
 	Bomb = PvpConfig.BOMB.cooldownSeconds,
 	Shield = PvpConfig.SHIELD.cooldownSeconds,
-	Dash = PvpConfig.DASH.cooldownSeconds,
 }
 
 local PvpService = {}
@@ -399,23 +397,11 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		resolved(player, "Shield", true, false)
 	end
 
-	-- The dash: the simulation multiplies the flight speed while the attribute holds.
-	local function dash(player: Player, state: PlayerState)
-		local character = prepare(player, state, "Dash")
-		if not character then
-			return
-		end
-		state.lastUsedAt.Dash = time()
-		character:SetAttribute(PvpConfig.DASH_UNTIL_ATTRIBUTE, workspace:GetServerTimeNow() + PvpConfig.DASH.seconds)
-		resolved(player, "Dash", true, false)
-	end
-
 	local ABILITIES: { [AbilityKind]: (Player, PlayerState) -> () } = {
 		Strike = strike,
 		Harpoon = harpoon,
 		Bomb = bomb,
 		Shield = shield,
-		Dash = dash,
 	}
 
 	-- Seconds of newbie protection left, on the player for every client's view: the sign over

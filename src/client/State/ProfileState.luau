@@ -35,7 +35,7 @@ export type Notice =
 	| "VictimJustSpawned"
 	| "VictimShielded"
 	| "VictimTooWeak"
-export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield" | "Dash"
+export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield"
 
 export type ProfileState = {
 	name: string,

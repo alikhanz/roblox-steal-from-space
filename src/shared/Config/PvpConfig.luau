@@ -48,23 +48,15 @@ local SHIELD: Abilities.Shield = {
 	cooldownSeconds = 30,
 }
 
-local DASH: Abilities.Dash = {
-	seconds = 0.8,
-	multiplier = 2.2,
-	cooldownSeconds = 8,
-}
-
 return table.freeze({
 	RULES = table.freeze(RULES),
 	STRIKE = table.freeze(STRIKE),
 	HARPOON = table.freeze(HARPOON),
 	BOMB = table.freeze(BOMB),
 	SHIELD = table.freeze(SHIELD),
-	DASH = table.freeze(DASH),
 
-	-- Character attributes the abilities write and the simulation and clients read.
+	-- Character attribute the shield writes; the rules and every client read it.
 	SHIELD_UNTIL_ATTRIBUTE = "ShieldUntil",
-	DASH_UNTIL_ATTRIBUTE = "DashUntil",
 	-- Player attribute: seconds of newbie protection left, 0 once it is over (for the sign over
 	-- the player and the newbie's own HUD).
 	NEWBIE_ATTRIBUTE = "NewbieSecondsLeft",

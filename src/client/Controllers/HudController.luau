@@ -178,11 +178,6 @@ function HudController.new(dependencies: Dependencies): HudController
 				action = FlightInputs.SHIELD,
 				text = Text.get(locale, "pvp.shield.button"),
 			},
-			{
-				kind = "Dash" :: AbilityState.Kind,
-				action = FlightInputs.DASH,
-				text = Text.get(locale, "pvp.dash.button"),
-			},
 		}
 		local function coolingOf(kind: AbilityState.Kind): () -> boolean
 			return function()
@@ -193,7 +188,6 @@ function HudController.new(dependencies: Dependencies): HudController
 		-- the input uses).
 		local KEY_WORDS: { [string]: Text.Key } = {
 			MouseLeftButton = "key.mouseLeft.hint",
-			LeftShift = "key.shift.hint",
 			LeftControl = "key.control.hint",
 			Space = "key.space.hint",
 		}

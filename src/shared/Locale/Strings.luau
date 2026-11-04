@@ -176,10 +176,6 @@ local Strings = {
 		ru = "Щит",
 		en = "Shield",
 	},
-	["pvp.dash.button"] = {
-		ru = "Рывок",
-		en = "Dash",
-	},
 	["pvp.newbie.title"] = {
 		ru = "Новичок",
 		en = "Newbie",
@@ -539,10 +535,6 @@ local Strings = {
 	["key.mouseLeft.hint"] = {
 		ru = "ЛКМ",
 		en = "LMB",
-	},
-	["key.shift.hint"] = {
-		ru = "Shift",
-		en = "Shift",
 	},
 	["key.control.hint"] = {
 		ru = "Ctrl",
