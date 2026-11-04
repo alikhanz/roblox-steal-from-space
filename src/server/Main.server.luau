@@ -109,6 +109,7 @@ local guardianService = GuardianService.new({
 	getNestSites = worldService.getNestSites,
 	getNestGrade = nestService.getGrade,
 	findCarrier = carryService.findCarrier,
+	findLooseEggs = carryService.findLooseEggs,
 	getCarried = carryService.getCarried,
 	dropEgg = carryService.dropEgg,
 	getSpeed = speedService.getSpeed,

@@ -17,8 +17,8 @@ local function situation(overrides: { [string]: any }): GuardianBrain.Situation
 		hasTarget = false,
 		stolenSeconds = 0,
 		targetInStation = false,
-		targetDistanceFromNest = 0,
-		distanceToNest = 0,
+		targetDistanceFromHome = 0,
+		distanceToHome = 0,
 		chaseSeconds = 0,
 	}
 	for key, value in overrides do
@@ -42,12 +42,12 @@ describe("GuardianBrain.next", function()
 	it("stays asleep if the thief is already safe or out of range", function()
 		local safe = situation({ hasTarget = true, stolenSeconds = 2, targetInStation = true })
 		expect(GuardianBrain.next("Sleep", safe, TUNING)).toBe("Sleep")
-		local far = situation({ hasTarget = true, stolenSeconds = 2, targetDistanceFromNest = 201 })
+		local far = situation({ hasTarget = true, stolenSeconds = 2, targetDistanceFromHome = 201 })
 		expect(GuardianBrain.next("Sleep", far, TUNING)).toBe("Sleep")
 	end)
 
 	it("keeps chasing a thief in range", function()
-		local chasing = situation({ hasTarget = true, targetDistanceFromNest = 150, chaseSeconds = 10 })
+		local chasing = situation({ hasTarget = true, targetDistanceFromHome = 150, chaseSeconds = 10 })
 		expect(GuardianBrain.next("Chase", chasing, TUNING)).toBe("Chase")
 	end)
 
@@ -55,7 +55,7 @@ describe("GuardianBrain.next", function()
 		local cases = {
 			situation({ hasTarget = false }),
 			situation({ hasTarget = true, targetInStation = true }),
-			situation({ hasTarget = true, targetDistanceFromNest = 201 }),
+			situation({ hasTarget = true, targetDistanceFromHome = 201 }),
 			situation({ hasTarget = true, chaseSeconds = 21 }),
 		}
 		for _, case in cases do
@@ -64,13 +64,18 @@ describe("GuardianBrain.next", function()
 	end)
 
 	it("goes back to sleep once home", function()
-		expect(GuardianBrain.next("Return", situation({ distanceToNest = 50 }), TUNING)).toBe("Return")
-		expect(GuardianBrain.next("Return", situation({ distanceToNest = 2 }), TUNING)).toBe("Sleep")
+		expect(GuardianBrain.next("Return", situation({ distanceToHome = 50 }), TUNING)).toBe("Return")
+		expect(GuardianBrain.next("Return", situation({ distanceToHome = 2 }), TUNING)).toBe("Sleep")
 	end)
 
-	it("does not turn back on the way home", function()
-		local thief = situation({ hasTarget = true, stolenSeconds = 5, distanceToNest = 50 })
-		expect(GuardianBrain.next("Return", thief, TUNING)).toBe("Return")
+	it("turns around on the way home once its egg is taken again", function()
+		local thief = situation({ hasTarget = true, stolenSeconds = 1, distanceToHome = 50 })
+		expect(GuardianBrain.next("Return", thief, TUNING)).toBe("Chase")
+		local justTaken = situation({ hasTarget = true, stolenSeconds = 0.5, distanceToHome = 50 })
+		expect(GuardianBrain.next("Return", justTaken, TUNING)).toBe("Return")
+		local far =
+			situation({ hasTarget = true, stolenSeconds = 5, distanceToHome = 50, targetDistanceFromHome = 201 })
+		expect(GuardianBrain.next("Return", far, TUNING)).toBe("Return")
 	end)
 end)
 

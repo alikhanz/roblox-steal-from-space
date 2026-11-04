@@ -45,6 +45,9 @@ export type CarryService = {
 	getCarried: (player: Player) -> Carried?,
 	-- Who carries the egg of `nestId` right now, or nil.
 	findCarrier: (nestId: string) -> Player?,
+	-- Where the eggs of `nestId` lie knocked out (usually one; empty while the egg is in the
+	-- nest or carried).
+	findLooseEggs: (nestId: string) -> { Vector3 },
 	-- Puts a floating egg at `position` that returns to `nestId` when it expires.
 	spawnLooseEgg: (
 		rarity: EggConfig.RarityId,
@@ -318,6 +321,15 @@ function CarryService.new(dependencies: Dependencies): CarryService
 				end
 			end
 			return nil
+		end,
+		findLooseEggs = function(nestId: string): { Vector3 }
+			local positions = {}
+			for _, egg in loose do
+				if egg.nestId == nestId then
+					table.insert(positions, egg.part.Position)
+				end
+			end
+			return positions
 		end,
 		spawnLooseEgg = spawnLoose,
 	}

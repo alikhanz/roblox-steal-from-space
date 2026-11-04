@@ -32,6 +32,8 @@ export type Dependencies = {
 	-- The post of a nest (NestService ranks nests by distance).
 	getNestGrade: (nestId: string) -> number?,
 	findCarrier: (nestId: string) -> Player?,
+	-- Where the eggs of `nestId` lie knocked out (empty while the egg is in the nest or carried).
+	findLooseEggs: (nestId: string) -> { Vector3 },
 	getCarried: (player: Player) -> CarryService.Carried?,
 	dropEgg: (player: Player, launch: Vector3?) -> boolean,
 	getSpeed: (player: Player) -> BigNum.BigNum,
@@ -50,6 +52,9 @@ type Guardian = {
 	body: BasePart,
 	velocity: LinearVelocity,
 	align: AlignOrientation,
+	-- Over the nest.
+	nestHome: Vector3,
+	-- Where the guardian keeps watch: over its egg, wherever it lies (see followEgg).
 	home: Vector3,
 	-- Flight speed on the way home and while settling, studs per second.
 	cruiseSpeed: number,
@@ -144,20 +149,48 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		guardian.model:SetAttribute(GuardianConfig.STATE_ATTRIBUTE, state)
 	end
 
+	-- Guardians never enter the dome, so an egg lying under it is out of their hands.
+	local function isUnderDome(position: Vector3): boolean
+		local station = StationConfig.STATION
+		return (position - station.domeCenter).Magnitude <= station.domeRadius + GuardianConfig.DOME_MARGIN
+	end
+
+	-- A guardian guards its egg, not a spot: knocked out of a thief's hands, the egg lies where
+	-- it fell and the guardian settles over it, so taking it again is the same deal as taking it
+	-- from the nest and the leash is measured from there. While the egg is carried the watch
+	-- point stays where the egg last lay; once the egg is back in the nest, so is the guardian.
+	-- Should two of its eggs lie about (the nest grew a new one meanwhile), the nearest is watched.
+	local function followEgg(guardian: Guardian, carrier: Player?)
+		local nearest: Vector3? = nil
+		local nearestDistance = math.huge
+		for _, position in dependencies.findLooseEggs(guardian.nestId) do
+			local distance = (position - guardian.body.Position).Magnitude
+			if distance < nearestDistance and not isUnderDome(position) then
+				nearest, nearestDistance = position, distance
+			end
+		end
+		if nearest then
+			guardian.home = nearest + Vector3.yAxis * GuardianConfig.HOVER_HEIGHT
+		elseif not carrier then
+			guardian.home = guardian.nestHome
+		end
+	end
+
 	local function tickGuardian(guardian: Guardian, deltaTime: number)
 		local carrier = dependencies.findCarrier(guardian.nestId)
 		local character: Model?, root: BasePart? = nil, nil
 		if carrier then
 			character, root = thiefRoot(carrier)
 		end
+		followEgg(guardian, carrier)
 		guardian.stolenSeconds = if root then guardian.stolenSeconds + deltaTime else 0
 
 		local situation: GuardianBrain.Situation = {
 			hasTarget = root ~= nil,
 			stolenSeconds = guardian.stolenSeconds,
 			targetInStation = character ~= nil and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true,
-			targetDistanceFromNest = if root then (root.Position - guardian.home).Magnitude else 0,
-			distanceToNest = (guardian.body.Position - guardian.home).Magnitude,
+			targetDistanceFromHome = if root then (root.Position - guardian.home).Magnitude else 0,
+			distanceToHome = (guardian.body.Position - guardian.home).Magnitude,
 			chaseSeconds = guardian.chaseSeconds,
 		}
 		setState(guardian, GuardianBrain.next(guardian.state, situation, GuardianConfig.BRAIN))
@@ -226,6 +259,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			body = body,
 			velocity = body:FindFirstChild(GuardianConfig.VELOCITY_NAME) :: LinearVelocity,
 			align = body:FindFirstChild(GuardianConfig.ALIGN_NAME) :: AlignOrientation,
+			nestHome = home,
 			home = home,
 			cruiseSpeed = Speed.flightSpeed(post.speed, SpeedConfig.FLIGHT),
 			state = "Sleep",
