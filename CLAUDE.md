@@ -48,7 +48,7 @@ rojo serve            # синхронизация в Studio
 - Плейтест через MCP: `start_stop_play`, ввод — `user_keyboard_input`, проверки — `execute_luau` в `Server`/`Client`, вывод — `get_console_output`.
 - **Команды разработчика** (только Studio, `src/server/Services/DevService.luau`) — `BindableFunction` в `ServerStorage.DevCommands`, вызываются из серверного `execute_luau`:
   - `SetInfiniteOxygen:Invoke(true/false)` — кислород не тратится в этом плейтесте (по умолчанию — из `DevConfig.STUDIO_INFINITE_OXYGEN`, в коммитах `false`);
-  - `SpawnEggNearPlayer:Invoke("Rare", "Large")` — выпавшее яйцо перед игроком (размер: Small / Medium / Large);
+  - `SpawnEggNearPlayer:Invoke("Rare", "Large")` — выпавшее яйцо перед игроком (размер: Small / Medium / Large; под куполом его вытолкнет за купол — выпавшим яйцам туда нельзя);
   - `RefillOxygen:Invoke()` — полный баллон;
   - `SetSpeed:Invoke(2500)` — скорость ⚡ первого игрока (пишется в профиль; HUD и скорость полёта обновляются сразу);
   - `GiveAlien:Invoke(2, "Rare")` — пришелец грейда 2 ступени Rare в отсек первого игрока (в свободную капсулу, иначе на пол);
