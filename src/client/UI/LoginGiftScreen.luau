@@ -14,7 +14,8 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
 
-local MAX_WIDTH = 600
+-- Seven tiles in a row plus the padding.
+local MAX_WIDTH = 650
 local PADDING = 18
 local GAP = 10
 local TITLE_TEXT_SIZE = 28
@@ -26,8 +27,7 @@ local VALUE_TEXT_SIZE = 13
 local CHECK_TEXT_SIZE = 30
 -- The sparks of a claim.
 local SPARK_COUNT = 14
-local SPARK_TEXT = "✦"
-local SPARK_TEXT_SIZE = 26
+local SPARK_SIZE = 12
 local SPARK_DISTANCE = 140
 local SPARK_SECONDS = 0.8
 -- The tile of the claim swells and snaps back.
@@ -257,25 +257,25 @@ function LoginGiftScreen.burst(screen: Instance, layer: ScreenGui, day: number, 
 	local center = target.AbsolutePosition + target.AbsoluteSize / 2
 	local random = Random.new()
 	for index = 1, SPARK_COUNT do
-		local spark = Instance.new("TextLabel")
+		-- A little diamond: a turned square (a glyph would depend on the font having it).
+		local spark = Instance.new("Frame")
 		spark.AnchorPoint = Vector2.new(0.5, 0.5)
 		spark.Position = UDim2.fromOffset(center.X, center.Y)
-		spark.Size = UDim2.fromOffset(SPARK_TEXT_SIZE, SPARK_TEXT_SIZE)
-		spark.BackgroundTransparency = 1
-		spark.Text = SPARK_TEXT
-		spark.TextSize = SPARK_TEXT_SIZE
-		spark.TextColor3 = color
-		spark.FontFace = Theme.FONT
+		spark.Size = UDim2.fromOffset(SPARK_SIZE, SPARK_SIZE)
+		spark.Rotation = 45
+		spark.BackgroundColor3 = color
+		spark.BorderSizePixel = 0
 		spark.ZIndex = 20
 		spark.Parent = layer
 		local angle = (index / SPARK_COUNT + random:NextNumber(-0.03, 0.03)) * math.pi * 2
 		local distance = SPARK_DISTANCE * random:NextNumber(0.6, 1)
 		local goal = center + Vector2.new(math.cos(angle), math.sin(angle)) * distance
-		local tween = TweenService:Create(
-			spark,
-			TweenInfo.new(SPARK_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Position = UDim2.fromOffset(goal.X, goal.Y), TextTransparency = 1, Rotation = random:NextNumber(-90, 90) }
-		)
+		local flight = TweenInfo.new(SPARK_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local tween = TweenService:Create(spark, flight, {
+			Position = UDim2.fromOffset(goal.X, goal.Y),
+			BackgroundTransparency = 1,
+			Rotation = 45 + random:NextNumber(-90, 90),
+		})
 		tween:Play()
 		tween.Completed:Once(function()
 			spark:Destroy()

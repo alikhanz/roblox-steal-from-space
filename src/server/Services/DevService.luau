@@ -64,7 +64,7 @@ export type Dependencies = {
 	-- Daily quests: finish all of today's; give a fresh set as if a new day began.
 	completeQuests: (player: Player) -> boolean,
 	newQuestDay: (player: Player) -> boolean,
-	-- Login gift: moves the last gift this many days back.
+	-- Login gift: makes the last gift this many days old.
 	shiftLoginDays: (player: Player, days: number) -> boolean,
 }
 

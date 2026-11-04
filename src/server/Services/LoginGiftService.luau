@@ -56,7 +56,8 @@ export type LoginGiftService = {
 	-- Today's status for `player`, or nil without a profile.
 	getStatus: (player: Player) -> LoginGift.Status?,
 	claim: (player: Player) -> Notice?,
-	-- Studio command: moves the last gift `days` back, as if that many days passed.
+	-- Studio command: makes the last gift `days` days old (1: the next streak day waits; 2: a
+	-- day was missed).
 	shiftDays: (player: Player, days: number) -> boolean,
 }
 
@@ -133,8 +134,9 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 
 	local function shiftDays(player: Player, days: number): boolean
 		local written = dependencies.update(player, function(data)
+			-- From today, not from the stored day, so calling it twice does not skip a day.
 			if data.loginGift.lastDay > 0 then
-				data.loginGift.lastDay = math.max(data.loginGift.lastDay - days, 1)
+				data.loginGift.lastDay = math.max(today() - days, 1)
 			end
 		end)
 		if written then

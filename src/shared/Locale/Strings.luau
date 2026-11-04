@@ -584,10 +584,6 @@ local Strings = {
 		ru = "Подарок: +{coins} ● и +{speed} ⚡",
 		en = "Gift: +{coins} ● and +{speed} ⚡",
 	},
-	["gift.egg.toast"] = {
-		ru = "{egg} уже в инкубаторе!",
-		en = "{egg} is in your incubator!",
-	},
 	["notice.giftTaken.toast"] = {
 		ru = "Сегодняшний подарок уже у тебя",
 		en = "You already got today's gift",

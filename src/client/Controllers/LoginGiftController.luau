@@ -200,10 +200,8 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				LoginGiftScreen.burst(screen, layer, reward.day, Theme.COINS)
 			end
 			local paid = { coins = BigNum.format(reward.coins), speed = BigNum.format(reward.speed) }
+			-- The egg needs no toast of its own: the bay cheers every new egg in the incubator.
 			toast(text("gift.rewarded.toast", paid), Theme.TOAST_GOOD)
-			if reward.egg then
-				toast(text("gift.egg.toast", { egg = eggName() }), Theme.TOAST_GOOD)
-			end
 			task.delay(CLOSE_AFTER_CLAIM_SECONDS, function()
 				isOpen(false)
 			end)
