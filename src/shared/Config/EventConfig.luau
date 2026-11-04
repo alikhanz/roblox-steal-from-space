@@ -64,6 +64,11 @@ return table.freeze({
 	-- Where the event is, if anywhere: its zone id and a point to mark on the screen.
 	ZONE_ATTRIBUTE = "Zone",
 	POSITION_ATTRIBUTE = "Position",
+	-- An event that is in many places at once (the meteor shower's craters) lists them in a
+	-- folder of this name inside its child: a Vector3Value per spot, with the ZONE_ATTRIBUTE.
+	-- While it has spots, they are marked one pin per zone (Domain/EventSpots) instead of the
+	-- event's point.
+	SPOTS_FOLDER_NAME = "Spots",
 	-- The clocks are moved on this often, seconds.
 	TICK_SECONDS = 0.25,
 })

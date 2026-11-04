@@ -58,3 +58,35 @@ describe("ScreenMarker.place", function()
 		near(placement.angle, 90)
 	end)
 end)
+
+describe("ScreenMarker.separate", function()
+	local WIDTH, HEIGHT = 160, 50
+
+	it("leaves signs that do not touch where they are", function()
+		local points = ScreenMarker.separate({ { x = 100, y = 100 }, { x = 400, y = 100 } }, WIDTH, HEIGHT, SCREEN)
+		near(points[1].y, 100)
+		near(points[2].x, 400)
+		near(points[2].y, 100)
+	end)
+
+	it("steps a covered sign down in the top half, keeping the first in place", function()
+		local points = ScreenMarker.separate({ { x = 500, y = 100 }, { x = 520, y = 110 } }, WIDTH, HEIGHT, SCREEN)
+		near(points[1].y, 100)
+		near(points[2].x, 520)
+		near(points[2].y, 150)
+	end)
+
+	it("steps up in the bottom half, so signs stay on screen", function()
+		local points = ScreenMarker.separate({ { x = 500, y = 560 }, { x = 500, y = 560 } }, WIDTH, HEIGHT, SCREEN)
+		near(points[2].y, 510)
+	end)
+
+	it("stacks signs pinned to one spot of the edge one above another", function()
+		local same = { x = 960, y = 200 }
+		local points = ScreenMarker.separate({ same, same, same, same }, WIDTH, HEIGHT, SCREEN)
+		near(points[1].y, 200)
+		near(points[2].y, 250)
+		near(points[3].y, 300)
+		near(points[4].y, 350)
+	end)
+end)

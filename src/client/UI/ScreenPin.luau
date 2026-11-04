@@ -15,7 +15,8 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 local create = Vide.create
 local source = Vide.source
 
-local SIGN_SIZE = UDim2.fromOffset(160, 52)
+-- Room for the longest title (a zone name) and the distance under it, pixels.
+local SIGN_SIZE = Vector2.new(220, 52)
 local ARROW_SIZE = 28
 local DISTANCE_TEXT_SIZE = 16
 -- The arrow glyph points right; GuiObject.Rotation turns it.
@@ -35,15 +36,47 @@ export type ViewProps = {
 	color: Color3,
 }
 
+-- Where a pin goes on screen this frame: its sign, and the arrow at the edge if the place is not
+-- in view.
+export type Location = {
+	sign: Vector2,
+	arrow: Vector2?,
+	angle: number,
+}
+
 export type Pin = {
 	-- The pin's ScreenGui, to mount once.
 	view: (props: ViewProps) -> ScreenGui,
 	-- Shows the pin at world `point` for this frame, with `distance` under the title.
 	place: (camera: Camera, point: Vector3, distance: string) -> (),
+	-- The same, at a location from `ScreenPin.locate` (moved, to keep pins from covering each
+	-- other).
+	show: (location: Location, distance: string) -> (),
 	hide: () -> (),
 }
 
 local ScreenPin = {}
+
+ScreenPin.SIGN_SIZE = SIGN_SIZE
+
+-- The screen pins are kept on.
+function ScreenPin.screenOf(camera: Camera): ScreenMarker.Screen
+	local viewport = camera.ViewportSize
+	return { width = viewport.X, height = viewport.Y, margin = EDGE_MARGIN }
+end
+
+-- Where the pin for world `point` goes on screen (Domain/ScreenMarker).
+function ScreenPin.locate(camera: Camera, point: Vector3): Location
+	local viewportPoint = camera:WorldToViewportPoint(point)
+	local placement = ScreenMarker.place(viewportPoint.X, viewportPoint.Y, viewportPoint.Z, ScreenPin.screenOf(camera))
+	local position = Vector2.new(placement.x, placement.y)
+	if placement.onScreen then
+		return { sign = position - Vector2.new(0, SIGN_ABOVE_POINT), arrow = nil, angle = placement.angle }
+	end
+	local radians = math.rad(placement.angle)
+	local towards = Vector2.new(math.cos(radians), math.sin(radians))
+	return { sign = position - towards * SIGN_FROM_ARROW, arrow = position, angle = placement.angle }
+end
 
 -- "120 m": the distance, rounded so it does not flicker every frame.
 function ScreenPin.distanceText(locale: Text.Locale, studs: number): string
@@ -66,29 +99,22 @@ function ScreenPin.new(): Pin
 	local arrowPosition = source(Vector2.zero)
 	local arrowAngle = source(0)
 
-	local function place(camera: Camera, point: Vector3, distanceText: string)
+	local function show(location: Location, distanceText: string)
 		visible(true)
 		if distanceText ~= distance() then
 			distance(distanceText)
 		end
-		local viewportPoint = camera:WorldToViewportPoint(point)
-		local viewport = camera.ViewportSize
-		local placement = ScreenMarker.place(viewportPoint.X, viewportPoint.Y, viewportPoint.Z, {
-			width = viewport.X,
-			height = viewport.Y,
-			margin = EDGE_MARGIN,
-		})
-		local position = Vector2.new(placement.x, placement.y)
-		arrowVisible(not placement.onScreen)
-		if placement.onScreen then
-			signPosition(position - Vector2.new(0, SIGN_ABOVE_POINT))
-		else
-			local radians = math.rad(placement.angle)
-			local towards = Vector2.new(math.cos(radians), math.sin(radians))
-			arrowPosition(position)
-			arrowAngle(placement.angle)
-			signPosition(position - towards * SIGN_FROM_ARROW)
+		signPosition(location.sign)
+		local arrow = location.arrow
+		arrowVisible(arrow ~= nil)
+		if arrow then
+			arrowPosition(arrow)
+			arrowAngle(location.angle)
 		end
+	end
+
+	local function place(camera: Camera, point: Vector3, distanceText: string)
+		show(ScreenPin.locate(camera, point), distanceText)
 	end
 
 	local function view(props: ViewProps): ScreenGui
@@ -102,7 +128,7 @@ function ScreenPin.new(): Pin
 			create("Frame")({
 				Name = "Sign",
 				AnchorPoint = Vector2.new(0.5, 0.5),
-				Size = SIGN_SIZE,
+				Size = UDim2.fromOffset(SIGN_SIZE.X, SIGN_SIZE.Y),
 				Position = at(signPosition),
 				BackgroundTransparency = 1,
 
@@ -156,6 +182,7 @@ function ScreenPin.new(): Pin
 	return {
 		view = view,
 		place = place,
+		show = show,
 		hide = function()
 			visible(false)
 		end,

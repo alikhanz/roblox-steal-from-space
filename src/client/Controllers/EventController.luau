@@ -2,7 +2,9 @@
 -- Server events on the client. Reads each event's state from the attributes the server keeps in
 -- ReplicatedStorage (EventService), and shows it: the countdown line at the top, a big
 -- announcement when an event is about to start or starts (naming the zone, if it has one), and a
--- pin to where it happens (UI/ScreenPin).
+-- pin to where it happens (UI/ScreenPin). An event in many places at once (the meteor shower's
+-- craters) gets a pin per zone instead, to its spot there nearest to the player
+-- (Domain/EventSpots); pins are moved apart so none covers another (Domain/ScreenMarker).
 
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
@@ -13,6 +15,8 @@ local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local EventBanner = require(script.Parent.Parent.UI.EventBanner)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventLooks = require(ReplicatedStorage.Shared.Config.EventLooks)
+local EventSpots = require(ReplicatedStorage.Shared.Domain.EventSpots)
+local ScreenMarker = require(ReplicatedStorage.Shared.Domain.ScreenMarker)
 local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -34,7 +38,22 @@ export type EventController = {
 type Seen = {
 	event: EventConfig.Event,
 	folder: Instance,
+	-- The pin to the event's point.
 	pin: ScreenPin.Pin,
+	-- Its spots, if it can have any (EventConfig.SPOTS_FOLDER_NAME), and their pins by zone,
+	-- made as zones come up.
+	spots: Instance?,
+	zonePins: { [string]: ScreenPin.Pin },
+	-- It has had spots in this phase: from then on its point is not marked (the spots are where
+	-- it is), even once they are all gone.
+	spotted: boolean,
+}
+
+-- A pin to show this frame.
+type Shown = {
+	pin: ScreenPin.Pin,
+	point: Vector3,
+	studs: number,
 }
 
 local EventController = {}
@@ -45,6 +64,7 @@ function EventController.new(): EventController
 	local announcement = source(nil :: EventBanner.Announcement?)
 	local seen: { Seen } = {}
 	local announcedUntil = 0
+	local gui: Instance? = nil
 
 	local function text(key: Text.Key, args: Text.Args?): string
 		return Text.get(locale, key, args)
@@ -66,10 +86,14 @@ function EventController.new(): EventController
 		return if type(endsAt) == "number" then endsAt else 0
 	end
 
-	local function zoneName(entry: Seen): string?
-		local zone = entry.folder:GetAttribute(EventConfig.ZONE_ATTRIBUTE)
+	-- The name of a zone given as an attribute value; nil for anything else.
+	local function zoneTitle(zone: unknown): string?
 		local config = if type(zone) == "string" then (ZoneConfig.ZONES :: any)[zone] else nil
 		return if config then text(config.nameKey) else nil
+	end
+
+	local function zoneName(entry: Seen): string?
+		return zoneTitle(entry.folder:GetAttribute(EventConfig.ZONE_ATTRIBUTE))
 	end
 
 	-- When the event itself starts (the warning is the run-up to it).
@@ -116,19 +140,86 @@ function EventController.new(): EventController
 		end
 	end
 
-	-- Every frame: pins to the events that happen somewhere.
+	local function zonePin(entry: Seen, zone: string): ScreenPin.Pin
+		local existing = entry.zonePins[zone]
+		if existing then
+			return existing
+		end
+		local pin = ScreenPin.new()
+		entry.zonePins[zone] = pin
+		local id = entry.event.id
+		local title = zoneTitle(zone) or nameOf(entry.event)
+		-- Pins are placed only after start() has found PlayerGui.
+		Vide.mount(function()
+			return pin.view({ name = `EventPin{id}{zone}`, title = title, color = EventLooks.COLORS[id] })
+		end, assert(gui, "[EventController] zone pin before start"))
+		return pin
+	end
+
+	-- What of `entry` to mark for a player at `from`: its spots, one per zone, or else its point.
+	local function collectPins(entry: Seen, from: Vector3, shown: { Shown })
+		local spots: { EventSpots.Spot<Vector3> } = {}
+		for _, child in if entry.spots then entry.spots:GetChildren() else {} do
+			local zone = child:GetAttribute(EventConfig.ZONE_ATTRIBUTE)
+			if child:IsA("Vector3Value") and type(zone) == "string" then
+				table.insert(spots, { zone = zone, distance = (child.Value - from).Magnitude, item = child.Value })
+			end
+		end
+		if #spots > 0 then
+			entry.spotted = true
+			for _, spot in EventSpots.nearestPerZone(spots) do
+				table.insert(shown, { pin = zonePin(entry, spot.zone), point = spot.item, studs = spot.distance })
+			end
+			return
+		end
+		local position = entry.folder:GetAttribute(EventConfig.POSITION_ATTRIBUTE)
+		if not entry.spotted and phaseOf(entry) ~= "Idle" and typeof(position) == "Vector3" then
+			table.insert(shown, { pin = entry.pin, point = position, studs = (position - from).Magnitude })
+		end
+	end
+
+	-- Every frame: pins to the events that happen somewhere. The nearest pin stays right on its
+	-- place, farther ones step aside if they would cover it.
 	local function placePins()
 		local camera = workspace.CurrentCamera
 		local character = Players.LocalPlayer.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local shown: { Shown } = {}
+		if camera and root and root:IsA("BasePart") then
+			for _, entry in seen do
+				collectPins(entry, root.Position, shown)
+			end
+		end
+		table.sort(shown, function(a: Shown, b: Shown)
+			return a.studs < b.studs
+		end)
+
+		local visible: { [ScreenPin.Pin]: boolean } = {}
+		if camera and #shown > 0 then
+			local locations: { ScreenPin.Location } = {}
+			local signs: { ScreenMarker.Point } = {}
+			for index, item in shown do
+				local location = ScreenPin.locate(camera, item.point)
+				locations[index] = location
+				signs[index] = { x = location.sign.X, y = location.sign.Y }
+			end
+			local size = ScreenPin.SIGN_SIZE
+			local apart = ScreenMarker.separate(signs, size.X, size.Y, ScreenPin.screenOf(camera))
+			for index, item in shown do
+				local location = locations[index]
+				location.sign = Vector2.new(apart[index].x, apart[index].y)
+				item.pin.show(location, ScreenPin.distanceText(locale, item.studs))
+				visible[item.pin] = true
+			end
+		end
 		for _, entry in seen do
-			local position = entry.folder:GetAttribute(EventConfig.POSITION_ATTRIBUTE)
-			local live = phaseOf(entry) ~= "Idle"
-			if camera and root and root:IsA("BasePart") and live and typeof(position) == "Vector3" then
-				local studs = (position - root.Position).Magnitude
-				entry.pin.place(camera, position, ScreenPin.distanceText(locale, studs))
-			else
+			if not visible[entry.pin] then
 				entry.pin.hide()
+			end
+			for _, pin in entry.zonePins do
+				if not visible[pin] then
+					pin.hide()
+				end
 			end
 		end
 	end
@@ -140,7 +231,14 @@ function EventController.new(): EventController
 				warn(`[EventController] No state for event {id}`)
 				continue
 			end
-			local entry: Seen = { event = EventConfig.EVENTS[id], folder = child, pin = ScreenPin.new() }
+			local entry: Seen = {
+				event = EventConfig.EVENTS[id],
+				folder = child,
+				pin = ScreenPin.new(),
+				spots = child:WaitForChild(EventConfig.SPOTS_FOLDER_NAME, FOLDER_WAIT_TIMEOUT),
+				zonePins = {},
+				spotted = false,
+			}
 			table.insert(seen, entry)
 			Vide.mount(function()
 				return entry.pin.view({
@@ -152,6 +250,7 @@ function EventController.new(): EventController
 			-- Only changes from now on are announced: a player who joins mid-event just sees
 			-- the countdown.
 			child:GetAttributeChangedSignal(EventConfig.PHASE_ATTRIBUTE):Connect(function()
+				entry.spotted = false
 				local phase = phaseOf(entry)
 				if phase ~= "Idle" then
 					announce(entry, phase)
@@ -164,6 +263,7 @@ function EventController.new(): EventController
 		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[EventController] PlayerGui did not appear")
+		gui = playerGui
 		local readAnnouncement = announcement :: () -> EventBanner.Announcement?
 		Vide.mount(function()
 			return EventBanner({ lines = lines, announcement = readAnnouncement })

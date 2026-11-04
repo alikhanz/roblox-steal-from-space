@@ -3,7 +3,8 @@
 -- direction from the station is picked; while it lasts, meteors fall along that strip, through
 -- every zone in turn. Each meteor leaves a crater, a nest of its own with one meteor egg and a
 -- guardian of the nearest nest's post (NestService.addCrater, GuardianService), so stealing it is
--- the same deal as stealing from that nest. When the shower ends the craters are retired: each
+-- the same deal as stealing from that nest; players see a pin per zone to its craters that still
+-- hold their eggs (EventService spots). When the shower ends the craters are retired: each
 -- goes as soon as its egg is back in it (at once if nobody took it); an egg on its way to a
 -- station keeps its crater and guardian until it is delivered or comes back.
 
@@ -11,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EventClock = require(ReplicatedStorage.Shared.Domain.EventClock)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventService = require(script.Parent.EventService)
@@ -31,6 +33,9 @@ export type Dependencies = {
 	eventChanged: Signal.Signal<EventConfig.EventId, EventClock.Phase>,
 	placeOf: (id: EventConfig.EventId) -> EventService.Place?,
 	setPlacer: (id: EventConfig.EventId, placer: EventService.Placer) -> (),
+	-- Marks for players: each crater whose egg is in it (EventService spots).
+	showSpot: (id: EventConfig.EventId, key: string, zone: ZoneConfig.ZoneId, position: Vector3) -> (),
+	hideSpot: (id: EventConfig.EventId, key: string) -> (),
 	-- Every nest, craters included: a new crater keeps its distance from them.
 	getNestSites: () -> { WorldService.NestSite },
 	buildCrater: (name: string, zone: ZoneConfig.ZoneId, center: Vector3) -> WorldService.NestSite?,
@@ -154,6 +159,24 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		tween:Play()
 	end
 
+	-- A crater is marked for players while its egg is in it, so the pin of its zone moves on to
+	-- the next crater once the egg is taken. NestService keeps the egg's state on the model.
+	local function markCrater(site: WorldService.NestSite)
+		local model = site.model
+		local function sync()
+			if model:GetAttribute(EggConfig.NEST_HAS_EGG_ATTRIBUTE) == true then
+				dependencies.showSpot("Meteor", site.id, site.zone, site.eggCFrame.Position)
+			else
+				dependencies.hideSpot("Meteor", site.id)
+			end
+		end
+		model:GetAttributeChangedSignal(EggConfig.NEST_HAS_EGG_ATTRIBUTE):Connect(sync)
+		model.Destroying:Connect(function()
+			dependencies.hideSpot("Meteor", site.id)
+		end)
+		sync()
+	end
+
 	local function makeCrater(zone: ZoneConfig.ZoneId, center: Vector3)
 		craterCount += 1
 		local site = dependencies.buildCrater(`MeteorCrater{craterCount}`, zone, center)
@@ -162,6 +185,7 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		end
 		if dependencies.addCrater(site, "Meteor") then
 			table.insert(craters, site.id)
+			markCrater(site)
 		else
 			site.model:Destroy()
 		end

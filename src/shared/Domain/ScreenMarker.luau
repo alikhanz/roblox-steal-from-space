@@ -54,4 +54,34 @@ function ScreenMarker.place(x: number, y: number, depth: number, screen: Screen)
 	}
 end
 
+export type Point = {
+	x: number,
+	y: number,
+}
+
+-- Moves signs of `width` × `height` (by their centers) apart so that none covers another. They
+-- are laid down in the given order: the first stays where it is, each next one steps by its
+-- height towards the middle of the screen (down in the top half, up in the bottom one) until it
+-- is clear of those before it.
+function ScreenMarker.separate(points: { Point }, width: number, height: number, screen: Screen): { Point }
+	local placed: { Point } = {}
+	for _, point in points do
+		local step = if point.y < screen.height / 2 then height else -height
+		local y = point.y
+		local moved = true
+		while moved do
+			moved = false
+			for _, other in placed do
+				if math.abs(other.x - point.x) < width and math.abs(other.y - y) < height then
+					-- Past the sign it touches; y only goes one way, so this ends.
+					y = other.y + step
+					moved = true
+				end
+			end
+		end
+		table.insert(placed, { x = point.x, y = y })
+	end
+	return placed
+end
+
 return table.freeze(ScreenMarker)

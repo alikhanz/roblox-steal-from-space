@@ -2,7 +2,8 @@
 -- Runs the server's event clocks (Domain/EventClock, EventConfig) and publishes each event's
 -- state for clients as attributes on a folder in ReplicatedStorage, so a player who joins in the
 -- middle sees it too. What an event does is up to the services that listen to `changed`; an
--- event that happens somewhere gets its place from the placer its service sets.
+-- event that happens somewhere gets its place from the placer its service sets; one that is in
+-- many places at once has its service show and hide them as spots.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -36,6 +37,10 @@ export type EventService = {
 	phaseOf: (id: EventConfig.EventId) -> EventClock.Phase,
 	placeOf: (id: EventConfig.EventId) -> Place?,
 	setPlacer: (id: EventConfig.EventId, placer: Placer) -> (),
+	-- One of the many places of an event (EventConfig.SPOTS_FOLDER_NAME), by a key of its
+	-- service's choosing; `hideSpot` takes it away (a key not shown is fine).
+	showSpot: (id: EventConfig.EventId, key: string, zone: ZoneConfig.ZoneId, position: Vector3) -> (),
+	hideSpot: (id: EventConfig.EventId, key: string) -> (),
 	-- Studio commands: the event right now (somewhere in `zone`, if given); the event in
 	-- `seconds`, warning and all; back to quiet.
 	activate: (id: EventConfig.EventId, zone: ZoneConfig.ZoneId?) -> (),
@@ -49,6 +54,7 @@ type Running = {
 	place: Place?,
 	placer: Placer?,
 	folder: Configuration,
+	spots: Folder,
 	-- For an event that comes after another (EventConfig `after`): its gap is over and it waits
 	-- for that one to end; then it is released into its warning.
 	waiting: boolean,
@@ -155,11 +161,15 @@ function EventService.new(dependencies: Dependencies): EventService
 			local child = Instance.new("Configuration")
 			child.Name = id
 			child.Parent = folder
+			local spots = Instance.new("Folder")
+			spots.Name = EventConfig.SPOTS_FOLDER_NAME
+			spots.Parent = child
 			local entry: Running = {
 				event = event,
 				clock = quiet(event, now()),
 				place = nil,
 				folder = child,
+				spots = spots,
 				waiting = false,
 				released = false,
 			}
@@ -192,6 +202,28 @@ function EventService.new(dependencies: Dependencies): EventService
 		publish(entry)
 	end
 
+	local function showSpot(id: EventConfig.EventId, key: string, zone: ZoneConfig.ZoneId, position: Vector3)
+		local spots = assert(running[id], `unknown event {id}`).spots
+		local spot = spots:FindFirstChild(key)
+		if not spot then
+			local created = Instance.new("Vector3Value")
+			created.Name = key
+			created.Value = position
+			created:SetAttribute(EventConfig.ZONE_ATTRIBUTE, zone)
+			created.Parent = spots
+		elseif spot:IsA("Vector3Value") then
+			spot.Value = position
+			spot:SetAttribute(EventConfig.ZONE_ATTRIBUTE, zone)
+		end
+	end
+
+	local function hideSpot(id: EventConfig.EventId, key: string)
+		local spot = assert(running[id], `unknown event {id}`).spots:FindFirstChild(key)
+		if spot then
+			spot:Destroy()
+		end
+	end
+
 	local function stop(id: EventConfig.EventId)
 		local entry = assert(running[id], `unknown event {id}`)
 		entry.clock = quiet(entry.event, now())
@@ -212,6 +244,8 @@ function EventService.new(dependencies: Dependencies): EventService
 		setPlacer = function(id, placer)
 			running[id].placer = placer
 		end,
+		showSpot = showSpot,
+		hideSpot = hideSpot,
 		activate = activate,
 		queue = queue,
 		stop = stop,
