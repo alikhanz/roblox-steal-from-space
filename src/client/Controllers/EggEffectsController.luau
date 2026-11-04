@@ -1,8 +1,9 @@
 --!strict
--- Client-side visuals for eggs out of their nests: a glowing trail in the egg's color, so a
--- knocked-out egg is easy to follow with the eye as it flies off, and sparks around a carried
--- egg, so a thief seen from behind is clearly holding something (a trail is a ribbon and
--- vanishes edge-on).
+-- Client-side visuals for eggs out of their nests, in the egg's color: a glowing ribbon behind
+-- every egg on the move (a knocked-out egg flying off, an egg in a thief's hands), so it is easy
+-- to follow with the eye, and sparks around a carried egg, so a thief is clearly holding
+-- something. The ribbon faces the camera, so it does not vanish edge-on from behind. Looks are
+-- in EggLooks.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,14 +11,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 
-local TRAIL_LIFETIME = 0.4
-local TRAIL_WIDTH_OFFSET = 0.6
--- Sparks around a carried egg.
 local SPARK_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds"
-local SPARK_RATE = 24
-local SPARK_LIFETIME = NumberRange.new(0.5, 0.9)
-local SPARK_SPEED = NumberRange.new(1.5, 3)
-local SPARK_SIZE = 0.7
+
+type TrailLook = typeof(EggLooks.CARRIED_TRAIL)
 
 export type EggEffectsController = {
 	name: string,
@@ -26,58 +22,69 @@ export type EggEffectsController = {
 
 local EggEffectsController = {}
 
-local function addTrail(instance: Instance)
-	if not instance:IsA("BasePart") then
-		return
-	end
+local function colorOf(instance: Instance, what: string): Color3?
 	local rarity = instance:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
 	local config = EggLooks.RARITIES[rarity :: EggConfig.RarityId]
 	if not config then
-		warn(`[EggEffectsController] {instance:GetFullName()} has no rarity; no trail`)
-		return
+		warn(`[EggEffectsController] {instance:GetFullName()} has no rarity; no {what}`)
+		return nil
 	end
+	return config.color
+end
 
+local function addTrail(part: BasePart, color: Color3, look: TrailLook)
 	local top = Instance.new("Attachment")
-	top.Position = Vector3.new(0, TRAIL_WIDTH_OFFSET, 0)
-	top.Parent = instance
+	top.Position = Vector3.new(0, look.width / 2, 0)
+	top.Parent = part
 	local bottom = Instance.new("Attachment")
-	bottom.Position = Vector3.new(0, -TRAIL_WIDTH_OFFSET, 0)
-	bottom.Parent = instance
+	bottom.Position = Vector3.new(0, -look.width / 2, 0)
+	bottom.Parent = part
 
 	local trail = Instance.new("Trail")
 	trail.Attachment0 = top
 	trail.Attachment1 = bottom
-	trail.Color = ColorSequence.new(config.color)
-	trail.Transparency = NumberSequence.new(0.2, 1)
-	trail.Lifetime = TRAIL_LIFETIME
+	trail.FaceCamera = true
+	trail.Color = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new(look.startTransparency, 1)
+	-- Full width at the egg, thinning towards the end.
+	trail.WidthScale = NumberSequence.new(1, 0.2)
+	trail.Lifetime = look.lifetime
 	trail.LightEmission = 1
-	trail.Parent = instance
+	trail.LightInfluence = 0
+	trail.Brightness = look.brightness
+	trail.Parent = part
 end
 
-local function addSparks(instance: Instance)
-	if not instance:IsA("BasePart") then
-		return
-	end
-	local rarity = instance:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
-	local config = EggLooks.RARITIES[rarity :: EggConfig.RarityId]
-	if not config then
-		warn(`[EggEffectsController] {instance:GetFullName()} has no rarity; no sparks`)
-		return
-	end
+local function addSparks(part: BasePart, color: Color3)
 	local sparks = Instance.new("ParticleEmitter")
 	sparks.Texture = SPARK_TEXTURE
-	sparks.Color = ColorSequence.new(config.color)
+	sparks.Color = ColorSequence.new(color)
 	sparks.LightEmission = 1
-	sparks.Rate = SPARK_RATE
-	sparks.Lifetime = SPARK_LIFETIME
-	sparks.Speed = SPARK_SPEED
+	sparks.Rate = EggLooks.SPARK_RATE
+	sparks.Lifetime = EggLooks.SPARK_LIFETIME
+	sparks.Speed = EggLooks.SPARK_SPEED
 	sparks.SpreadAngle = Vector2.new(180, 180)
 	sparks.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, SPARK_SIZE),
+		NumberSequenceKeypoint.new(0, EggLooks.SPARK_SIZE),
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	sparks.Transparency = NumberSequence.new(0.1, 1)
-	sparks.Parent = instance
+	sparks.Parent = part
+end
+
+local function decorateLoose(instance: Instance)
+	local color = instance:IsA("BasePart") and colorOf(instance, "trail")
+	if color then
+		addTrail(instance :: BasePart, color, EggLooks.LOOSE_TRAIL)
+	end
+end
+
+local function decorateCarried(instance: Instance)
+	local color = instance:IsA("BasePart") and colorOf(instance, "trail")
+	if color then
+		addTrail(instance :: BasePart, color, EggLooks.CARRIED_TRAIL)
+		addSparks(instance :: BasePart, color)
+	end
 end
 
 function EggEffectsController.new(): EggEffectsController
@@ -89,8 +96,8 @@ function EggEffectsController.new(): EggEffectsController
 	end
 
 	local function start()
-		observe(EggConfig.LOOSE_EGG_TAG, addTrail)
-		observe(EggConfig.CARRIED_EGG_TAG, addSparks)
+		observe(EggConfig.LOOSE_EGG_TAG, decorateLoose)
+		observe(EggConfig.CARRIED_EGG_TAG, decorateCarried)
 	end
 
 	return {

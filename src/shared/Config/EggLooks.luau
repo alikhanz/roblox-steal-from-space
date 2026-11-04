@@ -22,4 +22,15 @@ return table.freeze({
 	RARITIES = table.freeze(RARITIES),
 	-- Egg size, studs (an elongated sphere), before the size's scale.
 	EGG_SIZE = Vector3.new(1.6, 2.1, 1.6),
+
+	-- The glowing ribbon behind an egg on the move, in the egg's color. It always faces the
+	-- camera, so it is seen from behind too. Width is studs across; lifetime is how long a piece
+	-- stays, so length = lifetime x speed.
+	CARRIED_TRAIL = table.freeze({ width = 2.4, lifetime = 1.2, brightness = 3, startTransparency = 0 }),
+	LOOSE_TRAIL = table.freeze({ width = 1.4, lifetime = 0.6, brightness = 2, startTransparency = 0.1 }),
+	-- Sparks around a carried egg: they hang behind a thief in flight.
+	SPARK_RATE = 45,
+	SPARK_LIFETIME = NumberRange.new(0.8, 1.4),
+	SPARK_SPEED = NumberRange.new(1, 2.5),
+	SPARK_SIZE = 1,
 })
