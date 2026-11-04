@@ -60,6 +60,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	RerollUsed = "notice.rerollUsed.toast",
 	QuestDone = "notice.questDone.toast",
 	NoOtherQuest = "notice.noOtherQuest.toast",
+	GiftTaken = "notice.giftTaken.toast",
 }
 
 export type Dependencies = {
@@ -70,6 +71,8 @@ export type Dependencies = {
 export type BayWindowController = {
 	name: string,
 	start: () -> (),
+	-- The welcome-back screen is up (other screens on login wait for it).
+	welcomeOpen: () -> boolean,
 }
 
 -- What the welcome-back screen shows.
@@ -545,6 +548,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	return {
 		name = "BayWindowController",
 		start = start,
+		welcomeOpen = function()
+			return readReward() ~= nil
+		end,
 	}
 end
 

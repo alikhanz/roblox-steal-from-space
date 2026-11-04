@@ -74,6 +74,17 @@ type Notice = enum {
 	RerollUsed,
 	QuestDone,
 	NoOtherQuest,
+	-- Login gift.
+	GiftTaken,
+}
+
+-- Where the login gift streak stands today (Domain/LoginGift).
+type LoginGift = struct {
+	-- The streak day of today's gift (or of the one taken today), 1..7.
+	day: u8,
+	available: boolean,
+	-- A missed day started the streak over.
+	reset: boolean,
 }
 
 type QuestKind = enum {
@@ -119,6 +130,27 @@ event ProfileSnapshot = {
 		bay: Bay,
 		upgrades: Upgrades,
 		quests: Quests,
+		loginGift: LoginGift,
+	},
+}
+
+event LoginGiftChanged = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: LoginGift,
+}
+
+-- Today's gift was taken: what it paid (speed as the stat shows it) and whether an egg came.
+event LoginGiftRewarded = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		day: u8,
+		coins: BigNum,
+		speed: BigNum,
+		egg: boolean,
 	},
 }
 
@@ -287,6 +319,13 @@ event ClaimQuest = {
 	type: Reliable,
 	call: SingleSync,
 	data: u8,
+}
+
+-- Takes today's login gift.
+event ClaimLoginGift = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
 }
 
 -- The day's one swap, for the quest at this place.

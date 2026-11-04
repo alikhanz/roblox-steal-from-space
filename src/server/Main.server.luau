@@ -13,6 +13,7 @@ local GuardianService = require(script.Parent.Services.GuardianService)
 local JetpackService = require(script.Parent.Services.JetpackService)
 local LeaderboardService = require(script.Parent.Services.LeaderboardService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
+local LoginGiftService = require(script.Parent.Services.LoginGiftService)
 local MetricsService = require(script.Parent.Services.MetricsService)
 local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
@@ -63,6 +64,15 @@ local trainingDependencies = {} :: TrainingService.Dependencies
 local trainingService = TrainingService.new(trainingDependencies)
 local pvpDependencies = {} :: PvpService.Dependencies
 local pvpService = PvpService.new(pvpDependencies)
+local loginGiftService = LoginGiftService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	update = profile.update,
+	scheduler = scheduler,
+	getIncomePerSecond = bayService.getIncomePerSecond,
+	publishSpeed = speedService.publish,
+	refreshBay = bayService.refresh,
+})
 -- Quests hear from services made after the net service (carrying), so they are bound later too.
 local questDependencies = {} :: QuestService.Dependencies
 local questService = QuestService.new(questDependencies)
@@ -77,6 +87,7 @@ local netService = NetService.new({
 	trained = trainingService.trained,
 	abilityUsed = pvpService.abilityUsed,
 	quests = questService,
+	loginGift = loginGiftService,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -172,6 +183,11 @@ end)
 questService.completed.connect(function(player, kind)
 	metricsService.count(player, "QuestDone", { kind })
 end)
+loginGiftService.rewarded.connect(function(player, reward)
+	metricsService.earned(player, "Coins", "LoginGift", reward.coins)
+	metricsService.earned(player, "Speed", "LoginGift", reward.speed)
+	metricsService.count(player, "LoginGift", { `Day {reward.day}` })
+end)
 
 -- Studio-only playtest commands; inert in live servers.
 local devService = DevService.new({
@@ -188,6 +204,7 @@ local devService = DevService.new({
 	getPvpUsage = pvpService.getUsage,
 	completeQuests = questService.completeAll,
 	newQuestDay = questService.newDay,
+	shiftLoginDays = loginGiftService.shiftDays,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
@@ -206,6 +223,7 @@ Lifecycle.run({
 	trainingService,
 	pvpService,
 	questService,
+	loginGiftService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,

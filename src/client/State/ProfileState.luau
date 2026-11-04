@@ -41,11 +41,17 @@ export type Notice =
 	| "RerollUsed"
 	| "QuestDone"
 	| "NoOtherQuest"
+	| "GiftTaken"
 export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield"
 export type QuestKind = "DeliverEggs" | "DeliverFromZone" | "HatchAliens" | "Train" | "Crossbreed" | "KnockEgg"
 export type Quest = { kind: QuestKind, target: number, progress: number, claimed: boolean, zone: string? }
 -- Today's quests: the UTC day, whether the day's swap is used, the list.
 export type Quests = { day: number, rerolled: boolean, list: { Quest } }
+-- Where the login gift streak stands today: the streak day, whether its gift waits, whether a
+-- missed day started the streak over.
+export type LoginGift = { day: number, available: boolean, reset: boolean }
+-- What a taken gift paid (speed as the stat shows it).
+export type GiftReward = { day: number, coins: BigNum.BigNum, speed: BigNum.BigNum, egg: boolean }
 
 export type ProfileState = {
 	name: string,
@@ -54,6 +60,7 @@ export type ProfileState = {
 	bay: Vide.Source<Bay>,
 	upgrades: Vide.Source<Upgrades>,
 	quests: Vide.Source<Quests>,
+	loginGift: Vide.Source<LoginGift>,
 	-- True once the first snapshot arrived.
 	loaded: Vide.Source<boolean>,
 	-- The trainer paid out: speed points gained this tick.
@@ -69,6 +76,7 @@ export type ProfileState = {
 	abilityResult: Signal.Signal<AbilityKind, boolean, boolean>,
 	-- A claimed quest paid out: coins and the speed stat gained.
 	questRewarded: Signal.Signal<BigNum.BigNum, BigNum.BigNum>,
+	giftRewarded: Signal.Signal<GiftReward>,
 }
 
 local ProfileState = {}
@@ -82,6 +90,8 @@ function ProfileState.new(): ProfileState
 	local bay = source(emptyBay())
 	local upgrades = source({ trainerLevel = 0, jetpackLevel = 0 } :: Upgrades)
 	local quests = source({ day = 0, rerolled = false, list = {} } :: Quests)
+	local loginGift = source({ day = 1, available = false, reset = false } :: LoginGift)
+	local giftRewarded = Signal.new() :: Signal.Signal<GiftReward>
 	local loaded = source(false)
 	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number>
@@ -106,7 +116,18 @@ function ProfileState.new(): ProfileState
 			bay(snapshot.bay)
 			upgrades(snapshot.upgrades)
 			quests(snapshot.quests)
+			loginGift(snapshot.loginGift)
 			loaded(true)
+		end)
+		Remotes.LoginGiftChanged.SetCallback(function(value)
+			loginGift(value)
+		end)
+		Remotes.LoginGiftRewarded.SetCallback(function(reward)
+			local paid = BigNum.fromSaved(reward.coins)
+			local gained = BigNum.fromSaved(reward.speed)
+			if paid and gained then
+				giftRewarded.fire({ day = reward.day, coins = paid, speed = gained, egg = reward.egg })
+			end
 		end)
 		Remotes.QuestsChanged.SetCallback(function(value)
 			quests(value)
@@ -161,6 +182,7 @@ function ProfileState.new(): ProfileState
 		bay = bay,
 		upgrades = upgrades,
 		quests = quests,
+		loginGift = loginGift,
 		loaded = loaded,
 		trained = trained,
 		offlineReward = offlineReward,
@@ -169,6 +191,7 @@ function ProfileState.new(): ProfileState
 		notice = notice,
 		abilityResult = abilityResult,
 		questRewarded = questRewarded,
+		giftRewarded = giftRewarded,
 	}
 end
 

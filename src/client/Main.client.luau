@@ -15,6 +15,7 @@ local HitEffectsController = require(script.Parent.Controllers.HitEffectsControl
 local HudController = require(script.Parent.Controllers.HudController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
+local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
 local NewbieViewController = require(script.Parent.Controllers.NewbieViewController)
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
@@ -29,6 +30,7 @@ local TrainingViewController = require(script.Parent.Controllers.TrainingViewCon
 local profileState = ProfileState.new()
 local toastState = ToastState.new()
 local abilityState = AbilityState.new(profileState)
+local bayWindowController = BayWindowController.new({ profile = profileState, toasts = toastState })
 
 Lifecycle.run({
 	profileState,
@@ -39,11 +41,16 @@ Lifecycle.run({
 	PromptViewController.new(),
 	GuardianViewController.new(),
 	BayViewController.new({ profile = profileState }),
-	BayWindowController.new({ profile = profileState, toasts = toastState }),
+	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({ profile = profileState }),
 	CoinBoardController.new(),
 	QuestController.new({ profile = profileState, toasts = toastState }),
+	LoginGiftController.new({
+		profile = profileState,
+		toasts = toastState,
+		welcomeOpen = bayWindowController.welcomeOpen,
+	}),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),

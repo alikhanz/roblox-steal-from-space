@@ -548,6 +548,50 @@ local Strings = {
 		ru = "Пробел",
 		en = "Space",
 	},
+	["gift.open.button"] = {
+		ru = "Подарок",
+		en = "Gift",
+	},
+	["gift.window.title"] = {
+		ru = "Подарок за вход",
+		en = "Daily gift",
+	},
+	["gift.day.hint"] = {
+		ru = "День {day}",
+		en = "Day {day}",
+	},
+	["gift.claim.button"] = {
+		ru = "Забрать",
+		en = "Claim",
+	},
+	["gift.later.button"] = {
+		ru = "Позже",
+		en = "Later",
+	},
+	["gift.streak.hint"] = {
+		ru = "Заходи каждый день, и подарки будут расти",
+		en = "Come back every day for bigger gifts",
+	},
+	["gift.reset.hint"] = {
+		ru = "Новая серия! Заходи каждый день",
+		en = "New streak! Come back every day",
+	},
+	["gift.next.hint"] = {
+		ru = "Следующий подарок через {time}",
+		en = "Next gift in {time}",
+	},
+	["gift.rewarded.toast"] = {
+		ru = "Подарок: +{coins} ● и +{speed} ⚡",
+		en = "Gift: +{coins} ● and +{speed} ⚡",
+	},
+	["gift.egg.toast"] = {
+		ru = "{egg} уже в инкубаторе!",
+		en = "{egg} is in your incubator!",
+	},
+	["notice.giftTaken.toast"] = {
+		ru = "Сегодняшний подарок уже у тебя",
+		en = "You already got today's gift",
+	},
 	["quests.open.button"] = {
 		ru = "Задания",
 		en = "Quests",

@@ -13,7 +13,9 @@ local BigNum = require("../src/shared/Domain/BigNum")
 local EggConfig = require("../src/shared/Config/EggConfig")
 local GuardianConfig = require("../src/shared/Config/GuardianConfig")
 local Hatch = require("../src/shared/Domain/Hatch")
+local LoginGiftConfig = require("../src/shared/Config/LoginGiftConfig")
 local Loot = require("../src/shared/Domain/Loot")
+local PlayReward = require("../src/shared/Domain/PlayReward")
 local PlayerData = require("../src/shared/Domain/PlayerData")
 local QuestConfig = require("../src/shared/Config/QuestConfig")
 local Quests = require("../src/shared/Domain/Quests")
@@ -46,19 +48,20 @@ type Profile = {
 	name: string,
 	pass: number,
 	packageHours: number,
-	-- Claims all of the day's quests at the end of each session.
-	quests: boolean,
+	-- Takes the login gift at the start of each session and claims all of the day's quests at
+	-- its end.
+	daily: boolean,
 }
 
 local PROFILES: { Profile } = {
-	{ name = "free", pass = 1, packageHours = 0, quests = false },
-	{ name = "free + quests", pass = 1, packageHours = 0, quests = true },
-	{ name = "pass x2", pass = ASSUMPTIONS.trainingPass, packageHours = 0, quests = false },
+	{ name = "free", pass = 1, packageHours = 0, daily = false },
+	{ name = "free + daily", pass = 1, packageHours = 0, daily = true },
+	{ name = "pass x2", pass = ASSUMPTIONS.trainingPass, packageHours = 0, daily = false },
 	{
 		name = "pass + pack",
 		pass = ASSUMPTIONS.trainingPass,
 		packageHours = ASSUMPTIONS.packageHours,
-		quests = false,
+		daily = false,
 	},
 }
 
@@ -235,8 +238,30 @@ local function simulate(profile: Profile, seed: number): Run
 		if inDay < sessionSeconds then
 			trained += trainRate() * ASSUMPTIONS.trainShare * dt
 			coins += incomeRate * dt
+			-- The login gift, taken first thing each day: the streak never breaks here.
+			if profile.daily and inDay == 0 then
+				local giftDay = (now // DAY_SECONDS) % LoginGiftConfig.LENGTH + 1
+				local giftCoins, giftTrained = PlayReward.worth(
+					LoginGiftConfig.MINUTES[giftDay],
+					BigNum.fromNumber(incomeRate),
+					Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING),
+					LoginGiftConfig.MIN_REWARD_COINS
+				)
+				coins += toNumber(giftCoins)
+				trained += toNumber(giftTrained)
+				if giftDay == LoginGiftConfig.EGG_DAY then
+					local rarity = LoginGiftConfig.EGG_RARITY
+					table.insert(data.incubator, {
+						uid = Bay.newUid(data),
+						rarity = rarity,
+						size = LoginGiftConfig.EGG_SIZE,
+						grade = math.max(bestPost, 1),
+						hatchAt = now + Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random()),
+					})
+				end
+			end
 			-- The day's quests, claimed at the end of the session with the same formula as the game.
-			if profile.quests and inDay == sessionSeconds - dt then
+			if profile.daily and inDay == sessionSeconds - dt then
 				local questCoins, questTrained = Quests.reward(
 					QUEST_MINUTES_A_DAY,
 					BigNum.fromNumber(incomeRate),
@@ -326,7 +351,7 @@ print(
 	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, {ASSUMPTIONS.trainShare * 100}% of it training, `
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
-		.. `, quests = {string.format("%.0f", QUEST_MINUTES_A_DAY)} min of play a day`
+		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day) and the login gift`
 )
 print("")
 

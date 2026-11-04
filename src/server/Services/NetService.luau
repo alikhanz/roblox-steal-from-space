@@ -9,6 +9,7 @@ local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EconomyService = require(script.Parent.EconomyService)
+local LoginGiftService = require(script.Parent.LoginGiftService)
 local NetConfig = require(ReplicatedStorage.Shared.Config.NetConfig)
 local OfflineService = require(script.Parent.OfflineService)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
@@ -43,9 +44,10 @@ export type Dependencies = {
 	-- Ability results to forward.
 	abilityUsed: Signal.Signal<Player, PvpService.AbilityKind, boolean, boolean>,
 	quests: QuestService.QuestService,
+	loginGift: LoginGiftService.LoginGiftService,
 }
 
-export type Notice = EconomyService.Notice | PvpService.Notice | QuestService.Notice
+export type Notice = EconomyService.Notice | PvpService.Notice | QuestService.Notice | LoginGiftService.Notice
 
 export type NetService = {
 	name: string,
@@ -94,13 +96,23 @@ function NetService.new(dependencies: Dependencies): NetService
 		return { trainerLevel = data.trainerLevel, jetpackLevel = data.jetpackLevel }
 	end
 
+	local function giftOf(player: Player): Remotes.LoginGift
+		local status = dependencies.loginGift.getStatus(player)
+		return if status
+			then { day = status.day, available = status.available, reset = status.reset }
+			else { day = 1, available = false, reset = false }
+	end
+
 	local function sendSnapshot(player: Player)
 		local data = dependencies.getData(player)
 		if data then
-			Remotes.ProfileSnapshot.Fire(
-				player,
-				{ coins = wire(data.coins), bay = bayOf(data), upgrades = upgradesOf(data), quests = questsOf(data) }
-			)
+			Remotes.ProfileSnapshot.Fire(player, {
+				coins = wire(data.coins),
+				bay = bayOf(data),
+				upgrades = upgradesOf(data),
+				quests = questsOf(data),
+				loginGift = giftOf(player),
+			})
 		end
 	end
 
@@ -181,6 +193,20 @@ function NetService.new(dependencies: Dependencies): NetService
 				Remotes.QuestsChanged.Fire(player, questsOf(data))
 			end
 		end)
+		local loginGift = dependencies.loginGift
+		loginGift.changed.connect(function(player)
+			Remotes.LoginGiftChanged.Fire(player, giftOf(player))
+		end)
+		loginGift.rewarded.connect(function(player, reward)
+			Remotes.LoginGiftRewarded.Fire(
+				player,
+				{ day = reward.day, coins = wire(reward.coins), speed = wire(reward.speed), egg = reward.egg }
+			)
+			local data = dependencies.getData(player)
+			if data then
+				Remotes.CoinsChanged.Fire(player, wire(data.coins))
+			end
+		end)
 		quests.rewarded.connect(function(player, coins, _trained, shown)
 			Remotes.QuestRewarded.Fire(player, { coins = wire(coins), speed = wire(shown) })
 			local data = dependencies.getData(player)
@@ -222,6 +248,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.RerollQuest.SetCallback(guarded(function(player, index: number)
 			return quests.reroll(player, index)
+		end))
+		Remotes.ClaimLoginGift.SetCallback(guarded(function(player)
+			return loginGift.claim(player)
 		end))
 
 		PlayerEvents.observe(function() end, function(player)

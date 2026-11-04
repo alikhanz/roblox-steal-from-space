@@ -64,6 +64,8 @@ export type Dependencies = {
 	-- Daily quests: finish all of today's; give a fresh set as if a new day began.
 	completeQuests: (player: Player) -> boolean,
 	newQuestDay: (player: Player) -> boolean,
+	-- Login gift: moves the last gift this many days back.
+	shiftLoginDays: (player: Player, days: number) -> boolean,
 }
 
 export type DevService = {
@@ -212,6 +214,22 @@ function DevService.new(dependencies: Dependencies): DevService
 				return "no player"
 			end
 			return if dependencies.newQuestDay(player) then "new quests given" else "profile not active yet"
+		end,
+		-- As if a day passed since the first player's last gift: the next streak day is waiting.
+		NextLoginDay = function(): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			return if dependencies.shiftLoginDays(player, 1) then "next day's gift ready" else "profile not active"
+		end,
+		-- As if the first player missed a day: the streak starts over.
+		MissLoginDay = function(): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			return if dependencies.shiftLoginDays(player, 2) then "a day missed" else "profile not active yet"
 		end,
 		-- How many times each ability was used in this server and how many landed.
 		PvpStats = function(): string
