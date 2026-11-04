@@ -3,9 +3,11 @@
 -- -Z toward the platform center, Y up from the platform floor. Pure numbers live in BayConfig.
 
 local ServerConfig = require("./ServerConfig")
+local StationConfig = require("./StationConfig")
 
--- Bays stand on a ring around the platform center, each facing inward.
-local RING_RADIUS = 42
+-- Bays stand on a ring around the platform center, each facing inward; it follows the station's
+-- size.
+local RING_RADIUS = StationConfig.BAY_RING_RADIUS
 local BAY_COUNT = ServerConfig.MAX_PLAYERS
 
 -- Pods stand in two tiers of three rows: the lower tier on the floor fills first, the upper

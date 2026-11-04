@@ -2,9 +2,12 @@
 -- Where the jetpack shop stands on the platform and what its greybox kiosk looks like: a counter,
 -- a tall back panel and a glowing orb above the counter.
 
+local StationConfig = require("./StationConfig")
+
 return table.freeze({
-	-- From the platform center, on the floor; the kiosk faces the spawn.
-	POSITION = Vector3.new(18, 0, 22),
+	-- From the platform center, on the floor, in the station's size (18, 22 on a 60-stud
+	-- platform); the kiosk faces the spawn.
+	POSITION = Vector3.new(0.3, 0, 22 / 60) * StationConfig.PLATFORM_RADIUS,
 	FACING = Vector3.new(-1, 0, 0.3),
 
 	COUNTER_SIZE = Vector3.new(6, 3, 2),

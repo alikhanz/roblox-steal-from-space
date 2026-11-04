@@ -2,9 +2,13 @@
 -- The four zones of the map, as rings around the station: how far they are, how many nests
 -- and guardian posts each has, and what eggs grow there. Farther zones give rarer eggs.
 -- Pure Luau: the balance calculator and tests load it in Lune. Looks live in ZoneLooks.
+--
+-- The rings are measured out from the station border (StationSize), so a bigger station moves
+-- the whole map out with it and the flight from the border to the first nests stays the same.
 
 local EggConfig = require("./EggConfig")
 local Loot = require("../Domain/Loot")
+local StationSize = require("./StationSize")
 -- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
 local Strings = require("../Locale/Strings")
 
@@ -30,6 +34,11 @@ local ZONE_ORDER: { ZoneId } = { "DebrisBelt", "IceRings", "RedNebula", "EventHo
 
 local POSTS_PER_ZONE = 6
 
+-- `studs` past the station border, from the station center.
+local function pastBorder(studs: number): number
+	return StationSize.BORDER_RADIUS + studs
+end
+
 local function zone(
 	id: ZoneId,
 	nameKey: keyof<typeof(Strings)>,
@@ -53,7 +62,12 @@ local function zone(
 end
 
 local ZONES: { [ZoneId]: Zone } = {
-	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", { min = 285, max = 480, height = 90, nests = 14 }, {
+	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", {
+		min = pastBorder(135),
+		max = pastBorder(330),
+		height = 90,
+		nests = 14,
+	}, {
 		{ id = "Common", weight = 70 },
 		{ id = "Uncommon", weight = 25 },
 		{ id = "Rare", weight = 5 },
@@ -62,7 +76,12 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 35 },
 		{ id = "Large", weight = 15 },
 	}),
-	IceRings = zone("IceRings", "zone.iceRings.title", { min = 775, max = 1115, height = 160, nests = 20 }, {
+	IceRings = zone("IceRings", "zone.iceRings.title", {
+		min = pastBorder(625),
+		max = pastBorder(965),
+		height = 160,
+		nests = 20,
+	}, {
 		{ id = "Common", weight = 50 },
 		{ id = "Uncommon", weight = 32 },
 		{ id = "Rare", weight = 15 },
@@ -72,7 +91,12 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 40 },
 		{ id = "Large", weight = 20 },
 	}),
-	RedNebula = zone("RedNebula", "zone.redNebula.title", { min = 1445, max = 1940, height = 230, nests = 25 }, {
+	RedNebula = zone("RedNebula", "zone.redNebula.title", {
+		min = pastBorder(1295),
+		max = pastBorder(1790),
+		height = 230,
+		nests = 25,
+	}, {
 		{ id = "Common", weight = 35 },
 		{ id = "Uncommon", weight = 35 },
 		{ id = "Rare", weight = 20 },
@@ -86,7 +110,7 @@ local ZONES: { [ZoneId]: Zone } = {
 	EventHorizon = zone(
 		"EventHorizon",
 		"zone.eventHorizon.title",
-		{ min = 2300, max = 2900, height = 300, nests = 32 },
+		{ min = pastBorder(2150), max = pastBorder(2750), height = 300, nests = 32 },
 		{
 			{ id = "Common", weight = 25 },
 			{ id = "Uncommon", weight = 30 },

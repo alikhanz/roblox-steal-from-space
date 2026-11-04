@@ -3,6 +3,7 @@
 -- announces itself with a landmark (ice ring, red haze, the black hole). Pure numbers are in
 -- ZoneConfig.
 
+local WorldConfig = require("./WorldConfig")
 local ZoneConfig = require("./ZoneConfig")
 
 export type ZoneLook = {
@@ -62,8 +63,8 @@ return table.freeze({
 	HAZE_COLOR = rgb(200, 40, 60),
 	HAZE_TRANSPARENCY = 0.88,
 
-	-- Event Horizon: a black hole at the edge of the map, with a glowing rim.
-	BLACK_HOLE_DISTANCE = 3000,
+	-- Event Horizon: a black hole at the edge of the map (just inside it), with a glowing rim.
+	BLACK_HOLE_DISTANCE = WorldConfig.BOUNDARY_RADIUS - 100,
 	BLACK_HOLE_RADIUS = 200,
 	BLACK_HOLE_RIM_RADIUS = 225,
 	BLACK_HOLE_COLOR = rgb(5, 5, 8),

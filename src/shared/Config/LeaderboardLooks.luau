@@ -2,9 +2,12 @@
 -- Where the coin board stands on the platform and what its greybox stand looks like: a tall
 -- panel on two legs, facing the spawn.
 
+local StationConfig = require("./StationConfig")
+
 return table.freeze({
-	-- From the platform center, on the floor.
-	POSITION = Vector3.new(-18, 0, 22),
+	-- From the platform center, on the floor, in the station's size: across the spawn from the
+	-- jetpack shop (ShopLooks).
+	POSITION = Vector3.new(-0.3, 0, 22 / 60) * StationConfig.PLATFORM_RADIUS,
 	FACING = Vector3.new(1, 0, 0.3),
 
 	-- Wide enough for a 20-letter display name next to the coins.
