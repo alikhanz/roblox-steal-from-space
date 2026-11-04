@@ -386,6 +386,85 @@ describe("PlayerData migration v5 -> v6", function()
 	end)
 end)
 
+describe("PlayerData migration v6 -> v7", function()
+	it("starts with no quests and keeps the rest", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 6
+		saved.quests = nil
+		saved.coinsEarned = { mantissa = 900, exponent = 0 }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.quests.day).toBe(0)
+			expect(outcome.data.quests.rerolled).toBe(false)
+			expect(#outcome.data.quests.list).toBe(0)
+			expect(outcome.data.coinsEarned).toEqual(BigNum.fromNumber(900))
+		end
+	end)
+end)
+
+describe("PlayerData quests", function()
+	it("keeps saved quests", function()
+		local saved = savedTemplate()
+		saved.quests = {
+			day = 20000,
+			rerolled = true,
+			list = {
+				{ kind = "Train", target = 300, progress = 12.5, claimed = false },
+				{ kind = "DeliverFromZone", target = 1, progress = 1, claimed = true, zone = "IceRings" },
+			},
+		}
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.quests.list[1].progress).toBe(12.5)
+			expect(outcome.data.quests.list[2].zone).toBe("IceRings")
+		end
+	end)
+
+	it("rejects broken quests", function()
+		local cases: { { quests: any, detail: string } } = {
+			{ quests = "none", detail = "quests is not a table" },
+			{ quests = { day = -1, rerolled = false, list = {} }, detail = "quests day is invalid" },
+			{ quests = { day = 1, rerolled = "no", list = {} }, detail = "quests rerolled is invalid" },
+			{
+				quests = {
+					day = 1,
+					rerolled = false,
+					list = { { kind = "", target = 1, progress = 0, claimed = false } },
+				},
+				detail = "quests: quest kind is invalid",
+			},
+			{
+				quests = {
+					day = 1,
+					rerolled = false,
+					list = { { kind = "X", target = 0, progress = 0, claimed = false } },
+				},
+				detail = "quests: quest target is invalid",
+			},
+			{
+				quests = {
+					day = 1,
+					rerolled = false,
+					list = { { kind = "X", target = 1, progress = -1, claimed = false } },
+				},
+				detail = "quests: quest progress is invalid",
+			},
+			{
+				quests = { day = 1, rerolled = false, list = { { kind = "X", target = 1, progress = 0 } } },
+				detail = "quests: quest claimed is invalid",
+			},
+		}
+		for _, case in cases do
+			local saved = savedTemplate()
+			saved.quests = case.quests
+			expectCorrupted(saved, case.detail)
+		end
+	end)
+end)
+
 describe("PlayerData coins earned", function()
 	it("starts at zero", function()
 		expect(PlayerData.template(DEFAULTS).coinsEarned).toBe(BigNum.ZERO)

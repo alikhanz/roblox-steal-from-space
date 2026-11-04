@@ -6,6 +6,7 @@
 
 local BigNum = require("./BigNum")
 local Migrations = require("./Migrations")
+local Quests = require("./Quests")
 local Tables = require("../Runtime/Tables")
 
 -- An alien the player owns. `uid` is unique within the profile and never reused: it is how
@@ -55,6 +56,8 @@ export type PlayerData = {
 	onboardingSteps: number,
 	-- The highest guardian post an egg was delivered from; 0: none yet (analytics progression).
 	bestPost: number,
+	-- Today's daily quests (Domain/Quests).
+	quests: Quests.State,
 }
 
 -- Starting values that come from configs; the domain never reads configs itself.
@@ -69,7 +72,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 6
+PlayerData.SCHEMA_VERSION = 7
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -92,6 +95,8 @@ PlayerData.MIGRATIONS = {
 	[5] = function(data: { [string]: any })
 		data.coinsEarned = data.coins
 	end,
+	-- v7 adds quests, filled from the template: the first day's quests come on the next join.
+	[6] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -116,6 +121,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		playSeconds = 0,
 		onboardingSteps = 0,
 		bestPost = 0,
+		quests = Quests.empty(),
 	}
 end
 
@@ -198,6 +204,42 @@ local function validateList(list: any, name: string, check: (any, Uids) -> strin
 	return nil
 end
 
+local function validateQuest(record: any, _seen: Uids): string?
+	if type(record) ~= "table" then
+		return "quest is not a table"
+	end
+	if type(record.kind) ~= "string" or record.kind == "" then
+		return "quest kind is invalid"
+	end
+	if not isInteger(record.target) or record.target < 1 then
+		return "quest target is invalid"
+	end
+	if not isFinite(record.progress) or record.progress < 0 then
+		return "quest progress is invalid"
+	end
+	if type(record.claimed) ~= "boolean" then
+		return "quest claimed is invalid"
+	end
+	if record.zone ~= nil and type(record.zone) ~= "string" then
+		return "quest zone is invalid"
+	end
+	return nil
+end
+
+local function validateQuests(quests: any): string?
+	if type(quests) ~= "table" then
+		return "quests is not a table"
+	end
+	if not isInteger(quests.day) or quests.day < 0 then
+		return "quests day is invalid"
+	end
+	if type(quests.rerolled) ~= "boolean" then
+		return "quests rerolled is invalid"
+	end
+	-- Quests carry no uids: a set of their own, so they never clash with aliens and eggs.
+	return validateList(quests.list, "quests", validateQuest, {})
+end
+
 -- Checks a migrated, reconciled copy and converts saved values into their runtime form in place.
 local function validate(data: { [string]: any }): string?
 	for _, field in { "coins", "coinsEarned", "trained" } do
@@ -248,7 +290,7 @@ local function validate(data: { [string]: any }): string?
 			return `{field} is invalid`
 		end
 	end
-	return nil
+	return validateQuests(data.quests)
 end
 
 -- Loads saved data without touching it: all work happens on a copy, which is returned on success.
