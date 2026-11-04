@@ -53,3 +53,40 @@ describe("Abilities.withinRadius", function()
 		expect(Abilities.withinRadius(ORIGIN, targets, 25)).toEqual({ "a", "c" })
 	end)
 end)
+
+describe("Abilities.stepStrike", function()
+	local STRIKE: Abilities.Strike = {
+		lungeSeconds = 0.25,
+		lungeExtraSpeed = 40,
+		contactStuds = 6,
+		contactHalfAngleRadians = math.rad(70),
+		cooldownSeconds = 1.5,
+	}
+	local IDLE: Abilities.StrikeTimers = { lungeLeft = 0, cooldownLeft = 0 }
+
+	it("starts a lunge when wanted and ready", function()
+		local timers, started = Abilities.stepStrike(IDLE, true, 1 / 60, STRIKE)
+		expect(started).toBe(true)
+		expect(timers.lungeLeft).toBe(0.25)
+		expect(timers.cooldownLeft).toBe(1.5)
+	end)
+
+	it("does nothing when not wanted", function()
+		local timers, started = Abilities.stepStrike(IDLE, false, 1 / 60, STRIKE)
+		expect(started).toBe(false)
+		expect(timers.lungeLeft).toBe(0)
+	end)
+
+	it("counts the lunge down to zero and does not restart it during the cooldown", function()
+		local timers = { lungeLeft = 0.1, cooldownLeft = 1.3 }
+		local next1, started = Abilities.stepStrike(timers, true, 0.2, STRIKE)
+		expect(started).toBe(false)
+		expect(next1.lungeLeft).toBe(0)
+		expect(next1.cooldownLeft).toBeCloseTo(1.1, 1e-9)
+	end)
+
+	it("strikes again once the cooldown is over while held", function()
+		local _, started = Abilities.stepStrike({ lungeLeft = 0, cooldownLeft = 0.01 }, true, 0.02, STRIKE)
+		expect(started).toBe(true)
+	end)
+end)

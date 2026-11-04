@@ -1,9 +1,10 @@
 --!strict
--- Greybox effects of the attacks, made on the server so every client sees them: the harpoon's
--- beam, the bomb in flight and its flash. Placeholders until the art pass.
+-- Greybox effects of the attacks, made on the server so every client sees them: the strike's
+-- impact, the harpoon's beam, the bomb in flight and its flash. Placeholders until the art pass.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 
@@ -19,6 +20,8 @@ local FLASH_TRANSPARENCY = 0.5
 local SHIELD_RADIUS = 4
 local SHIELD_COLOR = Color3.fromRGB(120, 230, 255)
 local SHIELD_TRANSPARENCY = 0.6
+local IMPACT_COLOR = Color3.fromRGB(255, 240, 170)
+local IMPACT_TRANSPARENCY = 0.15
 
 local PvpEffects = {}
 
@@ -161,6 +164,28 @@ function PvpEffects.shieldBubble(character: Model, seconds: number)
 	bubble.Parent = character
 	task.delay(seconds, function()
 		bubble:Destroy()
+	end)
+end
+
+-- The strike landing: a bright burst at the touch point that swells and fades.
+function PvpEffects.strikeImpact(position: Vector3)
+	local burst = Instance.new("Part")
+	burst.Name = "StrikeImpact"
+	burst.Shape = Enum.PartType.Ball
+	burst.Size = Vector3.one * PvpConfig.STRIKE_IMPACT_RADIUS
+	burst.Color = IMPACT_COLOR
+	burst.Material = Enum.Material.Neon
+	burst.Transparency = IMPACT_TRANSPARENCY
+	burst.CFrame = CFrame.new(position)
+	ghost(burst)
+	burst.Parent = effectsFolder()
+	local grow = TweenInfo.new(PvpConfig.STRIKE_IMPACT_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(burst, grow, {
+		Size = Vector3.one * PvpConfig.STRIKE_IMPACT_RADIUS * 2,
+		Transparency = 1,
+	}):Play()
+	task.delay(PvpConfig.STRIKE_IMPACT_SECONDS, function()
+		burst:Destroy()
 	end)
 end
 

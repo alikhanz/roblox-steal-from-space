@@ -2,7 +2,8 @@
 -- Player versus player: the abilities. Every one is an input action in the flight context
 -- (the server sees the press itself, no remote), aimed where the camera looks, checked against
 -- Domain/Pvp's rules and counted, so the numbers say whether players fight at all.
---   Strike: a wind-up, then whoever is in the corridor ahead takes a guardian's hit.
+--   Strike: a lunge along the aim, run by the simulation; whoever the attacker touches on the
+--     way takes a guardian's hit, right at the touch.
 --   Harpoon: the nearest egg carrier in a narrow cone loses the egg toward the shooter.
 --   Bomb: flies ahead until it reaches someone, then throws everyone around it.
 --   Shield: nothing lands on the player for a while.
@@ -75,18 +76,18 @@ type PlayerState = {
 	lastUsedAt: { [AbilityKind]: number },
 	pressed: { [AbilityKind]: boolean },
 	spawnedAt: number,
+	-- The strike's lunge in progress: whether it already touched someone (one hit per lunge).
+	lunge: { touched: boolean }?,
 }
 
--- Which input action triggers which ability.
+-- The abilities started by a press here; the strike starts in the simulation instead.
 local INPUT_ACTIONS: { [AbilityKind]: string } = {
-	Strike = FlightInputs.STRIKE,
 	Harpoon = FlightInputs.HARPOON,
 	Bomb = FlightInputs.BOMB,
 	Shield = FlightInputs.SHIELD,
 }
-local ABILITY_ORDER: { AbilityKind } = { "Strike", "Harpoon", "Bomb", "Shield" }
+local ABILITY_ORDER: { AbilityKind } = { "Harpoon", "Bomb", "Shield" }
 local COOLDOWNS: { [AbilityKind]: number } = {
-	Strike = PvpConfig.STRIKE.cooldownSeconds,
 	Harpoon = PvpConfig.HARPOON.cooldownSeconds,
 	Bomb = PvpConfig.BOMB.cooldownSeconds,
 	Shield = PvpConfig.SHIELD.cooldownSeconds,
@@ -153,10 +154,11 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		}
 	end
 
-	-- The same hit a guardian deals: thrown along `direction`, tumbling, egg knocked sideways.
+	-- The same hit a guardian deals: thrown along `direction`, tumbling, the egg knocked on
+	-- along the blow and a little aside, so it is plainly the hit that sent it flying.
 	local function hitPlayer(victim: Player, character: Model, direction: Vector3, by: string): boolean
 		local sideways = sidewaysOf(direction)
-		local launch = (sideways * 0.8 + direction * 0.6).Unit * EggConfig.DROP_SPEED
+		local launch = (direction * 0.85 + sideways * 0.5).Unit * EggConfig.DROP_SPEED
 		local dropped = dependencies.dropEgg(victim, launch)
 		Knockback.apply(
 			character,
@@ -259,48 +261,55 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		return character, root, aimOf(player, root)
 	end
 
-	-- The wind-up is over: whoever stands in the corridor takes the hit, or the attacker
-	-- overreaches and loses a moment of thrust.
-	local function resolveStrike(player: Player, character: Model)
+	-- The strike: the simulation lunges the attacker along the aim (PvpConfig.STRIKE_* attributes);
+	-- here, every frame of the lunge, the first target touched takes the hit, an impact flash
+	-- marks the spot and the egg flies off along the strike. No touch by the end is a miss.
+	local function watchLunge(player: Player, state: PlayerState)
+		local character = player.Character
 		local root = rootOf(character)
-		if not root or character.Parent == nil or not isInSpace(character) then
+		local left = character and character:GetAttribute(PvpConfig.STRIKE_LUNGE_ATTRIBUTE)
+		if not character or not root or type(left) ~= "number" or left <= 0 then
+			if state.lunge and not state.lunge.touched then
+				resolved(player, "Strike", false, false)
+			end
+			state.lunge = nil
 			return
 		end
-		-- Aimed at the end of the wind-up, not at the press: the attacker keeps the target in
-		-- the crosshair while swinging, and a target that moved meanwhile is still hit.
-		local direction = aimOf(player, root)
-		local attacker = sideOf(player, character)
-		local reach = PvpConfig.STRIKE.lungeStuds + PvpConfig.STRIKE.reachStuds
+		local lunge = state.lunge or { touched = false }
+		state.lunge = lunge
+		local aim = character:GetAttribute(PvpConfig.STRIKE_AIM_ATTRIBUTE)
+		if lunge.touched or typeof(aim) ~= "Vector3" or Knockback.isStunned(character) then
+			return
+		end
 		local function anyone()
 			return true
 		end
-		local target = findInCone(root, direction, targetsFor(player), reach, PvpConfig.STRIKE.halfAngleRadians, anyone)
-		if target then
-			local refusal = Pvp.refusal(attacker, target.side(), time(), PvpConfig.RULES)
-			if refusal then
-				-- The notice says why; no "miss" on top of it.
-				dependencies.notify(player, refusal)
-				count("Strike", false)
-				return
-			end
-			local away = target.root.Position - root.Position
-			local push = if away.Magnitude > 1e-3 then away.Unit else direction
-			resolved(player, "Strike", true, target.onHit(push))
+		local target = findInCone(
+			root,
+			aim,
+			targetsFor(player),
+			PvpConfig.STRIKE.contactStuds,
+			PvpConfig.STRIKE.contactHalfAngleRadians,
+			anyone
+		)
+		if not target then
 			return
 		end
-		-- A miss: the attacker keeps their speed but cannot steer for a moment.
-		local stall = PvpConfig.STRIKE.missStallSeconds
-		Knockback.apply(character, root.AssemblyLinearVelocity, Vector3.zero, stall, player.Name)
-		resolved(player, "Strike", false, false)
+		lunge.touched = true
+		local refusal = Pvp.refusal(sideOf(player, character), target.side(), time(), PvpConfig.RULES)
+		if refusal then
+			dependencies.notify(player, refusal)
+			count("Strike", false)
+			return
+		end
+		PvpEffects.strikeImpact(root.Position:Lerp(target.root.Position, 0.6))
+		resolved(player, "Strike", true, target.onHit(aim))
 	end
 
-	local function strike(player: Player, state: PlayerState)
-		local character = prepare(player, state, "Strike")
-		if not character then
-			return
+	local function watchLunges()
+		for player, state in states do
+			watchLunge(player, state)
 		end
-		state.lastUsedAt.Strike = time()
-		task.delay(PvpConfig.STRIKE.windupSeconds, resolveStrike, player, character)
 	end
 
 	-- The harpoon: the nearest egg carrier in a narrow cone loses the egg, which flies toward
@@ -406,7 +415,6 @@ function PvpService.new(dependencies: Dependencies): PvpService
 	end
 
 	local ABILITIES: { [AbilityKind]: (Player, PlayerState) -> () } = {
-		Strike = strike,
 		Harpoon = harpoon,
 		Bomb = bomb,
 		Shield = shield,
@@ -483,6 +491,8 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			states[player] = nil
 		end)
 		dependencies.scheduler.every(TICK_SECONDS, tick)
+		-- Every frame, right after the simulation moved everyone: a lunge is short and fast.
+		RunService.PostSimulation:Connect(watchLunges)
 	end
 
 	return {

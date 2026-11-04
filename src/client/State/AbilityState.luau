@@ -1,7 +1,9 @@
 --!strict
 -- The client's view of its ability cooldowns: a cooldown starts when the server reports the
--- ability resolved (AbilityResult), so the clocks agree. Read by the HUD chips and buttons.
+-- ability resolved (AbilityResult), so the clocks agree. The strike runs in the simulation, so
+-- its cooldown is read straight from the predicted character. Read by the HUD chips and buttons.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -27,9 +29,7 @@ export type AbilityState = {
 local AbilityState = {}
 
 local function cooldownFor(kind: ProfileState.AbilityKind, hit: boolean): number
-	if kind == "Strike" then
-		return PvpConfig.STRIKE.cooldownSeconds
-	elseif kind == "Harpoon" then
+	if kind == "Harpoon" then
 		return if hit then PvpConfig.HARPOON.cooldownSeconds else PvpConfig.HARPOON.missCooldownSeconds
 	elseif kind == "Bomb" then
 		return PvpConfig.BOMB.cooldownSeconds
@@ -57,14 +57,20 @@ function AbilityState.new(profile: ProfileState.ProfileState): AbilityState
 
 	local function start()
 		profile.abilityResult.connect(function(kind, hit)
-			readyAtOf(kind)(os.clock() + cooldownFor(kind, hit))
+			if kind ~= "Strike" then
+				readyAtOf(kind)(os.clock() + cooldownFor(kind, hit))
+			end
 		end)
 		local sinceTick = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
 			sinceTick += deltaTime
 			if sinceTick >= CLOCK_INTERVAL then
 				sinceTick = 0
-				clock(os.clock())
+				local now = os.clock()
+				local character = Players.LocalPlayer.Character
+				local strikeLeft = character and character:GetAttribute(PvpConfig.STRIKE_COOLDOWN_ATTRIBUTE)
+				readyAtOf("Strike")(if type(strikeLeft) == "number" then now + strikeLeft else 0)
+				clock(now)
 			end
 		end)
 	end

@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+local Abilities = require("../Domain/Abilities")
 local Bounds = require("../Domain/Bounds")
 local DevConfig = require("../Config/DevConfig")
 local EggConfig = require("../Config/EggConfig")
@@ -20,6 +21,7 @@ local GuardianConfig = require("../Config/GuardianConfig")
 local JetpackConfig = require("../Config/JetpackConfig")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
+local PvpConfig = require("../Config/PvpConfig")
 local Speed = require("../Domain/Speed")
 local SpeedConfig = require("../Config/SpeedConfig")
 local StationConfig = require("../Config/StationConfig")
@@ -118,7 +120,54 @@ local function tumbleAngle(character: Model, hit: Hit?, deltaTime: number): numb
 	return angle
 end
 
-local function fly(rig: Rig, context: Instance, deltaTime: number, target: EggTargets.Target?, hit: Hit?)
+local function numberAttribute(character: Model, name: string): number
+	local value = character:GetAttribute(name)
+	return if type(value) == "number" then value else 0
+end
+
+local function setNumberAttribute(character: Model, name: string, value: number)
+	local stored = if value > 0 then value else nil
+	if character:GetAttribute(name) ~= stored then
+		character:SetAttribute(name, stored)
+	end
+end
+
+-- Advances the strike (Abilities.stepStrike) and returns the lunge's direction while it lasts.
+-- `canStrike`: out in space, not stunned and empty-handed. The state is predicted, so it lives
+-- in character attributes; the server watches the lunge for a touch (PvpService).
+local function strike(rig: Rig, context: Instance, canStrike: boolean, deltaTime: number): Vector3?
+	local character = rig.character
+	local timers: Abilities.StrikeTimers = {
+		lungeLeft = numberAttribute(character, PvpConfig.STRIKE_LUNGE_ATTRIBUTE),
+		cooldownLeft = numberAttribute(character, PvpConfig.STRIKE_COOLDOWN_ATTRIBUTE),
+	}
+	local wants = canStrike and FlightInputs.isPressed(context, FlightInputs.STRIKE)
+	local nextTimers, started = Abilities.stepStrike(timers, wants, deltaTime, PvpConfig.STRIKE)
+	setNumberAttribute(character, PvpConfig.STRIKE_LUNGE_ATTRIBUTE, nextTimers.lungeLeft)
+	setNumberAttribute(character, PvpConfig.STRIKE_COOLDOWN_ATTRIBUTE, nextTimers.cooldownLeft)
+
+	if started then
+		local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
+		local direction = if aim and aim.Magnitude > 1e-3 then aim.Unit else rig.root.CFrame.LookVector
+		character:SetAttribute(PvpConfig.STRIKE_AIM_ATTRIBUTE, direction)
+	elseif nextTimers.lungeLeft <= 0 and character:GetAttribute(PvpConfig.STRIKE_AIM_ATTRIBUTE) ~= nil then
+		character:SetAttribute(PvpConfig.STRIKE_AIM_ATTRIBUTE, nil)
+	end
+	if nextTimers.lungeLeft <= 0 then
+		return nil
+	end
+	local direction = character:GetAttribute(PvpConfig.STRIKE_AIM_ATTRIBUTE)
+	return if typeof(direction) == "Vector3" then direction else nil
+end
+
+local function fly(
+	rig: Rig,
+	context: Instance,
+	deltaTime: number,
+	target: EggTargets.Target?,
+	hit: Hit?,
+	lunge: Vector3?
+)
 	local current = rig.root.AssemblyLinearVelocity
 	local maxSpeed = flightSpeed(rig.character)
 	local aim = Flight.sanitizeAim(FlightInputs.readAim(context) or Vector3.zero)
@@ -127,6 +176,9 @@ local function fly(rig: Rig, context: Instance, deltaTime: number, target: EggTa
 	if hit then
 		-- Thrown by a guardian: no steering until the stun ends.
 		velocity = hit.velocity
+	elseif lunge then
+		-- The strike: a straight dash along the aim it started with.
+		velocity = lunge * (maxSpeed + PvpConfig.STRIKE.lungeExtraSpeed)
 	elseif target and FlightInputs.isPressed(context, FlightInputs.GRAB) then
 		-- Magnetic grab: lock onto the egg instead of drifting past it.
 		velocity = Grab.magnetVelocity(current, rig.root.Position, target.position, deltaTime, EggConfig.MAGNET)
@@ -163,10 +215,15 @@ local function fly(rig: Rig, context: Instance, deltaTime: number, target: EggTa
 	rig.align.MaxTorque = FlightConfig.MAX_FORCE
 end
 
--- Plays or stops the flight pose. Runs inside the simulation: under Server Authority, character
--- animations started elsewhere are rolled back. Tracks are looked up each step, never cached.
-local function setFlightPose(rig: Rig, active: boolean)
-	local animation = rig.character:FindFirstChild(JetpackConfig.ANIMATION_INSTANCE_NAME)
+-- Keeps an animation of the character playing while `active` and stops it otherwise; a
+-- one-shot animation is only started and runs out by itself. Runs inside the simulation: under
+-- Server Authority, character animations started elsewhere are rolled back. Tracks are looked
+-- up each step, never cached.
+local function setAnimation(rig: Rig, instanceName: string, active: boolean, fadeSeconds: number, oneShot: boolean?)
+	if oneShot and not active then
+		return
+	end
+	local animation = rig.character:FindFirstChild(instanceName)
 	local animator = rig.humanoid:FindFirstChildOfClass("Animator")
 	if not animation or not animation:IsA("Animation") or not animator then
 		return
@@ -177,10 +234,10 @@ local function setFlightPose(rig: Rig, active: boolean)
 			track = animator:LoadAnimation(animation)
 		end
 		if not track.IsPlaying then
-			track:Play(JetpackConfig.ANIMATION_FADE_SECONDS)
+			track:Play(fadeSeconds)
 		end
 	elseif track and track.IsPlaying then
-		track:Stop(JetpackConfig.ANIMATION_FADE_SECONDS)
+		track:Stop(fadeSeconds)
 	end
 end
 
@@ -243,15 +300,26 @@ local function step(deltaTime: number)
 		end
 
 		local hit = currentHit(rig.character)
+		local carrying = carriedRarity(rig.character) ~= nil
 		-- The egg in reach, if any: shared by the magnetic grab and the grab progress.
-		local target = if carriedRarity(rig.character) then nil else EggTargets.nearest(rig.root.Position)
+		local target = if carrying then nil else EggTargets.nearest(rig.root.Position)
+		-- Hands full with an egg: no strike.
+		local lunge = strike(rig, context, inSpace and hit == nil and not carrying, deltaTime)
 
 		if inSpace then
-			fly(rig, context, deltaTime, target, hit)
+			fly(rig, context, deltaTime, target, hit, lunge)
 		else
 			walk(rig)
 		end
-		setFlightPose(rig, inSpace)
+		setAnimation(rig, JetpackConfig.ANIMATION_INSTANCE_NAME, inSpace, JetpackConfig.ANIMATION_FADE_SECONDS)
+		-- The punch starts with the lunge and plays out by itself.
+		setAnimation(
+			rig,
+			PvpConfig.STRIKE_ANIMATION_INSTANCE_NAME,
+			lunge ~= nil,
+			PvpConfig.STRIKE_ANIMATION_FADE_SECONDS,
+			true
+		)
 		breathe(player, rig, inSpace, deltaTime)
 		-- A stunned thief cannot grab: the dropped egg is not snatched straight back.
 		grab(rig, deltaTime, target, FlightInputs.isPressed(context, FlightInputs.GRAB) and hit == nil)

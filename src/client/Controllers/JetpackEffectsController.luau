@@ -13,6 +13,7 @@ local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
 local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 
@@ -82,7 +83,10 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			-- A better jetpack burns harder: its level scales the flame and the glow.
 			local level = player:GetAttribute(UpgradeConfig.JETPACK_LEVEL_ATTRIBUTE)
 			local looks = JetpackLooks.forLevel(if type(level) == "number" then level else 0)
-			local rate = if now < effects.burstUntil
+			-- The strike's lunge fires the engine full blast too.
+			local lunge = character:GetAttribute(PvpConfig.STRIKE_LUNGE_ATTRIBUTE)
+			local lunging = type(lunge) == "number" and lunge > 0
+			local rate = if now < effects.burstUntil or lunging
 				then JetpackConfig.FLAME_BURST_RATE
 				else JetpackConfig.FLAME_RATE_IDLE
 					+ (JetpackConfig.FLAME_RATE_FULL - JetpackConfig.FLAME_RATE_IDLE) * thrust

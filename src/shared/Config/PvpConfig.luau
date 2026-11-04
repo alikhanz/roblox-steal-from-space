@@ -14,17 +14,15 @@ local RULES: Pvp.Rules = {
 	maxSpeedRatio = 10,
 }
 
--- The strike: a wind-up, then a lunge; whoever stands in the corridor ahead is hit.
+-- The strike: a lunge along the aim (about 10 studs ahead of where the attacker would be);
+-- whoever the attacker touches on the way is hit. Not while carrying an egg: the hands are full.
 local STRIKE: Abilities.Strike = {
-	windupSeconds = 0.3,
-	lungeStuds = 8,
-	-- The corridor: this far ahead of the attacker (on top of the lunge), within this
-	-- half-angle of their aim. Measured between character centers, so it allows for bodies.
-	reachStuds = 14,
-	halfAngleRadians = math.rad(45),
+	lungeSeconds = 0.25,
+	lungeExtraSpeed = 40,
+	-- Measured between character centers, so it allows for bodies.
+	contactStuds = 6,
+	contactHalfAngleRadians = math.rad(70),
 	cooldownSeconds = 1.5,
-	-- A miss leaves the attacker without thrust for this long.
-	missStallSeconds = 0.5,
 }
 
 local HARPOON: Abilities.Harpoon = {
@@ -58,6 +56,17 @@ return table.freeze({
 
 	-- Character attribute the shield writes; the rules and every client read it.
 	SHIELD_UNTIL_ATTRIBUTE = "ShieldUntil",
+	-- The strike lives in the simulation (predicted, so the attacker's lunge has no lag) and
+	-- keeps its state on the character: seconds of lunge left, seconds of cooldown left and the
+	-- lunge's direction. The server watches the lunge for a touch.
+	STRIKE_LUNGE_ATTRIBUTE = "StrikeLunge",
+	STRIKE_COOLDOWN_ATTRIBUTE = "StrikeCooldown",
+	STRIKE_AIM_ATTRIBUTE = "StrikeAim",
+	-- The punch animation, uploaded from ServerStorage.Strike (see StrikePose); empty: no
+	-- animation, the lunge works without it.
+	STRIKE_ANIMATION_ID = "",
+	STRIKE_ANIMATION_INSTANCE_NAME = "StrikeAnimation",
+	STRIKE_ANIMATION_FADE_SECONDS = 0.05,
 	-- Player attribute: seconds of newbie protection left, 0 once it is over (for the sign over
 	-- the player and the newbie's own HUD).
 	NEWBIE_ATTRIBUTE = "NewbieSecondsLeft",
@@ -68,6 +77,9 @@ return table.freeze({
 	-- along the beam over its whole time.
 	HARPOON_BEAM_SECONDS = 0.8,
 	BOMB_FLASH_SECONDS = 0.4,
+	-- The strike's impact: a burst at the touch point, its size and time on screen.
+	STRIKE_IMPACT_RADIUS = 3,
+	STRIKE_IMPACT_SECONDS = 0.25,
 	-- Names of the effect instances (the client could dress them up later).
 	HARPOON_BEAM_NAME = "HarpoonBeam",
 	BOMB_NAME = "GravityBomb",

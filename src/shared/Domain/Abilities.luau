@@ -6,13 +6,23 @@ local Abilities = {}
 
 export type Vector = { x: number, y: number, z: number }
 
+-- The strike is a lunge: the attacker shoots ahead along the aim, and whoever they touch on the
+-- way takes the hit. No touch by the end of the lunge is a miss.
 export type Strike = {
-	read windupSeconds: number,
-	read lungeStuds: number,
-	read reachStuds: number,
-	read halfAngleRadians: number,
+	read lungeSeconds: number,
+	-- Speed on top of the attacker's top flight speed while lunging, studs per second.
+	read lungeExtraSpeed: number,
+	-- A touch: a target this close to the attacker, within this half-angle of the lunge.
+	read contactStuds: number,
+	read contactHalfAngleRadians: number,
+	-- Counted from the start of the lunge.
 	read cooldownSeconds: number,
-	read missStallSeconds: number,
+}
+
+-- The strike's timers, seconds left of each (0: over).
+export type StrikeTimers = {
+	lungeLeft: number,
+	cooldownLeft: number,
 }
 
 export type Harpoon = {
@@ -35,6 +45,22 @@ export type Shield = {
 	read seconds: number,
 	read cooldownSeconds: number,
 }
+
+-- Advances the strike timers by `deltaTime`. `wantsToStrike` is the strike input held while
+-- striking is allowed; a lunge starts as soon as the cooldown allows, so holding the input
+-- strikes again and again. Returns the next timers and whether a lunge started this step.
+function Abilities.stepStrike(
+	timers: StrikeTimers,
+	wantsToStrike: boolean,
+	deltaTime: number,
+	tuning: Strike
+): (StrikeTimers, boolean)
+	local cooldownLeft = math.max(timers.cooldownLeft - deltaTime, 0)
+	if wantsToStrike and cooldownLeft <= 0 then
+		return { lungeLeft = tuning.lungeSeconds, cooldownLeft = tuning.cooldownSeconds }, true
+	end
+	return { lungeLeft = math.max(timers.lungeLeft - deltaTime, 0), cooldownLeft = cooldownLeft }, false
+end
 
 -- True once `cooldownSeconds` passed since `lastUsedAt` (0: never used).
 function Abilities.isReady(lastUsedAt: number, now: number, cooldownSeconds: number): boolean

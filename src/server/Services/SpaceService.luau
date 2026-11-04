@@ -15,6 +15,7 @@ local JetpackModel = require(script.Parent.Parent.Character.JetpackModel)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 
 local PART_WAIT_TIMEOUT = 10
@@ -96,6 +97,14 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 			local animation = Instance.new("Animation")
 			animation.Name = JetpackConfig.ANIMATION_INSTANCE_NAME
 			animation.AnimationId = flightAnimationId
+			animation.Parent = character
+		end
+		-- The punch exists only as an uploaded asset: Studio's on-the-fly animations do not
+		-- play under Server Authority. Without it the strike is a lunge with no arm movement.
+		if PvpConfig.STRIKE_ANIMATION_ID ~= "" then
+			local animation = Instance.new("Animation")
+			animation.Name = PvpConfig.STRIKE_ANIMATION_INSTANCE_NAME
+			animation.AnimationId = PvpConfig.STRIKE_ANIMATION_ID
 			animation.Parent = character
 		end
 	end
