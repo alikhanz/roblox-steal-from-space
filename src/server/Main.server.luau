@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local ActivityService = require(script.Parent.Services.ActivityService)
 local BayService = require(script.Parent.Services.BayService)
 local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
@@ -69,6 +70,7 @@ local trainingService = TrainingService.new(trainingDependencies)
 local pvpDependencies = {} :: PvpService.Dependencies
 local pvpService = PvpService.new(pvpDependencies)
 local eventService = EventService.new({ scheduler = scheduler })
+local activityService = ActivityService.new({ scheduler = scheduler })
 local indexService = IndexService.new({
 	getData = profile.getData,
 	update = profile.update,
@@ -101,6 +103,7 @@ local netService = NetService.new({
 	quests = questService,
 	loginGift = loginGiftService,
 	index = indexService,
+	markActive = activityService.touch,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -164,6 +167,7 @@ local meteorService = MeteorService.new({
 	buildCrater = worldService.buildCrater,
 	addCrater = nestService.addCrater,
 	retireCrater = nestService.retireCrater,
+	activePlayers = activityService.activeCount,
 })
 
 local guardianService = GuardianService.new({
@@ -248,6 +252,7 @@ local devService = DevService.new({
 	shiftLoginDays = loginGiftService.shiftDays,
 	discoverAlien = indexService.discover,
 	activateEvent = eventService.activate,
+	idleSeconds = activityService.idleSeconds,
 	queueEvent = eventService.queue,
 	stopEvent = eventService.stop,
 })
@@ -257,6 +262,7 @@ Lifecycle.run({
 	dataService,
 	worldService,
 	eventService,
+	activityService,
 	nestService,
 	speedService,
 	jetpackService,

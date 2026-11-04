@@ -7,7 +7,6 @@
 -- goes as soon as its egg is back in it (at once if nobody took it); an egg on its way to a
 -- station keeps its crater and guardian until it is delivered or comes back.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -37,6 +36,8 @@ export type Dependencies = {
 	buildCrater: (name: string, zone: ZoneConfig.ZoneId, center: Vector3) -> WorldService.NestSite?,
 	addCrater: (site: WorldService.NestSite, variant: AlienConfig.VariantId) -> boolean,
 	retireCrater: (nestId: string) -> (),
+	-- Players on the server who are not away (ActivityService): idle ones bring no meteors.
+	activePlayers: () -> number,
 }
 
 export type MeteorService = {
@@ -190,7 +191,7 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		local place = dependencies.placeOf("Meteor")
 		local direction = directionOf(if place then place.position else CENTER + Vector3.xAxis)
 		local active = EVENT.schedule.activeSeconds
-		local count = MeteorShower.eggCount(#Players:GetPlayers(), MeteorConfig)
+		local count = MeteorShower.eggCount(dependencies.activePlayers(), MeteorConfig)
 		local zones = MeteorShower.zones(count, ZoneConfig.ZONE_ORDER)
 		for index, delay in MeteorShower.fallTimes(count, active, MeteorConfig) do
 			task.delay(delay, function()

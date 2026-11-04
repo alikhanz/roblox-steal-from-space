@@ -6,8 +6,9 @@
 -- (AlienConfig.VARIANTS.Meteor). Looks in MeteorLooks and EggLooks.METEOR.
 
 return table.freeze({
-	-- Eggs in one shower: this many per player on the server, within the bounds; shared out
-	-- among the zones, from the station outwards.
+	-- Eggs in one shower: this many per active player on the server (ActivityService: players
+	-- away from the keyboard do not count), within the bounds; shared out among the zones, from
+	-- the station outwards.
 	EGGS_PER_PLAYER = 2,
 	MIN_EGGS = 4,
 	MAX_EGGS = 16,

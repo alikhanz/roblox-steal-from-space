@@ -1,7 +1,8 @@
 --!strict
 -- The thin layer over Zap: sends each player their private data (a snapshot, then the section
 -- that changed) and turns client commands into EconomyService calls. Every command passes the
--- rate limit and the active-profile check before it is looked at (CONVENTIONS, section 5).
+-- rate limit and the active-profile check before it is looked at (CONVENTIONS, section 5), and
+-- counts as the player being at the keyboard (ActivityService).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -48,6 +49,8 @@ export type Dependencies = {
 	quests: QuestService.QuestService,
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
+	-- Every command a player sends counts as them playing (ActivityService).
+	markActive: (player: Player) -> (),
 }
 
 export type Notice =
@@ -149,6 +152,7 @@ function NetService.new(dependencies: Dependencies): NetService
 				Remotes.NoticeSent.Fire(player, "TooFast")
 				return
 			end
+			dependencies.markActive(player)
 			if not dependencies.getData(player) then
 				Remotes.NoticeSent.Fire(player, "NoProfile")
 				return

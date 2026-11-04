@@ -17,6 +17,7 @@
 --   game.ServerStorage.DevCommands.SpawnDummyThief:Invoke("Rare", 10)
 --   game.ServerStorage.DevCommands.SetPlayTime:Invoke(3600)
 --   game.ServerStorage.DevCommands.PvpStats:Invoke()
+--   game.ServerStorage.DevCommands.ActivityStatus:Invoke()
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -24,6 +25,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
+local ActivityConfig = require(ReplicatedStorage.Shared.Config.ActivityConfig)
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
@@ -76,6 +78,8 @@ export type Dependencies = {
 	activateEvent: (id: EventConfig.EventId, zone: ZoneConfig.ZoneId?) -> (),
 	queueEvent: (id: EventConfig.EventId, seconds: number) -> (),
 	stopEvent: (id: EventConfig.EventId) -> (),
+	-- How long a player has done nothing, seconds (ActivityService).
+	idleSeconds: (player: Player) -> number,
 }
 
 export type DevService = {
@@ -269,6 +273,16 @@ function DevService.new(dependencies: Dependencies): DevService
 				table.insert(lines, `{kind}: used {entry.used}, hit {entry.hit}`)
 			end
 			return if #lines > 0 then table.concat(lines, " | ") else "no abilities used yet"
+		end,
+		-- How long each player has done nothing, and whether that makes them away.
+		ActivityStatus = function(): string
+			local lines = {}
+			for _, player in Players:GetPlayers() do
+				local idle = dependencies.idleSeconds(player)
+				local away = idle >= ActivityConfig.IDLE_SECONDS
+				table.insert(lines, `{player.Name}: idle {math.floor(idle)}s{if away then " (away)" else ""}`)
+			end
+			return if #lines > 0 then table.concat(lines, " | ") else "no players"
 		end,
 		-- Adds coins to the first player's profile (to try purchases without earning them).
 		GiveCoins = function(amount: number): string
