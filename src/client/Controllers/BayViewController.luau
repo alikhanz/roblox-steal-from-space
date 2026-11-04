@@ -161,13 +161,32 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					return Upgrades.trainerPrice(level(), UpgradeConfig.TUNING)
 				end
 				local own = isOwn(instance)
+				-- The rate the stat really grows at: the trainer's speed points times the owner's
+				-- jetpack (the owner's own copy for them, the owner's player attribute for others).
+				local jetpackLevel: () -> number
+				if own then
+					jetpackLevel = function()
+						return profile.upgrades().jetpackLevel
+					end
+				else
+					local ownerId = instance:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE)
+					local owner = if type(ownerId) == "number" then Players:GetPlayerByUserId(ownerId) else nil
+					jetpackLevel = if owner
+						then attributeSource(owner, UpgradeConfig.JETPACK_LEVEL_ATTRIBUTE)
+						else function()
+							return 0
+						end
+				end
 				return WorldLabel({
 					adornee = part,
 					title = function()
 						return Text.get(locale, "trainer.level.hint", { level = level() })
 					end,
 					value = function()
-						local rate = Upgrades.trainerRate(level(), UpgradeConfig.TUNING)
+						local rate = BigNum.mul(
+							Upgrades.trainerRate(level(), UpgradeConfig.TUNING),
+							Upgrades.jetpackMultiplier(jetpackLevel(), UpgradeConfig.TUNING)
+						)
 						return Text.get(locale, "trainer.stand.hint", { rate = BigNum.format(rate) })
 					end,
 					valueColor = Theme.SPEED,

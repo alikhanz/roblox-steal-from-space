@@ -12,6 +12,8 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
+local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 
 local LABEL_SIZE = UDim2.fromOffset(160, 36)
 local TEXT_SIZE = 24
@@ -72,7 +74,10 @@ function TrainingViewController.new(dependencies: Dependencies): TrainingViewCon
 			local character = Players.LocalPlayer.Character
 			local head = character and character:FindFirstChild("Head")
 			if head and head:IsA("BasePart") then
-				pop(head, Text.get(locale, "trainer.gain.hint", { gain = BigNum.format(gain) }))
+				-- The payout is in speed points; the stat grows by them times the jetpack.
+				local jetpackLevel = dependencies.profile.upgrades().jetpackLevel
+				local shown = BigNum.mul(gain, Upgrades.jetpackMultiplier(jetpackLevel, UpgradeConfig.TUNING))
+				pop(head, Text.get(locale, "trainer.gain.hint", { gain = BigNum.format(shown) }))
 			end
 		end)
 	end
