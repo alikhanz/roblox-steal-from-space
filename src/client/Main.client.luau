@@ -26,6 +26,7 @@ local QuestController = require(script.Parent.Controllers.QuestController)
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local StationBeaconController = require(script.Parent.Controllers.StationBeaconController)
+local StationBorderController = require(script.Parent.Controllers.StationBorderController)
 local ToastState = require(script.Parent.State.ToastState)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
 
@@ -57,6 +58,7 @@ Lifecycle.run({
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),
+	StationBorderController.new(),
 	EventController.new(),
 	EggEffectsController.new(),
 	HitEffectsController.new(),
