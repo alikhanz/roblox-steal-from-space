@@ -236,6 +236,18 @@ describe("PlayerData.load", function()
 				end,
 				detail = "playSeconds is invalid",
 			},
+			{
+				patch = function(data)
+					data.onboardingSteps = 1.5
+				end,
+				detail = "onboardingSteps is invalid",
+			},
+			{
+				patch = function(data)
+					data.bestPost = -1
+				end,
+				detail = "bestPost is invalid",
+			},
 		}
 		for _, case in cases do
 			local saved = savedTemplate()
@@ -319,9 +331,27 @@ describe("PlayerData migration v3 -> v4", function()
 		local outcome = load(saved)
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
-			expect(outcome.data.schemaVersion).toBe(4)
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(outcome.data.playSeconds).toBe(0)
 			expect(outcome.data.trainerLevel).toBe(4)
+		end
+	end)
+end)
+
+describe("PlayerData migration v4 -> v5", function()
+	it("starts the funnel and the progression from nothing and keeps the rest", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 4
+		saved.onboardingSteps = nil
+		saved.bestPost = nil
+		saved.playSeconds = 300
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(5)
+			expect(outcome.data.onboardingSteps).toBe(0)
+			expect(outcome.data.bestPost).toBe(0)
+			expect(outcome.data.playSeconds).toBe(300)
 		end
 	end)
 end)

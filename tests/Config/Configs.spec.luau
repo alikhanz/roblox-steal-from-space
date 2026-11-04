@@ -122,6 +122,17 @@ describe("ZoneConfig", function()
 			ZoneConfig.zoneOfPost(25)
 		end).toThrow("out of range")
 	end)
+
+	it("finds the zone at a distance from the station, the nearest between rings", function()
+		local belt = ZoneConfig.ZONES.DebrisBelt
+		local ice = ZoneConfig.ZONES.IceRings
+		local horizon = ZoneConfig.ZONES.EventHorizon
+		expect(ZoneConfig.zoneAtDistance(belt.ringMin - 1)).toBe(nil)
+		expect(ZoneConfig.zoneAtDistance((belt.ringMin + belt.ringMax) / 2)).toBe("DebrisBelt")
+		expect(ZoneConfig.zoneAtDistance(belt.ringMax + 1)).toBe("DebrisBelt")
+		expect(ZoneConfig.zoneAtDistance(ice.ringMin - 1)).toBe("IceRings")
+		expect(ZoneConfig.zoneAtDistance(horizon.ringMax + 100)).toBe("EventHorizon")
+	end)
 end)
 
 describe("GuardianConfig", function()

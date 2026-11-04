@@ -116,6 +116,28 @@ function ZoneConfig.zoneOfPost(index: number): (ZoneId, number)
 	return ZONE_ORDER[zoneIndex], (index - 1) % POSTS_PER_ZONE + 1
 end
 
+-- The zone `distance` studs from the station lies in, or the nearest one when between rings
+-- (beyond the last ring: the last zone). Nil this side of the first ring.
+function ZoneConfig.zoneAtDistance(distance: number): ZoneId?
+	local first = ZONES[ZONE_ORDER[1]]
+	if distance < first.ringMin then
+		return nil
+	end
+	local nearest: ZoneId = ZONE_ORDER[1]
+	local nearestGap = math.huge
+	for _, id in ZONE_ORDER do
+		local ring = ZONES[id]
+		local gap = if distance < ring.ringMin
+			then ring.ringMin - distance
+			elseif distance > ring.ringMax then distance - ring.ringMax
+			else 0
+		if gap < nearestGap then
+			nearest, nearestGap = id, gap
+		end
+	end
+	return nearest
+end
+
 -- The global index of post `local_` of `zoneId`.
 function ZoneConfig.postIndex(zoneId: ZoneId, local_: number): number
 	local zoneIndex = assert(table.find(ZONE_ORDER, zoneId), `unknown zone {zoneId}`)

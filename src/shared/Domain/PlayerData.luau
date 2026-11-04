@@ -48,6 +48,10 @@ export type PlayerData = {
 	lastSeenAt: number,
 	-- Seconds spent in the game, all sessions together; the newbie protection runs on it.
 	playSeconds: number,
+	-- The new player's funnel steps already logged, as a bit mask (Domain/Onboarding).
+	onboardingSteps: number,
+	-- The highest guardian post an egg was delivered from; 0: none yet (analytics progression).
+	bestPost: number,
 }
 
 -- Starting values that come from configs; the domain never reads configs itself.
@@ -62,7 +66,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 4
+PlayerData.SCHEMA_VERSION = 5
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -77,6 +81,9 @@ PlayerData.MIGRATIONS = {
 	-- v4 adds playSeconds, filled from the template. A player from before counts as a newbie
 	-- for one more protection period; that is the safer side.
 	[3] = function(_data: { [string]: any }) end,
+	-- v5 adds onboardingSteps and bestPost (analytics), filled from the template: a player from
+	-- before is counted in the funnel and the progression again from where they are.
+	[4] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -98,6 +105,8 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		nextUid = 1,
 		lastSeenAt = 0,
 		playSeconds = 0,
+		onboardingSteps = 0,
+		bestPost = 0,
 	}
 end
 
@@ -219,6 +228,11 @@ local function validate(data: { [string]: any }): string?
 	end
 	if not isFinite(data.playSeconds) or data.playSeconds < 0 then
 		return "playSeconds is invalid"
+	end
+	for _, field in { "onboardingSteps", "bestPost" } do
+		if not isInteger(data[field]) or data[field] < 0 then
+			return `{field} is invalid`
+		end
 	end
 	return nil
 end
