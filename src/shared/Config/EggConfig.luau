@@ -100,6 +100,10 @@ return table.freeze({
 	DROP_SPEED = 40,
 	DROP_RETENTION_PER_SECOND = 0.1,
 	DROP_SPIN_RATE = math.rad(360),
+	-- The dome keeps knocked-out eggs out, at least this far from its surface, studs: under it
+	-- players walk and could not reach an egg floating over the platform; outside it, flying,
+	-- they can.
+	DOME_MARGIN = 4,
 
 	-- A player can grab an egg within this distance of it, studs.
 	GRAB_REACH = 9,

@@ -9,9 +9,15 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+
+-- Knocked-out eggs stay outside this sphere (see EggConfig.DOME_MARGIN).
+local DOME_CENTER = StationConfig.STATION.domeCenter
+local EGG_DOME_RADIUS = StationConfig.STATION.domeRadius + EggConfig.DOME_MARGIN
 
 -- The server accepts a grab a little beyond the reach, for latency between client and server.
 local REACH_TOLERANCE = 3
@@ -151,7 +157,8 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		local part = EggModel.build(rarity, size)
 		part.Name = `LooseEgg{looseCounter}`
 		part.Anchored = true
-		part.CFrame = CFrame.new(position)
+		-- An egg knocked loose inside the dome pops out through it.
+		part.CFrame = CFrame.new(Bounds.pushOutside(position, DOME_CENTER, EGG_DOME_RADIUS))
 		part.Parent = folder
 		CollectionService:AddTag(part, EggConfig.LOOSE_EGG_TAG)
 		loose[part.Name] = {
@@ -180,13 +187,16 @@ function CarryService.new(dependencies: Dependencies): CarryService
 	end
 
 	-- Knocked-out eggs coast and tumble until they stop; they are anchored, so this moves them.
+	-- The dome turns them aside: an egg drifting at the station slides along it, outside.
 	local function driftLooseEggs(deltaTime: number)
 		for _, egg in loose do
 			if egg.velocity.Magnitude < DRIFT_REST_SPEED then
 				continue
 			end
+			egg.velocity = Bounds.keepOutside(egg.part.Position, egg.velocity, DOME_CENTER, EGG_DOME_RADIUS)
 			local spin = EggConfig.DROP_SPIN_RATE * deltaTime
-			egg.part.CFrame = CFrame.new(egg.part.Position + egg.velocity * deltaTime)
+			local moved = egg.part.Position + egg.velocity * deltaTime
+			egg.part.CFrame = CFrame.new(Bounds.pushOutside(moved, DOME_CENTER, EGG_DOME_RADIUS))
 				* egg.part.CFrame.Rotation
 				* CFrame.Angles(spin, spin * 0.6, 0)
 			egg.velocity *= EggConfig.DROP_RETENTION_PER_SECOND ^ deltaTime

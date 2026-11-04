@@ -39,4 +39,15 @@ function Bounds.keepOutside(position: Vector3, velocity: Vector3, center: Vector
 	return velocity + outward * inwardSpeed
 end
 
+-- A position inside a sphere moved straight out onto its surface; outside it, unchanged. A
+-- position at the very center stays put (there is no "out" to pick).
+function Bounds.pushOutside(position: Vector3, center: Vector3, radius: number): Vector3
+	local offset = position - center
+	local distance = offset.Magnitude
+	if distance >= radius or distance < 1e-4 then
+		return position
+	end
+	return center + offset.Unit * radius
+end
+
 return table.freeze(Bounds)
