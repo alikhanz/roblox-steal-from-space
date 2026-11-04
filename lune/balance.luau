@@ -7,25 +7,26 @@
 local process = require("@lune/process")
 
 local AlienConfig = require("../src/shared/Config/AlienConfig")
+local AlienIndex = require("../src/shared/Domain/AlienIndex")
 local Bay = require("../src/shared/Domain/Bay")
 local BayConfig = require("../src/shared/Config/BayConfig")
 local BigNum = require("../src/shared/Domain/BigNum")
 local EggConfig = require("../src/shared/Config/EggConfig")
 local GuardianConfig = require("../src/shared/Config/GuardianConfig")
 local Hatch = require("../src/shared/Domain/Hatch")
+local IndexConfig = require("../src/shared/Config/IndexConfig")
 local LoginGiftConfig = require("../src/shared/Config/LoginGiftConfig")
 local Loot = require("../src/shared/Domain/Loot")
 local PlayReward = require("../src/shared/Domain/PlayReward")
 local PlayerData = require("../src/shared/Domain/PlayerData")
 local QuestConfig = require("../src/shared/Config/QuestConfig")
-local Quests = require("../src/shared/Domain/Quests")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
 local UpgradeConfig = require("../src/shared/Config/UpgradeConfig")
 local Upgrades = require("../src/shared/Domain/Upgrades")
 local ZoneConfig = require("../src/shared/Config/ZoneConfig")
 
 local ASSUMPTIONS = {
-	-- Guardians in the whole game; posts past the configured ones would keep the growth.
+	-- Guardians in the whole game (AlienConfig has a grade for each).
 	guardianCount = ZoneConfig.POST_COUNT,
 	days = tonumber(process.args[1]) or 60,
 	stepSeconds = 10,
@@ -48,8 +49,8 @@ type Profile = {
 	name: string,
 	pass: number,
 	packageHours: number,
-	-- Takes the login gift at the start of each session and claims all of the day's quests at
-	-- its end.
+	-- Takes every reward that comes with playing every day: the login gift at the start of each
+	-- session, all of the day's quests at its end, the index as aliens are found.
 	daily: boolean,
 }
 
@@ -93,26 +94,14 @@ local function recommendedFor(post: number): number
 	return toNumber(GuardianConfig.recommendedFor(post))
 end
 
--- Income of every alien by id: the configured ones, plus synthetic ids for grades past the
--- configured posts (same growth).
-local incomes: { [string]: BigNum.BigNum } = {}
-for id, alien in AlienConfig.ALIENS do
-	incomes[id] = alien.income
-end
+-- Aliens come only from the one registry, AlienConfig: no made-up ones, so the calculator can
+-- never count an alien the game does not have.
 local function alienIdFor(grade: number, tier: AlienConfig.TierId): string
-	local configured = AlienConfig.GRADES[grade]
-	if configured then
-		return configured.aliens[tier]
-	end
-	local id = `Grade{grade}.{tier}`
-	if not incomes[id] then
-		local base = BigNum.mul(AlienConfig.INCOME_BASE, BigNum.pow(AlienConfig.INCOME_GROWTH, grade - 1))
-		incomes[id] = BigNum.mul(base, BigNum.fromNumber(AlienConfig.TIERS[tier].incomeFactor))
-	end
-	return id
+	local configured = assert(AlienConfig.GRADES[grade], `no grade {grade} in AlienConfig`)
+	return configured.aliens[tier]
 end
 local function incomeOf(id: string): BigNum.BigNum
-	return assert(incomes[id], `unknown alien {id}`)
+	return assert(AlienConfig.ALIENS[id], `unknown alien {id}`).income
 end
 
 type Snapshot = {
@@ -161,18 +150,37 @@ local function simulate(profile: Profile, seed: number): Run
 		table.clear(data.floor)
 	end
 
+	-- A reward worth `minutes` of play (Domain/PlayReward, as the game pays it): coins at the
+	-- income, and speed points at the trainer rate when `withSpeed`.
+	local function payPlay(minutes: number, minimumCoins: BigNum.BigNum, withSpeed: boolean)
+		local rate = if withSpeed then Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING) else BigNum.ZERO
+		local paidCoins, paidTrained = PlayReward.worth(minutes, BigNum.fromNumber(incomeRate), rate, minimumCoins)
+		coins += toNumber(paidCoins)
+		trained += toNumber(paidTrained)
+	end
+
+	-- An egg into the incubator, hatching after its rarity's time, as the game does it.
+	local function incubate(rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number, now: number)
+		local hatchAt = now + Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random())
+		Bay.addEgg(data, rarity, size, grade, hatchAt)
+	end
+
 	local function steal(post: number, now: number)
-		local lastZone = ZoneConfig.ZONE_ORDER[#ZoneConfig.ZONE_ORDER]
-		local zone = ZoneConfig.ZONES[if post <= ZoneConfig.POST_COUNT then ZoneConfig.zoneOfPost(post) else lastZone]
-		local rarity = Loot.pick(zone.rarityLoot, math.random())
-		local size = Loot.pick(zone.sizeLoot, math.random())
-		table.insert(data.incubator, {
-			uid = Bay.newUid(data),
-			rarity = rarity,
-			size = size,
-			grade = post,
-			hatchAt = now + Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random()),
-		})
+		local zone = ZoneConfig.ZONES[ZoneConfig.zoneOfPost(post)]
+		incubate(Loot.pick(zone.rarityLoot, math.random()), Loot.pick(zone.sizeLoot, math.random()), post, now)
+	end
+
+	-- The index: a new alien's reward and, once its guardian's set is full, the set's, taken at
+	-- once.
+	local function collect(alienId: string, grade: number)
+		if not AlienIndex.discover(data.index, alienId) then
+			return
+		end
+		AlienIndex.claim(data.index, alienId)
+		payPlay(IndexConfig.REWARD_MINUTES[AlienConfig.ALIENS[alienId].tier], IndexConfig.MIN_REWARD_COINS, false)
+		if AlienIndex.claimSet(data.index, grade, IndexConfig.SETS[grade].aliens) == nil then
+			payPlay(IndexConfig.SET_REWARD_MINUTES, IndexConfig.MIN_REWARD_COINS, false)
+		end
 	end
 
 	local function hatch(now: number)
@@ -184,7 +192,11 @@ local function simulate(profile: Profile, seed: number): Run
 			local luck = EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId].luck
 				+ EggConfig.SIZES[egg.size :: EggConfig.SizeId].luck
 			local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, luck, math.random())
-			Bay.addHatched(data, { uid = Bay.newUid(data), id = alienIdFor(egg.grade, tier) })
+			local alienId = alienIdFor(egg.grade, tier)
+			Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
+			if profile.daily then
+				collect(alienId, egg.grade)
+			end
 		end
 		Bay.autoPlace(data, incomeOf, BayConfig.INVENTORY_SLOTS)
 		sellFloor()
@@ -241,35 +253,14 @@ local function simulate(profile: Profile, seed: number): Run
 			-- The login gift, taken first thing each day: the streak never breaks here.
 			if profile.daily and inDay == 0 then
 				local giftDay = (now // DAY_SECONDS) % LoginGiftConfig.LENGTH + 1
-				local giftCoins, giftTrained = PlayReward.worth(
-					LoginGiftConfig.MINUTES[giftDay],
-					BigNum.fromNumber(incomeRate),
-					Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING),
-					LoginGiftConfig.MIN_REWARD_COINS
-				)
-				coins += toNumber(giftCoins)
-				trained += toNumber(giftTrained)
+				payPlay(LoginGiftConfig.MINUTES[giftDay], LoginGiftConfig.MIN_REWARD_COINS, true)
 				if giftDay == LoginGiftConfig.EGG_DAY then
-					local rarity = LoginGiftConfig.EGG_RARITY
-					table.insert(data.incubator, {
-						uid = Bay.newUid(data),
-						rarity = rarity,
-						size = LoginGiftConfig.EGG_SIZE,
-						grade = math.max(bestPost, 1),
-						hatchAt = now + Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random()),
-					})
+					incubate(LoginGiftConfig.EGG_RARITY, LoginGiftConfig.EGG_SIZE, math.max(bestPost, 1), now)
 				end
 			end
 			-- The day's quests, claimed at the end of the session with the same formula as the game.
 			if profile.daily and inDay == sessionSeconds - dt then
-				local questCoins, questTrained = Quests.reward(
-					QUEST_MINUTES_A_DAY,
-					BigNum.fromNumber(incomeRate),
-					Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING),
-					QuestConfig.MIN_REWARD_COINS
-				)
-				coins += toNumber(questCoins)
-				trained += toNumber(questTrained)
+				payPlay(QUEST_MINUTES_A_DAY, QuestConfig.MIN_REWARD_COINS, true)
 			end
 			if now >= nextTheftAt then
 				local target = bestPost
@@ -351,7 +342,7 @@ print(
 	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, {ASSUMPTIONS.trainShare * 100}% of it training, `
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
-		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day) and the login gift`
+		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index`
 )
 print("")
 

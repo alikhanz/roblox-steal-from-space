@@ -66,6 +66,8 @@ export type Dependencies = {
 	newQuestDay: (player: Player) -> boolean,
 	-- Login gift: makes the last gift this many days old.
 	shiftLoginDays: (player: Player, days: number) -> boolean,
+	-- Index: a given alien counts as found, like a hatched one.
+	discoverAlien: (player: Player, alienId: string) -> (),
 }
 
 export type DevService = {
@@ -265,6 +267,9 @@ function DevService.new(dependencies: Dependencies): DevService
 			local gradeConfig = assert(AlienConfig.GRADES[grade or 1], `Unknown grade {grade}`)
 			local alienId = assert(gradeConfig.aliens[(tier or "Common") :: AlienConfig.TierId], `Unknown tier {tier}`)
 			local location = dependencies.addAlien(player, alienId)
+			if location then
+				dependencies.discoverAlien(player, alienId)
+			end
 			return if location then `{alienId} -> {location}` else "profile not active yet"
 		end,
 		-- Puts an egg into the first player's incubator, as if delivered from guardian `grade`.

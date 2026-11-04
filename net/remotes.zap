@@ -76,6 +76,16 @@ type Notice = enum {
 	NoOtherQuest,
 	-- Login gift.
 	GiftTaken,
+	-- Alien index.
+	IndexNothing,
+	IndexClaimed,
+}
+
+-- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the
+-- grades whose set reward is taken.
+type Index = struct {
+	found: map { [string.utf8]: boolean },
+	sets: u8[],
 }
 
 -- Where the login gift streak stands today (Domain/LoginGift).
@@ -131,7 +141,23 @@ event ProfileSnapshot = {
 		upgrades: Upgrades,
 		quests: Quests,
 		loginGift: LoginGift,
+		index: Index,
 	},
+}
+
+event IndexChanged = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: Index,
+}
+
+-- An index reward was taken: the coins it paid.
+event IndexRewarded = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: BigNum,
 }
 
 event LoginGiftChanged = {
@@ -315,6 +341,22 @@ event UpgradeTrainer = {
 
 -- Today's quest at this place in the list (1-based).
 event ClaimQuest = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: u8,
+}
+
+-- Takes the index reward of a found alien.
+event ClaimIndexAlien = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: string.utf8,
+}
+
+-- Takes the index reward of a full guardian set, by grade.
+event ClaimIndexSet = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,

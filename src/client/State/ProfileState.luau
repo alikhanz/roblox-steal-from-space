@@ -11,45 +11,25 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local source = Vide.source
 
-export type Alien = { uid: number, id: string }
-export type Pod = { alien: Alien? }
-export type Egg = { uid: number, rarity: string, size: string, grade: number, hatchAt: number }
-export type Bay = { pods: { Pod }, inventory: { Alien }, floor: { Alien }, incubator: { Egg } }
-export type Upgrades = { trainerLevel: number, jetpackLevel: number }
-export type Location = "Pod" | "Inventory" | "Floor"
-export type Notice =
-	"NoProfile"
-	| "UnknownAlien"
-	| "InventoryFull"
-	| "NotEnoughCoins"
-	| "MaxPods"
-	| "NoSuchPod"
-	| "WrongCount"
-	| "MixedGrades"
-	| "TooFast"
-	| "NotReady"
-	| "AttackerInStation"
-	| "VictimInStation"
-	| "AttackerNewbie"
-	| "VictimNewbie"
-	| "VictimJustSpawned"
-	| "VictimShielded"
-	| "VictimTooWeak"
-	| "NoSuchQuest"
-	| "QuestNotDone"
-	| "QuestClaimed"
-	| "RerollUsed"
-	| "QuestDone"
-	| "NoOtherQuest"
-	| "GiftTaken"
-export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield"
-export type QuestKind = "DeliverEggs" | "DeliverFromZone" | "HatchAliens" | "Train" | "Crossbreed" | "KnockEgg"
-export type Quest = { kind: QuestKind, target: number, progress: number, claimed: boolean, zone: string? }
+-- The shapes come from the network contract (net/remotes.zap), so client and server can never
+-- disagree on them.
+export type Alien = Remotes.Alien
+export type Pod = Remotes.Pod
+export type Egg = Remotes.Egg
+export type Bay = Remotes.Bay
+export type Upgrades = Remotes.Upgrades
+export type Notice = Remotes.Notice
+export type AbilityKind = Remotes.AbilityKind
+export type QuestKind = Remotes.QuestKind
+export type Quest = Remotes.Quest
 -- Today's quests: the UTC day, whether the day's swap is used, the list.
-export type Quests = { day: number, rerolled: boolean, list: { Quest } }
+export type Quests = Remotes.Quests
 -- Where the login gift streak stands today: the streak day, whether its gift waits, whether a
 -- missed day started the streak over.
-export type LoginGift = { day: number, available: boolean, reset: boolean }
+export type LoginGift = Remotes.LoginGift
+-- The alien index: alien id -> its reward is taken (present: found); grades whose set is taken.
+export type Index = Remotes.Index
+export type Location = "Pod" | "Inventory" | "Floor"
 -- What a taken gift paid (speed as the stat shows it).
 export type GiftReward = { day: number, coins: BigNum.BigNum, speed: BigNum.BigNum, egg: boolean }
 
@@ -61,6 +41,7 @@ export type ProfileState = {
 	upgrades: Vide.Source<Upgrades>,
 	quests: Vide.Source<Quests>,
 	loginGift: Vide.Source<LoginGift>,
+	index: Vide.Source<Index>,
 	-- True once the first snapshot arrived.
 	loaded: Vide.Source<boolean>,
 	-- The trainer paid out: speed points gained this tick.
@@ -77,6 +58,8 @@ export type ProfileState = {
 	-- A claimed quest paid out: coins and the speed stat gained.
 	questRewarded: Signal.Signal<BigNum.BigNum, BigNum.BigNum>,
 	giftRewarded: Signal.Signal<GiftReward>,
+	-- An index reward was taken: the coins it paid.
+	indexRewarded: Signal.Signal<BigNum.BigNum>,
 }
 
 local ProfileState = {}
@@ -92,6 +75,8 @@ function ProfileState.new(): ProfileState
 	local quests = source({ day = 0, rerolled = false, list = {} } :: Quests)
 	local loginGift = source({ day = 1, available = false, reset = false } :: LoginGift)
 	local giftRewarded = Signal.new() :: Signal.Signal<GiftReward>
+	local index = source({ found = {}, sets = {} } :: Index)
+	local indexRewarded = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local loaded = source(false)
 	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number>
@@ -117,7 +102,17 @@ function ProfileState.new(): ProfileState
 			upgrades(snapshot.upgrades)
 			quests(snapshot.quests)
 			loginGift(snapshot.loginGift)
+			index(snapshot.index)
 			loaded(true)
+		end)
+		Remotes.IndexChanged.SetCallback(function(value)
+			index(value)
+		end)
+		Remotes.IndexRewarded.SetCallback(function(value)
+			local paid = BigNum.fromSaved(value)
+			if paid then
+				indexRewarded.fire(paid)
+			end
 		end)
 		Remotes.LoginGiftChanged.SetCallback(function(value)
 			loginGift(value)
@@ -183,6 +178,7 @@ function ProfileState.new(): ProfileState
 		upgrades = upgrades,
 		quests = quests,
 		loginGift = loginGift,
+		index = index,
 		loaded = loaded,
 		trained = trained,
 		offlineReward = offlineReward,
@@ -192,6 +188,7 @@ function ProfileState.new(): ProfileState
 		abilityResult = abilityResult,
 		questRewarded = questRewarded,
 		giftRewarded = giftRewarded,
+		indexRewarded = indexRewarded,
 	}
 end
 

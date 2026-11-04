@@ -13,6 +13,7 @@ local GrabPromptController = require(script.Parent.Controllers.GrabPromptControl
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
 local HitEffectsController = require(script.Parent.Controllers.HitEffectsController)
 local HudController = require(script.Parent.Controllers.HudController)
+local IndexController = require(script.Parent.Controllers.IndexController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
@@ -51,6 +52,7 @@ Lifecycle.run({
 		toasts = toastState,
 		welcomeOpen = bayWindowController.welcomeOpen,
 	}),
+	IndexController.new({ profile = profileState, toasts = toastState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),

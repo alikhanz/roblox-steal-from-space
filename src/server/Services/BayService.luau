@@ -273,13 +273,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		local duration = Hatch.duration(rarityConfig.hatchSeconds, random:NextNumber())
 		local hatchAt = now() + duration
 		local added = dependencies.update(player, function(data)
-			table.insert(data.incubator, {
-				uid = Bay.newUid(data),
-				rarity = rarity,
-				size = size,
-				grade = grade,
-				hatchAt = hatchAt,
-			})
+			Bay.addEgg(data, rarity, size, grade, hatchAt)
 		end)
 		if added then
 			refresh(player)

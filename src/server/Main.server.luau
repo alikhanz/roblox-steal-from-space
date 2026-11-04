@@ -10,6 +10,7 @@ local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local GuardianService = require(script.Parent.Services.GuardianService)
+local IndexService = require(script.Parent.Services.IndexService)
 local JetpackService = require(script.Parent.Services.JetpackService)
 local LeaderboardService = require(script.Parent.Services.LeaderboardService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
@@ -64,6 +65,13 @@ local trainingDependencies = {} :: TrainingService.Dependencies
 local trainingService = TrainingService.new(trainingDependencies)
 local pvpDependencies = {} :: PvpService.Dependencies
 local pvpService = PvpService.new(pvpDependencies)
+local indexService = IndexService.new({
+	getData = profile.getData,
+	update = profile.update,
+	getIncomePerSecond = bayService.getIncomePerSecond,
+	hatched = bayService.hatched,
+	crossbred = economyService.crossbred,
+})
 local loginGiftService = LoginGiftService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -88,6 +96,7 @@ local netService = NetService.new({
 	abilityUsed = pvpService.abilityUsed,
 	quests = questService,
 	loginGift = loginGiftService,
+	index = indexService,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -176,16 +185,22 @@ local metricsService = MetricsService.new({
 	suffocated = spaceService.suffocated,
 	abilityUsed = pvpService.abilityUsed,
 })
-questService.rewarded.connect(function(player, coins, _trained, shown)
-	metricsService.earned(player, "Coins", "Quest", coins)
-	metricsService.earned(player, "Speed", "Quest", shown)
+questService.rewarded.connect(function(player, paid)
+	metricsService.earned(player, "Coins", "Quest", paid.coins)
+	metricsService.earned(player, "Speed", "Quest", paid.speed)
 end)
 questService.completed.connect(function(player, kind)
 	metricsService.count(player, "QuestDone", { kind })
 end)
+indexService.discovered.connect(function(player, alienId)
+	metricsService.found(player, alienId)
+end)
+indexService.rewarded.connect(function(player, coins, what)
+	metricsService.earned(player, "Coins", if what == "Set" then "IndexSet" else "IndexAlien", coins)
+end)
 loginGiftService.rewarded.connect(function(player, reward)
-	metricsService.earned(player, "Coins", "LoginGift", reward.coins)
-	metricsService.earned(player, "Speed", "LoginGift", reward.speed)
+	metricsService.earned(player, "Coins", "LoginGift", reward.paid.coins)
+	metricsService.earned(player, "Speed", "LoginGift", reward.paid.speed)
 	metricsService.count(player, "LoginGift", { `Day {reward.day}` })
 end)
 
@@ -205,6 +220,7 @@ local devService = DevService.new({
 	completeQuests = questService.completeAll,
 	newQuestDay = questService.newDay,
 	shiftLoginDays = loginGiftService.shiftDays,
+	discoverAlien = indexService.discover,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
@@ -224,6 +240,7 @@ Lifecycle.run({
 	pvpService,
 	questService,
 	loginGiftService,
+	indexService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,

@@ -107,7 +107,8 @@ function Bay.pickUp(data: Data, uid: number, inventorySlots: number): boolean
 	return true
 end
 
-function Bay.incomePerSecond(data: Data, incomeOf: IncomeOf): BigNum.BigNum
+-- Takes anything with pods: the profile, or the client's copy of the bay.
+function Bay.incomePerSecond(data: { read pods: { PlayerData.Pod } }, incomeOf: IncomeOf): BigNum.BigNum
 	local total = BigNum.ZERO
 	for _, pod in data.pods do
 		if pod.alien then
@@ -163,6 +164,20 @@ function Bay.podPrice(
 ): BigNum.BigNum
 	local bought = math.max(0, ownedPods - startingPods)
 	return BigNum.mul(base, BigNum.pow(growth, bought))
+end
+
+-- Puts an egg in the incubator, hatching at `hatchAt` (server time). The one way eggs get there:
+-- delivered, given by the login gift or a Studio command.
+function Bay.addEgg(data: Data, rarity: string, size: string, grade: number, hatchAt: number): PlayerData.EggRecord
+	local egg: PlayerData.EggRecord = {
+		uid = Bay.newUid(data),
+		rarity = rarity,
+		size = size,
+		grade = grade,
+		hatchAt = hatchAt,
+	}
+	table.insert(data.incubator, egg)
+	return egg
 end
 
 -- Removes and returns the eggs whose time has come, oldest first.

@@ -6,7 +6,6 @@
 -- numbers are passed in.
 
 local Loot = require("./Loot")
-local PlayReward = require("./PlayReward")
 
 export type Kind = "DeliverEggs" | "DeliverFromZone" | "HatchAliens" | "Train" | "Crossbreed" | "KnockEgg"
 
@@ -37,7 +36,7 @@ export type Record = {
 
 -- The player's quests, as saved.
 export type State = {
-	-- The UTC day (days since the Unix epoch) the quests are for; 0: none given yet.
+	-- The UTC day (Domain/UtcDay) the quests are for; 0: none given yet.
 	day: number,
 	-- The day's one swap is used.
 	rerolled: boolean,
@@ -65,21 +64,7 @@ export type Event =
 export type ClaimRefusal = "NoSuchQuest" | "QuestNotDone" | "QuestClaimed"
 export type RerollRefusal = "NoSuchQuest" | "RerollUsed" | "QuestDone" | "NoOtherQuest"
 
-local DAY_SECONDS = 24 * 60 * 60
-
 local Quests = {}
-
-Quests.DAY_SECONDS = DAY_SECONDS
-
--- The UTC day of a Unix time.
-function Quests.dayOf(unixTime: number): number
-	return math.floor(unixTime / DAY_SECONDS)
-end
-
--- Seconds until the next UTC day begins.
-function Quests.secondsLeftInDay(unixTime: number): number
-	return (Quests.dayOf(unixTime) + 1) * DAY_SECONDS - unixTime
-end
 
 function Quests.empty(): State
 	return { day = 0, rerolled = false, list = {} }
@@ -246,8 +231,5 @@ function Quests.claim(state: State, index: number): ClaimRefusal?
 	record.claimed = true
 	return nil
 end
-
--- What a quest worth `minutes` pays now (PlayReward.worth).
-Quests.reward = PlayReward.worth
 
 return table.freeze(Quests)

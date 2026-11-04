@@ -548,6 +548,50 @@ local Strings = {
 		ru = "Пробел",
 		en = "Space",
 	},
+	["index.open.button"] = {
+		ru = "Индекс",
+		en = "Index",
+	},
+	["index.window.title"] = {
+		ru = "Индекс пришельцев",
+		en = "Alien index",
+	},
+	["index.found.hint"] = {
+		ru = "Открыто {count} из {total}",
+		en = "Found {count} of {total}",
+	},
+	["index.tap.hint"] = {
+		ru = "Нажми на светящегося пришельца и забери награду",
+		en = "Tap a glowing alien to get your reward",
+	},
+	["index.setClaim.button"] = {
+		ru = "Набор: +{coins} ●",
+		en = "Set: +{coins} ●",
+	},
+	["index.setDone.hint"] = {
+		ru = "Набор собран",
+		en = "Set complete",
+	},
+	["index.discovered.toast"] = {
+		ru = "Новый пришелец в индексе!",
+		en = "New alien in your index!",
+	},
+	["index.discoveredMany.toast"] = {
+		ru = {
+			one = "В индексе {count} новый пришелец!",
+			few = "В индексе {count} новых пришельца!",
+			many = "В индексе {count} новых пришельцев!",
+		},
+		en = { one = "{count} new alien in your index!", other = "{count} new aliens in your index!" },
+	},
+	["index.rewarded.toast"] = {
+		ru = "Индекс: +{coins} ●",
+		en = "Index: +{coins} ●",
+	},
+	["notice.indexNothing.toast"] = {
+		ru = "Здесь пока нечего забрать",
+		en = "Nothing to claim here yet",
+	},
 	["gift.open.button"] = {
 		ru = "Подарок",
 		en = "Gift",

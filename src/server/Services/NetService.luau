@@ -9,6 +9,7 @@ local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EconomyService = require(script.Parent.EconomyService)
+local IndexService = require(script.Parent.IndexService)
 local LoginGiftService = require(script.Parent.LoginGiftService)
 local NetConfig = require(ReplicatedStorage.Shared.Config.NetConfig)
 local OfflineService = require(script.Parent.OfflineService)
@@ -45,9 +46,15 @@ export type Dependencies = {
 	abilityUsed: Signal.Signal<Player, PvpService.AbilityKind, boolean, boolean>,
 	quests: QuestService.QuestService,
 	loginGift: LoginGiftService.LoginGiftService,
+	index: IndexService.IndexService,
 }
 
-export type Notice = EconomyService.Notice | PvpService.Notice | QuestService.Notice | LoginGiftService.Notice
+export type Notice =
+	EconomyService.Notice
+	| PvpService.Notice
+	| QuestService.Notice
+	| LoginGiftService.Notice
+	| IndexService.Notice
 
 export type NetService = {
 	name: string,
@@ -89,6 +96,10 @@ local function questsOf(data: PlayerData.PlayerData): Remotes.Quests
 	return { day = data.quests.day, rerolled = data.quests.rerolled, list = list }
 end
 
+local function indexOf(data: PlayerData.PlayerData): Remotes.Index
+	return { found = data.index.found, sets = data.index.sets }
+end
+
 function NetService.new(dependencies: Dependencies): NetService
 	local limiter = RateLimit.new(NetConfig.COMMAND_LIMIT, NetConfig.COMMAND_WINDOW_SECONDS)
 
@@ -112,6 +123,7 @@ function NetService.new(dependencies: Dependencies): NetService
 				upgrades = upgradesOf(data),
 				quests = questsOf(data),
 				loginGift = giftOf(player),
+				index = indexOf(data),
 			})
 		end
 	end
@@ -193,22 +205,38 @@ function NetService.new(dependencies: Dependencies): NetService
 				Remotes.QuestsChanged.Fire(player, questsOf(data))
 			end
 		end)
-		local loginGift = dependencies.loginGift
-		loginGift.changed.connect(function(player)
-			Remotes.LoginGiftChanged.Fire(player, giftOf(player))
+		local alienIndex = dependencies.index
+		alienIndex.changed.connect(function(player)
+			local data = dependencies.getData(player)
+			if data then
+				Remotes.IndexChanged.Fire(player, indexOf(data))
+			end
 		end)
-		loginGift.rewarded.connect(function(player, reward)
-			Remotes.LoginGiftRewarded.Fire(
-				player,
-				{ day = reward.day, coins = wire(reward.coins), speed = wire(reward.speed), egg = reward.egg }
-			)
+		alienIndex.rewarded.connect(function(player, coins)
+			Remotes.IndexRewarded.Fire(player, wire(coins))
 			local data = dependencies.getData(player)
 			if data then
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))
 			end
 		end)
-		quests.rewarded.connect(function(player, coins, _trained, shown)
-			Remotes.QuestRewarded.Fire(player, { coins = wire(coins), speed = wire(shown) })
+		local loginGift = dependencies.loginGift
+		loginGift.changed.connect(function(player)
+			Remotes.LoginGiftChanged.Fire(player, giftOf(player))
+		end)
+		loginGift.rewarded.connect(function(player, reward)
+			Remotes.LoginGiftRewarded.Fire(player, {
+				day = reward.day,
+				coins = wire(reward.paid.coins),
+				speed = wire(reward.paid.speed),
+				egg = reward.egg,
+			})
+			local data = dependencies.getData(player)
+			if data then
+				Remotes.CoinsChanged.Fire(player, wire(data.coins))
+			end
+		end)
+		quests.rewarded.connect(function(player, paid)
+			Remotes.QuestRewarded.Fire(player, { coins = wire(paid.coins), speed = wire(paid.speed) })
 			local data = dependencies.getData(player)
 			if data then
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))
@@ -251,6 +279,12 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.ClaimLoginGift.SetCallback(guarded(function(player)
 			return loginGift.claim(player)
+		end))
+		Remotes.ClaimIndexAlien.SetCallback(guarded(function(player, alienId: string)
+			return alienIndex.claimAlien(player, alienId)
+		end))
+		Remotes.ClaimIndexSet.SetCallback(guarded(function(player, grade: number)
+			return alienIndex.claimSet(player, grade)
 		end))
 
 		PlayerEvents.observe(function() end, function(player)

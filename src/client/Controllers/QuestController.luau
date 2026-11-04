@@ -2,7 +2,7 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- Daily quests on the client: the HUD button (with how many rewards wait), the quests window
 -- and the toasts for a finished quest and a reward. Rows come from the profile copy; rewards
--- shown before a claim use the same formula the server pays with (Domain/Quests.reward).
+-- shown before a claim use the same formula the server pays with (Domain/PlayReward via Pace).
 
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
@@ -10,10 +10,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Button = require(script.Parent.Parent.UI.Button)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local Layout = require(script.Parent.Parent.UI.Layout)
+local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
 local QuestWindow = require(script.Parent.Parent.UI.QuestWindow)
@@ -22,8 +23,7 @@ local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
-local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
-local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
+local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -34,8 +34,6 @@ local PLAYER_GUI_WAIT_TIMEOUT = 30
 local TOGGLE_KEY = Enum.KeyCode.J
 -- The countdown to new quests is whole minutes and seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
--- The quests button stands right above the bay button.
-local BUTTON_ABOVE_BAY = 48
 
 local TASK_KEYS: { [ProfileState.QuestKind]: Text.Key } = {
 	DeliverEggs = "quest.deliverEggs.hint",
@@ -102,17 +100,7 @@ function QuestController.new(dependencies: Dependencies): QuestController
 	local function rewardText(quest: ProfileState.Quest): string
 		local definition = Quests.definition(QuestConfig.DEFINITIONS, quest.kind)
 		local minutes = if definition then definition.rewardMinutes else 0
-		local income = BigNum.ZERO
-		for _, pod in profile.bay().pods do
-			local alien = pod.alien and AlienConfig.ALIENS[pod.alien.id]
-			if alien then
-				income = BigNum.add(income, alien.income)
-			end
-		end
-		local upgrades = profile.upgrades()
-		local rate = Upgrades.trainerRate(upgrades.trainerLevel, UpgradeConfig.TUNING)
-		local coins, trained = Quests.reward(minutes, income, rate, QuestConfig.MIN_REWARD_COINS)
-		local speed = BigNum.mul(trained, Upgrades.jetpackMultiplier(upgrades.jetpackLevel, UpgradeConfig.TUNING))
+		local coins, speed = Pace.reward(profile, minutes, QuestConfig.MIN_REWARD_COINS, true)
 		return `+{BigNum.format(coins)} ● · +{BigNum.format(speed)} ⚡`
 	end
 
@@ -172,20 +160,18 @@ function QuestController.new(dependencies: Dependencies): QuestController
 				ResetOnSpawn = false,
 				DisplayOrder = 10,
 
-				Button({
-					name = "OpenQuests",
-					text = text("quests.open.button"),
-					-- How many finished quests wait to be claimed.
-					badge = claimable,
-					onClick = function()
-						isOpen(not isOpen())
-					end,
-				}),
-				Vide.action(function(gui)
-					local button = gui:FindFirstChild("OpenQuests") :: GuiObject
-					button.AnchorPoint = Vector2.new(0, 1)
-					button.Position = UDim2.new(0, Theme.MARGIN, 1, -(Theme.MARGIN + BUTTON_ABOVE_BAY))
-				end),
+				Layout.placeInMenu(
+					Button({
+						name = "OpenQuests",
+						text = text("quests.open.button"),
+						-- How many finished quests wait to be claimed.
+						badge = claimable,
+						onClick = function()
+							isOpen(not isOpen())
+						end,
+					}),
+					"Quests"
+				),
 
 				QuestWindow({
 					visible = isOpen,
@@ -194,7 +180,7 @@ function QuestController.new(dependencies: Dependencies): QuestController
 						title = text("quests.window.title"),
 						resetIn = function()
 							local _ = clock()
-							local left = Quests.secondsLeftInDay(workspace:GetServerTimeNow())
+							local left = UtcDay.secondsLeft(workspace:GetServerTimeNow())
 							return text("quests.resetIn.hint", { time = Duration.describe(locale, left) })
 						end,
 						swapHint = function()

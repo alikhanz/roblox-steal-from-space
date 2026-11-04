@@ -10,30 +10,26 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Button = require(script.Parent.Parent.UI.Button)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local Layout = require(script.Parent.Parent.UI.Layout)
 local LoginGiftConfig = require(ReplicatedStorage.Shared.Config.LoginGiftConfig)
 local LoginGiftScreen = require(script.Parent.Parent.UI.LoginGiftScreen)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
-local PlayReward = require(ReplicatedStorage.Shared.Domain.PlayReward)
+local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
-local Quests = require(ReplicatedStorage.Shared.Domain.Quests)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
-local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
-local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
+local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
 local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
--- The gift button stands above the quests button, which stands above the bay button.
-local BUTTON_ABOVE_BAY = 96
 -- The screen waits this long after the profile arrived, so the welcome-back screen (sent right
 -- after) comes first.
 local OPEN_DELAY_SECONDS = 1.5
@@ -79,19 +75,9 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 	-- What each streak day gives right now.
 	local function tiles(): { LoginGiftScreen.Tile }
 		local gift = profile.loginGift()
-		local income = BigNum.ZERO
-		for _, pod in profile.bay().pods do
-			local alien = pod.alien and AlienConfig.ALIENS[pod.alien.id]
-			if alien then
-				income = BigNum.add(income, alien.income)
-			end
-		end
-		local upgrades = profile.upgrades()
-		local rate = Upgrades.trainerRate(upgrades.trainerLevel, UpgradeConfig.TUNING)
-		local multiplier = Upgrades.jetpackMultiplier(upgrades.jetpackLevel, UpgradeConfig.TUNING)
 		local result: { LoginGiftScreen.Tile } = {}
 		for day, minutes in LoginGiftConfig.MINUTES do
-			local coins, trained = PlayReward.worth(minutes, income, rate, LoginGiftConfig.MIN_REWARD_COINS)
+			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true)
 			-- Taken: days before today, and today once its gift is in.
 			local state: LoginGiftScreen.TileState = if day < gift.day or (day == gift.day and not gift.available)
 				then "Taken"
@@ -100,7 +86,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 			table.insert(result, {
 				title = text("gift.day.hint", { day = day }),
 				coins = BigNum.format(coins),
-				speed = BigNum.format(BigNum.mul(trained, multiplier)),
+				speed = BigNum.format(speed),
 				egg = if day == LoginGiftConfig.EGG_DAY then eggName() else nil,
 				state = state,
 			})
@@ -112,7 +98,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		local gift = profile.loginGift()
 		if not gift.available then
 			local _ = clock()
-			local left = Quests.secondsLeftInDay(workspace:GetServerTimeNow())
+			local left = UtcDay.secondsLeft(workspace:GetServerTimeNow())
 			return text("gift.next.hint", { time = Duration.describe(locale, left) })
 		end
 		return if gift.reset then text("gift.reset.hint") else text("gift.streak.hint")
@@ -129,21 +115,19 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 					layer = gui :: ScreenGui
 				end),
 
-				Button({
-					name = "OpenGift",
-					text = text("gift.open.button"),
-					badge = function()
-						return if profile.loginGift().available then 1 else 0
-					end,
-					onClick = function()
-						isOpen(not isOpen())
-					end,
-				}),
-				Vide.action(function(gui)
-					local button = gui:FindFirstChild("OpenGift") :: GuiObject
-					button.AnchorPoint = Vector2.new(0, 1)
-					button.Position = UDim2.new(0, Theme.MARGIN, 1, -(Theme.MARGIN + BUTTON_ABOVE_BAY))
-				end),
+				Layout.placeInMenu(
+					Button({
+						name = "OpenGift",
+						text = text("gift.open.button"),
+						badge = function()
+							return if profile.loginGift().available then 1 else 0
+						end,
+						onClick = function()
+							isOpen(not isOpen())
+						end,
+					}),
+					"Gift"
+				),
 
 				LoginGiftScreen.create({
 					visible = function()

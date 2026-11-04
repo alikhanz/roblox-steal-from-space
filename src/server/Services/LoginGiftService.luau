@@ -16,22 +16,17 @@ local LoginGiftConfig = require(ReplicatedStorage.Shared.Config.LoginGiftConfig)
 local PlayReward = require(ReplicatedStorage.Shared.Domain.PlayReward)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
-local Quests = require(ReplicatedStorage.Shared.Domain.Quests)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
-local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
-local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
+local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 
 export type Notice = "GiftTaken"
 
 -- What a taken gift paid.
 export type Reward = {
 	day: number,
-	coins: BigNum.BigNum,
-	-- Speed points as trained, and the stat they add (times the jetpack).
-	trained: BigNum.BigNum,
-	speed: BigNum.BigNum,
+	paid: PlayReward.Paid,
 	-- The last day's egg went into the incubator.
 	egg: boolean,
 }
@@ -64,7 +59,7 @@ export type LoginGiftService = {
 local LoginGiftService = {}
 
 local function today(): number
-	return Quests.dayOf(os.time())
+	return UtcDay.of(os.time())
 end
 
 function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
@@ -94,31 +89,19 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 			if not day then
 				return
 			end
-			local rate = Upgrades.trainerRate(data.trainerLevel, UpgradeConfig.TUNING)
 			local minutes = LoginGiftConfig.MINUTES[day] or 0
-			local coins, trained = PlayReward.worth(minutes, income, rate, LoginGiftConfig.MIN_REWARD_COINS)
-			Wallet.earn(data, coins)
-			data.trained = BigNum.add(data.trained, trained)
+			local pace = { income = income, trainerLevel = data.trainerLevel, jetpackLevel = data.jetpackLevel }
+			local paid = PlayReward.of(minutes, pace, LoginGiftConfig.MIN_REWARD_COINS, true, UpgradeConfig.TUNING)
+			PlayReward.pay(data, paid)
 			local egg = false
 			if day == LoginGiftConfig.EGG_DAY then
 				local grade = math.clamp(data.bestPost, 1, #AlienConfig.GRADES)
-				table.insert(data.incubator, {
-					uid = Bay.newUid(data),
-					rarity = LoginGiftConfig.EGG_RARITY,
-					size = LoginGiftConfig.EGG_SIZE,
-					grade = grade,
-					-- The bay's clock (BayService hatches against server time).
-					hatchAt = workspace:GetServerTimeNow() + hatchSeconds,
-				})
+				-- The bay's clock: BayService hatches against server time.
+				local hatchAt = workspace:GetServerTimeNow() + hatchSeconds
+				Bay.addEgg(data, LoginGiftConfig.EGG_RARITY, LoginGiftConfig.EGG_SIZE, grade, hatchAt)
 				egg = true
 			end
-			reward = {
-				day = day,
-				coins = coins,
-				trained = trained,
-				speed = BigNum.mul(trained, Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)),
-				egg = egg,
-			}
+			reward = { day = day, paid = paid, egg = egg }
 		end)
 		if not reward then
 			return "GiftTaken"

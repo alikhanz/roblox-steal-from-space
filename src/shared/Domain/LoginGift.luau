@@ -1,7 +1,7 @@
 --!strict
 -- The login gift: one gift a UTC day, on a streak of up to `length` days in a row. Coming back
 -- the next day moves the streak on; after the last day a new round starts; a missed day starts
--- the streak over. Pure: days are passed in (Quests.dayOf).
+-- the streak over. Pure: days are passed in (Domain/UtcDay).
 
 local LoginGift = {}
 

@@ -81,6 +81,8 @@ export type MetricsService = {
 	earned: (player: Player, currency: Currency, sku: string, amount: BigNum.BigNum) -> (),
 	-- Counts a gameplay event; up to three field values (no player names).
 	count: (player: Player, eventName: string, fields: { string }?) -> (),
+	-- An alien entered the player's index for the first time.
+	found: (player: Player, alienId: string) -> (),
 }
 
 -- Summed facts of one player, waiting to be sent.
@@ -116,6 +118,12 @@ local function zoneOfGrade(grade: number?): string
 		return "Unknown"
 	end
 	return (ZoneConfig.zoneOfPost(grade))
+end
+
+-- An alien's fields for an event: its tier and its guardian's zone.
+local function alienFields(alienId: string): { string }
+	local alien = AlienConfig.ALIENS[alienId]
+	return { if alien then `Tier - {alien.tier}` else "Tier - Unknown", zoneOfGrade(alien and alien.grade) }
 end
 
 local function zoneAt(position: Vector3): string
@@ -318,11 +326,7 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 			reach(player, "HatchedAlien")
 		end)
 		dependencies.crossbred.connect(function(player, alienId)
-			local alien = AlienConfig.ALIENS[alienId]
-			count(player, "Crossbreed", {
-				if alien then `Tier - {alien.tier}` else "Tier - Unknown",
-				zoneOfGrade(alien and alien.grade),
-			})
+			count(player, "Crossbreed", alienFields(alienId))
 		end)
 
 		-- Thefts: a funnel per egg taken, from the grab to the bay.
@@ -394,6 +398,9 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 			add(player, currency, "Source", sku, amount)
 		end,
 		count = count,
+		found = function(player: Player, alienId: string)
+			count(player, "AlienFound", alienFields(alienId))
+		end,
 	}
 end
 

@@ -18,6 +18,7 @@ local BayWindow = require(script.Parent.Parent.UI.BayWindow)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Button = require(script.Parent.Parent.UI.Button)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local Layout = require(script.Parent.Parent.UI.Layout)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
@@ -61,6 +62,8 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	QuestDone = "notice.questDone.toast",
 	NoOtherQuest = "notice.noOtherQuest.toast",
 	GiftTaken = "notice.giftTaken.toast",
+	IndexNothing = "notice.indexNothing.toast",
+	IndexClaimed = "notice.questClaimed.toast",
 }
 
 export type Dependencies = {
@@ -299,19 +302,17 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 				ResetOnSpawn = false,
 				DisplayOrder = 10,
 
-				Button({
-					name = "OpenBay",
-					text = text("bay.open.button"),
-					onClick = function()
-						isOpen(not isOpen())
-					end,
-				}),
-				Vide.action(function(gui)
-					-- The open button sits in the bottom-left corner, clear of the flight buttons.
-					local button = gui:FindFirstChild("OpenBay") :: GuiObject
-					button.AnchorPoint = Vector2.new(0, 1)
-					button.Position = UDim2.new(0, Theme.MARGIN, 1, -Theme.MARGIN)
-				end),
+				-- The open button sits at the bottom of the menu column, clear of the flight buttons.
+				Layout.placeInMenu(
+					Button({
+						name = "OpenBay",
+						text = text("bay.open.button"),
+						onClick = function()
+							isOpen(not isOpen())
+						end,
+					}),
+					"Bay"
+				),
 
 				BayWindow({
 					visible = isOpen,

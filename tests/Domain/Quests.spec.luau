@@ -1,6 +1,5 @@
 --!strict
 
-local BigNum = require("../../src/shared/Domain/BigNum")
 local Quests = require("../../src/shared/Domain/Quests")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
@@ -46,18 +45,6 @@ end
 local function stateWith(list: { Quests.Record }): Quests.State
 	return { day = 100, rerolled = false, list = list }
 end
-
-describe("Quests days", function()
-	it("counts UTC days from the epoch", function()
-		expect(Quests.dayOf(0)).toBe(0)
-		expect(Quests.dayOf(86399)).toBe(0)
-		expect(Quests.dayOf(86400)).toBe(1)
-	end)
-
-	it("counts the seconds left to midnight", function()
-		expect(Quests.secondsLeftInDay(86400 * 5 + 600)).toBe(86400 - 600)
-	end)
-end)
 
 describe("Quests.roll", function()
 	it("gives quests of different kinds", function()
@@ -185,23 +172,5 @@ describe("Quests.reroll", function()
 		local state = stateWith({ record("DeliverEggs", 3) })
 		expect(Quests.reroll(state, 1, { POOL[1] }, NEWBIE, sequence({ 0.5 }))).toBe("NoOtherQuest")
 		expect(state.rerolled).toBe(false)
-	end)
-end)
-
-describe("Quests.reward", function()
-	it("pays minutes of income and trainer rate", function()
-		local coins, trained = Quests.reward(10, BigNum.fromNumber(5), BigNum.fromNumber(2), BigNum.fromNumber(200))
-		expect(coins).toEqual(BigNum.fromNumber(3000))
-		expect(trained).toEqual(BigNum.fromNumber(1200))
-	end)
-
-	it("pays at least the minimum coins", function()
-		local coins = Quests.reward(7, BigNum.ZERO, BigNum.ONE, BigNum.fromNumber(200))
-		expect(coins).toEqual(BigNum.fromNumber(200))
-	end)
-
-	it("scales past the plain number range", function()
-		local coins = Quests.reward(10, BigNum.new(1, 400), BigNum.ONE, BigNum.fromNumber(200))
-		expect(coins).toEqual(BigNum.new(6, 402))
 	end)
 end)

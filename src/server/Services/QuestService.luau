@@ -11,6 +11,7 @@ local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CarryService = require(script.Parent.CarryService)
+local PlayReward = require(ReplicatedStorage.Shared.Domain.PlayReward)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local Pvp = require(ReplicatedStorage.Shared.Domain.Pvp)
@@ -21,8 +22,7 @@ local Quests = require(ReplicatedStorage.Shared.Domain.Quests)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
-local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
-local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
+local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local LOG = RunService:IsStudio()
@@ -54,8 +54,8 @@ export type QuestService = {
 	start: () -> (),
 	-- The player's quests changed (a new day, progress, a claim, a swap).
 	changed: Signal.Signal<Player>,
-	-- A quest paid out: coins, and speed points as trained and as the stat shows them.
-	rewarded: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum, BigNum.BigNum>,
+	-- A quest paid out.
+	rewarded: Signal.Signal<Player, PlayReward.Paid>,
 	-- A quest was finished (before it is claimed): its kind.
 	completed: Signal.Signal<Player, string>,
 	claim: (player: Player, index: number) -> Notice?,
@@ -114,7 +114,7 @@ end
 
 function QuestService.new(dependencies: Dependencies): QuestService
 	local changed = Signal.new() :: Signal.Signal<Player>
-	local rewarded = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum, BigNum.BigNum>
+	local rewarded = Signal.new() :: Signal.Signal<Player, PlayReward.Paid>
 	local completed = Signal.new() :: Signal.Signal<Player, string>
 	local random = Random.new()
 	local active: { [Player]: boolean } = {}
@@ -188,7 +188,7 @@ function QuestService.new(dependencies: Dependencies): QuestService
 		local definition = record and Quests.definition(QuestConfig.DEFINITIONS, record.kind)
 		local income = dependencies.getIncomePerSecond(player)
 		local notice: Notice? = nil
-		local coins, trained, shown = BigNum.ZERO, BigNum.ZERO, BigNum.ZERO
+		local paid: PlayReward.Paid? = nil
 		dependencies.update(player, function(current)
 			notice = Quests.claim(current.quests, index)
 			if notice then
@@ -196,18 +196,16 @@ function QuestService.new(dependencies: Dependencies): QuestService
 			end
 			-- A quest from a pool entry since removed still closes, with the least reward.
 			local minutes = if definition then definition.rewardMinutes else 0
-			local rate = Upgrades.trainerRate(current.trainerLevel, UpgradeConfig.TUNING)
-			coins, trained = Quests.reward(minutes, income, rate, QuestConfig.MIN_REWARD_COINS)
-			Wallet.earn(current, coins)
-			current.trained = BigNum.add(current.trained, trained)
-			shown = BigNum.mul(trained, Upgrades.jetpackMultiplier(current.jetpackLevel, UpgradeConfig.TUNING))
+			local pace = { income = income, trainerLevel = current.trainerLevel, jetpackLevel = current.jetpackLevel }
+			paid = PlayReward.of(minutes, pace, QuestConfig.MIN_REWARD_COINS, true, UpgradeConfig.TUNING)
+			PlayReward.pay(current, paid :: PlayReward.Paid)
 		end)
-		if notice then
+		if notice or not paid then
 			return notice
 		end
 		dependencies.publishSpeed(player)
 		changed.fire(player)
-		rewarded.fire(player, coins, trained, shown)
+		rewarded.fire(player, paid)
 		return nil
 	end
 
@@ -245,7 +243,7 @@ function QuestService.new(dependencies: Dependencies): QuestService
 	end
 
 	local function checkDay()
-		local day = Quests.dayOf(now())
+		local day = UtcDay.of(now())
 		for player in active do
 			local data = dependencies.getData(player)
 			if data and data.quests.day < day then
@@ -257,7 +255,7 @@ function QuestService.new(dependencies: Dependencies): QuestService
 	local function start()
 		dependencies.activated.connect(function(player)
 			active[player] = true
-			ensureDay(player, Quests.dayOf(now()))
+			ensureDay(player, UtcDay.of(now()))
 		end)
 		PlayerEvents.observe(function() end, function(player)
 			active[player] = nil
