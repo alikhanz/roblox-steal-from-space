@@ -668,6 +668,14 @@ local Strings = {
 		ru = "Кислород кончается! Лети к станции",
 		en = "Low oxygen! Fly back to the station",
 	},
+	["station.beacon.title"] = {
+		ru = "Станция",
+		en = "Station",
+	},
+	["station.distance.hint"] = {
+		ru = "{distance} м",
+		en = "{distance} m",
+	},
 	["data.corrupted.message"] = {
 		ru = "Не получилось прочитать твой прогресс. Мы ничего в нём не меняли. Зайди снова через пару минут.",
 		en = "We couldn't read your progress. Nothing in it was changed. Rejoin in a few minutes.",
