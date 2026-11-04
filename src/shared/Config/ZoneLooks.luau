@@ -38,23 +38,23 @@ return table.freeze({
 	FIELD_ROCK_COLORS = table.freeze({ rgb(96, 92, 104), rgb(120, 112, 118), rgb(78, 80, 92), rgb(110, 98, 90) }),
 
 	-- Ice Rings: a thin band of small ice chunks around the station at the zone's distance.
-	ICE_CHUNK_COUNT = 400,
+	ICE_CHUNK_COUNT = 720,
 	ICE_CHUNK_MIN_SIZE = 2,
 	ICE_CHUNK_MAX_SIZE = 7,
-	ICE_BAND_HEIGHT = 25,
+	ICE_BAND_HEIGHT = 45,
 	ICE_COLOR = rgb(200, 235, 255),
 
 	-- Red Nebula: a haze of big, faint red spheres through the zone.
-	HAZE_COUNT = 40,
-	HAZE_MIN_SIZE = 120,
-	HAZE_MAX_SIZE = 260,
+	HAZE_COUNT = 75,
+	HAZE_MIN_SIZE = 200,
+	HAZE_MAX_SIZE = 450,
 	HAZE_COLOR = rgb(200, 40, 60),
 	HAZE_TRANSPARENCY = 0.88,
 
 	-- Event Horizon: a black hole at the edge of the map, with a glowing rim.
-	BLACK_HOLE_DISTANCE = 1560,
-	BLACK_HOLE_RADIUS = 110,
-	BLACK_HOLE_RIM_RADIUS = 125,
+	BLACK_HOLE_DISTANCE = 3000,
+	BLACK_HOLE_RADIUS = 200,
+	BLACK_HOLE_RIM_RADIUS = 225,
 	BLACK_HOLE_COLOR = rgb(5, 5, 8),
 	BLACK_HOLE_RIM_COLOR = rgb(255, 150, 60),
 	BLACK_HOLE_RIM_TRANSPARENCY = 0.5,

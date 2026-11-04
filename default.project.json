@@ -30,8 +30,8 @@
 		"Workspace": {
 			"$properties": {
 				"StreamingEnabled": true,
-				"StreamingMinRadius": 1024,
-				"StreamingTargetRadius": 2048,
+				"StreamingMinRadius": 2048,
+				"StreamingTargetRadius": 4096,
 				"SignalBehavior": "Deferred",
 				"AuthorityMode": "Server",
 				"FallenPartsDestroyHeight": -5000

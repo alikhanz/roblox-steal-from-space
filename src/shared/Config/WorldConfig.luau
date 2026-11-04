@@ -5,14 +5,14 @@
 
 return table.freeze({
 	SEED = 20261102,
-	ASTEROID_COUNT = 320,
+	ASTEROID_COUNT = 700,
 	-- Distance from the station center, studs.
 	INNER_RADIUS = 160,
-	OUTER_RADIUS = 1450,
+	OUTER_RADIUS = 2900,
 	-- The field is flattened into a thick disc: max height above or below the station.
-	VERTICAL_SPREAD = 250,
+	VERTICAL_SPREAD = 400,
 	-- Hard edge of the map: a sphere around the station nobody flies out of (see Bounds).
-	BOUNDARY_RADIUS = 1600,
+	BOUNDARY_RADIUS = 3100,
 	MIN_SIZE = 8,
 	MAX_SIZE = 45,
 	-- Nest asteroids: dedicated rocks with a bowl on top.

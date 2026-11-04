@@ -51,7 +51,7 @@ local function zone(
 end
 
 local ZONES: { [ZoneId]: Zone } = {
-	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", { min = 190, max = 320, height = 60 }, {
+	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", { min = 285, max = 480, height = 90 }, {
 		{ id = "Common", weight = 70 },
 		{ id = "Uncommon", weight = 25 },
 		{ id = "Rare", weight = 5 },
@@ -60,7 +60,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 35 },
 		{ id = "Large", weight = 15 },
 	}),
-	IceRings = zone("IceRings", "zone.iceRings.title", { min = 430, max = 620, height = 90 }, {
+	IceRings = zone("IceRings", "zone.iceRings.title", { min = 775, max = 1115, height = 160 }, {
 		{ id = "Common", weight = 50 },
 		{ id = "Uncommon", weight = 32 },
 		{ id = "Rare", weight = 15 },
@@ -70,7 +70,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 40 },
 		{ id = "Large", weight = 20 },
 	}),
-	RedNebula = zone("RedNebula", "zone.redNebula.title", { min = 760, max = 1020, height = 120 }, {
+	RedNebula = zone("RedNebula", "zone.redNebula.title", { min = 1445, max = 1940, height = 230 }, {
 		{ id = "Common", weight = 35 },
 		{ id = "Uncommon", weight = 35 },
 		{ id = "Rare", weight = 20 },
@@ -81,7 +81,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 40 },
 		{ id = "Large", weight = 25 },
 	}),
-	EventHorizon = zone("EventHorizon", "zone.eventHorizon.title", { min = 1150, max = 1450, height = 150 }, {
+	EventHorizon = zone("EventHorizon", "zone.eventHorizon.title", { min = 2300, max = 2900, height = 300 }, {
 		{ id = "Common", weight = 25 },
 		{ id = "Uncommon", weight = 30 },
 		{ id = "Rare", weight = 25 },

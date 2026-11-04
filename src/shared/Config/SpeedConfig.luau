@@ -7,8 +7,8 @@ local Speed = require("../Domain/Speed")
 local FLIGHT: Speed.FlightTuning = {
 	referenceSpeed = 10,
 	referenceFlightSpeed = 48,
-	-- Stat 10 flies at 48, stat 100 billion at about 130.
-	flightSpeedPerDecade = 8.2,
+	-- Stat 10 flies at 48, stat 1 trillion (the last guardian) at about 250.
+	flightSpeedPerDecade = 18.4,
 	minFlightSpeed = 30,
 }
 
