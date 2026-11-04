@@ -251,7 +251,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		local guardian = Names.guardian(locale, egg.grade) or "?"
 		local left = egg.hatchAt - workspace:GetServerTimeNow()
 		local when = if left > 0
-			then text("egg.hatchIn.hint", { time = Duration.describe(locale, left) })
+			then text("egg.hatchIn.hint", { time = Duration.clock(left) })
 			else text("egg.hatching.hint")
 		return `{name} · {guardian} — {when}`
 	end

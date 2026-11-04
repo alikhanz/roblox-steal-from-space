@@ -307,7 +307,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					local left = nextHatchAt - workspace:GetServerTimeNow()
 					value(
 						if left > 0
-							then Text.get(locale, "egg.hatchIn.hint", { time = Duration.describe(locale, left) })
+							then Text.get(locale, "egg.hatchIn.hint", { time = Duration.clock(left) })
 							else Text.get(locale, "egg.hatching.hint")
 					)
 				end

@@ -56,8 +56,8 @@ export type BayService = {
 	hastenHatching: (player: Player) -> boolean,
 	-- What the player's pods earn per second; zero without an active profile.
 	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
-	-- How fast every incubator on the server runs: 1 normally, more during the solar storm.
-	-- Back to 1 rebuilds the bays, so their egg countdowns catch up.
+	-- How fast every incubator on the server runs: 1 normally, more during the solar storm (the
+	-- egg timers then follow every tick).
 	setHatchRate: (rate: number) -> (),
 	-- Fires when an egg hatches: the player, the alien and where it went.
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
@@ -328,6 +328,34 @@ function BayService.new(dependencies: Dependencies): BayService
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end
 
+	-- After a sped-up tick moved the eggs on: the bay's egg timers and the owner's copy follow
+	-- without rebuilding the bay, so the countdowns visibly run faster.
+	local function syncIncubator(player: Player)
+		local bay = bays[player]
+		local data = dependencies.getData(player)
+		if not bay or not data then
+			return
+		end
+		local hatchAtByUid: { [number]: number } = {}
+		local nextHatchAt: number? = nil
+		for _, egg in data.incubator do
+			hatchAtByUid[egg.uid] = egg.hatchAt
+			nextHatchAt = math.min(nextHatchAt or math.huge, egg.hatchAt)
+		end
+		for _, part in contentsOf(bay):GetChildren() do
+			local uid = part:GetAttribute(BayConfig.EGG_UID_ATTRIBUTE)
+			local hatchAt = if type(uid) == "number" then hatchAtByUid[uid] else nil
+			if hatchAt then
+				part:SetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE, hatchAt)
+			end
+		end
+		local incubator = bay.model:FindFirstChild(BayConfig.INCUBATOR_NAME)
+		if incubator then
+			incubator:SetAttribute(BayConfig.INCUBATOR_NEXT_HATCH_ATTRIBUTE, nextHatchAt)
+		end
+		changed.fire(player)
+	end
+
 	-- One tick for every bay: run the incubator (faster in a storm), hatch what is ready, pay
 	-- the pods.
 	local function tick(deltaTime: number)
@@ -363,6 +391,10 @@ function BayService.new(dependencies: Dependencies): BayService
 			end
 			if #results > 0 then
 				refresh(player)
+			elseif extraHatchSeconds > 0 then
+				syncIncubator(player)
+			end
+			if #results > 0 then
 				for _, result in results do
 					if LOG then
 						print(`[BayService] {player.Name} hatched {result.id} -> {result.location}`)
@@ -375,14 +407,7 @@ function BayService.new(dependencies: Dependencies): BayService
 
 	local function setHatchRate(rate: number)
 		assert(rate >= 1, "incubators do not run backwards")
-		local wasFaster = hatchRate > 1
 		hatchRate = rate
-		-- The egg timers in the bays were set for the old pace.
-		if wasFaster and rate == 1 then
-			for player in bays do
-				refresh(player)
-			end
-		end
 	end
 
 	local function start()
