@@ -35,7 +35,17 @@ export type Notice =
 	| "VictimJustSpawned"
 	| "VictimShielded"
 	| "VictimTooWeak"
+	| "NoSuchQuest"
+	| "QuestNotDone"
+	| "QuestClaimed"
+	| "RerollUsed"
+	| "QuestDone"
+	| "NoOtherQuest"
 export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield"
+export type QuestKind = "DeliverEggs" | "DeliverFromZone" | "HatchAliens" | "Train" | "Crossbreed" | "KnockEgg"
+export type Quest = { kind: QuestKind, target: number, progress: number, claimed: boolean, zone: string? }
+-- Today's quests: the UTC day, whether the day's swap is used, the list.
+export type Quests = { day: number, rerolled: boolean, list: { Quest } }
 
 export type ProfileState = {
 	name: string,
@@ -43,6 +53,7 @@ export type ProfileState = {
 	coins: Vide.Source<BigNum.BigNum>,
 	bay: Vide.Source<Bay>,
 	upgrades: Vide.Source<Upgrades>,
+	quests: Vide.Source<Quests>,
 	-- True once the first snapshot arrived.
 	loaded: Vide.Source<boolean>,
 	-- The trainer paid out: speed points gained this tick.
@@ -56,6 +67,8 @@ export type ProfileState = {
 	notice: Signal.Signal<Notice>,
 	-- An ability resolved: which, did it hit, did an egg come loose.
 	abilityResult: Signal.Signal<AbilityKind, boolean, boolean>,
+	-- A claimed quest paid out: coins and the speed stat gained.
+	questRewarded: Signal.Signal<BigNum.BigNum, BigNum.BigNum>,
 }
 
 local ProfileState = {}
@@ -68,6 +81,7 @@ function ProfileState.new(): ProfileState
 	local coins = source(BigNum.ZERO)
 	local bay = source(emptyBay())
 	local upgrades = source({ trainerLevel = 0, jetpackLevel = 0 } :: Upgrades)
+	local quests = source({ day = 0, rerolled = false, list = {} } :: Quests)
 	local loaded = source(false)
 	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number>
@@ -75,6 +89,7 @@ function ProfileState.new(): ProfileState
 	local crossbred = Signal.new() :: Signal.Signal<string, Location>
 	local notice = Signal.new() :: Signal.Signal<Notice>
 	local abilityResult = Signal.new() :: Signal.Signal<AbilityKind, boolean, boolean>
+	local questRewarded = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum>
 
 	local function readCoins(value: { mantissa: number, exponent: number })
 		local restored = BigNum.fromSaved(value)
@@ -90,7 +105,18 @@ function ProfileState.new(): ProfileState
 			readCoins(snapshot.coins)
 			bay(snapshot.bay)
 			upgrades(snapshot.upgrades)
+			quests(snapshot.quests)
 			loaded(true)
+		end)
+		Remotes.QuestsChanged.SetCallback(function(value)
+			quests(value)
+		end)
+		Remotes.QuestRewarded.SetCallback(function(reward)
+			local paid = BigNum.fromSaved(reward.coins)
+			local gained = BigNum.fromSaved(reward.speed)
+			if paid and gained then
+				questRewarded.fire(paid, gained)
+			end
 		end)
 		Remotes.CoinsChanged.SetCallback(readCoins)
 		Remotes.UpgradesChanged.SetCallback(function(value)
@@ -134,6 +160,7 @@ function ProfileState.new(): ProfileState
 		coins = coins,
 		bay = bay,
 		upgrades = upgrades,
+		quests = quests,
 		loaded = loaded,
 		trained = trained,
 		offlineReward = offlineReward,
@@ -141,6 +168,7 @@ function ProfileState.new(): ProfileState
 		crossbred = crossbred,
 		notice = notice,
 		abilityResult = abilityResult,
+		questRewarded = questRewarded,
 	}
 end
 

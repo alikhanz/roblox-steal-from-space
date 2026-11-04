@@ -63,7 +63,7 @@ export type Dependencies = {
 	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>,
 	coinsTraded: Signal.Signal<Player, EconomyService.CoinTrade, BigNum.BigNum, BigNum.BigNum>,
 	offlineSettled: Signal.Signal<Player, OfflineService.Reward>,
-	trained: Signal.Signal<Player, BigNum.BigNum>,
+	trained: Signal.Signal<Player, BigNum.BigNum, number>,
 	hatched: Signal.Signal<Player, string, Bay.Location>,
 	crossbred: Signal.Signal<Player, string, Bay.Location>,
 	eggGrabbed: Signal.Signal<Player, CarryService.Carried, CarryService.GrabSource>,

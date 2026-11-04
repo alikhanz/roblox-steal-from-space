@@ -67,6 +67,38 @@ type Notice = enum {
 	VictimJustSpawned,
 	VictimShielded,
 	VictimTooWeak,
+	-- Daily quests.
+	NoSuchQuest,
+	QuestNotDone,
+	QuestClaimed,
+	RerollUsed,
+	QuestDone,
+	NoOtherQuest,
+}
+
+type QuestKind = enum {
+	DeliverEggs,
+	DeliverFromZone,
+	HatchAliens,
+	Train,
+	Crossbreed,
+	KnockEgg,
+}
+
+-- One of today's quests (Domain/Quests); Train counts seconds.
+type Quest = struct {
+	kind: QuestKind,
+	target: u32,
+	progress: f64,
+	claimed: boolean,
+	zone: string.utf8?,
+}
+
+-- Today's quests: the UTC day they are for and whether the day's swap is used.
+type Quests = struct {
+	day: u32,
+	rerolled: boolean,
+	list: Quest[],
 }
 
 type AbilityKind = enum {
@@ -86,6 +118,25 @@ event ProfileSnapshot = {
 		coins: BigNum,
 		bay: Bay,
 		upgrades: Upgrades,
+		quests: Quests,
+	},
+}
+
+event QuestsChanged = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: Quests,
+}
+
+-- A claimed quest paid out: coins and the speed stat gained (with the jetpack multiplier).
+event QuestRewarded = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		coins: BigNum,
+		speed: BigNum,
 	},
 }
 
@@ -228,6 +279,22 @@ event UpgradeTrainer = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,
+}
+
+-- Today's quest at this place in the list (1-based).
+event ClaimQuest = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: u8,
+}
+
+-- The day's one swap, for the quest at this place.
+event RerollQuest = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: u8,
 }
 
 -- The client asks for its snapshot once its controllers are ready, in case the profile

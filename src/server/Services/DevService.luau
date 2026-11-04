@@ -61,6 +61,9 @@ export type Dependencies = {
 	-- Registers a strike target that is not a player, and reads the ability counters.
 	addDummy: (model: Model, root: BasePart, onHit: (direction: Vector3) -> boolean) -> (),
 	getPvpUsage: () -> { [string]: { used: number, hit: number } },
+	-- Daily quests: finish all of today's; give a fresh set as if a new day began.
+	completeQuests: (player: Player) -> boolean,
+	newQuestDay: (player: Player) -> boolean,
 }
 
 export type DevService = {
@@ -193,6 +196,22 @@ function DevService.new(dependencies: Dependencies): DevService
 			return if #names > 0
 				then `play time set to {seconds}s for {table.concat(names, ", ")}`
 				else "no active profiles"
+		end,
+		-- Finishes every quest of the first player (to try claiming).
+		CompleteQuests = function(): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			return if dependencies.completeQuests(player) then "quests finished" else "profile not active yet"
+		end,
+		-- Gives the first player a fresh set of quests and a fresh swap, as if a new day began.
+		NewQuestDay = function(): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			return if dependencies.newQuestDay(player) then "new quests given" else "profile not active yet"
 		end,
 		-- How many times each ability was used in this server and how many landed.
 		PvpStats = function(): string

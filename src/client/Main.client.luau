@@ -19,6 +19,7 @@ local NewbieViewController = require(script.Parent.Controllers.NewbieViewControl
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
 local PvpViewController = require(script.Parent.Controllers.PvpViewController)
+local QuestController = require(script.Parent.Controllers.QuestController)
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local StationBeaconController = require(script.Parent.Controllers.StationBeaconController)
@@ -42,6 +43,7 @@ Lifecycle.run({
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({ profile = profileState }),
 	CoinBoardController.new(),
+	QuestController.new({ profile = profileState, toasts = toastState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),

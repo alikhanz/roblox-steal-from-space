@@ -18,6 +18,7 @@ local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
 local OfflineService = require(script.Parent.Services.OfflineService)
 local PvpService = require(script.Parent.Services.PvpService)
+local QuestService = require(script.Parent.Services.QuestService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
@@ -62,6 +63,9 @@ local trainingDependencies = {} :: TrainingService.Dependencies
 local trainingService = TrainingService.new(trainingDependencies)
 local pvpDependencies = {} :: PvpService.Dependencies
 local pvpService = PvpService.new(pvpDependencies)
+-- Quests hear from services made after the net service (carrying), so they are bound later too.
+local questDependencies = {} :: QuestService.Dependencies
+local questService = QuestService.new(questDependencies)
 local netService = NetService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -72,6 +76,7 @@ local netService = NetService.new({
 	hatched = bayService.hatched,
 	trained = trainingService.trained,
 	abilityUsed = pvpService.abilityUsed,
+	quests = questService,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -107,6 +112,19 @@ end
 pvpDependencies.dropEgg = carryService.dropEgg
 pvpDependencies.notify = netService.notify
 pvpDependencies.scheduler = scheduler
+
+questDependencies.activated = profile.activated
+questDependencies.getData = profile.getData
+questDependencies.update = profile.update
+questDependencies.scheduler = scheduler
+questDependencies.getIncomePerSecond = bayService.getIncomePerSecond
+questDependencies.getNestGrade = nestService.getGrade
+questDependencies.publishSpeed = speedService.publish
+questDependencies.eggDelivered = carryService.delivered
+questDependencies.hatched = bayService.hatched
+questDependencies.trained = trainingService.trained
+questDependencies.crossbred = economyService.crossbred
+questDependencies.abilityUsed = pvpService.abilityUsed
 
 local guardianService = GuardianService.new({
 	getNestSites = worldService.getNestSites,
@@ -147,6 +165,13 @@ local metricsService = MetricsService.new({
 	suffocated = spaceService.suffocated,
 	abilityUsed = pvpService.abilityUsed,
 })
+questService.rewarded.connect(function(player, coins, _trained, shown)
+	metricsService.earned(player, "Coins", "Quest", coins)
+	metricsService.earned(player, "Speed", "Quest", shown)
+end)
+questService.completed.connect(function(player, kind)
+	metricsService.count(player, "QuestDone", { kind })
+end)
 
 -- Studio-only playtest commands; inert in live servers.
 local devService = DevService.new({
@@ -161,6 +186,8 @@ local devService = DevService.new({
 	refresh = bayService.refresh,
 	addDummy = pvpService.addDummy,
 	getPvpUsage = pvpService.getUsage,
+	completeQuests = questService.completeAll,
+	newQuestDay = questService.newDay,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
@@ -178,6 +205,7 @@ Lifecycle.run({
 	netService,
 	trainingService,
 	pvpService,
+	questService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,

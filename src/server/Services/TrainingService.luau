@@ -31,8 +31,8 @@ export type Dependencies = {
 export type TrainingService = {
 	name: string,
 	start: () -> (),
-	-- Fires on every payout: the player and the speed points gained.
-	trained: Signal.Signal<Player, BigNum.BigNum>,
+	-- Fires on every payout: the player, the speed points gained and the seconds trained.
+	trained: Signal.Signal<Player, BigNum.BigNum, number>,
 }
 
 type Station = {
@@ -43,7 +43,7 @@ local TrainingService = {}
 
 function TrainingService.new(dependencies: Dependencies): TrainingService
 	local stations: { [Player]: Station } = {}
-	local trained = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
+	local trained = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number>
 
 	-- The level on the bay model: the sign over the pad reads it.
 	local function describe(player: Player, station: Station)
@@ -93,7 +93,7 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 			end)
 			if gain then
 				dependencies.publishSpeed(player)
-				trained.fire(player, gain :: BigNum.BigNum)
+				trained.fire(player, gain :: BigNum.BigNum, deltaTime)
 			end
 		end
 	end

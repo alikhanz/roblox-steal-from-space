@@ -548,6 +548,106 @@ local Strings = {
 		ru = "Пробел",
 		en = "Space",
 	},
+	["quests.open.button"] = {
+		ru = "Задания",
+		en = "Quests",
+	},
+	["quests.window.title"] = {
+		ru = "Задания дня",
+		en = "Daily quests",
+	},
+	["quests.resetIn.hint"] = {
+		ru = "Новые задания через {time}",
+		en = "New quests in {time}",
+	},
+	["quests.swap.hint"] = {
+		ru = "Одно задание в день можно заменить",
+		en = "You can swap one quest a day",
+	},
+	["quests.swapUsed.hint"] = {
+		ru = "Замена на сегодня уже потрачена",
+		en = "You've used today's swap",
+	},
+	["quests.claim.button"] = {
+		ru = "Забрать",
+		en = "Claim",
+	},
+	["quests.swap.button"] = {
+		ru = "Заменить",
+		en = "Swap",
+	},
+	["quests.claimed.hint"] = {
+		ru = "Получено",
+		en = "Claimed",
+	},
+	["quests.done.toast"] = {
+		ru = "Задание выполнено!",
+		en = "Quest complete!",
+	},
+	["quests.rewarded.toast"] = {
+		ru = "Награда: +{coins} ● и +{speed} ⚡",
+		en = "Reward: +{coins} ● and +{speed} ⚡",
+	},
+	["quest.deliverEggs.hint"] = {
+		ru = {
+			one = "Доставь {count} яйцо",
+			few = "Доставь {count} яйца",
+			many = "Доставь {count} яиц",
+		},
+		en = { one = "Deliver {count} egg", other = "Deliver {count} eggs" },
+	},
+	["quest.deliverFromZone.hint"] = {
+		ru = "Доставь яйцо из зоны «{zone}»",
+		en = "Deliver an egg from {zone}",
+	},
+	["quest.hatchAliens.hint"] = {
+		ru = {
+			one = "Вылупи {count} пришельца",
+			few = "Вылупи {count} пришельцев",
+			many = "Вылупи {count} пришельцев",
+		},
+		en = { one = "Hatch {count} alien", other = "Hatch {count} aliens" },
+	},
+	["quest.train.hint"] = {
+		ru = {
+			one = "Потренируйся {count} минуту",
+			few = "Потренируйся {count} минуты",
+			many = "Потренируйся {count} минут",
+		},
+		en = { one = "Train for {count} minute", other = "Train for {count} minutes" },
+	},
+	["quest.crossbreed.hint"] = {
+		ru = "Скрести пришельцев",
+		en = "Crossbreed aliens",
+	},
+	["quest.knockEgg.hint"] = {
+		ru = "Выбей яйцо у другого игрока",
+		en = "Knock an egg from another player",
+	},
+	["notice.noSuchQuest.toast"] = {
+		ru = "Задания обновились, загляни ещё раз",
+		en = "Quests changed, take another look",
+	},
+	["notice.questNotDone.toast"] = {
+		ru = "Сначала выполни задание",
+		en = "Finish the quest first",
+	},
+	["notice.questClaimed.toast"] = {
+		ru = "Эта награда уже твоя",
+		en = "You already got this reward",
+	},
+	["notice.rerollUsed.toast"] = {
+		ru = "Замена сегодня уже была",
+		en = "You already swapped today",
+	},
+	["notice.questDone.toast"] = {
+		ru = "Выполненное задание не заменить",
+		en = "Done quests can't be swapped",
+	},
+	["notice.noOtherQuest.toast"] = {
+		ru = "Других заданий пока нет",
+		en = "No other quests right now",
+	},
 	["leaderboard.board.title"] = {
 		ru = "Лучшие по монетам",
 		en = "Top coin earners",

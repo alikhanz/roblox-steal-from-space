@@ -54,6 +54,12 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	VictimJustSpawned = "pvp.victimJustSpawned.toast",
 	VictimShielded = "pvp.victimShielded.toast",
 	VictimTooWeak = "pvp.victimTooWeak.toast",
+	NoSuchQuest = "notice.noSuchQuest.toast",
+	QuestNotDone = "notice.questNotDone.toast",
+	QuestClaimed = "notice.questClaimed.toast",
+	RerollUsed = "notice.rerollUsed.toast",
+	QuestDone = "notice.questDone.toast",
+	NoOtherQuest = "notice.noOtherQuest.toast",
 }
 
 export type Dependencies = {

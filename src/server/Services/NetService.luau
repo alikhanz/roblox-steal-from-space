@@ -14,9 +14,20 @@ local OfflineService = require(script.Parent.OfflineService)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local PvpService = require(script.Parent.PvpService)
+local QuestService = require(script.Parent.QuestService)
 local RateLimit = require(ReplicatedStorage.Shared.Domain.RateLimit)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+
+-- The quest kinds the wire knows; a saved quest of another kind is not sent.
+local QUEST_KINDS: { [string]: Remotes.QuestKind } = {
+	DeliverEggs = "DeliverEggs",
+	DeliverFromZone = "DeliverFromZone",
+	HatchAliens = "HatchAliens",
+	Train = "Train",
+	Crossbreed = "Crossbreed",
+	KnockEgg = "KnockEgg",
+}
 
 export type Dependencies = {
 	activated: Signal.Signal<Player>,
@@ -28,12 +39,13 @@ export type Dependencies = {
 	offlineSettled: Signal.Signal<Player, OfflineService.Reward>,
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	-- Trainer payouts to forward.
-	trained: Signal.Signal<Player, BigNum.BigNum>,
+	trained: Signal.Signal<Player, BigNum.BigNum, number>,
 	-- Ability results to forward.
 	abilityUsed: Signal.Signal<Player, PvpService.AbilityKind, boolean, boolean>,
+	quests: QuestService.QuestService,
 }
 
-export type Notice = EconomyService.Notice | PvpService.Notice
+export type Notice = EconomyService.Notice | PvpService.Notice | QuestService.Notice
 
 export type NetService = {
 	name: string,
@@ -58,6 +70,23 @@ local function bayOf(data: PlayerData.PlayerData)
 	}
 end
 
+local function questsOf(data: PlayerData.PlayerData): Remotes.Quests
+	local list = {}
+	for _, record in data.quests.list do
+		local kind = QUEST_KINDS[record.kind]
+		if kind then
+			table.insert(list, {
+				kind = kind,
+				target = record.target,
+				progress = record.progress,
+				claimed = record.claimed,
+				zone = record.zone,
+			})
+		end
+	end
+	return { day = data.quests.day, rerolled = data.quests.rerolled, list = list }
+end
+
 function NetService.new(dependencies: Dependencies): NetService
 	local limiter = RateLimit.new(NetConfig.COMMAND_LIMIT, NetConfig.COMMAND_WINDOW_SECONDS)
 
@@ -70,7 +99,7 @@ function NetService.new(dependencies: Dependencies): NetService
 		if data then
 			Remotes.ProfileSnapshot.Fire(
 				player,
-				{ coins = wire(data.coins), bay = bayOf(data), upgrades = upgradesOf(data) }
+				{ coins = wire(data.coins), bay = bayOf(data), upgrades = upgradesOf(data), quests = questsOf(data) }
 			)
 		end
 	end
@@ -88,7 +117,7 @@ function NetService.new(dependencies: Dependencies): NetService
 
 	-- Wraps a command handler with the rate limit and the profile check; a refusal becomes a
 	-- notice on the client.
-	local function guarded<T>(handler: (player: Player, value: T) -> EconomyService.Notice?): (Player, T) -> ()
+	local function guarded<T>(handler: (player: Player, value: T) -> Notice?): (Player, T) -> ()
 		return function(player: Player, value: T)
 			if not limiter.allow(tostring(player.UserId), os.clock()) then
 				Remotes.NoticeSent.Fire(player, "TooFast")
@@ -145,6 +174,20 @@ function NetService.new(dependencies: Dependencies): NetService
 		economy.crossbred.connect(function(player, alienId, location)
 			Remotes.Crossbred.Fire(player, { alienId = alienId, location = location })
 		end)
+		local quests = dependencies.quests
+		quests.changed.connect(function(player)
+			local data = dependencies.getData(player)
+			if data then
+				Remotes.QuestsChanged.Fire(player, questsOf(data))
+			end
+		end)
+		quests.rewarded.connect(function(player, coins, _trained, shown)
+			Remotes.QuestRewarded.Fire(player, { coins = wire(coins), speed = wire(shown) })
+			local data = dependencies.getData(player)
+			if data then
+				Remotes.CoinsChanged.Fire(player, wire(data.coins))
+			end
+		end)
 
 		Remotes.RequestSnapshot.SetCallback(guarded(function(player)
 			sendSnapshot(player)
@@ -173,6 +216,12 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.UpgradeTrainer.SetCallback(guarded(function(player)
 			return economy.upgradeTrainer(player)
+		end))
+		Remotes.ClaimQuest.SetCallback(guarded(function(player, index: number)
+			return quests.claim(player, index)
+		end))
+		Remotes.RerollQuest.SetCallback(guarded(function(player, index: number)
+			return quests.reroll(player, index)
 		end))
 
 		PlayerEvents.observe(function() end, function(player)

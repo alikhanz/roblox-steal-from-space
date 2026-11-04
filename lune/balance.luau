@@ -15,6 +15,8 @@ local GuardianConfig = require("../src/shared/Config/GuardianConfig")
 local Hatch = require("../src/shared/Domain/Hatch")
 local Loot = require("../src/shared/Domain/Loot")
 local PlayerData = require("../src/shared/Domain/PlayerData")
+local QuestConfig = require("../src/shared/Config/QuestConfig")
+local Quests = require("../src/shared/Domain/Quests")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
 local UpgradeConfig = require("../src/shared/Config/UpgradeConfig")
 local Upgrades = require("../src/shared/Domain/Upgrades")
@@ -44,12 +46,20 @@ type Profile = {
 	name: string,
 	pass: number,
 	packageHours: number,
+	-- Claims all of the day's quests at the end of each session.
+	quests: boolean,
 }
 
 local PROFILES: { Profile } = {
-	{ name = "free", pass = 1, packageHours = 0 },
-	{ name = "pass x2", pass = ASSUMPTIONS.trainingPass, packageHours = 0 },
-	{ name = "pass + pack", pass = ASSUMPTIONS.trainingPass, packageHours = ASSUMPTIONS.packageHours },
+	{ name = "free", pass = 1, packageHours = 0, quests = false },
+	{ name = "free + quests", pass = 1, packageHours = 0, quests = true },
+	{ name = "pass x2", pass = ASSUMPTIONS.trainingPass, packageHours = 0, quests = false },
+	{
+		name = "pass + pack",
+		pass = ASSUMPTIONS.trainingPass,
+		packageHours = ASSUMPTIONS.packageHours,
+		quests = false,
+	},
 }
 
 local DAY_SECONDS = 24 * 60 * 60
@@ -59,6 +69,17 @@ local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = SpeedConfig.STARTING_SPEED,
 	startingPods = BayConfig.STARTING_PODS,
 }
+
+-- The day's quests are worth this many minutes on average: the pool's mean reward by weight,
+-- times the quests a day.
+local QUEST_MINUTES_A_DAY = (function(): number
+	local weighted, weights = 0, 0
+	for _, definition in QuestConfig.DEFINITIONS do
+		weighted += definition.rewardMinutes * definition.weight
+		weights += definition.weight
+	end
+	return weighted / weights * QuestConfig.COUNT
+end)()
 
 local function toNumber(value: BigNum.BigNum): number
 	return BigNum.toNumber(value)
@@ -214,6 +235,17 @@ local function simulate(profile: Profile, seed: number): Run
 		if inDay < sessionSeconds then
 			trained += trainRate() * ASSUMPTIONS.trainShare * dt
 			coins += incomeRate * dt
+			-- The day's quests, claimed at the end of the session with the same formula as the game.
+			if profile.quests and inDay == sessionSeconds - dt then
+				local questCoins, questTrained = Quests.reward(
+					QUEST_MINUTES_A_DAY,
+					BigNum.fromNumber(incomeRate),
+					Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING),
+					QuestConfig.MIN_REWARD_COINS
+				)
+				coins += toNumber(questCoins)
+				trained += toNumber(questTrained)
+			end
 			if now >= nextTheftAt then
 				local target = bestPost
 				if bestPost < ASSUMPTIONS.guardianCount and canBeat(bestPost + 1) then
@@ -294,6 +326,7 @@ print(
 	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, {ASSUMPTIONS.trainShare * 100}% of it training, `
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
+		.. `, quests = {string.format("%.0f", QUEST_MINUTES_A_DAY)} min of play a day`
 )
 print("")
 
@@ -306,7 +339,7 @@ for _, profile in PROFILES do
 	runsByProfile[profile.name] = runs
 end
 
-local POST_WIDTH, SPEED_WIDTH, COLUMN_WIDTH = 5, 10, 13
+local POST_WIDTH, SPEED_WIDTH, COLUMN_WIDTH = 5, 10, 15
 local header = pad("post", POST_WIDTH) .. pad("recomm.", SPEED_WIDTH)
 for _, profile in PROFILES do
 	header ..= pad(profile.name, COLUMN_WIDTH)
