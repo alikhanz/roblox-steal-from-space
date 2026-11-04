@@ -21,12 +21,13 @@ export type Event = {
 }
 
 local EVENTS: { [EventId]: Event } = {
-	-- 5 minutes of normal play, a 10-second warning at the end of them, then 15 seconds of storm.
+	-- 5 minutes of normal play, a 10-second warning at the end of them, then 15 seconds of storm
+	-- (StormConfig, StormService).
 	Storm = {
 		id = "Storm",
 		nameKey = "event.storm.title",
 		schedule = { gapMin = 5 * 60, gapMax = 5 * 60, warningSeconds = 10, activeSeconds = 15 },
-		scheduled = false,
+		scheduled = true,
 		alwaysShowTimer = true,
 	},
 }

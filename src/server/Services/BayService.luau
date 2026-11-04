@@ -56,6 +56,9 @@ export type BayService = {
 	hastenHatching: (player: Player) -> boolean,
 	-- What the player's pods earn per second; zero without an active profile.
 	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
+	-- How fast every incubator on the server runs: 1 normally, more during the solar storm.
+	-- Back to 1 rebuilds the bays, so their egg countdowns catch up.
+	setHatchRate: (rate: number) -> (),
 	-- Fires when an egg hatches: the player, the alien and where it went.
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	-- Fires once a player gets their bay, with its model.
@@ -87,6 +90,8 @@ end
 
 function BayService.new(dependencies: Dependencies): BayService
 	local bays: { [Player]: PlayerBay } = {}
+	-- How fast the incubators run (setHatchRate).
+	local hatchRate = 1
 	local slotOwners: { [number]: Player } = {}
 	local folder: Folder? = nil
 	local random = Random.new()
@@ -323,15 +328,20 @@ function BayService.new(dependencies: Dependencies): BayService
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end
 
-	-- One tick for every bay: hatch what is ready, pay the pods.
+	-- One tick for every bay: run the incubator (faster in a storm), hatch what is ready, pay
+	-- the pods.
 	local function tick(deltaTime: number)
 		local current = now()
 		local earnedSeconds = BigNum.fromNumber(deltaTime)
+		local extraHatchSeconds = deltaTime * (hatchRate - 1)
 		for player in bays do
 			local results: { { id: AlienConfig.AlienId, location: Bay.Location } } = {}
 			local coins: BigNum.BigNum? = nil
 			local earned: BigNum.BigNum? = nil
 			dependencies.update(player, function(data)
+				if extraHatchSeconds > 0 then
+					Bay.advanceIncubator(data, extraHatchSeconds)
+				end
 				for _, egg in Bay.takeHatched(data, current) do
 					local alienId, location = hatchEgg(data, egg)
 					if alienId and location then
@@ -363,6 +373,18 @@ function BayService.new(dependencies: Dependencies): BayService
 		end
 	end
 
+	local function setHatchRate(rate: number)
+		assert(rate >= 1, "incubators do not run backwards")
+		local wasFaster = hatchRate > 1
+		hatchRate = rate
+		-- The egg timers in the bays were set for the old pace.
+		if wasFaster and rate == 1 then
+			for player in bays do
+				refresh(player)
+			end
+		end
+	end
+
 	local function start()
 		local world = workspace:FindFirstChild("World")
 		local bayFolder = Instance.new("Folder")
@@ -387,6 +409,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		addAlien = addAlien,
 		hastenHatching = hastenHatching,
 		getIncomePerSecond = getIncomePerSecond,
+		setHatchRate = setHatchRate,
 		hatched = hatched,
 		assigned = assigned,
 		changed = changed,

@@ -45,7 +45,7 @@ export type Carried = {
 }
 
 -- Why a carried egg left the thief's hands without being delivered.
-export type LossReason = "Guardian" | "Pvp" | "Death" | "Left"
+export type LossReason = "Guardian" | "Pvp" | "Death" | "Left" | "Storm"
 -- Where a grabbed egg came from.
 export type GrabSource = "Nest" | "Loose"
 
@@ -55,6 +55,8 @@ export type CarryService = {
 	-- Knocks the carried egg loose, flying off at `launch` if given; `reason` says who did it
 	-- (a death when not given). Returns true if dropped.
 	dropEgg: (player: Player, launch: Vector3?, reason: LossReason?) -> boolean,
+	-- Sends the carried egg straight back to its nest (no loose egg). Returns true if there was one.
+	returnEgg: (player: Player, reason: LossReason) -> boolean,
 	-- What the player carries, or nil when not carrying.
 	getCarried: (player: Player) -> Carried?,
 	-- Who carries the egg of `nestId` right now, or nil.
@@ -206,6 +208,16 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return true
 		end
 		spawnLoose(entry.rarity, entry.size, entry.nestId, root.Position, launch)
+		return true
+	end
+
+	local function returnEgg(player: Player, reason: LossReason): boolean
+		local entry = releaseCarried(player)
+		if not entry then
+			return false
+		end
+		lost.fire(player, publicOf(entry), reason)
+		dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
 		return true
 	end
 
@@ -363,6 +375,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		name = "CarryService",
 		start = start,
 		dropEgg = dropEgg,
+		returnEgg = returnEgg,
 		getCarried = function(player: Player): Carried?
 			local entry = carried[player]
 			return if entry then publicOf(entry) else nil

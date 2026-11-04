@@ -26,4 +26,7 @@ return table.freeze({
 	-- on or off, and whether the key was down last step.
 	SLOW_MODE_ATTRIBUTE = "SlowMode",
 	SLOW_MODE_HELD_ATTRIBUTE = "SlowModeHeld",
+	-- Workspace attribute: while set, nobody flies farther than this from the dome center
+	-- (studs), like at the edge of the map. The solar storm sets it to the station border.
+	RANGE_LIMIT_ATTRIBUTE = "FlightRangeLimit",
 })

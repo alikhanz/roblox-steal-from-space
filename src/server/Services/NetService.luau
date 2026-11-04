@@ -20,6 +20,7 @@ local QuestService = require(script.Parent.QuestService)
 local RateLimit = require(ReplicatedStorage.Shared.Domain.RateLimit)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local StormService = require(script.Parent.StormService)
 
 -- The quest kinds the wire knows; a saved quest of another kind is not sent.
 local QUEST_KINDS: { [string]: Remotes.QuestKind } = {
@@ -55,6 +56,7 @@ export type Notice =
 	| QuestService.Notice
 	| LoginGiftService.Notice
 	| IndexService.Notice
+	| StormService.Notice
 
 export type NetService = {
 	name: string,

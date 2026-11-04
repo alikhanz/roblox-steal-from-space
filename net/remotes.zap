@@ -79,6 +79,8 @@ type Notice = enum {
 	-- Alien index.
 	IndexNothing,
 	IndexClaimed,
+	-- Solar storm: you were brought back to the station.
+	StormTeleport,
 }
 
 -- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the

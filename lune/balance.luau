@@ -12,6 +12,7 @@ local Bay = require("../src/shared/Domain/Bay")
 local BayConfig = require("../src/shared/Config/BayConfig")
 local BigNum = require("../src/shared/Domain/BigNum")
 local EggConfig = require("../src/shared/Config/EggConfig")
+local EventConfig = require("../src/shared/Config/EventConfig")
 local GuardianConfig = require("../src/shared/Config/GuardianConfig")
 local Hatch = require("../src/shared/Domain/Hatch")
 local IndexConfig = require("../src/shared/Config/IndexConfig")
@@ -21,6 +22,7 @@ local PlayReward = require("../src/shared/Domain/PlayReward")
 local PlayerData = require("../src/shared/Domain/PlayerData")
 local QuestConfig = require("../src/shared/Config/QuestConfig")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
+local StormConfig = require("../src/shared/Config/StormConfig")
 local UpgradeConfig = require("../src/shared/Config/UpgradeConfig")
 local Upgrades = require("../src/shared/Domain/Upgrades")
 local ZoneConfig = require("../src/shared/Config/ZoneConfig")
@@ -73,6 +75,10 @@ local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = SpeedConfig.STARTING_SPEED,
 	startingPods = BayConfig.STARTING_PODS,
 }
+
+-- The solar storm: quiet for its gap, then the storm (EventConfig), round and round.
+local STORM = EventConfig.EVENTS.Storm
+local STORM_CYCLE = STORM.schedule.gapMin + STORM.schedule.activeSeconds
 
 -- The day's quests are worth this many minutes on average: the pool's mean reward by weight,
 -- times the quests a day.
@@ -250,6 +256,10 @@ local function simulate(profile: Profile, seed: number): Run
 		if inDay < sessionSeconds then
 			trained += trainRate() * ASSUMPTIONS.trainShare * dt
 			coins += incomeRate * dt
+			-- The solar storm comes round while the player is on, for everyone on the server.
+			if inDay % STORM_CYCLE >= STORM_CYCLE - STORM.schedule.activeSeconds then
+				Bay.advanceIncubator(data, dt * (StormConfig.HATCH_RATE - 1))
+			end
 			-- The login gift, taken first thing each day: the streak never breaks here.
 			if profile.daily and inDay == 0 then
 				local giftDay = (now // DAY_SECONDS) % LoginGiftConfig.LENGTH + 1
@@ -342,7 +352,7 @@ print(
 	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, {ASSUMPTIONS.trainShare * 100}% of it training, `
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
-		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index`
+		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index; a solar storm every {STORM_CYCLE}s for all`
 )
 print("")
 

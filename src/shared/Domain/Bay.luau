@@ -180,6 +180,14 @@ function Bay.addEgg(data: Data, rarity: string, size: string, grade: number, hat
 	return egg
 end
 
+-- Moves every egg in the incubator `seconds` closer to hatching (a sped-up incubator).
+function Bay.advanceIncubator(data: Data, seconds: number)
+	assert(seconds >= 0, "the incubator only runs forwards")
+	for _, egg in data.incubator do
+		egg.hatchAt -= seconds
+	end
+end
+
 -- Removes and returns the eggs whose time has come, oldest first.
 function Bay.takeHatched(data: Data, now: number): { PlayerData.EggRecord }
 	local hatched = {}

@@ -64,6 +64,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	GiftTaken = "notice.giftTaken.toast",
 	IndexNothing = "notice.indexNothing.toast",
 	IndexClaimed = "notice.questClaimed.toast",
+	StormTeleport = "notice.stormTeleport.toast",
 }
 
 export type Dependencies = {

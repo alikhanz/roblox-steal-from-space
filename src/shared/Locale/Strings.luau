@@ -612,6 +612,10 @@ local Strings = {
 		ru = "Индекс: +{coins} ●",
 		en = "Index: +{coins} ●",
 	},
+	["notice.stormTeleport.toast"] = {
+		ru = "Буря! Тебя вернуло на станцию",
+		en = "Storm! Back to the station you go",
+	},
 	["notice.indexNothing.toast"] = {
 		ru = "Здесь пока нечего забрать",
 		en = "Nothing to claim here yet",

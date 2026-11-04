@@ -25,6 +25,7 @@ local QuestService = require(script.Parent.Services.QuestService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
+local StormService = require(script.Parent.Services.StormService)
 local TrainingService = require(script.Parent.Services.TrainingService)
 local WorldService = require(script.Parent.Services.WorldService)
 
@@ -148,6 +149,13 @@ questDependencies.trained = trainingService.trained
 questDependencies.crossbred = economyService.crossbred
 questDependencies.abilityUsed = pvpService.abilityUsed
 
+local stormService = StormService.new({
+	eventChanged = eventService.changed,
+	returnEgg = carryService.returnEgg,
+	setHatchRate = bayService.setHatchRate,
+	notify = netService.notify,
+})
+
 local guardianService = GuardianService.new({
 	getNestSites = worldService.getNestSites,
 	getNestGrade = nestService.getGrade,
@@ -244,6 +252,7 @@ Lifecycle.run({
 	spaceService,
 	carryService,
 	guardianService,
+	stormService,
 	bayService,
 	economyService,
 	netService,

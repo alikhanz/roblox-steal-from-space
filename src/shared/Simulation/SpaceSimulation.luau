@@ -203,6 +203,11 @@ local function fly(
 	end
 	velocity =
 		Bounds.limitVelocity(rig.root.Position, velocity, StationConfig.PLATFORM_CENTER, WorldConfig.BOUNDARY_RADIUS)
+	-- A closer edge while something (the solar storm) keeps everyone near the station.
+	local rangeLimit = workspace:GetAttribute(FlightConfig.RANGE_LIMIT_ATTRIBUTE)
+	if type(rangeLimit) == "number" then
+		velocity = Bounds.limitVelocity(rig.root.Position, velocity, StationConfig.STATION.domeCenter, rangeLimit)
+	end
 
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
