@@ -36,7 +36,7 @@ export type Dependencies = {
 	-- Where the eggs of `nestId` lie knocked out (empty while the egg is in the nest or carried).
 	findLooseEggs: (nestId: string) -> { Vector3 },
 	getCarried: (player: Player) -> CarryService.Carried?,
-	dropEgg: (player: Player, launch: Vector3?) -> boolean,
+	dropEgg: (player: Player, launch: Vector3?, reason: CarryService.LossReason?) -> boolean,
 	getSpeed: (player: Player) -> BigNum.BigNum,
 	scheduler: Scheduler.Scheduler,
 }
@@ -123,7 +123,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 
 		-- Away from the thief's throw and off to the side, so getting it back takes a turn.
 		local launch = (sideways * 0.8 - direction * 0.6).Unit * EggConfig.DROP_SPEED
-		if not dependencies.dropEgg(player, launch) then
+		if not dependencies.dropEgg(player, launch, "Guardian") then
 			return
 		end
 

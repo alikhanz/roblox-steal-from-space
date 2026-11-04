@@ -12,6 +12,7 @@ local EconomyService = require(script.Parent.Services.EconomyService)
 local GuardianService = require(script.Parent.Services.GuardianService)
 local JetpackService = require(script.Parent.Services.JetpackService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
+local MetricsService = require(script.Parent.Services.MetricsService)
 local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
 local OfflineService = require(script.Parent.Services.OfflineService)
@@ -117,6 +118,28 @@ local guardianService = GuardianService.new({
 	scheduler = scheduler,
 })
 
+-- Analytics: listens to what the other services report.
+local metricsService = MetricsService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	update = profile.update,
+	getSpeed = speedService.getSpeed,
+	getNestGrade = nestService.getGrade,
+	scheduler = scheduler,
+	incomePaid = bayService.incomePaid,
+	coinsTraded = economyService.coinsTraded,
+	offlineSettled = offlineService.settled,
+	trained = trainingService.trained,
+	hatched = bayService.hatched,
+	crossbred = economyService.crossbred,
+	eggGrabbed = carryService.grabbed,
+	eggReachedStation = carryService.reachedStation,
+	eggDelivered = carryService.delivered,
+	eggLost = carryService.lost,
+	suffocated = spaceService.suffocated,
+	abilityUsed = pvpService.abilityUsed,
+})
+
 -- Studio-only playtest commands; inert in live servers.
 local devService = DevService.new({
 	spawnLooseEgg = carryService.spawnLooseEgg,
@@ -147,6 +170,8 @@ Lifecycle.run({
 	netService,
 	trainingService,
 	pvpService,
+	-- Before the offline settlement and the first activations, so it hears about them.
+	metricsService,
 	-- After the net service, so the snapshot goes out before the settlement's deltas.
 	offlineService,
 	devService,

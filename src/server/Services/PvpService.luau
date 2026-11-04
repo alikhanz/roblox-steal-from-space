@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 
 local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local CarryService = require(script.Parent.CarryService)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local Flight = require(ReplicatedStorage.Shared.Domain.Flight)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
@@ -42,7 +43,7 @@ export type Dependencies = {
 	-- True while the player carries an egg.
 	isCarrying: (player: Player) -> boolean,
 	-- Knocks the carried egg loose; false when the player carried nothing.
-	dropEgg: (player: Player, launch: Vector3?) -> boolean,
+	dropEgg: (player: Player, launch: Vector3?, reason: CarryService.LossReason?) -> boolean,
 	-- Tells a player why an ability was refused.
 	notify: (player: Player, notice: Notice) -> (),
 	scheduler: Scheduler.Scheduler,
@@ -159,7 +160,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 	local function hitPlayer(victim: Player, character: Model, direction: Vector3, by: string): boolean
 		local sideways = sidewaysOf(direction)
 		local launch = (direction * 0.85 + sideways * 0.5).Unit * EggConfig.DROP_SPEED
-		local dropped = dependencies.dropEgg(victim, launch)
+		local dropped = dependencies.dropEgg(victim, launch, "Pvp")
 		Knockback.apply(
 			character,
 			direction * GuardianConfig.KNOCKBACK_SPEED,
@@ -196,7 +197,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 					return hitPlayer(other, character, direction, attacker.Name)
 				end,
 				onHarpoon = function(launch)
-					return dependencies.dropEgg(other, launch)
+					return dependencies.dropEgg(other, launch, "Pvp")
 				end,
 			})
 		end

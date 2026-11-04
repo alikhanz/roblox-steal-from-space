@@ -50,7 +50,12 @@ export type EconomyService = {
 	crossbred: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	trainerUpgraded: Signal.Signal<Player>,
 	jetpackUpgraded: Signal.Signal<Player>,
+	-- Fires on every coin purchase or sale: the player, what (Pod, Trainer, Jetpack, Sell), the
+	-- coins it cost (negative for a sale: coins gained) and the balance after (analytics).
+	coinsTraded: Signal.Signal<Player, CoinTrade, BigNum.BigNum, BigNum.BigNum>,
 }
+
+export type CoinTrade = "Pod" | "Trainer" | "Jetpack" | "Sell"
 
 local EconomyService = {}
 
@@ -68,6 +73,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 	local crossbred = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
 	local trainerUpgraded = Signal.new() :: Signal.Signal<Player>
 	local jetpackUpgraded = Signal.new() :: Signal.Signal<Player>
+	local coinsTraded = Signal.new() :: Signal.Signal<Player, CoinTrade, BigNum.BigNum, BigNum.BigNum>
 
 	-- Runs `check` on the live profile, then `apply` as one update, then rebuilds the bay.
 	local function command(
@@ -180,14 +186,21 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 	end
 
 	local function sell(player: Player, uid: number): Notice?
-		return command(player, function(data)
+		local gained: BigNum.BigNum? = nil
+		local balance: BigNum.BigNum? = nil
+		local notice = command(player, function(data)
 			local record = if isUid(uid) then Bay.find(data, uid) else nil
 			return if record and AlienConfig.ALIENS[record.id] then nil else "UnknownAlien"
 		end, function(data)
 			local record = Bay.remove(data, uid) :: PlayerData.AlienRecord
 			local price = BigNum.mul(incomeOf(record.id), BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
 			data.coins = BigNum.add(data.coins, price)
+			gained, balance = price, data.coins
 		end)
+		if not notice and gained and balance then
+			coinsTraded.fire(player, "Sell", BigNum.mul(gained, BigNum.fromNumber(-1)), balance)
+		end
+		return notice
 	end
 
 	local function price(data: PlayerData.PlayerData): BigNum.BigNum
@@ -195,7 +208,9 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 	end
 
 	local function buyPod(player: Player): Notice?
-		return command(player, function(data)
+		local paid: BigNum.BigNum? = nil
+		local balance: BigNum.BigNum? = nil
+		local notice = command(player, function(data)
 			if #data.pods >= BayConfig.MAX_PODS then
 				return "MaxPods"
 			end
@@ -208,9 +223,15 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			if #data.pods >= BayConfig.MAX_PODS or BigNum.lessThan(data.coins, price(data)) then
 				return
 			end
+			paid = price(data)
 			data.coins = BigNum.sub(data.coins, price(data))
 			table.insert(data.pods, {})
+			balance = data.coins
 		end)
+		if not notice and paid and balance then
+			coinsTraded.fire(player, "Pod", paid, balance)
+		end
+		return notice
 	end
 
 	-- Spends coins on the next level of an upgrade; `priceOf` and `level` read the live profile.
@@ -218,8 +239,11 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		player: Player,
 		priceOf: (data: PlayerData.PlayerData) -> BigNum.BigNum,
 		raise: (data: PlayerData.PlayerData) -> (),
-		upgraded: Signal.Signal<Player>
+		upgraded: Signal.Signal<Player>,
+		trade: CoinTrade
 	): Notice?
+		local paid: BigNum.BigNum? = nil
+		local balance: BigNum.BigNum? = nil
 		local notice = command(player, function(data)
 			return if BigNum.lessThan(data.coins, priceOf(data)) then "NotEnoughCoins" else nil
 		end, function(data)
@@ -230,9 +254,13 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			end
 			data.coins = BigNum.sub(data.coins, cost)
 			raise(data)
+			paid, balance = cost, data.coins
 		end)
 		if not notice then
 			upgraded.fire(player)
+			if paid and balance then
+				coinsTraded.fire(player, trade, paid, balance)
+			end
 		end
 		return notice
 	end
@@ -242,7 +270,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			return Upgrades.trainerPrice(data.trainerLevel, UpgradeConfig.TUNING)
 		end, function(data)
 			data.trainerLevel += 1
-		end, trainerUpgraded)
+		end, trainerUpgraded, "Trainer")
 	end
 
 	local function upgradeJetpack(player: Player): Notice?
@@ -250,7 +278,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			return Upgrades.jetpackPrice(data.jetpackLevel, UpgradeConfig.TUNING)
 		end, function(data)
 			data.jetpackLevel += 1
-		end, jetpackUpgraded)
+		end, jetpackUpgraded, "Jetpack")
 	end
 
 	return {
@@ -266,6 +294,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		crossbred = crossbred,
 		trainerUpgraded = trainerUpgraded,
 		jetpackUpgraded = jetpackUpgraded,
+		coinsTraded = coinsTraded,
 	}
 end
 

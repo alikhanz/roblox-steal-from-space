@@ -16,6 +16,7 @@ local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
+local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 
 local PART_WAIT_TIMEOUT = 10
@@ -32,6 +33,8 @@ export type SpaceService = {
 	name: string,
 	init: () -> (),
 	start: () -> (),
+	-- Fires when a player runs out of oxygen, with where they were (analytics).
+	suffocated: Signal.Signal<Player, Vector3>,
 }
 
 local SpaceService = {}
@@ -70,19 +73,21 @@ local function addFlightConstraints(root: BasePart)
 end
 
 -- Out of oxygen: the character dies and respawns at the station.
-local function suffocateEmptyTanks()
+local function suffocateEmptyTanks(suffocated: Signal.Signal<Player, Vector3>)
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local oxygen = character and character:GetAttribute(OxygenConfig.ATTRIBUTE)
 		if humanoid and humanoid.Health > 0 and type(oxygen) == "number" and Oxygen.isEmpty(oxygen) then
 			humanoid.Health = 0
+			suffocated.fire(player, (character :: Model):GetPivot().Position)
 		end
 	end
 end
 
 function SpaceService.new(dependencies: Dependencies): SpaceService
 	local flightAnimationId: string? = nil
+	local suffocated = Signal.new() :: Signal.Signal<Player, Vector3>
 
 	local function equip(character: Model)
 		if not waitForParts(character) then
@@ -132,13 +137,16 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 		PlayerEvents.observe(onPlayerAdded, function() end)
 		SpaceSimulation.start()
 		-- Deaths happen outside the simulation: they change the character's lifecycle.
-		RunService.PostSimulation:Connect(suffocateEmptyTanks)
+		RunService.PostSimulation:Connect(function()
+			suffocateEmptyTanks(suffocated)
+		end)
 	end
 
 	return {
 		name = "SpaceService",
 		init = init,
 		start = start,
+		suffocated = suffocated,
 	}
 end
 

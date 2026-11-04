@@ -13,6 +13,7 @@ local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 
 -- Knocked-out eggs stay outside this sphere (see EggConfig.DOME_MARGIN).
@@ -43,12 +44,17 @@ export type Carried = {
 	nestId: string,
 }
 
+-- Why a carried egg left the thief's hands without being delivered.
+export type LossReason = "Guardian" | "Pvp" | "Death" | "Left"
+-- Where a grabbed egg came from.
+export type GrabSource = "Nest" | "Loose"
+
 export type CarryService = {
 	name: string,
 	start: () -> (),
-	-- Knocks the carried egg loose (when a guardian catches the carrier), flying off at `launch`
-	-- if given. Returns true if dropped.
-	dropEgg: (player: Player, launch: Vector3?) -> boolean,
+	-- Knocks the carried egg loose, flying off at `launch` if given; `reason` says who did it
+	-- (a death when not given). Returns true if dropped.
+	dropEgg: (player: Player, launch: Vector3?, reason: LossReason?) -> boolean,
 	-- What the player carries, or nil when not carrying.
 	getCarried: (player: Player) -> Carried?,
 	-- Who carries the egg of `nestId` right now, or nil.
@@ -64,6 +70,12 @@ export type CarryService = {
 		position: Vector3,
 		launch: Vector3?
 	) -> (),
+	-- The egg's journey, for analytics: taken, carried inside the station border (safe from
+	-- guardians), delivered to the bay, or lost on the way.
+	grabbed: Signal.Signal<Player, Carried, GrabSource>,
+	reachedStation: Signal.Signal<Player, Carried>,
+	delivered: Signal.Signal<Player, Carried>,
+	lost: Signal.Signal<Player, Carried, LossReason>,
 }
 
 type CarriedEntry = {
@@ -71,6 +83,8 @@ type CarriedEntry = {
 	size: EggConfig.SizeId,
 	nestId: string,
 	model: Part,
+	-- Already carried inside the station border once (reachedStation fired).
+	reachedStation: boolean,
 }
 
 type LooseEgg = {
@@ -93,6 +107,14 @@ function CarryService.new(dependencies: Dependencies): CarryService
 	local loose: { [string]: LooseEgg } = {}
 	local looseFolder: Folder? = nil
 	local looseCounter = 0
+	local grabbed = Signal.new() :: Signal.Signal<Player, Carried, GrabSource>
+	local reachedStation = Signal.new() :: Signal.Signal<Player, Carried>
+	local delivered = Signal.new() :: Signal.Signal<Player, Carried>
+	local lost = Signal.new() :: Signal.Signal<Player, Carried, LossReason>
+
+	local function publicOf(entry: CarriedEntry): Carried
+		return { rarity = entry.rarity, size = entry.size, nestId = entry.nestId }
+	end
 
 	local function clearGrab(character: Model)
 		character:SetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE, 0)
@@ -121,7 +143,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		weld.Parent = egg
 		egg.Parent = character
 
-		carried[player] = { rarity = rarity, size = size, nestId = nestId, model = egg }
+		carried[player] = { rarity = rarity, size = size, nestId = nestId, model = egg, reachedStation = false }
 		character:SetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE, rarity)
 		character:SetAttribute(EggConfig.CARRIED_SIZE_ATTRIBUTE, size)
 	end
@@ -171,11 +193,12 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		}
 	end
 
-	local function dropEgg(player: Player, launch: Vector3?): boolean
+	local function dropEgg(player: Player, launch: Vector3?, reason: LossReason?): boolean
 		local entry = releaseCarried(player)
 		if not entry then
 			return false
 		end
+		lost.fire(player, publicOf(entry), reason or "Death")
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not root or not root:IsA("BasePart") then
@@ -224,6 +247,10 @@ function CarryService.new(dependencies: Dependencies): CarryService
 				loose[targetId] = nil
 				looseEgg.part:Destroy()
 				giveEgg(player, character, looseEgg.rarity, looseEgg.size, looseEgg.nestId)
+				local entry = carried[player]
+				if entry then
+					grabbed.fire(player, publicOf(entry), "Loose")
+				end
 			end
 			return
 		end
@@ -235,6 +262,10 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		local rarity, size = dependencies.takeNestEgg(targetId)
 		if rarity and size then
 			giveEgg(player, character, rarity, size, targetId)
+			local entry = carried[player]
+			if entry then
+				grabbed.fire(player, publicOf(entry), "Nest")
+			end
 		end
 	end
 
@@ -253,6 +284,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		if dependencies.deliverEgg(player, entry.rarity, entry.size, grade) then
 			releaseCarried(player)
 			dependencies.nestEggDelivered(entry.nestId)
+			delivered.fire(player, publicOf(entry))
 		end
 	end
 
@@ -265,6 +297,12 @@ function CarryService.new(dependencies: Dependencies): CarryService
 				continue
 			end
 			confirmGrab(player, character, root)
+			local entry = carried[player]
+			local insideBorder = (root.Position - DOME_CENTER).Magnitude <= StationConfig.BORDER_RADIUS
+			if entry and not entry.reachedStation and insideBorder then
+				entry.reachedStation = true
+				reachedStation.fire(player, publicOf(entry))
+			end
 			-- Back on the station platform with an egg: delivered.
 			if carried[player] and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == false then
 				deliver(player)
@@ -286,13 +324,14 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			local humanoid = character:WaitForChild("Humanoid", 10)
 			if humanoid and humanoid:IsA("Humanoid") then
 				humanoid.Died:Connect(function()
-					dropEgg(player)
+					dropEgg(player, nil, "Death")
 				end)
 			end
 		end
 		player.CharacterAdded:Connect(onCharacter)
+		-- After a death the egg is already gone; with it still in hands, the player is leaving.
 		player.CharacterRemoving:Connect(function()
-			dropEgg(player)
+			dropEgg(player, nil, "Left")
 		end)
 		if player.Character then
 			task.spawn(onCharacter, player.Character)
@@ -313,6 +352,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		Players.PlayerRemoving:Connect(function(player)
 			local entry = releaseCarried(player)
 			if entry then
+				lost.fire(player, publicOf(entry), "Left")
 				dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
 			end
 		end)
@@ -325,7 +365,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		dropEgg = dropEgg,
 		getCarried = function(player: Player): Carried?
 			local entry = carried[player]
-			return if entry then { rarity = entry.rarity, size = entry.size, nestId = entry.nestId } else nil
+			return if entry then publicOf(entry) else nil
 		end,
 		findCarrier = function(nestId: string): Player?
 			for player, entry in carried do
@@ -345,6 +385,10 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return positions
 		end,
 		spawnLooseEgg = spawnLoose,
+		grabbed = grabbed,
+		reachedStation = reachedStation,
+		delivered = delivered,
+		lost = lost,
 	}
 end
 

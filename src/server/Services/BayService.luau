@@ -63,6 +63,8 @@ export type BayService = {
 	changed: Signal.Signal<Player>,
 	-- Fires when the player's coins change, with the new total.
 	coinsChanged: Signal.Signal<Player, BigNum.BigNum>,
+	-- Fires on every payout of the pods: the coins earned and the new total (analytics).
+	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>,
 }
 
 type PlayerBay = {
@@ -91,6 +93,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	local assigned = Signal.new() :: Signal.Signal<Player, Model>
 	local changed = Signal.new() :: Signal.Signal<Player>
 	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
+	local incomePaid = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>
 	-- Defined below; picking up an alien rebuilds the bay.
 	local refresh: (player: Player) -> ()
 
@@ -332,6 +335,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		for player in bays do
 			local results: { { id: AlienConfig.AlienId, location: Bay.Location } } = {}
 			local coins: BigNum.BigNum? = nil
+			local earned: BigNum.BigNum? = nil
 			dependencies.update(player, function(data)
 				for _, egg in Bay.takeHatched(data, current) do
 					local alienId, location = hatchEgg(data, egg)
@@ -341,12 +345,16 @@ function BayService.new(dependencies: Dependencies): BayService
 				end
 				local income = Bay.incomePerSecond(data, incomeOf)
 				if not BigNum.isZero(income) then
-					data.coins = BigNum.add(data.coins, BigNum.mul(income, earnedSeconds))
+					earned = BigNum.mul(income, earnedSeconds)
+					data.coins = BigNum.add(data.coins, earned :: BigNum.BigNum)
 					coins = data.coins
 				end
 			end)
 			if coins then
 				coinsChanged.fire(player, coins)
+				if earned then
+					incomePaid.fire(player, earned, coins)
+				end
 			end
 			if #results > 0 then
 				refresh(player)
@@ -388,6 +396,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		assigned = assigned,
 		changed = changed,
 		coinsChanged = coinsChanged,
+		incomePaid = incomePaid,
 	}
 end
 
