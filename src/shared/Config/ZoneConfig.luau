@@ -33,7 +33,9 @@ local POSTS_PER_ZONE = 6
 local function zone(
 	id: ZoneId,
 	nameKey: keyof<typeof(Strings)>,
-	ring: { min: number, max: number, height: number },
+	-- Where its nests lie (see Zone) and how many there are: the far rings are much longer, so
+	-- they get more nests to stay about as easy to find.
+	ring: { min: number, max: number, height: number, nests: number },
 	rarityLoot: { Loot.Entry<EggConfig.RarityId> },
 	sizeLoot: { Loot.Entry<EggConfig.SizeId> }
 ): Zone
@@ -43,7 +45,7 @@ local function zone(
 		ringMin = ring.min,
 		ringMax = ring.max,
 		heightSpread = ring.height,
-		nestCount = 12,
+		nestCount = ring.nests,
 		postCount = POSTS_PER_ZONE,
 		rarityLoot = table.freeze(rarityLoot),
 		sizeLoot = table.freeze(sizeLoot),
@@ -51,7 +53,7 @@ local function zone(
 end
 
 local ZONES: { [ZoneId]: Zone } = {
-	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", { min = 285, max = 480, height = 90 }, {
+	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", { min = 285, max = 480, height = 90, nests = 12 }, {
 		{ id = "Common", weight = 70 },
 		{ id = "Uncommon", weight = 25 },
 		{ id = "Rare", weight = 5 },
@@ -60,7 +62,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 35 },
 		{ id = "Large", weight = 15 },
 	}),
-	IceRings = zone("IceRings", "zone.iceRings.title", { min = 775, max = 1115, height = 160 }, {
+	IceRings = zone("IceRings", "zone.iceRings.title", { min = 775, max = 1115, height = 160, nests = 13 }, {
 		{ id = "Common", weight = 50 },
 		{ id = "Uncommon", weight = 32 },
 		{ id = "Rare", weight = 15 },
@@ -70,7 +72,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 40 },
 		{ id = "Large", weight = 20 },
 	}),
-	RedNebula = zone("RedNebula", "zone.redNebula.title", { min = 1445, max = 1940, height = 230 }, {
+	RedNebula = zone("RedNebula", "zone.redNebula.title", { min = 1445, max = 1940, height = 230, nests = 15 }, {
 		{ id = "Common", weight = 35 },
 		{ id = "Uncommon", weight = 35 },
 		{ id = "Rare", weight = 20 },
@@ -81,17 +83,23 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 40 },
 		{ id = "Large", weight = 25 },
 	}),
-	EventHorizon = zone("EventHorizon", "zone.eventHorizon.title", { min = 2300, max = 2900, height = 300 }, {
-		{ id = "Common", weight = 25 },
-		{ id = "Uncommon", weight = 30 },
-		{ id = "Rare", weight = 25 },
-		{ id = "Epic", weight = 15 },
-		{ id = "Legendary", weight = 5 },
-	}, {
-		{ id = "Small", weight = 30 },
-		{ id = "Medium", weight = 40 },
-		{ id = "Large", weight = 30 },
-	}),
+	EventHorizon = zone(
+		"EventHorizon",
+		"zone.eventHorizon.title",
+		{ min = 2300, max = 2900, height = 300, nests = 18 },
+		{
+			{ id = "Common", weight = 25 },
+			{ id = "Uncommon", weight = 30 },
+			{ id = "Rare", weight = 25 },
+			{ id = "Epic", weight = 15 },
+			{ id = "Legendary", weight = 5 },
+		},
+		{
+			{ id = "Small", weight = 30 },
+			{ id = "Medium", weight = 40 },
+			{ id = "Large", weight = 30 },
+		}
+	),
 }
 
 local ZoneConfig = {}
