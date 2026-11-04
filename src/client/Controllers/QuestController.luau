@@ -174,11 +174,9 @@ function QuestController.new(dependencies: Dependencies): QuestController
 
 				Button({
 					name = "OpenQuests",
-					text = function()
-						local waiting = claimable()
-						local label = text("quests.open.button")
-						return if waiting > 0 then `{label} ({waiting})` else label
-					end,
+					text = text("quests.open.button"),
+					-- How many finished quests wait to be claimed.
+					badge = claimable,
 					onClick = function()
 						isOpen(not isOpen())
 					end,
