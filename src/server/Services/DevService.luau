@@ -33,6 +33,7 @@ local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
+local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 
 local FOLDER_NAME = "DevCommands"
 -- Spawned eggs float this far in front of the player, studs.
@@ -209,7 +210,8 @@ function DevService.new(dependencies: Dependencies): DevService
 			end
 			assert(type(amount) == "number" and amount > 0, "GiveCoins expects a positive number")
 			local written = dependencies.update(player, function(data)
-				data.coins = BigNum.add(data.coins, BigNum.fromNumber(amount))
+				-- Earned like any coins, so the coin board can be tried in Studio.
+				Wallet.earn(data, BigNum.fromNumber(amount))
 			end)
 			if not written then
 				return "profile not active yet"

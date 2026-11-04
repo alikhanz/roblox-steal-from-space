@@ -16,6 +16,7 @@ local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
+local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 
 export type Notice =
 	"NoProfile"
@@ -194,7 +195,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		end, function(data)
 			local record = Bay.remove(data, uid) :: PlayerData.AlienRecord
 			local price = BigNum.mul(incomeOf(record.id), BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
-			data.coins = BigNum.add(data.coins, price)
+			Wallet.earn(data, price)
 			gained, balance = price, data.coins
 		end)
 		if not notice and gained and balance then

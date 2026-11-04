@@ -248,6 +248,18 @@ describe("PlayerData.load", function()
 				end,
 				detail = "bestPost is invalid",
 			},
+			{
+				patch = function(data)
+					data.coinsEarned = "lots"
+				end,
+				detail = "coinsEarned is not a valid BigNum",
+			},
+			{
+				patch = function(data)
+					data.coinsEarned = { mantissa = -5, exponent = 0 }
+				end,
+				detail = "coinsEarned is negative",
+			},
 		}
 		for _, case in cases do
 			local saved = savedTemplate()
@@ -348,10 +360,56 @@ describe("PlayerData migration v4 -> v5", function()
 		local outcome = load(saved)
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
-			expect(outcome.data.schemaVersion).toBe(5)
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(outcome.data.onboardingSteps).toBe(0)
 			expect(outcome.data.bestPost).toBe(0)
 			expect(outcome.data.playSeconds).toBe(300)
+		end
+	end)
+end)
+
+describe("PlayerData migration v5 -> v6", function()
+	it("starts the coins earned from the balance and keeps the rest", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 5
+		saved.coinsEarned = nil
+		saved.coins = { mantissa = 2.5, exponent = 400 }
+		saved.bestPost = 3
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.coinsEarned).toEqual(BigNum.new(2.5, 400))
+			expect(outcome.data.coins).toEqual(BigNum.new(2.5, 400))
+			expect(outcome.data.bestPost).toBe(3)
+		end
+	end)
+end)
+
+describe("PlayerData coins earned", function()
+	it("starts at zero", function()
+		expect(PlayerData.template(DEFAULTS).coinsEarned).toBe(BigNum.ZERO)
+	end)
+
+	it("is raised to the balance when it fell behind", function()
+		local saved = savedTemplate()
+		saved.coins = { mantissa = 500, exponent = 0 }
+		saved.coinsEarned = { mantissa = 100, exponent = 0 }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.coinsEarned).toEqual(BigNum.fromNumber(500))
+		end
+	end)
+
+	it("keeps a count above the balance", function()
+		local saved = savedTemplate()
+		saved.coins = { mantissa = 500, exponent = 0 }
+		saved.coinsEarned = { mantissa = 9000, exponent = 0 }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.coinsEarned).toEqual(BigNum.fromNumber(9000))
 		end
 	end)
 end)

@@ -15,6 +15,7 @@ local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
+local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 
 local MARK_INTERVAL_SECONDS = 1
 local LOG = RunService:IsStudio()
@@ -67,7 +68,7 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 			local rate = Upgrades.trainerRate(data.trainerLevel, UpgradeConfig.TUNING)
 			local gained = Upgrades.trainingGain(rate, trainingSeconds, UpgradeConfig.OFFLINE_TRAINING_FACTOR)
 
-			data.coins = BigNum.add(data.coins, earned)
+			Wallet.earn(data, earned)
 			data.trained = BigNum.add(data.trained, gained)
 			-- Whole seconds: the screen says "1 hour", not "1.1 hours", for an hour and a moment.
 			local awaySeconds = if data.lastSeenAt > 0 then math.max(math.floor(current - data.lastSeenAt), 0) else 0

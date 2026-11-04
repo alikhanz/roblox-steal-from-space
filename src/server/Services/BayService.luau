@@ -24,6 +24,7 @@ local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 
 local FOLDER_NAME = "Bays"
 -- A floor alien can be picked up from this far, studs; the server accepts a little more.
@@ -346,7 +347,7 @@ function BayService.new(dependencies: Dependencies): BayService
 				local income = Bay.incomePerSecond(data, incomeOf)
 				if not BigNum.isZero(income) then
 					earned = BigNum.mul(income, earnedSeconds)
-					data.coins = BigNum.add(data.coins, earned :: BigNum.BigNum)
+					Wallet.earn(data, earned :: BigNum.BigNum)
 					coins = data.coins
 				end
 			end)

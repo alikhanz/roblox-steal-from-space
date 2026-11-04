@@ -31,6 +31,9 @@ export type Pod = {
 export type PlayerData = {
 	schemaVersion: number,
 	coins: BigNum.BigNum,
+	-- Coins earned all time; spending does not lower it. The coin board ranks by it (Domain/Wallet
+	-- is the only place that adds coins). Never below `coins`.
+	coinsEarned: BigNum.BigNum,
 	-- Speed points earned on the trainer. The stat the player sees is this times the jetpack
 	-- multiplier (Domain/Upgrades).
 	trained: BigNum.BigNum,
@@ -66,7 +69,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 5
+PlayerData.SCHEMA_VERSION = 6
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -84,6 +87,11 @@ PlayerData.MIGRATIONS = {
 	-- v5 adds onboardingSteps and bestPost (analytics), filled from the template: a player from
 	-- before is counted in the funnel and the progression again from where they are.
 	[4] = function(_data: { [string]: any }) end,
+	-- v6 adds coinsEarned. What a player from before spent is unknown, so the count starts from
+	-- the balance they have.
+	[5] = function(data: { [string]: any })
+		data.coinsEarned = data.coins
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -95,6 +103,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 	return {
 		schemaVersion = PlayerData.SCHEMA_VERSION,
 		coins = BigNum.ZERO,
+		coinsEarned = BigNum.ZERO,
 		trained = defaults.startingSpeed,
 		trainerLevel = 0,
 		jetpackLevel = 0,
@@ -191,13 +200,18 @@ end
 
 -- Checks a migrated, reconciled copy and converts saved values into their runtime form in place.
 local function validate(data: { [string]: any }): string?
-	for _, field in { "coins", "trained" } do
+	for _, field in { "coins", "coinsEarned", "trained" } do
 		local value = BigNum.fromSaved(data[field])
 		if not value then
 			return `{field} is not a valid BigNum`
 		end
 		data[field] = value
 	end
+	if BigNum.isNegative(data.coinsEarned) then
+		return "coinsEarned is negative"
+	end
+	-- Every coin held was earned, whatever happened to the counter.
+	data.coinsEarned = BigNum.max(data.coinsEarned, data.coins)
 	for _, field in { "trainerLevel", "jetpackLevel" } do
 		if not isInteger(data[field]) or data[field] < 0 then
 			return `{field} is invalid`
