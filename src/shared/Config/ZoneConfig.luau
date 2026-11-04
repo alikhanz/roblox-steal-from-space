@@ -34,7 +34,7 @@ local function zone(
 	id: ZoneId,
 	nameKey: keyof<typeof(Strings)>,
 	-- Where its nests lie (see Zone) and how many there are: the far rings are much longer, so
-	-- they get more nests to stay about as easy to find.
+	-- they get more nests, about 2.2 s of flight apart at the zone's own speed everywhere.
 	ring: { min: number, max: number, height: number, nests: number },
 	rarityLoot: { Loot.Entry<EggConfig.RarityId> },
 	sizeLoot: { Loot.Entry<EggConfig.SizeId> }
@@ -53,7 +53,7 @@ local function zone(
 end
 
 local ZONES: { [ZoneId]: Zone } = {
-	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", { min = 285, max = 480, height = 90, nests = 12 }, {
+	DebrisBelt = zone("DebrisBelt", "zone.debrisBelt.title", { min = 285, max = 480, height = 90, nests = 14 }, {
 		{ id = "Common", weight = 70 },
 		{ id = "Uncommon", weight = 25 },
 		{ id = "Rare", weight = 5 },
@@ -62,7 +62,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 35 },
 		{ id = "Large", weight = 15 },
 	}),
-	IceRings = zone("IceRings", "zone.iceRings.title", { min = 775, max = 1115, height = 160, nests = 13 }, {
+	IceRings = zone("IceRings", "zone.iceRings.title", { min = 775, max = 1115, height = 160, nests = 20 }, {
 		{ id = "Common", weight = 50 },
 		{ id = "Uncommon", weight = 32 },
 		{ id = "Rare", weight = 15 },
@@ -72,7 +72,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		{ id = "Medium", weight = 40 },
 		{ id = "Large", weight = 20 },
 	}),
-	RedNebula = zone("RedNebula", "zone.redNebula.title", { min = 1445, max = 1940, height = 230, nests = 15 }, {
+	RedNebula = zone("RedNebula", "zone.redNebula.title", { min = 1445, max = 1940, height = 230, nests = 25 }, {
 		{ id = "Common", weight = 35 },
 		{ id = "Uncommon", weight = 35 },
 		{ id = "Rare", weight = 20 },
@@ -86,7 +86,7 @@ local ZONES: { [ZoneId]: Zone } = {
 	EventHorizon = zone(
 		"EventHorizon",
 		"zone.eventHorizon.title",
-		{ min = 2300, max = 2900, height = 300, nests = 18 },
+		{ min = 2300, max = 2900, height = 300, nests = 32 },
 		{
 			{ id = "Common", weight = 25 },
 			{ id = "Uncommon", weight = 30 },
