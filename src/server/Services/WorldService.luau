@@ -6,6 +6,8 @@ local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
+local LeaderboardModel = require(script.Parent.Parent.World.LeaderboardModel)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local ShopModel = require(script.Parent.Parent.World.ShopModel)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
@@ -51,6 +53,8 @@ export type WorldService = {
 	getSpawn: () -> SpawnLocation?,
 	-- Nest locations; empty before the world is built.
 	getNestSites: () -> { NestSite },
+	-- The coin board stand on the platform; nil before the world is built.
+	getCoinBoard: () -> Model?,
 }
 
 local WorldService = {}
@@ -417,6 +421,7 @@ end
 function WorldService.new(): WorldService
 	local spawn: SpawnLocation? = nil
 	local nestSites: { NestSite } = {}
+	local coinBoard: Model? = nil
 
 	local function start()
 		local existing = workspace:FindFirstChild(WORLD_FOLDER_NAME)
@@ -429,6 +434,10 @@ function WorldService.new(): WorldService
 		local shop = ShopModel.build()
 		CollectionService:AddTag(shop, ShopConfig.TAG)
 		shop.Parent = world
+		local board = LeaderboardModel.build()
+		CollectionService:AddTag(board, LeaderboardConfig.TAG)
+		board.Parent = world
+		coinBoard = board
 		buildAsteroids(world)
 		nestSites = buildNests(world)
 		buildLandmarks(world)
@@ -445,6 +454,9 @@ function WorldService.new(): WorldService
 		end,
 		getNestSites = function()
 			return nestSites
+		end,
+		getCoinBoard = function()
+			return coinBoard
 		end,
 	}
 end

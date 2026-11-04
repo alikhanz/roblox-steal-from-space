@@ -7,6 +7,7 @@ local AbilityState = require(script.Parent.State.AbilityState)
 local AimController = require(script.Parent.Controllers.AimController)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
+local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
@@ -40,6 +41,7 @@ Lifecycle.run({
 	BayWindowController.new({ profile = profileState, toasts = toastState }),
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({ profile = profileState }),
+	CoinBoardController.new(),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),

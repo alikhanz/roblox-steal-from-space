@@ -548,6 +548,18 @@ local Strings = {
 		ru = "Пробел",
 		en = "Space",
 	},
+	["leaderboard.board.title"] = {
+		ru = "Лучшие по монетам",
+		en = "Top coin earners",
+	},
+	["leaderboard.allTime.hint"] = {
+		ru = "Монеты, заработанные за всё время",
+		en = "Coins earned all time",
+	},
+	["leaderboard.empty.hint"] = {
+		ru = "Пока пусто. Заработай монеты и попади сюда",
+		en = "Nobody here yet. Earn coins to make the board",
+	},
 	["shop.sign.title"] = {
 		ru = "Магазин джетпаков",
 		en = "Jetpack shop",

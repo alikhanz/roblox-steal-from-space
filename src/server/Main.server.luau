@@ -11,6 +11,7 @@ local DevService = require(script.Parent.Services.DevService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local GuardianService = require(script.Parent.Services.GuardianService)
 local JetpackService = require(script.Parent.Services.JetpackService)
+local LeaderboardService = require(script.Parent.Services.LeaderboardService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local MetricsService = require(script.Parent.Services.MetricsService)
 local NestService = require(script.Parent.Services.NestService)
@@ -118,6 +119,13 @@ local guardianService = GuardianService.new({
 	scheduler = scheduler,
 })
 
+-- The coin board: the player list column and the board at the station.
+local leaderboardService = LeaderboardService.new({
+	getData = profile.getData,
+	getCoinBoard = worldService.getCoinBoard,
+	scheduler = scheduler,
+})
+
 -- Analytics: listens to what the other services report.
 local metricsService = MetricsService.new({
 	activated = profile.activated,
@@ -170,6 +178,7 @@ Lifecycle.run({
 	netService,
 	trainingService,
 	pvpService,
+	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,
 	-- After the net service, so the snapshot goes out before the settlement's deltas.
