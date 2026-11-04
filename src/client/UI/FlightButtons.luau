@@ -1,6 +1,6 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- On-screen buttons for touch devices, shown while flying: strike, up, down.
+-- On-screen buttons for touch devices, shown while flying: the attacks, up, down, slow mode.
 -- The buttons drive the input actions through UIButton bindings.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,6 +24,8 @@ export type Props = {
 	descendAction: string,
 	-- The attacks, top to bottom, each with its word; a cooling one is dimmed.
 	abilities: { { action: string, text: string, cooling: () -> boolean } },
+	-- The slow mode switch; it lights up while on.
+	slowMode: { action: string, text: string, active: () -> boolean },
 }
 
 local COOLING_TRANSPARENCY = 0.7
@@ -32,7 +34,7 @@ local function FlightButton(
 	symbol: string,
 	order: number,
 	textSize: number,
-	color: Color3,
+	color: Color3 | () -> Color3,
 	dimmed: (() -> boolean)?,
 	onCreated: (GuiButton) -> ()
 ): TextButton
@@ -87,6 +89,18 @@ local function FlightButtons(props: Props): Frame
 		FlightButton("▼", #props.abilities + 2, BUTTON_SIZE / 2, Theme.PANEL, nil, function(button)
 			props.onButton(props.descendAction, button)
 		end),
+		FlightButton(
+			props.slowMode.text,
+			#props.abilities + 3,
+			Theme.TEXT_SIZE,
+			function()
+				return if props.slowMode.active() then Theme.SELECTED else Theme.PANEL
+			end,
+			nil,
+			function(button)
+				props.onButton(props.slowMode.action, button)
+			end
+		),
 	}) :: Frame
 end
 

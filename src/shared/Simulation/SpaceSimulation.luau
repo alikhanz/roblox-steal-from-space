@@ -23,8 +23,8 @@ local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
 local PvpConfig = require("../Config/PvpConfig")
 local Speed = require("../Domain/Speed")
-local SpeedConfig = require("../Config/SpeedConfig")
 local StationConfig = require("../Config/StationConfig")
+local TopSpeed = require("./TopSpeed")
 local WorldConfig = require("../Config/WorldConfig")
 local Zones = require("../Domain/Zones")
 
@@ -89,8 +89,21 @@ end
 
 -- Top flight speed without an egg, studs per second: set by the server from the speed stat.
 local function flightSpeed(character: Model): number
-	local value = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
-	return if type(value) == "number" then value else SpeedConfig.FLIGHT.minFlightSpeed
+	return TopSpeed.of(character)
+end
+
+-- Switches slow mode on each press of its key (the edge is found from the key state of the
+-- last step, kept on the character like the rest of the predicted state).
+local function toggleSlowMode(character: Model, context: Instance)
+	local pressed = FlightInputs.isPressed(context, FlightInputs.SLOW_MODE)
+	local held = character:GetAttribute(FlightConfig.SLOW_MODE_HELD_ATTRIBUTE) == true
+	if pressed and not held then
+		local on = character:GetAttribute(FlightConfig.SLOW_MODE_ATTRIBUTE) == true
+		character:SetAttribute(FlightConfig.SLOW_MODE_ATTRIBUTE, if on then nil else true)
+	end
+	if pressed ~= held then
+		character:SetAttribute(FlightConfig.SLOW_MODE_HELD_ATTRIBUTE, if pressed then true else nil)
+	end
 end
 
 local function currentHit(character: Model): Hit?
@@ -181,7 +194,8 @@ local function fly(
 		velocity = lunge * (maxSpeed + PvpConfig.STRIKE.lungeExtraSpeed)
 	elseif target and FlightInputs.isPressed(context, FlightInputs.GRAB) then
 		-- Magnetic grab: lock onto the egg instead of drifting past it.
-		velocity = Grab.magnetVelocity(current, rig.root.Position, target.position, deltaTime, EggConfig.MAGNET)
+		velocity =
+			Grab.magnetVelocity(current, rig.root.Position, target.position, deltaTime, EggConfig.MAGNET, maxSpeed)
 	else
 		local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
 		local carryMultiplier = Speed.carryMultiplier(carriedWeight(rig.character))
@@ -272,7 +286,8 @@ local function grab(rig: Rig, deltaTime: number, target: EggTargets.Target?, hol
 	-- Switching to another egg starts over.
 	local progress = if type(previousProgress) == "number" and previousTarget == targetId then previousProgress else 0
 	local grabSeconds = if target then EggConfig.RARITIES[target.rarity].grabSeconds else 0
-	local nextProgress = Grab.step(progress, holding, target ~= nil, grabSeconds, deltaTime)
+	local inReach = target ~= nil and (target.position - rig.root.Position).Magnitude <= EggConfig.GRAB_REACH
+	local nextProgress = Grab.step(progress, holding, target ~= nil, inReach, grabSeconds, deltaTime)
 
 	if nextProgress ~= previousProgress then
 		character:SetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE, nextProgress)
@@ -299,10 +314,13 @@ local function step(deltaTime: number)
 			rig.character:SetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE, inSpace)
 		end
 
+		toggleSlowMode(rig.character, context)
 		local hit = currentHit(rig.character)
 		local carrying = carriedRarity(rig.character) ~= nil
 		-- The egg in reach, if any: shared by the magnetic grab and the grab progress.
-		local target = if carrying then nil else EggTargets.nearest(rig.root.Position)
+		-- A fast flyer locks onto an egg from farther away, so it is not flown past.
+		local lockRange = Grab.lockRange(flightSpeed(rig.character), EggConfig.GRAB_REACH, EggConfig.LOCK_LEAD_SECONDS)
+		local target = if carrying then nil else EggTargets.nearest(rig.root.Position, lockRange)
 		-- Hands full with an egg: no strike.
 		local lunge = strike(rig, context, inSpace and hit == nil and not carrying, deltaTime)
 

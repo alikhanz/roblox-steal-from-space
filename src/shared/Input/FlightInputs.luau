@@ -16,6 +16,8 @@ FlightInputs.HARPOON = "Harpoon"
 FlightInputs.BOMB = "Bomb"
 -- The defense.
 FlightInputs.SHIELD = "Shield"
+-- Each press switches slow mode on or off (TopSpeed).
+FlightInputs.SLOW_MODE = "SlowMode"
 -- Where the camera looks. Fed by the client through a Scriptable binding; untrusted on the server.
 FlightInputs.AIM = "Aim"
 FlightInputs.AIM_BINDING = "Camera"
@@ -62,6 +64,7 @@ function FlightInputs.create(): InputContext
 	keyAction(FlightInputs.HARPOON, { Enum.KeyCode.F, Enum.KeyCode.ButtonY }).Parent = context
 	keyAction(FlightInputs.BOMB, { Enum.KeyCode.G, Enum.KeyCode.ButtonB }).Parent = context
 	keyAction(FlightInputs.SHIELD, { Enum.KeyCode.R, Enum.KeyCode.ButtonL2 }).Parent = context
+	keyAction(FlightInputs.SLOW_MODE, { Enum.KeyCode.Q, Enum.KeyCode.ButtonL3 }).Parent = context
 	aimAction().Parent = context
 	return context
 end

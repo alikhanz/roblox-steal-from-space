@@ -22,4 +22,8 @@ return table.freeze({
 
 	-- Character attribute: true while outside the dome (read by the HUD).
 	IN_SPACE_ATTRIBUTE = "InSpace",
+	-- Character attributes of slow mode (the simulation toggles it on each press of its key):
+	-- on or off, and whether the key was down last step.
+	SLOW_MODE_ATTRIBUTE = "SlowMode",
+	SLOW_MODE_HELD_ATTRIBUTE = "SlowModeHeld",
 })

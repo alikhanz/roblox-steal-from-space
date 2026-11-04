@@ -8,26 +8,37 @@ describe("Grab.step", function()
 	it("fills over the grab time while holding in reach", function()
 		local progress = 0
 		for _ = 1, 30 do
-			progress = Grab.step(progress, true, true, 1, 1 / 60)
+			progress = Grab.step(progress, true, true, true, 1, 1 / 60)
 		end
 		expect(progress).toBeCloseTo(0.5, 1e-9)
 		for _ = 1, 30 do
-			progress = Grab.step(progress, true, true, 1, 1 / 60)
+			progress = Grab.step(progress, true, true, true, 1, 1 / 60)
 		end
 		expect(Grab.isComplete(progress)).toBe(true)
 	end)
 
-	it("resets when letting go or drifting out of reach", function()
-		expect(Grab.step(0.8, false, true, 1, 1 / 60)).toBe(0)
-		expect(Grab.step(0.8, true, false, 1, 1 / 60)).toBe(0)
+	it("resets when letting go or losing the lock", function()
+		expect(Grab.step(0.8, false, true, true, 1, 1 / 60)).toBe(0)
+		expect(Grab.step(0.8, true, false, false, 1, 1 / 60)).toBe(0)
+	end)
+
+	it("holds while locked on but still being pulled into reach", function()
+		expect(Grab.step(0.4, true, true, false, 1, 1 / 60)).toBe(0.4)
 	end)
 
 	it("caps at complete", function()
-		expect(Grab.step(0.99, true, true, 1, 1)).toBe(1)
+		expect(Grab.step(0.99, true, true, true, 1, 1)).toBe(1)
 	end)
 
 	it("completes instantly with no grab time", function()
-		expect(Grab.step(0, true, true, 0, 1 / 60)).toBe(1)
+		expect(Grab.step(0, true, true, true, 0, 1 / 60)).toBe(1)
+	end)
+end)
+
+describe("Grab.lockRange", function()
+	it("is the reach for a slow flyer and grows with top speed", function()
+		expect(Grab.lockRange(30, 9, 0.2)).toBe(9)
+		expect(Grab.lockRange(250, 9, 0.2)).toBeCloseTo(50, 1e-9)
 	end)
 end)
 
@@ -50,6 +61,22 @@ describe("Grab.magnetVelocity", function()
 			velocity = Grab.magnetVelocity(velocity, Vector3.new(3, 0, 0), Vector3.zero, 1 / 60, MAGNET)
 		end
 		expect(velocity.Magnitude).toBeCloseTo(0, 1e-3)
+	end)
+
+	it("pulls a fast flyer in from the lock range at their own top speed", function()
+		local velocity = Grab.magnetVelocity(Vector3.zero, Vector3.new(50, 0, 0), Vector3.zero, 1, MAGNET, 250)
+		expect(velocity.Magnitude > MAGNET.speed * 5).toBe(true)
+		expect(velocity.Magnitude <= 250 + 1e-6).toBe(true)
+	end)
+
+	it("brings a flyer passing at full speed to the egg", function()
+		local position = Vector3.new(-50, 0, 10)
+		local velocity = Vector3.new(250, 0, 0)
+		for _ = 1, 300 do
+			velocity = Grab.magnetVelocity(velocity, position, Vector3.zero, 1 / 60, MAGNET, 250)
+			position += velocity * (1 / 60)
+		end
+		expect(position.Magnitude).toBeCloseTo(MAGNET.holdDistance, 0.1)
 	end)
 
 	it("settles at the hold distance instead of overshooting", function()

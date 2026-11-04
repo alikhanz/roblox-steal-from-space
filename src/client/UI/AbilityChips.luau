@@ -25,6 +25,8 @@ export type Chip = {
 	-- "1.2s" while cooling, "" when ready.
 	cooldown: () -> string,
 	cooling: () -> boolean,
+	-- A switch that is on (slow mode): the chip lights up.
+	active: (() -> boolean)?,
 }
 
 local KEY_PADDING = 6
@@ -39,7 +41,9 @@ local function AbilityChip(chip: Chip, order: number): Frame
 		Name = chip.label,
 		LayoutOrder = order,
 		AutomaticSize = Enum.AutomaticSize.XY,
-		BackgroundColor3 = Theme.PANEL,
+		BackgroundColor3 = function()
+			return if chip.active and chip.active() then Theme.SELECTED else Theme.PANEL
+		end,
 		BackgroundTransparency = function()
 			return if chip.cooling() then COOLING_TRANSPARENCY else Theme.PANEL_TRANSPARENCY
 		end,

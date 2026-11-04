@@ -12,8 +12,10 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggTargets = require(ReplicatedStorage.Shared.Simulation.EggTargets)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
+local Grab = require(ReplicatedStorage.Shared.Domain.Grab)
 local GrabPrompt = require(script.Parent.Parent.UI.GrabPrompt)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -48,7 +50,10 @@ function GrabPromptController.new(): GrabPromptController
 			progress(0)
 			return
 		end
-		local found = EggTargets.nearest(root.Position)
+		-- The prompt shows as soon as the grab can lock on (the same range as the simulation).
+		local lockRange =
+			Grab.lockRange(TopSpeed.of(character :: Model), EggConfig.GRAB_REACH, EggConfig.LOCK_LEAD_SECONDS)
+		local found = EggTargets.nearest(root.Position, lockRange)
 		target(if found then found.part else nil)
 		local value = (character :: Model):GetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE)
 		progress(if found and type(value) == "number" then value else 0)

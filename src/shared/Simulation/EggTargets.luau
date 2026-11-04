@@ -1,5 +1,6 @@
 --!strict
--- Finds the egg a character can grab: the nearest egg in a nest or floating loose within reach.
+-- Finds the egg a character can grab: the nearest egg in a nest or floating loose within range
+-- (the grab reach, or the wider lock range of a fast flyer: Grab.lockRange).
 -- Shared by the simulation (what the grab acts on) and the HUD (when to show the grab hint).
 
 local CollectionService = game:GetService("CollectionService")
@@ -24,9 +25,9 @@ local function asRarity(value: unknown): EggConfig.RarityId?
 	return nil
 end
 
-function EggTargets.nearest(position: Vector3): Target?
+function EggTargets.nearest(position: Vector3, range: number?): Target?
 	local best: Target? = nil
-	local bestDistance = EggConfig.GRAB_REACH
+	local bestDistance = range or EggConfig.GRAB_REACH
 
 	local function consider(id: string, eggPosition: Vector3, rarity: EggConfig.RarityId, part: Instance?)
 		local distance = (eggPosition - position).Magnitude

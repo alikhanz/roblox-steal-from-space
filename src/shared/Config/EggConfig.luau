@@ -107,6 +107,9 @@ return table.freeze({
 
 	-- A player can grab an egg within this distance of it, studs.
 	GRAB_REACH = 9,
+	-- The grab locks onto an egg this many seconds of flight away at the flyer's top speed (never
+	-- less than the reach): at 250 studs/s that is 50 studs, at the start about the reach itself.
+	LOCK_LEAD_SECONDS = 0.2,
 	-- A nest grows a new egg this long after its old one was delivered to a station, seconds
 	-- (while the egg is away, the nest stays empty: Domain/NestCycle).
 	RESPAWN_SECONDS = 20,

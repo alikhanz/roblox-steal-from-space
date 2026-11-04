@@ -57,6 +57,8 @@ local HudController = {}
 function HudController.new(dependencies: Dependencies): HudController
 	local oxygen = source(OxygenConfig.CAPACITY)
 	local inSpace = source(false)
+	-- Slow mode is on (the simulation keeps it on the character).
+	local slowMode = source(false)
 	local speed = source(SpeedConfig.STARTING_SPEED)
 	local stunned = source(false)
 	-- True while the current hit came from a guardian (the words differ for a player's strike).
@@ -127,6 +129,7 @@ function HudController.new(dependencies: Dependencies): HudController
 			local value = character:GetAttribute(OxygenConfig.ATTRIBUTE)
 			oxygen(if type(value) == "number" then value else OxygenConfig.CAPACITY)
 			inSpace(character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true)
+			slowMode(character:GetAttribute(FlightConfig.SLOW_MODE_ATTRIBUTE) == true)
 		end
 		readAttributes()
 		table.insert(
@@ -136,6 +139,10 @@ function HudController.new(dependencies: Dependencies): HudController
 		table.insert(
 			characterConnections,
 			character:GetAttributeChangedSignal(FlightConfig.IN_SPACE_ATTRIBUTE):Connect(readAttributes)
+		)
+		table.insert(
+			characterConnections,
+			character:GetAttributeChangedSignal(FlightConfig.SLOW_MODE_ATTRIBUTE):Connect(readAttributes)
 		)
 	end
 
@@ -212,7 +219,10 @@ function HudController.new(dependencies: Dependencies): HudController
 		local function never(): boolean
 			return false
 		end
-		local function plainChip(labelKey: Text.Key, actionName: string)
+		local function isSlow(): boolean
+			return slowMode()
+		end
+		local function plainChip(labelKey: Text.Key, actionName: string): AbilityChips.Chip
 			return {
 				label = Text.get(locale, labelKey),
 				key = keyOf(actionName),
@@ -220,10 +230,17 @@ function HudController.new(dependencies: Dependencies): HudController
 				cooling = never,
 			}
 		end
-		local chips = {
+		local chips: { AbilityChips.Chip } = {
 			plainChip("hud.ascend.hint", FlightInputs.ASCEND),
 			plainChip("hud.descend.hint", FlightInputs.DESCEND),
 			plainChip("hud.grab.hint", FlightInputs.GRAB),
+			{
+				label = Text.get(locale, "hud.slowMode.hint"),
+				key = keyOf(FlightInputs.SLOW_MODE),
+				cooldown = noCooldown,
+				cooling = never,
+				active = isSlow,
+			},
 		}
 		local buttons = {}
 		for _, ability in abilities do
@@ -335,6 +352,11 @@ function HudController.new(dependencies: Dependencies): HudController
 						ascendAction = FlightInputs.ASCEND,
 						descendAction = FlightInputs.DESCEND,
 						abilities = buttons,
+						slowMode = {
+							action = FlightInputs.SLOW_MODE,
+							text = Text.get(locale, "hud.slowMode.hint"),
+							active = isSlow,
+						},
 						onButton = function(actionName, button)
 							task.spawn(TouchBindings.bind, player, actionName, button)
 						end,

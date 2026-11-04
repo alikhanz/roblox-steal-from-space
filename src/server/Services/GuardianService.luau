@@ -23,6 +23,7 @@ local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
 local WorldService = require(script.Parent.WorldService)
 
 local FOLDER_NAME = "Guardians"
@@ -88,8 +89,8 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 
 	-- How fast this guardian flies after this thief right now (see Speed.chaseSpeed).
 	local function chaseSpeedFor(guardian: Guardian, player: Player, character: Model): number
-		local flight = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
-		local flightSpeed = if type(flight) == "number" then flight else SpeedConfig.FLIGHT.minFlightSpeed
+		-- The thief's actual top speed (slow mode included), so the chase feels the same either way.
+		local flightSpeed = TopSpeed.of(character)
 		local weight = carriedWeight(player)
 		local thiefFlightSpeed = flightSpeed * Speed.carryMultiplier(weight)
 		local thiefSpeedWithEgg = Speed.withEgg(dependencies.getSpeed(player), weight)

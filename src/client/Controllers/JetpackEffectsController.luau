@@ -14,7 +14,7 @@ local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
 local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
-local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
+local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 
 export type JetpackEffectsController = {
@@ -76,8 +76,8 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			effects.stalled = stunned
 
 			local flying = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true and not stunned
-			local maxSpeed = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
-			local thrust = if type(maxSpeed) == "number" and maxSpeed > 0
+			local maxSpeed = TopSpeed.of(character)
+			local thrust = if maxSpeed > 0
 				then math.clamp(root.AssemblyLinearVelocity.Magnitude / maxSpeed, 0, 1)
 				else 0
 			-- A better jetpack burns harder: its level scales the flame and the glow.

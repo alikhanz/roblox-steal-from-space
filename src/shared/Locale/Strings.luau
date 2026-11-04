@@ -532,6 +532,10 @@ local Strings = {
 		ru = "Взять яйцо",
 		en = "Grab egg",
 	},
+	["hud.slowMode.hint"] = {
+		ru = "Медленно",
+		en = "Slow",
+	},
 	["key.mouseLeft.hint"] = {
 		ru = "ЛКМ",
 		en = "LMB",
