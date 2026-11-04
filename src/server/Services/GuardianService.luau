@@ -60,7 +60,6 @@ type Guardian = {
 	cruiseSpeed: number,
 	state: GuardianBrain.State,
 	stolenSeconds: number,
-	chaseSeconds: number,
 	catchReadyAt: number,
 }
 
@@ -145,7 +144,6 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			return
 		end
 		guardian.state = state
-		guardian.chaseSeconds = 0
 		guardian.model:SetAttribute(GuardianConfig.STATE_ATTRIBUTE, state)
 	end
 
@@ -155,9 +153,16 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		return (position - station.domeCenter).Magnitude <= station.domeRadius + GuardianConfig.DOME_MARGIN
 	end
 
+	-- The dome is where every chase ends: a thief inside it, or walking on the platform, is safe.
+	local function isThiefSafe(character: Model, root: BasePart): boolean
+		local station = StationConfig.STATION
+		local inStation = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true
+		return inStation or (root.Position - station.domeCenter).Magnitude <= station.domeRadius
+	end
+
 	-- A guardian guards its egg, not a spot: knocked out of a thief's hands, the egg lies where
 	-- it fell and the guardian settles over it, so taking it again is the same deal as taking it
-	-- from the nest and the leash is measured from there. While the egg is carried the watch
+	-- from the nest. While the egg is carried the watch
 	-- point stays where the egg last lay; once the egg is back in the nest, so is the guardian.
 	-- Should two of its eggs lie about (the nest grew a new one meanwhile), the nearest is watched.
 	local function followEgg(guardian: Guardian, carrier: Player?)
@@ -188,15 +193,12 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		local situation: GuardianBrain.Situation = {
 			hasTarget = root ~= nil,
 			stolenSeconds = guardian.stolenSeconds,
-			targetInStation = character ~= nil and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true,
-			targetDistanceFromHome = if root then (root.Position - guardian.home).Magnitude else 0,
+			targetSafe = character ~= nil and root ~= nil and isThiefSafe(character, root),
 			distanceToHome = (guardian.body.Position - guardian.home).Magnitude,
-			chaseSeconds = guardian.chaseSeconds,
 		}
 		setState(guardian, GuardianBrain.next(guardian.state, situation, GuardianConfig.BRAIN))
 
 		if guardian.state == "Chase" and carrier and character and root then
-			guardian.chaseSeconds += deltaTime
 			local speed = chaseSpeedFor(guardian, carrier, character)
 			local goal = Pursuit.interceptPoint(
 				guardian.body.Position,
@@ -264,7 +266,6 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			cruiseSpeed = Speed.flightSpeed(post.speed, SpeedConfig.FLIGHT),
 			state = "Sleep",
 			stolenSeconds = 0,
-			chaseSeconds = 0,
 			catchReadyAt = 0,
 		}
 		table.insert(guardians, guardian)

@@ -135,8 +135,6 @@ end
 
 local BRAIN: GuardianBrain.Tuning = {
 	aggroDelaySeconds = 1,
-	leashRadius = 220,
-	maxChaseSeconds = 25,
 	homeRadius = 4,
 	catchRadius = 7,
 }
