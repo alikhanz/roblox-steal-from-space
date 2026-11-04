@@ -224,6 +224,15 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		return if index then targets[index] else nil
 	end
 
+	-- Where the player aims right now: the camera direction their input context carries, or
+	-- where the character faces if it carries none.
+	local function aimOf(player: Player, root: BasePart): Vector3
+		local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
+		local aim = if context then FlightInputs.readAim(context) else nil
+		local sanitized = Flight.sanitizeAim(aim or root.CFrame.LookVector)
+		return if sanitized and sanitized.Magnitude > 1e-3 then sanitized.Unit else root.CFrame.LookVector
+	end
+
 	-- Shared preamble of every attack: a live character out in space, off cooldown. Returns
 	-- the character, its root and the aim, or nil after telling the player why not.
 	local function prepare(player: Player, state: PlayerState, kind: AbilityKind): (Model?, BasePart?, Vector3?)
@@ -247,20 +256,19 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			dependencies.notify(player, "NotReady")
 			return nil, nil, nil
 		end
-		local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
-		local aim = if context then FlightInputs.readAim(context) else nil
-		local sanitized = Flight.sanitizeAim(aim or root.CFrame.LookVector)
-		local direction = if sanitized and sanitized.Magnitude > 1e-3 then sanitized.Unit else root.CFrame.LookVector
-		return character, root, direction
+		return character, root, aimOf(player, root)
 	end
 
 	-- The wind-up is over: whoever stands in the corridor takes the hit, or the attacker
 	-- overreaches and loses a moment of thrust.
-	local function resolveStrike(player: Player, character: Model, direction: Vector3)
+	local function resolveStrike(player: Player, character: Model)
 		local root = rootOf(character)
 		if not root or character.Parent == nil or not isInSpace(character) then
 			return
 		end
+		-- Aimed at the end of the wind-up, not at the press: the attacker keeps the target in
+		-- the crosshair while swinging, and a target that moved meanwhile is still hit.
+		local direction = aimOf(player, root)
 		local attacker = sideOf(player, character)
 		local reach = PvpConfig.STRIKE.lungeStuds + PvpConfig.STRIKE.reachStuds
 		local function anyone()
@@ -287,12 +295,12 @@ function PvpService.new(dependencies: Dependencies): PvpService
 	end
 
 	local function strike(player: Player, state: PlayerState)
-		local character, _, direction = prepare(player, state, "Strike")
-		if not character or not direction then
+		local character = prepare(player, state, "Strike")
+		if not character then
 			return
 		end
 		state.lastUsedAt.Strike = time()
-		task.delay(PvpConfig.STRIKE.windupSeconds, resolveStrike, player, character, direction)
+		task.delay(PvpConfig.STRIKE.windupSeconds, resolveStrike, player, character)
 	end
 
 	-- The harpoon: the nearest egg carrier in a narrow cone loses the egg, which flies toward

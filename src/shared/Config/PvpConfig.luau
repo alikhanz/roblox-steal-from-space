@@ -18,9 +18,10 @@ local RULES: Pvp.Rules = {
 local STRIKE: Abilities.Strike = {
 	windupSeconds = 0.3,
 	lungeStuds = 8,
-	-- The corridor: this far ahead of the attacker, within this half-angle of their facing.
-	reachStuds = 9,
-	halfAngleRadians = math.rad(35),
+	-- The corridor: this far ahead of the attacker (on top of the lunge), within this
+	-- half-angle of their aim. Measured between character centers, so it allows for bodies.
+	reachStuds = 14,
+	halfAngleRadians = math.rad(45),
 	cooldownSeconds = 1.5,
 	-- A miss leaves the attacker without thrust for this long.
 	missStallSeconds = 0.5,
