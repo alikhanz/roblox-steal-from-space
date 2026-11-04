@@ -2,13 +2,13 @@
 -- The state machine every guardian shares; only how it moves while chasing differs per guardian.
 -- A guardian ignores players until one takes its egg; it wakes up a moment later and chases the thief.
 --
---   Sleep ──(its egg is carried by a thief outside the dome for aggroDelaySeconds)──> Chase
---   Chase ──(thief lost or behind the dome)──> Return
+--   Sleep ──(its egg is carried by a thief out in space for aggroDelaySeconds)──> Chase
+--   Chase ──(thief lost or safe inside the station border)──> Return
 --   Return ──(back home)──> Sleep
---   Return ──(someone outside the dome carries the egg again)──> Chase, from wherever it is
+--   Return ──(someone out in space carries the egg again)──> Chase, from wherever it is
 --
--- The dome is the one line a chase ends at: however far a thief flies the other way, the
--- guardian keeps after them, so only speed or reaching the station saves the egg.
+-- The station border is the one line a chase ends at: however far a thief flies the other
+-- way, the guardian keeps after them, so only speed or reaching the station saves the egg.
 -- "Home" is where the guardian keeps watch: over its egg, wherever that lies.
 
 local GuardianBrain = {}
@@ -29,7 +29,7 @@ export type Situation = {
 	hasTarget: boolean,
 	-- How long the egg has been carried, seconds (0 without a target).
 	stolenSeconds: number,
-	-- The thief is under the dome, where guardians never go.
+	-- The thief is inside the station border, where guardians never go.
 	targetSafe: boolean,
 	distanceToHome: number,
 }

@@ -20,6 +20,12 @@ local PLATFORM_COLOR = Color3.fromRGB(128, 136, 160)
 local HULL_COLOR = Color3.fromRGB(70, 76, 94)
 -- Glowing rim around the platform: makes the station easy to find from the asteroid field.
 local RIM_COLOR = Color3.fromRGB(90, 200, 255)
+-- The station border (StationConfig.BORDER_RADIUS): a faint shell and a glowing ring around its
+-- middle, so the line where guardians give up is plain to see from both sides.
+local BORDER_COLOR = Color3.fromRGB(90, 255, 170)
+local BORDER_SHELL_TRANSPARENCY = 0.93
+local BORDER_RING_SEGMENTS = 96
+local BORDER_RING_THICKNESS = 1.5
 local STAR_COUNT = 5000
 -- The map edge: a faint shell so players see where space ends (Bounds stops them there).
 local BOUNDARY_COLOR = Color3.fromRGB(150, 90, 255)
@@ -90,6 +96,47 @@ local function buildHull(parent: Instance)
 	end
 end
 
+-- The sphere guardians never cross: a barely visible shell and a ring of neon segments around
+-- its equator, at the height of the dome's center.
+local function buildBorder(parent: Instance)
+	local center = StationConfig.STATION.domeCenter
+	local radius = StationConfig.BORDER_RADIUS
+	local folder = Instance.new("Folder")
+	folder.Name = "StationBorder"
+
+	local shell = Instance.new("Part")
+	shell.Name = "Shell"
+	shell.Shape = Enum.PartType.Ball
+	shell.Size = Vector3.one * radius * 2
+	shell.CFrame = CFrame.new(center)
+	shell.Material = Enum.Material.ForceField
+	shell.Color = BORDER_COLOR
+	shell.Transparency = BORDER_SHELL_TRANSPARENCY
+	shell.CanCollide = false
+	scenery(shell)
+	shell.Parent = folder
+
+	-- Each segment is a chord of the circle, a hair longer than the chord so the joints close.
+	local step = 2 * math.pi / BORDER_RING_SEGMENTS
+	local chord = 2 * radius * math.sin(step / 2)
+	for index = 1, BORDER_RING_SEGMENTS do
+		local angle = (index - 0.5) * step
+		local position = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius * math.cos(step / 2)
+		local tangent = Vector3.new(-math.sin(angle), 0, math.cos(angle))
+		local segment = Instance.new("Part")
+		segment.Name = `Ring{index}`
+		segment.Size = Vector3.new(BORDER_RING_THICKNESS, BORDER_RING_THICKNESS, chord + BORDER_RING_THICKNESS)
+		segment.CFrame = CFrame.lookAlong(position, tangent)
+		segment.Material = Enum.Material.Neon
+		segment.Color = BORDER_COLOR
+		segment.CanCollide = false
+		scenery(segment)
+		segment.Parent = folder
+	end
+
+	folder.Parent = parent
+end
+
 local function buildStation(parent: Instance): SpawnLocation
 	local station = StationConfig.STATION
 	local platformCenter = StationConfig.PLATFORM_CENTER - Vector3.yAxis * StationConfig.PLATFORM_THICKNESS / 2
@@ -136,6 +183,7 @@ local function buildStation(parent: Instance): SpawnLocation
 	spawn.Parent = parent
 
 	buildHull(parent)
+	buildBorder(parent)
 	return spawn
 end
 

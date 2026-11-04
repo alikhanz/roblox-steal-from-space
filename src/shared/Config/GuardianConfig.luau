@@ -152,8 +152,8 @@ return table.freeze({
 	TYPICAL_WEIGHT = TYPICAL_WEIGHT,
 	-- A sleeping guardian hovers this far above its nest's egg, studs.
 	HOVER_HEIGHT = 8,
-	-- Guardians never come closer to the dome sphere than this, studs.
-	DOME_MARGIN = 6,
+	-- Guardians never come closer to the station border than this, studs.
+	BORDER_MARGIN = 6,
 	-- How far ahead of a moving thief a guardian aims, at most, seconds.
 	MAX_LEAD_SECONDS = 1.5,
 	-- Guardians ease into their resting spot within this distance, studs.

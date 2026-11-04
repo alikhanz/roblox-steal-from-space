@@ -102,7 +102,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			guardian.body.Position,
 			velocity,
 			station.domeCenter,
-			station.domeRadius + GuardianConfig.DOME_MARGIN
+			StationConfig.BORDER_RADIUS + GuardianConfig.BORDER_MARGIN
 		)
 		guardian.velocity.VectorVelocity = limited
 		if limited.Magnitude > 1 then
@@ -147,30 +147,31 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		guardian.model:SetAttribute(GuardianConfig.STATE_ATTRIBUTE, state)
 	end
 
-	-- Guardians never enter the dome, so an egg lying under it is out of their hands.
-	local function isUnderDome(position: Vector3): boolean
+	-- Guardians never cross the station border, so an egg lying inside it is out of their hands.
+	local function isOutOfReach(position: Vector3): boolean
 		local station = StationConfig.STATION
-		return (position - station.domeCenter).Magnitude <= station.domeRadius + GuardianConfig.DOME_MARGIN
+		local reach = StationConfig.BORDER_RADIUS + GuardianConfig.BORDER_MARGIN
+		return (position - station.domeCenter).Magnitude <= reach
 	end
 
-	-- The dome is where every chase ends: a thief inside it, or walking on the platform, is safe.
+	-- The station border is where every chase ends: a thief inside it, or on the platform, is safe.
 	local function isThiefSafe(character: Model, root: BasePart): boolean
 		local station = StationConfig.STATION
 		local inStation = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true
-		return inStation or (root.Position - station.domeCenter).Magnitude <= station.domeRadius
+		return inStation or (root.Position - station.domeCenter).Magnitude <= StationConfig.BORDER_RADIUS
 	end
 
 	-- A guardian guards its egg, not a spot: knocked out of a thief's hands, the egg lies where
 	-- it fell and the guardian settles over it, so taking it again is the same deal as taking it
-	-- from the nest. While the egg is carried the watch
-	-- point stays where the egg last lay; once the egg is back in the nest, so is the guardian.
+	-- from the nest. While the egg is carried the watch point stays where the egg last lay;
+	-- once the egg is back in the nest, so is the guardian.
 	-- Should two of its eggs lie about (the nest grew a new one meanwhile), the nearest is watched.
 	local function followEgg(guardian: Guardian, carrier: Player?)
 		local nearest: Vector3? = nil
 		local nearestDistance = math.huge
 		for _, position in dependencies.findLooseEggs(guardian.nestId) do
 			local distance = (position - guardian.body.Position).Magnitude
-			if distance < nearestDistance and not isUnderDome(position) then
+			if distance < nearestDistance and not isOutOfReach(position) then
 				nearest, nearestDistance = position, distance
 			end
 		end

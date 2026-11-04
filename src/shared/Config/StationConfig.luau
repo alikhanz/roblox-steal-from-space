@@ -32,5 +32,9 @@ return table.freeze({
 	ZONE_MARGIN = 3,
 	-- The hull under the platform hides the part of the dome sphere that pokes out below.
 	HULL_STEPS = 4,
+	-- The station border: a sphere around the dome, drawn as a faint shell with a glowing ring.
+	-- Guardians never cross it and a chase ends once the thief is inside. Kept well short of
+	-- the nearest nests (the Debris Belt starts 190 studs out), studs from the dome center.
+	BORDER_RADIUS = 150,
 	SPAWN_OFFSET = Vector3.new(0, 0.5, 30),
 })

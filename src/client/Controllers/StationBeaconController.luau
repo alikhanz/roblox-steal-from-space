@@ -26,8 +26,6 @@ local EDGE_MARGIN = 40
 local SIGN_FROM_ARROW = 56
 -- While the dome is in view the sign floats this far above its top, pixels.
 local SIGN_ABOVE_DOME = 30
--- Right next to the dome the sign is only in the way, studs from its surface.
-local HIDE_WITHIN = 30
 -- The distance shown is rounded to this many studs, so it does not flicker.
 local DISTANCE_STEP = 10
 
@@ -54,15 +52,17 @@ function StationBeaconController.new(): StationBeaconController
 			visible(false)
 			return
 		end
+		-- The distance counts to the station border, the line where a chase ends; inside it the
+		-- station is right there and the sign is only in the way.
 		local station = StationConfig.STATION
-		local fromDome = (root.Position - station.domeCenter).Magnitude - station.domeRadius
-		if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true or fromDome < HIDE_WITHIN then
+		local fromBorder = (root.Position - station.domeCenter).Magnitude - StationConfig.BORDER_RADIUS
+		if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true or fromBorder <= 0 then
 			visible(false)
 			return
 		end
 		visible(true)
 
-		local shown = math.floor(fromDome / DISTANCE_STEP + 0.5) * DISTANCE_STEP
+		local shown = math.max(math.floor(fromBorder / DISTANCE_STEP + 0.5) * DISTANCE_STEP, DISTANCE_STEP)
 		local text = Text.get(locale, "station.distance.hint", { distance = shown })
 		if text ~= distance() then
 			distance(text)
