@@ -5,8 +5,8 @@
 -- swapped for another. Days are UTC. Pure: the pool, the player's situation and the random
 -- numbers are passed in.
 
-local BigNum = require("./BigNum")
 local Loot = require("./Loot")
+local PlayReward = require("./PlayReward")
 
 export type Kind = "DeliverEggs" | "DeliverFromZone" | "HatchAliens" | "Train" | "Crossbreed" | "KnockEgg"
 
@@ -247,18 +247,7 @@ function Quests.claim(state: State, index: number): ClaimRefusal?
 	return nil
 end
 
--- What `minutes` of play are worth now: coins at `incomePerSecond` (never below
--- `minimumCoins`, so a player with no income yet still gets something) and speed points at
--- `trainerRate` per second.
-function Quests.reward(
-	minutes: number,
-	incomePerSecond: BigNum.BigNum,
-	trainerRate: BigNum.BigNum,
-	minimumCoins: BigNum.BigNum
-): (BigNum.BigNum, BigNum.BigNum)
-	local seconds = BigNum.fromNumber(minutes * 60)
-	local coins = BigNum.max(BigNum.mul(incomePerSecond, seconds), minimumCoins)
-	return coins, BigNum.mul(trainerRate, seconds)
-end
+-- What a quest worth `minutes` pays now (PlayReward.worth).
+Quests.reward = PlayReward.worth
 
 return table.freeze(Quests)

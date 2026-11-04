@@ -404,6 +404,31 @@ describe("PlayerData migration v6 -> v7", function()
 	end)
 end)
 
+describe("PlayerData migration v7 -> v8", function()
+	it("starts the login gift streak from nothing and keeps the rest", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 7
+		saved.loginGift = nil
+		saved.quests = { day = 20000, rerolled = true, list = {} }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.loginGift).toEqual({ lastDay = 0, streak = 0 })
+			expect(outcome.data.quests.rerolled).toBe(true)
+		end
+	end)
+
+	it("rejects a broken streak", function()
+		local saved = savedTemplate()
+		saved.loginGift = { lastDay = 20000, streak = -1 }
+		expectCorrupted(saved, "loginGift streak is invalid")
+		local other = savedTemplate()
+		other.loginGift = "yes"
+		expectCorrupted(other, "loginGift is not a table")
+	end)
+end)
+
 describe("PlayerData quests", function()
 	it("keeps saved quests", function()
 		local saved = savedTemplate()

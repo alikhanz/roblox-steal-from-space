@@ -5,6 +5,7 @@
 -- and `validate`, and cover the migration with a test on old saved data.
 
 local BigNum = require("./BigNum")
+local LoginGift = require("./LoginGift")
 local Migrations = require("./Migrations")
 local Quests = require("./Quests")
 local Tables = require("../Runtime/Tables")
@@ -58,6 +59,8 @@ export type PlayerData = {
 	bestPost: number,
 	-- Today's daily quests (Domain/Quests).
 	quests: Quests.State,
+	-- The login gift streak (Domain/LoginGift).
+	loginGift: LoginGift.State,
 }
 
 -- Starting values that come from configs; the domain never reads configs itself.
@@ -72,7 +75,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 7
+PlayerData.SCHEMA_VERSION = 8
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -97,6 +100,8 @@ PlayerData.MIGRATIONS = {
 	end,
 	-- v7 adds quests, filled from the template: the first day's quests come on the next join.
 	[6] = function(_data: { [string]: any }) end,
+	-- v8 adds loginGift, filled from the template: everyone starts a streak at day 1.
+	[7] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -122,6 +127,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		onboardingSteps = 0,
 		bestPost = 0,
 		quests = Quests.empty(),
+		loginGift = LoginGift.empty(),
 	}
 end
 
@@ -290,7 +296,20 @@ local function validate(data: { [string]: any }): string?
 			return `{field} is invalid`
 		end
 	end
-	return validateQuests(data.quests)
+	local questProblem = validateQuests(data.quests)
+	if questProblem then
+		return questProblem
+	end
+	local gift = data.loginGift
+	if type(gift) ~= "table" then
+		return "loginGift is not a table"
+	end
+	for _, field in { "lastDay", "streak" } do
+		if not isInteger(gift[field]) or gift[field] < 0 then
+			return `loginGift {field} is invalid`
+		end
+	end
+	return nil
 end
 
 -- Loads saved data without touching it: all work happens on a copy, which is returned on success.
