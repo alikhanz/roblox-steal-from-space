@@ -1,5 +1,5 @@
 --!strict
--- The meteor shower's plan: how many eggs fall and when (MeteorConfig). Pure.
+-- The meteor shower's plan: how many meteors fall, when, and in which zone (MeteorConfig). Pure.
 
 local MeteorShower = {}
 
@@ -15,7 +15,7 @@ function MeteorShower.eggCount(players: number, tuning: Tuning): number
 	return math.clamp(players * tuning.EGGS_PER_PLAYER, tuning.MIN_EGGS, tuning.MAX_EGGS)
 end
 
--- Seconds after the start at which each of `count` eggs falls: the first at once, the rest
+-- Seconds after the start at which each of `count` meteors falls: the first at once, the rest
 -- evenly until `FALL_SHARE` of the shower has passed.
 function MeteorShower.fallTimes(count: number, activeSeconds: number, tuning: Tuning): { number }
 	local span = activeSeconds * tuning.FALL_SHARE
@@ -24,6 +24,16 @@ function MeteorShower.fallTimes(count: number, activeSeconds: number, tuning: Tu
 		times[index] = if count == 1 then 0 else (index - 1) * span / (count - 1)
 	end
 	return times
+end
+
+-- The zone of each of `count` meteors: round and round the zones from the station outwards, so
+-- every zone gets its share all through the shower.
+function MeteorShower.zones<T>(count: number, zoneOrder: { T }): { T }
+	local result = {}
+	for index = 1, count do
+		result[index] = zoneOrder[(index - 1) % #zoneOrder + 1]
+	end
+	return result
 end
 
 return table.freeze(MeteorShower)

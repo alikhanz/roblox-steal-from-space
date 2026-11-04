@@ -14,9 +14,9 @@ local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local LOG = game:GetService("RunService"):IsStudio()
 
--- Where an event happens.
+-- Where an event happens: a point to mark, and its zone if it is in one.
 export type Place = {
-	zone: ZoneConfig.ZoneId,
+	zone: ZoneConfig.ZoneId?,
 	position: Vector3,
 }
 
@@ -49,6 +49,10 @@ type Running = {
 	place: Place?,
 	placer: Placer?,
 	folder: Configuration,
+	-- For an event that comes after another (EventConfig `after`): its gap is over and it waits
+	-- for that one to end; then it is released into its warning.
+	waiting: boolean,
+	released: boolean,
 }
 
 local EventService = {}
@@ -92,18 +96,33 @@ function EventService.new(dependencies: Dependencies): EventService
 		folder:SetAttribute(EventConfig.POSITION_ATTRIBUTE, if entry.place then entry.place.position else nil)
 	end
 
+	-- Events waiting for `id` to end start their warning now.
+	local function releaseFollowers(id: EventConfig.EventId)
+		for _, other in running do
+			if other.waiting and other.event.after == id then
+				other.waiting = false
+				other.released = true
+				other.clock = { phase = "Idle", endsAt = now() }
+			end
+		end
+	end
+
 	local function enter(entry: Running, phase: EventClock.Phase)
+		-- A Studio command may start or stop it while it waits.
+		entry.waiting = false
 		if phase == "Idle" then
 			entry.place = nil
+			entry.released = false
 			if not entry.event.scheduled then
 				entry.clock = quiet(entry.event, now())
 			end
+			releaseFollowers(entry.event.id)
 		elseif not entry.place and entry.placer then
 			entry.place = entry.placer()
 		end
 		if LOG then
 			local place = entry.place
-			local where = if place then ` in {place.zone}` else ""
+			local where = if place then ` at {place.zone or tostring(place.position)}` else ""
 			print(`[EventService] {entry.event.id}: {phase}{where}`)
 		end
 		publish(entry)
@@ -113,6 +132,14 @@ function EventService.new(dependencies: Dependencies): EventService
 	local function tick()
 		local current = now()
 		for _, entry in running do
+			-- Gap over, but it comes after another event: quiet with no end until that one ends.
+			local clockIdle = entry.clock.phase == "Idle" and current >= entry.clock.endsAt
+			if entry.event.after and clockIdle and not entry.released then
+				entry.waiting = true
+				entry.clock = { phase = "Idle", endsAt = math.huge }
+				publish(entry)
+				continue
+			end
 			local clock, entered = EventClock.step(entry.clock, current, entry.event.schedule, roll)
 			entry.clock = clock
 			for _, phase in entered do
@@ -128,7 +155,14 @@ function EventService.new(dependencies: Dependencies): EventService
 			local child = Instance.new("Configuration")
 			child.Name = id
 			child.Parent = folder
-			local entry: Running = { event = event, clock = quiet(event, now()), place = nil, folder = child }
+			local entry: Running = {
+				event = event,
+				clock = quiet(event, now()),
+				place = nil,
+				folder = child,
+				waiting = false,
+				released = false,
+			}
 			running[id] = entry
 			publish(entry)
 		end
@@ -152,6 +186,9 @@ function EventService.new(dependencies: Dependencies): EventService
 		local warning = entry.event.schedule.warningSeconds
 		entry.clock = { phase = "Idle", endsAt = now() + math.max(seconds - warning, 0) }
 		entry.place = nil
+		-- On the given time, without waiting for the event it usually comes after.
+		entry.waiting = false
+		entry.released = true
 		publish(entry)
 	end
 

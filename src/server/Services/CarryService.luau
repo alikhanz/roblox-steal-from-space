@@ -1,10 +1,9 @@
 --!strict
 -- Owns eggs out of their nests: confirms grabs requested by the simulation, holds the egg in the
 -- thief's arms, hands it to the bay at the station, drops the egg when its carrier is caught or
--- dies, and puts floating eggs out of play after a while. Every egg belongs to a nest: the one it
--- was taken from, or, for a meteor egg, the one it fell next to. That nest's guardian guards it
--- and its grade is the egg's. An egg from a nest goes back there when it leaves play; a meteor egg
--- is simply gone.
+-- dies, and returns floating eggs to their nests after a while. Every egg belongs to the nest it
+-- was taken from (a meteor egg, to its crater): that nest's guardian guards it, its grade is the
+-- egg's, and the egg goes back there when it leaves play.
 -- Runs after each simulation step (PostSimulation): it creates and destroys instances.
 
 local CollectionService = game:GetService("CollectionService")
@@ -38,14 +37,16 @@ export type Egg = {
 	nestId: string,
 	-- The alien variant it hatches into.
 	variant: AlienConfig.VariantId,
-	-- Taken from that nest: back there when it leaves play. False for a meteor egg, which only
-	-- fell next to the nest and is gone when it leaves play.
-	fromNest: boolean,
 }
 
 export type Dependencies = {
-	takeNestEgg: (nestId: string) -> (EggConfig.RarityId?, EggConfig.SizeId?),
-	returnNestEgg: (nestId: string, rarity: EggConfig.RarityId, size: EggConfig.SizeId) -> (),
+	takeNestEgg: (nestId: string) -> (EggConfig.RarityId?, EggConfig.SizeId?, AlienConfig.VariantId?),
+	returnNestEgg: (
+		nestId: string,
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		variant: AlienConfig.VariantId
+	) -> (),
 	-- The egg of `nestId` reached a bay: its nest may grow a new one.
 	nestEggDelivered: (nestId: string) -> (),
 	getNestEggCFrame: (nestId: string) -> CFrame?,
@@ -81,14 +82,12 @@ export type CarryService = {
 	getCarried: (player: Player) -> Carried?,
 	-- Who carries an egg of `nestId` right now (several during a meteor shower).
 	findCarriers: (nestId: string) -> { Player },
-	-- Where eggs of `nestId` lie loose (knocked out, or meteor eggs fallen next to the nest).
+	-- Where the eggs of `nestId` lie knocked out (usually one; empty while the egg is in the
+	-- nest or carried).
 	findLooseEggs: (nestId: string) -> { Vector3 },
-	-- Puts a floating egg at `position` (drifting off at `launch`), out of play after `lifetime`
-	-- seconds (EggConfig.LOOSE_SECONDS by default).
-	spawnLooseEgg: (egg: Egg, position: Vector3, launch: Vector3?, lifetime: number?) -> (),
-	-- Takes every loose egg of `variant` that is not from a nest out of play (the end of a
-	-- meteor shower).
-	clearLooseEggs: (variant: AlienConfig.VariantId) -> (),
+	-- Puts a floating egg at `position` (drifting off at `launch`) that returns to its nest when
+	-- it expires.
+	spawnLooseEgg: (egg: Egg, position: Vector3, launch: Vector3?) -> (),
 	-- The egg's journey, for analytics: taken, carried inside the station border (safe from
 	-- guardians), delivered to the bay, or lost on the way.
 	grabbed: Signal.Signal<Player, Carried, GrabSource>,
@@ -133,16 +132,13 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			size = egg.size,
 			nestId = egg.nestId,
 			variant = egg.variant,
-			fromNest = egg.fromNest,
 			grade = dependencies.getNestGrade(egg.nestId),
 		}
 	end
 
-	-- The egg leaves play: back to its nest if it came from one; a meteor egg is just gone.
+	-- The egg leaves play without being delivered: back to its nest.
 	local function leavePlay(egg: Egg)
-		if egg.fromNest then
-			dependencies.returnNestEgg(egg.nestId, egg.rarity, egg.size)
-		end
+		dependencies.returnNestEgg(egg.nestId, egg.rarity, egg.size, egg.variant)
 	end
 
 	local function clearGrab(character: Model)
@@ -186,7 +182,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		return entry.egg
 	end
 
-	local function spawnLoose(egg: Egg, position: Vector3, launch: Vector3?, lifetime: number?)
+	local function spawnLoose(egg: Egg, position: Vector3, launch: Vector3?)
 		local folder = looseFolder
 		if not folder then
 			leavePlay(egg)
@@ -203,7 +199,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		loose[part.Name] = {
 			egg = egg,
 			part = part,
-			expiresAt = os.clock() + (lifetime or EggConfig.LOOSE_SECONDS),
+			expiresAt = os.clock() + EggConfig.LOOSE_SECONDS,
 			velocity = launch or Vector3.zero,
 		}
 	end
@@ -232,15 +228,6 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		lost.fire(player, publicOf(egg), reason)
 		leavePlay(egg)
 		return true
-	end
-
-	local function clearLooseEggs(variant: AlienConfig.VariantId)
-		for id, entry in loose do
-			if entry.egg.variant == variant and not entry.egg.fromNest then
-				loose[id] = nil
-				entry.part:Destroy()
-			end
-		end
 	end
 
 	-- Knocked-out eggs coast and tumble until they stop; they are anchored, so this moves them.
@@ -294,15 +281,9 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		if not eggCFrame or (eggCFrame.Position - root.Position).Magnitude > EggConfig.GRAB_REACH + REACH_TOLERANCE then
 			return
 		end
-		local rarity, size = dependencies.takeNestEgg(targetId)
-		if rarity and size then
-			giveEgg(player, character, {
-				rarity = rarity,
-				size = size,
-				nestId = targetId,
-				variant = "Normal",
-				fromNest = true,
-			})
+		local rarity, size, variant = dependencies.takeNestEgg(targetId)
+		if rarity and size and variant then
+			giveEgg(player, character, { rarity = rarity, size = size, nestId = targetId, variant = variant })
 			local entry = carried[player]
 			if entry then
 				grabbed.fire(player, publicOf(entry.egg), "Nest")
@@ -325,9 +306,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 		if dependencies.deliverEgg(player, egg.rarity, egg.size, grade, egg.variant) then
 			releaseCarried(player)
-			if egg.fromNest then
-				dependencies.nestEggDelivered(egg.nestId)
-			end
+			dependencies.nestEggDelivered(egg.nestId)
 			delivered.fire(player, publicOf(egg))
 		end
 	end
@@ -431,7 +410,6 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return positions
 		end,
 		spawnLooseEgg = spawnLoose,
-		clearLooseEggs = clearLooseEggs,
 		grabbed = grabbed,
 		reachedStation = reachedStation,
 		delivered = delivered,

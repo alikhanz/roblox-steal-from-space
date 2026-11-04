@@ -6,6 +6,7 @@ local AlienIndex = require("../../src/shared/Domain/AlienIndex")
 local BayConfig = require("../../src/shared/Config/BayConfig")
 local BigNum = require("../../src/shared/Domain/BigNum")
 local EggConfig = require("../../src/shared/Config/EggConfig")
+local EventConfig = require("../../src/shared/Config/EventConfig")
 local GuardianConfig = require("../../src/shared/Config/GuardianConfig")
 local IndexConfig = require("../../src/shared/Config/IndexConfig")
 local Loot = require("../../src/shared/Domain/Loot")
@@ -242,5 +243,29 @@ describe("StationSize", function()
 
 	it("puts the storm's edge on the station border, where guardians stop", function()
 		expect(StormConfig.RANGE_RADIUS).toBe(StationSize.BORDER_RADIUS)
+	end)
+end)
+
+describe("EventConfig", function()
+	it("fits an event that comes after another into that one's quiet spell", function()
+		for _, event in EventConfig.EVENTS do
+			local after = event.after
+			if after then
+				local before = EventConfig.EVENTS[after]
+				local quiet = before.schedule.gapMin - before.schedule.warningSeconds
+				expect(event.schedule.warningSeconds + event.schedule.activeSeconds < quiet).toBe(true)
+			end
+		end
+	end)
+
+	it("lists every event in the banner order once", function()
+		local listed: { [string]: boolean } = {}
+		for _, id in EventConfig.ORDER do
+			expect(listed[id]).toBeNil()
+			listed[id] = true
+		end
+		for id in EventConfig.EVENTS do
+			expect(listed[id]).toBe(true)
+		end
 	end)
 end)

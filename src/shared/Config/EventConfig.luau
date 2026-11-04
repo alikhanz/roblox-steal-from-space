@@ -18,6 +18,9 @@ export type Event = {
 	read scheduled: boolean,
 	-- The countdown to it shows all the time, not only during the warning.
 	read alwaysShowTimer: boolean,
+	-- Once its gap is over it waits for this event to end and starts its warning right then, so
+	-- the two never overlap (its warning and run must fit in the other's quiet spell).
+	read after: EventId?,
 }
 
 local EVENTS: { [EventId]: Event } = {
@@ -30,14 +33,16 @@ local EVENTS: { [EventId]: Event } = {
 		scheduled = true,
 		alwaysShowTimer = true,
 	},
-	-- 15-25 minutes apart, a 30-second warning, then 2 minutes of meteor eggs falling at one
-	-- guardian's post (MeteorConfig, MeteorService).
+	-- 15-25 minutes apart (and then up to one storm cycle more: it starts as a storm ends), a
+	-- 30-second warning, then 2 minutes of meteors along a strip through every zone
+	-- (MeteorConfig, MeteorService).
 	Meteor = {
 		id = "Meteor",
 		nameKey = "event.meteor.title",
 		schedule = { gapMin = 15 * 60, gapMax = 25 * 60, warningSeconds = 30, activeSeconds = 2 * 60 },
 		scheduled = true,
 		alwaysShowTimer = false,
+		after = "Storm",
 	},
 }
 

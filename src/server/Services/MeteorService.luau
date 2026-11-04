@@ -1,25 +1,25 @@
 --!strict
--- The meteor shower's gameplay, on its event's clock (EventService): the shower comes down at
--- one guardian's post, picked as it is announced. While it lasts, meteors fall around that
--- guardian's nest one after another, each leaving a meteor egg floating where it landed. The
--- eggs belong to that nest, so its guardian guards them like its own egg; they hatch into
--- meteor aliens of its grade (CarryService, MeteorConfig). Eggs nobody took are gone when the
--- shower ends; eggs in a thief's hands stay there.
+-- The meteor shower's gameplay, on its event's clock (EventService): as it is announced, a
+-- direction from the station is picked; while it lasts, meteors fall along that strip, through
+-- every zone in turn. Each meteor leaves a crater, a nest of its own with one meteor egg and a
+-- guardian of the nearest nest's post (NestService.addCrater, GuardianService), so stealing it is
+-- the same deal as stealing from that nest. When the shower ends the craters are retired: each
+-- goes as soon as its egg is back in it (at once if nobody took it); an egg on its way to a
+-- station keeps its crater and guardian until it is delivered or comes back.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
-local CarryService = require(script.Parent.CarryService)
-local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local EventClock = require(ReplicatedStorage.Shared.Domain.EventClock)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventService = require(script.Parent.EventService)
-local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local MeteorConfig = require(ReplicatedStorage.Shared.Config.MeteorConfig)
+local MeteorLooks = require(ReplicatedStorage.Shared.Config.MeteorLooks)
 local MeteorShower = require(ReplicatedStorage.Shared.Domain.MeteorShower)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldService = require(script.Parent.WorldService)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -32,9 +32,11 @@ export type Dependencies = {
 	eventChanged: Signal.Signal<EventConfig.EventId, EventClock.Phase>,
 	placeOf: (id: EventConfig.EventId) -> EventService.Place?,
 	setPlacer: (id: EventConfig.EventId, placer: EventService.Placer) -> (),
+	-- Every nest, craters included: a new crater keeps its distance from them.
 	getNestSites: () -> { WorldService.NestSite },
-	spawnLooseEgg: (egg: CarryService.Egg, position: Vector3, launch: Vector3?, lifetime: number?) -> (),
-	clearLooseEggs: (variant: AlienConfig.VariantId) -> (),
+	buildCrater: (name: string, zone: ZoneConfig.ZoneId, center: Vector3) -> WorldService.NestSite?,
+	addCrater: (site: WorldService.NestSite, variant: AlienConfig.VariantId) -> boolean,
+	retireCrater: (nestId: string) -> (),
 }
 
 export type MeteorService = {
@@ -44,48 +46,68 @@ export type MeteorService = {
 
 local MeteorService = {}
 
+local CENTER = StationConfig.PLATFORM_CENTER
+
+-- The strip's direction from the station, level with it.
+local function directionOf(position: Vector3): Vector3
+	local flat = Vector3.new(position.X - CENTER.X, 0, position.Z - CENTER.Z)
+	return if flat.Magnitude > 1e-3 then flat.Unit else Vector3.xAxis
+end
+
 function MeteorService.new(dependencies: Dependencies): MeteorService
 	local random = Random.new()
 	-- Counts showers: meteors planned for a shower that has ended do not fall.
 	local shower = 0
+	local craterCount = 0
+	-- This shower's craters, to retire when it ends.
+	local craters: { string } = {}
+	-- Where meteors still in the air will land: taken, like the craters.
+	local landing: { Vector3 } = {}
 	local folder: Folder? = nil
 
-	-- The shower comes down at a random guardian's nest.
+	-- The strip: a random direction; the mark is in the middle of the first zone along it.
 	local function pickPlace(): EventService.Place?
-		local sites = dependencies.getNestSites()
-		if #sites == 0 then
-			return nil
-		end
-		local site = sites[random:NextInteger(1, #sites)]
-		return { zone = site.zone, position = site.eggCFrame.Position }
+		local angle = random:NextNumber() * math.pi * 2
+		local first = ZoneConfig.ZONES[ZoneConfig.ZONE_ORDER[1]]
+		local distance = (first.ringMin + first.ringMax) / 2
+		return { position = CENTER + Vector3.new(math.cos(angle), 0, math.sin(angle)) * distance }
 	end
 
-	-- The nest of the place's zone nearest to it (a Studio command picks only a zone).
-	local function siteAt(place: EventService.Place): WorldService.NestSite?
-		local nearest: WorldService.NestSite? = nil
-		local nearestDistance = math.huge
+	local function isFree(point: Vector3): boolean
 		for _, site in dependencies.getNestSites() do
-			local distance = (site.eggCFrame.Position - place.position).Magnitude
-			if site.zone == place.zone and distance < nearestDistance then
-				nearest, nearestDistance = site, distance
+			if (site.eggCFrame.Position - point).Magnitude < MeteorConfig.MIN_SPACING then
+				return false
 			end
 		end
-		return nearest
+		for _, taken in landing do
+			if (taken - point).Magnitude < MeteorConfig.MIN_SPACING then
+				return false
+			end
+		end
+		return true
 	end
 
-	local function landingNear(center: Vector3): Vector3
-		local angle = random:NextNumber() * math.pi * 2
-		-- The square root spreads landings evenly over the disc instead of crowding the middle.
-		local distance = math.sqrt(random:NextNumber()) * MeteorConfig.SCATTER_RADIUS
-		local lift = random:NextNumber(-MeteorConfig.SCATTER_HEIGHT, MeteorConfig.SCATTER_HEIGHT)
-		return center + Vector3.new(math.cos(angle) * distance, lift, math.sin(angle) * distance)
+	-- A free spot on the strip within `zone`'s ring, at a nest's height range; nil if none found.
+	local function spotIn(zone: ZoneConfig.ZoneId, direction: Vector3): Vector3?
+		local ring = ZoneConfig.ZONES[zone]
+		local across = direction:Cross(Vector3.yAxis)
+		for _ = 1, MeteorConfig.PLACE_ATTEMPTS do
+			local point = CENTER
+				+ direction * random:NextNumber(ring.ringMin, ring.ringMax)
+				+ across * random:NextNumber(-MeteorConfig.STRIP_HALF_WIDTH, MeteorConfig.STRIP_HALF_WIDTH)
+				+ Vector3.yAxis * random:NextNumber(-ring.heightSpread, ring.heightSpread)
+			if isFree(point) then
+				return point
+			end
+		end
+		return nil
 	end
 
-	-- A burning streak falling onto `landing`; `landed` runs when it gets there.
-	local function fall(landing: Vector3, landed: () -> ())
-		local looks = EggLooks.METEOR_STREAK
+	-- A burning streak falling onto `target`; `landed` runs when it gets there.
+	local function fall(target: Vector3, landed: () -> ())
+		local looks = MeteorLooks.STREAK
 		local slant = Vector3.new(random:NextNumber(-MAX_SLANT, MAX_SLANT), 1, random:NextNumber(-MAX_SLANT, MAX_SLANT))
-		local start = CFrame.lookAt(landing + slant.Unit * looks.height, landing)
+		local start = CFrame.lookAt(target + slant.Unit * looks.height, target)
 
 		local meteor = Instance.new("Part")
 		meteor.Name = "Meteor"
@@ -120,7 +142,7 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		local tween = TweenService:Create(
 			meteor,
 			TweenInfo.new(looks.seconds, Enum.EasingStyle.Linear),
-			{ CFrame = start.Rotation + landing }
+			{ CFrame = start.Rotation + target }
 		)
 		tween.Completed:Connect(function(state)
 			meteor:Destroy()
@@ -131,21 +153,34 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		tween:Play()
 	end
 
-	-- One meteor at `site`, with an egg from its zone's loot, out of play when the shower ends.
-	local function dropEgg(current: number, site: WorldService.NestSite, endsAt: number)
-		local landing = landingNear(site.eggCFrame.Position)
-		fall(landing, function()
-			if shower ~= current then
-				return
+	local function makeCrater(zone: ZoneConfig.ZoneId, center: Vector3)
+		craterCount += 1
+		local site = dependencies.buildCrater(`MeteorCrater{craterCount}`, zone, center)
+		if not site then
+			return
+		end
+		if dependencies.addCrater(site, "Meteor") then
+			table.insert(craters, site.id)
+		else
+			site.model:Destroy()
+		end
+	end
+
+	-- One meteor into `zone` along the strip.
+	local function drop(current: number, zone: ZoneConfig.ZoneId, direction: Vector3)
+		local spot = spotIn(zone, direction)
+		if not spot then
+			return
+		end
+		table.insert(landing, spot)
+		fall(spot, function()
+			local index = table.find(landing, spot)
+			if index then
+				table.remove(landing, index)
 			end
-			local zone = ZoneConfig.ZONES[site.zone]
-			dependencies.spawnLooseEgg({
-				rarity = Loot.pick(zone.rarityLoot, random:NextNumber()),
-				size = Loot.pick(zone.sizeLoot, random:NextNumber()),
-				nestId = site.id,
-				variant = "Meteor",
-				fromNest = false,
-			}, landing, nil, math.max(endsAt - os.clock(), 0))
+			if shower == current then
+				makeCrater(zone, spot)
+			end
 		end)
 	end
 
@@ -153,18 +188,14 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		shower += 1
 		local current = shower
 		local place = dependencies.placeOf("Meteor")
-		local site = if place then siteAt(place) else nil
-		if not site then
-			warn("[MeteorService] No nest for the meteor shower")
-			return
-		end
+		local direction = directionOf(if place then place.position else CENTER + Vector3.xAxis)
 		local active = EVENT.schedule.activeSeconds
-		local endsAt = os.clock() + active
 		local count = MeteorShower.eggCount(#Players:GetPlayers(), MeteorConfig)
-		for _, delay in MeteorShower.fallTimes(count, active, MeteorConfig) do
+		local zones = MeteorShower.zones(count, ZoneConfig.ZONE_ORDER)
+		for index, delay in MeteorShower.fallTimes(count, active, MeteorConfig) do
 			task.delay(delay, function()
 				if shower == current then
-					dropEgg(current, site, endsAt)
+					drop(current, zones[index], direction)
 				end
 			end)
 		end
@@ -172,7 +203,11 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 
 	local function finish()
 		shower += 1
-		dependencies.clearLooseEggs("Meteor")
+		for _, nestId in craters do
+			dependencies.retireCrater(nestId)
+		end
+		table.clear(craters)
+		table.clear(landing)
 		if folder then
 			folder:ClearAllChildren()
 		end

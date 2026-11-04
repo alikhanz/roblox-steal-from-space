@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BorderLooks = require(ReplicatedStorage.Shared.Config.BorderLooks)
 local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local LeaderboardModel = require(script.Parent.Parent.World.LeaderboardModel)
+local MeteorLooks = require(ReplicatedStorage.Shared.Config.MeteorLooks)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local ShopModel = require(script.Parent.Parent.World.ShopModel)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
@@ -17,6 +18,7 @@ local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
 
 local WORLD_FOLDER_NAME = "World"
+local NESTS_FOLDER_NAME = "Nests"
 local DOME_TRANSPARENCY = 0.75
 local DOME_COLOR = Color3.fromRGB(110, 190, 255)
 local PLATFORM_COLOR = Color3.fromRGB(128, 136, 160)
@@ -50,6 +52,9 @@ export type WorldService = {
 	getNestSites: () -> { NestSite },
 	-- The coin board stand on the platform; nil before the world is built.
 	getCoinBoard: () -> Model?,
+	-- Builds a meteor crater (a nest of its own) at `center` in the world's nests; nil before
+	-- the world is built.
+	buildCrater: (name: string, zone: ZoneConfig.ZoneId, center: Vector3) -> NestSite?,
 }
 
 local WorldService = {}
@@ -216,13 +221,14 @@ local function buildAsteroids(parent: Instance)
 	folder.Parent = parent
 end
 
--- A nest asteroid with a bowl on top, in its zone's colors.
+-- A nest asteroid with a bowl on top.
 local function buildNest(
 	name: string,
+	zone: ZoneConfig.ZoneId,
 	center: Vector3,
 	size: number,
-	look: ZoneLooks.ZoneLook,
-	random: Random
+	material: Enum.Material,
+	color: Color3
 ): NestSite
 	local model = Instance.new("Model")
 	model.Name = name
@@ -232,8 +238,8 @@ local function buildNest(
 	rock.Shape = Enum.PartType.Ball
 	rock.Size = Vector3.one * size
 	rock.CFrame = CFrame.new(center)
-	rock.Material = look.rockMaterial
-	rock.Color = look.rockColors[random:NextInteger(1, #look.rockColors)]
+	rock.Material = material
+	rock.Color = color
 	rock.Anchored = true
 	rock.CanTouch = false
 	rock.Parent = model
@@ -251,17 +257,28 @@ local function buildNest(
 	return {
 		id = name,
 		model = model,
-		-- Filled by the caller.
-		zone = "DebrisBelt",
+		zone = zone,
 		eggCFrame = CFrame.new(top + Vector3.yAxis * NEST_EGG_LIFT),
 	}
+end
+
+-- A meteor's crater: a small scorched nest rock, glowing (MeteorLooks.CRATER).
+local function buildCrater(name: string, zone: ZoneConfig.ZoneId, center: Vector3): NestSite
+	local looks = MeteorLooks.CRATER
+	local site = buildNest(name, zone, center, looks.rockSize, looks.rockMaterial, looks.rockColor)
+	local glow = Instance.new("PointLight")
+	glow.Color = looks.glowColor
+	glow.Range = looks.glowRange
+	glow.Brightness = looks.glowBrightness
+	glow.Parent = site.model.PrimaryPart
+	return site
 end
 
 -- Nest asteroids zone by zone: evenly spread around each zone's ring with seeded jitter.
 local function buildNests(parent: Instance): { NestSite }
 	local random = Random.new(WorldConfig.SEED + 1)
 	local folder = Instance.new("Folder")
-	folder.Name = "Nests"
+	folder.Name = NESTS_FOLDER_NAME
 	local sites: { NestSite } = {}
 
 	for _, zoneId in ZoneConfig.ZONE_ORDER do
@@ -274,8 +291,8 @@ local function buildNests(parent: Instance): { NestSite }
 			local center = StationConfig.PLATFORM_CENTER
 				+ Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance)
 			local size = random:NextNumber(WorldConfig.NEST_ASTEROID_MIN_SIZE, WorldConfig.NEST_ASTEROID_MAX_SIZE)
-			local site = buildNest(`{zoneId}Nest{index}`, center, size, look, random)
-			site.zone = zoneId
+			local color = look.rockColors[random:NextInteger(1, #look.rockColors)]
+			local site = buildNest(`{zoneId}Nest{index}`, zoneId, center, size, look.rockMaterial, color)
 			site.model.Parent = folder
 			table.insert(sites, site)
 		end
@@ -454,6 +471,16 @@ function WorldService.new(): WorldService
 		end,
 		getCoinBoard = function()
 			return coinBoard
+		end,
+		buildCrater = function(name, zone, center)
+			local world = workspace:FindFirstChild(WORLD_FOLDER_NAME)
+			local folder = world and world:FindFirstChild(NESTS_FOLDER_NAME)
+			if not folder then
+				return nil
+			end
+			local site = buildCrater(name, zone, center)
+			site.model.Parent = folder
+			return site
 		end,
 	}
 end

@@ -36,13 +36,6 @@ return table.freeze({
 		fireSize = 4,
 		fireHeat = 6,
 	}),
-	-- The meteor that brings it: a burning streak falling to where the egg lands.
-	METEOR_STREAK = table.freeze({
-		color = Color3.fromRGB(255, 140, 40),
-		height = 400,
-		seconds = 1.4,
-		width = 3,
-	}),
 	-- Sparks around a carried egg: they hang behind a thief in flight.
 	SPARK_RATE = 45,
 	SPARK_LIFETIME = NumberRange.new(0.8, 1.4),

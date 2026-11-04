@@ -46,7 +46,7 @@ local SPAWN_DISTANCE = 5
 local DUMMY_DISTANCE = 10
 
 export type Dependencies = {
-	spawnLooseEgg: (egg: CarryService.Egg, position: Vector3, launch: Vector3?, lifetime: number?) -> (),
+	spawnLooseEgg: (egg: CarryService.Egg, position: Vector3, launch: Vector3?) -> (),
 	setSpeed: (player: Player, speed: BigNum.BigNum) -> boolean,
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
 	addEgg: (
@@ -111,13 +111,12 @@ function DevService.new(dependencies: Dependencies): DevService
 			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)
 			assert(EggConfig.SIZES[chosenSize], `Unknown size {chosenSize}`)
 			assert(AlienConfig.VARIANTS[chosenVariant], `Unknown variant {chosenVariant}`)
-			-- Not from the nest: a test egg must not add an egg to the nest when it leaves play.
+			-- Back to the nest when it expires only if the nest's own egg is away (Domain/NestCycle).
 			dependencies.spawnLooseEgg({
 				rarity = chosenRarity,
 				size = chosenSize,
 				nestId = nestId or "DebrisBeltNest1",
 				variant = chosenVariant,
-				fromNest = false,
 			}, root.Position + root.CFrame.LookVector * SPAWN_DISTANCE)
 			return "spawned"
 		end,
@@ -190,7 +189,6 @@ function DevService.new(dependencies: Dependencies): DevService
 					size = EggConfig.TYPICAL_SIZE,
 					nestId = "DebrisBeltNest1",
 					variant = "Normal",
-					fromNest = false,
 				}, egg.Position, direction * EggConfig.DROP_SPEED)
 				model:Destroy()
 				return true

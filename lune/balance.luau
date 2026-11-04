@@ -43,8 +43,8 @@ local ASSUMPTIONS = {
 	-- The training gamepass and the big Robux package (a day's worth of trainer rate).
 	trainingPass = 2,
 	packageHours = 8,
-	-- Meteor eggs a player brings home from a shower that comes down at a guardian they can beat
-	-- (a shower at a guardian too fast for them gives nothing).
+	-- Meteor eggs a player brings home from a shower: from a crater in the farthest zone they
+	-- can handle, at a guardian they can beat (the strip runs through every zone).
 	meteorEggsPerShower = 1,
 	-- Random runs averaged per profile.
 	runs = 3,
@@ -82,9 +82,13 @@ local DEFAULTS: PlayerData.Defaults = {
 -- The solar storm: quiet for its gap, then the storm (EventConfig), round and round.
 local STORM = EventConfig.EVENTS.Storm
 local STORM_CYCLE = STORM.schedule.gapMin + STORM.schedule.activeSeconds
--- The meteor shower: its average gap, then the shower, at a random guardian's post.
+-- The meteor shower: its average gap, then on average half a storm cycle waiting for a storm
+-- to end (EventConfig `after`), then the shower. A multiple of the step, so it is never missed.
 local METEOR = EventConfig.EVENTS.Meteor
-local METEOR_CYCLE = (METEOR.schedule.gapMin + METEOR.schedule.gapMax) / 2 + METEOR.schedule.activeSeconds
+local METEOR_CYCLE = math.round(
+	((METEOR.schedule.gapMin + METEOR.schedule.gapMax) / 2 + STORM_CYCLE / 2 + METEOR.schedule.activeSeconds)
+		/ ASSUMPTIONS.stepSeconds
+) * ASSUMPTIONS.stepSeconds
 
 -- The day's quests are worth this many minutes on average: the pool's mean reward by weight,
 -- times the quests a day.
@@ -276,14 +280,12 @@ local function simulate(profile: Profile, seed: number): Run
 			if inDay % STORM_CYCLE >= STORM_CYCLE - STORM.schedule.activeSeconds then
 				Bay.advanceIncubator(data, dt * (StormConfig.HATCH_RATE - 1))
 			end
-			-- The meteor shower starts at a random guardian's post: eggs for the player when they
-			-- can beat that guardian.
-			if inDay % METEOR_CYCLE < dt then
-				local post = math.random(1, ASSUMPTIONS.guardianCount)
-				if post <= bestPost then
-					for _ = 1, ASSUMPTIONS.meteorEggsPerShower do
-						steal(post, now, "Meteor")
-					end
+			-- The meteor shower: a crater in the zone of the farthest guardian the player beats,
+			-- at a random post of that zone up to that guardian.
+			if inDay % METEOR_CYCLE < dt and bestPost > 0 then
+				local _, inZone = ZoneConfig.zoneOfPost(bestPost)
+				for _ = 1, ASSUMPTIONS.meteorEggsPerShower do
+					steal(bestPost - math.random(0, inZone - 1), now, "Meteor")
 				end
 			end
 			-- The login gift, taken first thing each day: the streak never breaks here.

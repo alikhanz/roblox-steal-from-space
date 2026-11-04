@@ -160,14 +160,17 @@ local meteorService = MeteorService.new({
 	eventChanged = eventService.changed,
 	placeOf = eventService.placeOf,
 	setPlacer = eventService.setPlacer,
-	getNestSites = worldService.getNestSites,
-	spawnLooseEgg = carryService.spawnLooseEgg,
-	clearLooseEggs = carryService.clearLooseEggs,
+	getNestSites = nestService.getSites,
+	buildCrater = worldService.buildCrater,
+	addCrater = nestService.addCrater,
+	retireCrater = nestService.retireCrater,
 })
 
 local guardianService = GuardianService.new({
 	getNestSites = worldService.getNestSites,
 	getNestGrade = nestService.getGrade,
+	nestAdded = nestService.added,
+	nestRemoved = nestService.removed,
 	findCarriers = carryService.findCarriers,
 	findLooseEggs = carryService.findLooseEggs,
 	getCarried = carryService.getCarried,

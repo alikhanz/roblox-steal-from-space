@@ -20,6 +20,7 @@ local GuardianModel = require(script.Parent.Parent.World.GuardianModel)
 local Knockback = require(script.Parent.Parent.Character.Knockback)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
+local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
@@ -32,6 +33,9 @@ export type Dependencies = {
 	getNestSites: () -> { WorldService.NestSite },
 	-- The post of a nest (NestService ranks nests by distance).
 	getNestGrade: (nestId: string) -> number?,
+	-- Nests that come and go (meteor craters): each gets a guardian of its post while it lasts.
+	nestAdded: Signal.Signal<WorldService.NestSite>,
+	nestRemoved: Signal.Signal<string>,
 	findCarriers: (nestId: string) -> { Player },
 	-- Where the eggs of `nestId` lie knocked out (empty while the egg is in the nest or carried).
 	findLooseEggs: (nestId: string) -> { Vector3 },
@@ -299,15 +303,29 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		folder.Name = FOLDER_NAME
 		folder.Parent = workspace:FindFirstChild("World") or workspace
 
-		for _, site in dependencies.getNestSites() do
+		local function guard(site: WorldService.NestSite)
 			local postIndex = dependencies.getNestGrade(site.id)
 			local post = postIndex and GuardianConfig.POSTS[postIndex]
 			if not postIndex or not post then
 				warn(`[GuardianService] {site.id} has no post; no guardian`)
-				continue
+				return
 			end
 			place(site, post, folder)
 		end
+
+		for _, site in dependencies.getNestSites() do
+			guard(site)
+		end
+		dependencies.nestAdded.connect(guard)
+		dependencies.nestRemoved.connect(function(nestId)
+			for index, guardian in guardians do
+				if guardian.nestId == nestId then
+					table.remove(guardians, index)
+					guardian.model:Destroy()
+					return
+				end
+			end
+		end)
 
 		dependencies.scheduler.every(GuardianConfig.TICK_SECONDS, tick)
 	end
