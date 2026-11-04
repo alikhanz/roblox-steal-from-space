@@ -12,8 +12,8 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
+local Mount = require(script.Parent.Parent.UI.Mount)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
-local Vide = require(ReplicatedStorage.Packages.Vide)
 
 -- The strike: the body swells and snaps back.
 local STRIKE_SCALE = 1.35
@@ -80,7 +80,7 @@ function GuardianViewController.new(): GuardianViewController
 		-- The key is checked at the config; it passes through `any` because the union of every
 		-- string key is too much for the type checker here.
 		local nameKey: any = post.nameKey
-		local unmount = Vide.mount(function()
+		local unmount = Mount.instance(function()
 			return GuardianLabel({
 				adornee = body,
 				name = Text.get(locale, nameKey),

@@ -15,6 +15,7 @@ local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local Mount = require(script.Parent.Parent.UI.Mount)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
@@ -33,9 +34,10 @@ local TRAINER_STUDS_ABOVE = 5
 local PODS_SIGN_STUDS_ABOVE = 0.5
 local ALIEN_STUDS_ABOVE = 2
 local INCUBATOR_STUDS_ABOVE = 4
--- The owner's name reads from across the platform; what stands in the bay only up close, or
--- the labels pile up on each other.
+-- The owner's name reads from across the platform; the upgrade signs with the camera pulled
+-- back; what stands in the bay only up close, or the labels pile up on each other.
 local SIGN_MAX_DISTANCE = 120
+local UPGRADE_SIGN_MAX_DISTANCE = 80
 local CONTENTS_MAX_DISTANCE = 35
 -- Countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
@@ -120,7 +122,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 			end
 			local countdown: (() -> ())? = nil
 			local parent: Instance = if clickable and playerGui then playerGui else instance
-			local unmount = Vide.mount(function()
+			local unmount = Mount.instance(function()
 				local gui, tick = build(part)
 				countdown = tick
 				return gui
@@ -170,7 +172,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					end,
 					valueColor = Theme.SPEED,
 					studsAbove = TRAINER_STUDS_ABOVE,
-					maxDistance = CONTENTS_MAX_DISTANCE,
+					maxDistance = UPGRADE_SIGN_MAX_DISTANCE,
 					-- The owner buys the next level right here.
 					button = if own
 						then {
@@ -222,7 +224,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 						return Text.get(locale, if hasRoom() then "bay.podsSign.hint" else "bay.podsFull.hint")
 					end,
 					studsAbove = PODS_SIGN_STUDS_ABOVE,
-					maxDistance = CONTENTS_MAX_DISTANCE,
+					maxDistance = UPGRADE_SIGN_MAX_DISTANCE,
 					button = if own
 						then {
 							text = function()

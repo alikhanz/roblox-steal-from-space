@@ -29,6 +29,8 @@ export type Props = {
 	hint: () -> string,
 	-- Touch screens press the badge itself; it is bound to the grab input action once created.
 	onBadge: (badge: GuiButton) -> (),
+	-- Beyond this distance the prompt is not drawn at all, studs; default: always.
+	maxDistance: number?,
 }
 
 -- Vide's instance types do not list UIStroke, so it is made directly.
@@ -52,6 +54,7 @@ local function GrabPrompt(props: Props): BillboardGui
 		Active = true,
 		Size = UDim2.fromOffset(160, BADGE_SIZE + BAR_SIZE.Y + 30 + GAP * 2),
 		StudsOffset = Vector3.new(0, STUDS_ABOVE, 0),
+		MaxDistance = props.maxDistance or math.huge,
 		LightInfluence = 0,
 
 		create("UIListLayout")({

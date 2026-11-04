@@ -6,10 +6,10 @@ local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Mount = require(script.Parent.Parent.UI.Mount)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
-local Vide = require(ReplicatedStorage.Packages.Vide)
 local WorldLabel = require(script.Parent.Parent.UI.WorldLabel)
 
 local HEAD_WAIT_TIMEOUT = 10
@@ -49,7 +49,7 @@ function NewbieViewController.new(): NewbieViewController
 			if not head or not head:IsA("BasePart") or unmounts[character] or secondsLeft(player) <= 0 then
 				return
 			end
-			unmounts[character] = Vide.mount(function()
+			unmounts[character] = Mount.instance(function()
 				return WorldLabel({
 					adornee = head,
 					title = Text.get(locale, "pvp.newbie.title"),

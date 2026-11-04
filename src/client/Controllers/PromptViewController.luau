@@ -4,18 +4,22 @@
 -- an engine prompt; this only replaces its picture. Touch screens press the badge.
 
 local LocalizationService = game:GetService("LocalizationService")
+local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local GrabPrompt = require(script.Parent.Parent.UI.GrabPrompt)
+local Mount = require(script.Parent.Parent.UI.Mount)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local source = Vide.source
 
 local TOUCH_BADGE = "✋"
+-- Studs past the prompt's reach where its picture still shows, so it does not blink at the edge.
+local PROMPT_DISTANCE_SLACK = 2
 
 export type PromptViewController = {
 	name: string,
@@ -69,7 +73,7 @@ function PromptViewController.new(): PromptViewController
 		end
 		local progress = source(0)
 		local view: View
-		local unmount = Vide.mount(function()
+		local unmount = Mount.instance(function()
 			return GrabPrompt({
 				target = function()
 					return adornee
@@ -78,6 +82,8 @@ function PromptViewController.new(): PromptViewController
 				showBar = function()
 					return prompt.HoldDuration > 0
 				end,
+				-- Drawn only within the prompt's own reach, whatever the engine decides to show.
+				maxDistance = prompt.MaxActivationDistance + PROMPT_DISTANCE_SLACK,
 				badgeText = function()
 					return badgeFor(prompt)
 				end,
@@ -122,9 +128,25 @@ function PromptViewController.new(): PromptViewController
 		ProximityPromptService.PromptHidden:Connect(hide)
 		RunService.Heartbeat:Connect(function()
 			local now = os.clock()
-			for _, view in views do
-				if view.heldAt then
-					local hold = math.max(view.prompt.HoldDuration, 1e-3)
+			local character = Players.LocalPlayer.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			for prompt, view in views do
+				-- The engine hides a prompt the player walked away from; should that signal be
+				-- missed (a respawn, a teleport), the picture must not stay on the wall.
+				local adornee = prompt.Parent
+				local gone = not prompt.Enabled
+				if adornee and adornee:IsA("BasePart") then
+					if root and root:IsA("BasePart") then
+						local reach = prompt.MaxActivationDistance + PROMPT_DISTANCE_SLACK
+						gone = gone or (adornee.Position - root.Position).Magnitude > reach
+					end
+				else
+					gone = true
+				end
+				if gone then
+					hide(prompt)
+				elseif view.heldAt then
+					local hold = math.max(prompt.HoldDuration, 1e-3)
 					view.progress(math.clamp((now - view.heldAt) / hold, 0, 1))
 				end
 			end
