@@ -91,6 +91,7 @@ local spaceService = SpaceService.new({
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
 	returnNestEgg = nestService.returnEgg,
+	nestEggDelivered = nestService.eggDelivered,
 	getNestEggCFrame = nestService.getEggCFrame,
 	getNestGrade = nestService.getGrade,
 	deliverEgg = bayService.addEgg,

@@ -165,7 +165,8 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 	-- it fell and the guardian settles over it, so taking it again is the same deal as taking it
 	-- from the nest. While the egg is carried the watch point stays where the egg last lay;
 	-- once the egg is back in the nest, so is the guardian.
-	-- Should two of its eggs lie about (the nest grew a new one meanwhile), the nearest is watched.
+	-- A nest has one egg out at a time (Domain/NestCycle); should more lie about all the same
+	-- (Studio test eggs claim a nest), the nearest is watched.
 	local function followEgg(guardian: Guardian, carrier: Player?)
 		local nearest: Vector3? = nil
 		local nearestDistance = math.huge

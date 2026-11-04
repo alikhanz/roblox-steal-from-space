@@ -103,7 +103,8 @@ return table.freeze({
 
 	-- A player can grab an egg within this distance of it, studs.
 	GRAB_REACH = 9,
-	-- An empty nest grows a new egg after this long, seconds.
+	-- A nest grows a new egg this long after its old one was delivered to a station, seconds
+	-- (while the egg is away, the nest stays empty: Domain/NestCycle).
 	RESPAWN_SECONDS = 20,
 	-- A dropped egg nobody touches for this long flies back to its nest, seconds.
 	LOOSE_SECONDS = 180,

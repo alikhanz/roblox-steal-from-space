@@ -22,6 +22,8 @@ local CARRY_OFFSET = CFrame.new(0, -0.2, -1.4)
 export type Dependencies = {
 	takeNestEgg: (nestId: string) -> (EggConfig.RarityId?, EggConfig.SizeId?),
 	returnNestEgg: (nestId: string, rarity: EggConfig.RarityId, size: EggConfig.SizeId) -> (),
+	-- The egg of `nestId` reached a bay: its nest may grow a new one.
+	nestEggDelivered: (nestId: string) -> (),
 	getNestEggCFrame: (nestId: string) -> CFrame?,
 	getNestGrade: (nestId: string) -> number?,
 	-- Takes a delivered egg into the player's bay. False when the bay cannot take it yet (no
@@ -240,6 +242,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 		if dependencies.deliverEgg(player, entry.rarity, entry.size, grade) then
 			releaseCarried(player)
+			dependencies.nestEggDelivered(entry.nestId)
 		end
 	end
 
