@@ -115,6 +115,18 @@ SpaceSimulation (предсказание) ─> атрибуты персона�
 - Скорость полёта стража в погоне — по отношению ⚡ стража и вора (см. GAME_DESIGN, «Погоня»).
 - Активны только рядом с игроками; тикают с пониженной частотой.
 
+## Аналитика
+
+`MetricsService` — единственное место, которое знает `AnalyticsService` Roblox. Остальные службы только сообщают факты своими сигналами (`CarryService.grabbed/reachedStation/delivered/lost`, `BayService.incomePaid`, `EconomyService.coinsTraded/crossbred`, `TrainingService.trained`, `OfflineService.settled`, `SpaceService.suffocated`, `PvpService.abilityUsed`), а `Main` передаёт их в `MetricsService`.
+
+- **Воронка новичка** — `LogOnboardingFunnelStepEvent`, шаги из `Domain/Onboarding`; каждый шаг один раз на аккаунт, пройденные — битовой маской в профиле (`onboardingSteps`, схема v5).
+- **Прогресс** — `LogProgressionCompleteEvent` по пути `Guardians` при первой доставке от поста дальше прежнего (`bestPost` в профиле).
+- **Экономика** — `LogEconomyEvent`, валюты `Coins` и `Speed`; источники: доход пришельцев, продажа, офлайн, тренажёр (дальше — задания и подарки через `MetricsService.earned`); траты: капсула, тренажёр, джетпак.
+- **Кража** — `LogFunnelStepEvent` воронки `Theft`, сессия на каждое взятое яйцо: взял → долетел до границы станции → доставил.
+- **Свои события** — `LogCustomEvent`: `EggLost` (причина, зона), `GuardianCatch` (пост), `OxygenDeath` (зона), `Ability` (способность, итог), `Crossbreed` (ступень, зона).
+
+Частые факты (доход каждую секунду, выплаты тренажёра, способности) суммируются по игроку и уходят раз в 5 минут и при выходе — так запросов меньше лимита Roblox (120 + 20 × онлайн в минуту). В полях нет имён игроков: число сочетаний значений ограничено. В Studio события не отправляются (Roblox их не принимает) — печатаются в Output с префиксом `[Metrics]`, сумма копится 30 секунд.
+
 ## UI (клиент)
 
 - Компоненты на Vide в `src/client/UI`: без ключей локализации и без сетевых вызовов — тексты приходят готовыми, действия — колбэками. Контроллеры (`HudController`, `BayWindowController`) собирают тексты через `Text.get`, читают `ProfileState` и отправляют команды через `Remotes`.
