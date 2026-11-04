@@ -27,6 +27,7 @@ export type Notice =
 	| "NoSuchPod"
 	| "WrongCount"
 	| "MixedGrades"
+	| "MixedVariants"
 
 export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
@@ -153,7 +154,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			if #uids ~= BayConfig.CROSSBREED_COUNT then
 				return "WrongCount"
 			end
-			local grades = {}
+			local parents: { Crossbreed.Parent } = {}
 			local seen: { [number]: boolean } = {}
 			for _, uid in uids do
 				local record = if isUid(uid) and not seen[uid] then Bay.find(data, uid) else nil
@@ -162,21 +163,20 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 					return "UnknownAlien"
 				end
 				seen[uid] = true
-				table.insert(grades, alien.grade)
+				table.insert(parents, alien)
 			end
-			return Crossbreed.check(grades, BayConfig.CROSSBREED_COUNT)
+			return Crossbreed.check(parents, BayConfig.CROSSBREED_COUNT)
 		end, function(data)
+			-- The check passed: every parent shares the first one's grade and variant.
+			local first = AlienConfig.ALIENS[(Bay.find(data, uids[1]) :: PlayerData.AlienRecord).id]
 			local positions = {}
-			local grade = 0
 			for _, uid in uids do
 				local record = Bay.remove(data, uid) :: PlayerData.AlienRecord
-				local alien = AlienConfig.ALIENS[record.id]
-				grade = alien.grade
-				table.insert(positions, AlienConfig.TIER_POSITIONS[alien.tier])
+				table.insert(positions, AlienConfig.TIER_POSITIONS[AlienConfig.ALIENS[record.id].tier])
 			end
 			local entries = Crossbreed.resultEntries(AlienConfig.HATCH_ENTRIES, positions, BayConfig.CROSSBREED_LUCK)
 			local tier = Loot.pick(entries, random:NextNumber())
-			resultId = AlienConfig.GRADES[grade].aliens[tier]
+			resultId = AlienConfig.GRADES[first.grade].variants[first.variant][tier]
 			resultLocation =
 				Bay.addCrossbred(data, { uid = Bay.newUid(data), id = resultId :: string }, BayConfig.INVENTORY_SLOTS)
 		end)

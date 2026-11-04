@@ -16,6 +16,7 @@ local JetpackService = require(script.Parent.Services.JetpackService)
 local LeaderboardService = require(script.Parent.Services.LeaderboardService)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftService = require(script.Parent.Services.LoginGiftService)
+local MeteorService = require(script.Parent.Services.MeteorService)
 local MetricsService = require(script.Parent.Services.MetricsService)
 local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
@@ -141,7 +142,6 @@ questDependencies.getData = profile.getData
 questDependencies.update = profile.update
 questDependencies.scheduler = scheduler
 questDependencies.getIncomePerSecond = bayService.getIncomePerSecond
-questDependencies.getNestGrade = nestService.getGrade
 questDependencies.publishSpeed = speedService.publish
 questDependencies.eggDelivered = carryService.delivered
 questDependencies.hatched = bayService.hatched
@@ -154,6 +154,15 @@ local stormService = StormService.new({
 	returnEgg = carryService.returnEgg,
 	setHatchRate = bayService.setHatchRate,
 	notify = netService.notify,
+})
+
+local meteorService = MeteorService.new({
+	eventChanged = eventService.changed,
+	placeOf = eventService.placeOf,
+	setPlacer = eventService.setPlacer,
+	getNestSites = worldService.getNestSites,
+	spawnLooseEgg = carryService.spawnLooseEgg,
+	clearLooseEggs = carryService.clearLooseEggs,
 })
 
 local guardianService = GuardianService.new({
@@ -180,7 +189,6 @@ local metricsService = MetricsService.new({
 	getData = profile.getData,
 	update = profile.update,
 	getSpeed = speedService.getSpeed,
-	getNestGrade = nestService.getGrade,
 	scheduler = scheduler,
 	incomePaid = bayService.incomePaid,
 	coinsTraded = economyService.coinsTraded,
@@ -253,6 +261,7 @@ Lifecycle.run({
 	carryService,
 	guardianService,
 	stormService,
+	meteorService,
 	bayService,
 	economyService,
 	netService,

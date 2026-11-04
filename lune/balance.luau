@@ -43,6 +43,9 @@ local ASSUMPTIONS = {
 	-- The training gamepass and the big Robux package (a day's worth of trainer rate).
 	trainingPass = 2,
 	packageHours = 8,
+	-- Meteor eggs a player brings home from a shower that comes down at a guardian they can beat
+	-- (a shower at a guardian too fast for them gives nothing).
+	meteorEggsPerShower = 1,
 	-- Random runs averaged per profile.
 	runs = 3,
 }
@@ -79,6 +82,9 @@ local DEFAULTS: PlayerData.Defaults = {
 -- The solar storm: quiet for its gap, then the storm (EventConfig), round and round.
 local STORM = EventConfig.EVENTS.Storm
 local STORM_CYCLE = STORM.schedule.gapMin + STORM.schedule.activeSeconds
+-- The meteor shower: its average gap, then the shower, at a random guardian's post.
+local METEOR = EventConfig.EVENTS.Meteor
+local METEOR_CYCLE = (METEOR.schedule.gapMin + METEOR.schedule.gapMax) / 2 + METEOR.schedule.activeSeconds
 
 -- The day's quests are worth this many minutes on average: the pool's mean reward by weight,
 -- times the quests a day.
@@ -102,9 +108,9 @@ end
 
 -- Aliens come only from the one registry, AlienConfig: no made-up ones, so the calculator can
 -- never count an alien the game does not have.
-local function alienIdFor(grade: number, tier: AlienConfig.TierId): string
+local function alienIdFor(grade: number, tier: AlienConfig.TierId, variant: AlienConfig.VariantId): string
 	local configured = assert(AlienConfig.GRADES[grade], `no grade {grade} in AlienConfig`)
-	return configured.aliens[tier]
+	return configured.variants[variant][tier]
 end
 local function incomeOf(id: string): BigNum.BigNum
 	return assert(AlienConfig.ALIENS[id], `unknown alien {id}`).income
@@ -166,25 +172,34 @@ local function simulate(profile: Profile, seed: number): Run
 	end
 
 	-- An egg into the incubator, hatching after its rarity's time, as the game does it.
-	local function incubate(rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number, now: number)
+	local function incubate(
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		grade: number,
+		now: number,
+		variant: AlienConfig.VariantId?
+	)
 		local hatchAt = now + Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random())
-		Bay.addEgg(data, rarity, size, grade, hatchAt)
+		Bay.addEgg(data, rarity, size, grade, hatchAt, variant)
 	end
 
-	local function steal(post: number, now: number)
+	-- An egg of `post`'s zone loot, the usual one or a meteor one.
+	local function steal(post: number, now: number, variant: AlienConfig.VariantId?)
 		local zone = ZoneConfig.ZONES[ZoneConfig.zoneOfPost(post)]
-		incubate(Loot.pick(zone.rarityLoot, math.random()), Loot.pick(zone.sizeLoot, math.random()), post, now)
+		incubate(Loot.pick(zone.rarityLoot, math.random()), Loot.pick(zone.sizeLoot, math.random()), post, now, variant)
 	end
 
 	-- The index: a new alien's reward and, once its guardian's set is full, the set's, taken at
 	-- once.
-	local function collect(alienId: string, grade: number)
+	local function collect(alienId: string)
 		if not AlienIndex.discover(data.index, alienId) then
 			return
 		end
+		local alien = AlienConfig.ALIENS[alienId]
 		AlienIndex.claim(data.index, alienId)
-		payPlay(IndexConfig.REWARD_MINUTES[AlienConfig.ALIENS[alienId].tier], IndexConfig.MIN_REWARD_COINS, false)
-		if AlienIndex.claimSet(data.index, grade, IndexConfig.SETS[grade].aliens) == nil then
+		payPlay(IndexConfig.REWARD_MINUTES[alien.tier], IndexConfig.MIN_REWARD_COINS, false)
+		local set = IndexConfig.SETS_BY_ID[AlienIndex.setId(alien.grade, alien.variant)]
+		if AlienIndex.claimSet(data.index, set) == nil then
 			payPlay(IndexConfig.SET_REWARD_MINUTES, IndexConfig.MIN_REWARD_COINS, false)
 		end
 	end
@@ -198,10 +213,11 @@ local function simulate(profile: Profile, seed: number): Run
 			local luck = EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId].luck
 				+ EggConfig.SIZES[egg.size :: EggConfig.SizeId].luck
 			local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, luck, math.random())
-			local alienId = alienIdFor(egg.grade, tier)
+			local variant = (egg.variant or "Normal") :: AlienConfig.VariantId
+			local alienId = alienIdFor(egg.grade, tier, variant)
 			Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 			if profile.daily then
-				collect(alienId, egg.grade)
+				collect(alienId)
 			end
 		end
 		Bay.autoPlace(data, incomeOf, BayConfig.INVENTORY_SLOTS)
@@ -259,6 +275,16 @@ local function simulate(profile: Profile, seed: number): Run
 			-- The solar storm comes round while the player is on, for everyone on the server.
 			if inDay % STORM_CYCLE >= STORM_CYCLE - STORM.schedule.activeSeconds then
 				Bay.advanceIncubator(data, dt * (StormConfig.HATCH_RATE - 1))
+			end
+			-- The meteor shower starts at a random guardian's post: eggs for the player when they
+			-- can beat that guardian.
+			if inDay % METEOR_CYCLE < dt then
+				local post = math.random(1, ASSUMPTIONS.guardianCount)
+				if post <= bestPost then
+					for _ = 1, ASSUMPTIONS.meteorEggsPerShower do
+						steal(post, now, "Meteor")
+					end
+				end
 			end
 			-- The login gift, taken first thing each day: the streak never breaks here.
 			if profile.daily and inDay == 0 then
@@ -352,7 +378,8 @@ print(
 	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, {ASSUMPTIONS.trainShare * 100}% of it training, `
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
-		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index; a solar storm every {STORM_CYCLE}s for all`
+		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index; a solar storm every {STORM_CYCLE}s and a meteor shower every {METEOR_CYCLE}s `
+		.. `({ASSUMPTIONS.meteorEggsPerShower} egg if its guardian is beaten) for all`
 )
 print("")
 

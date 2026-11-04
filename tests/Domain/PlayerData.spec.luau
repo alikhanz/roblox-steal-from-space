@@ -404,6 +404,37 @@ describe("PlayerData migration v6 -> v7", function()
 	end)
 end)
 
+describe("PlayerData migration v9 -> v10", function()
+	it("names the claimed index sets by id", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 9
+		saved.index = { found = { ["DebrisBelt1.Common"] = true }, sets = { 1, 4 } }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.index.sets).toEqual({ "1", "4" })
+			expect(outcome.data.index.found).toEqual({ ["DebrisBelt1.Common"] = true })
+		end
+	end)
+
+	it("keeps an egg's variant and rejects a broken one", function()
+		local saved = savedTemplate()
+		saved.incubator =
+			{ { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000, variant = "Meteor" } }
+		saved.nextUid = 6
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.incubator[1].variant).toBe("Meteor")
+		end
+		local broken = savedTemplate()
+		broken.incubator = { { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000, variant = "" } }
+		broken.nextUid = 6
+		expectCorrupted(broken, "egg variant is invalid")
+	end)
+end)
+
 describe("PlayerData migration v8 -> v9", function()
 	it("finds the aliens the player has, with their rewards taken", function()
 		local saved = savedTemplate()

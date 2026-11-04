@@ -31,6 +31,8 @@ type Egg = struct {
 	grade: u8,
 	-- Server (Unix) time the egg hatches.
 	hatchAt: f64,
+	-- The alien variant it hatches into; none: the usual one.
+	variant: string.utf8?,
 }
 
 -- The owner's bay, as the profile holds it.
@@ -81,13 +83,15 @@ type Notice = enum {
 	IndexClaimed,
 	-- Solar storm: you were brought back to the station.
 	StormTeleport,
+	-- Crossbreeding: meteor aliens only go with meteor aliens.
+	MixedVariants,
 }
 
 -- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the
--- grades whose set reward is taken.
+-- ids of the sets whose reward is taken.
 type Index = struct {
 	found: map { [string.utf8]: boolean },
-	sets: u8[],
+	sets: string.utf8[],
 }
 
 -- Where the login gift streak stands today (Domain/LoginGift).
@@ -357,12 +361,12 @@ event ClaimIndexAlien = {
 	data: string.utf8,
 }
 
--- Takes the index reward of a full guardian set, by grade.
+-- Takes the index reward of a full guardian set, by set id ("3", "3.Meteor").
 event ClaimIndexSet = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,
-	data: u8,
+	data: string.utf8,
 }
 
 -- Takes today's login gift.

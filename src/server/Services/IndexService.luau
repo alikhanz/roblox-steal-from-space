@@ -39,7 +39,7 @@ export type IndexService = {
 	-- Marks an alien found (for aliens that come by other ways, like Studio commands).
 	discover: (player: Player, alienId: string) -> (),
 	claimAlien: (player: Player, alienId: string) -> Notice?,
-	claimSet: (player: Player, grade: number) -> Notice?,
+	claimSet: (player: Player, setId: string) -> Notice?,
 }
 
 local IndexService = {}
@@ -102,13 +102,13 @@ function IndexService.new(dependencies: Dependencies): IndexService
 		return notice
 	end
 
-	local function claimSet(player: Player, grade: number): Notice?
-		local set = IndexConfig.SETS[grade]
+	local function claimSet(player: Player, setId: string): Notice?
+		local set = IndexConfig.SETS_BY_ID[setId]
 		if not set then
 			return "IndexNothing"
 		end
 		local notice, coins = pay(player, IndexConfig.SET_REWARD_MINUTES, function(data)
-			return AlienIndex.claimSet(data.index, grade, set.aliens)
+			return AlienIndex.claimSet(data.index, set)
 		end)
 		if not notice then
 			changed.fire(player)

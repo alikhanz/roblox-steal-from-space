@@ -47,9 +47,15 @@ export type BayService = {
 	refresh: (player: Player) -> (),
 	-- The bay's frame on the platform; nil until the player has one.
 	getOrigin: (player: Player) -> CFrame?,
-	-- Puts an egg into the incubator; it hatches after its rarity's random time. False without
-	-- an active profile.
-	addEgg: (player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number) -> boolean,
+	-- Puts an egg into the incubator; it hatches after its rarity's random time, into an alien of
+	-- `variant` (the usual one when nil). False without an active profile.
+	addEgg: (
+		player: Player,
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		grade: number,
+		variant: AlienConfig.VariantId?
+	) -> boolean,
 	-- Gives the player an alien: into a free pod, else onto the floor. Nil without an active profile.
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
 	-- Makes every egg in the incubator ready now (playtests; later the Robux instant hatch).
@@ -127,11 +133,10 @@ function BayService.new(dependencies: Dependencies): BayService
 			warn(`[BayService] Unknown egg {egg.rarity} {egg.size} (uid {egg.uid}); not shown`)
 			return
 		end
-		local part = EggModel.build(
-			egg.rarity :: EggConfig.RarityId,
-			egg.size :: EggConfig.SizeId,
-			BayLooks.INCUBATOR_GLOW_SCALE
-		)
+		local part = EggModel.build(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, {
+			glowScale = BayLooks.INCUBATOR_GLOW_SCALE,
+			variant = egg.variant :: AlienConfig.VariantId?,
+		})
 		part.Name = `Egg{egg.uid}`
 		part.Anchored = true
 		part.CFrame = cframe
@@ -271,14 +276,21 @@ function BayService.new(dependencies: Dependencies): BayService
 		bay.model:Destroy()
 	end
 
-	local function addEgg(player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number): boolean
+	local function addEgg(
+		player: Player,
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		grade: number,
+		variant: AlienConfig.VariantId?
+	): boolean
 		local rarityConfig = assert(EggConfig.RARITIES[rarity], `Unknown rarity {rarity}`)
 		assert(EggConfig.SIZES[size], `Unknown size {size}`)
 		assert(AlienConfig.GRADES[grade], `Unknown grade {grade}`)
+		assert(variant == nil or AlienConfig.VARIANTS[variant], `Unknown variant {variant}`)
 		local duration = Hatch.duration(rarityConfig.hatchSeconds, random:NextNumber())
 		local hatchAt = now() + duration
 		local added = dependencies.update(player, function(data)
-			Bay.addEgg(data, rarity, size, grade, hatchAt)
+			Bay.addEgg(data, rarity, size, grade, hatchAt, variant)
 		end)
 		if added then
 			refresh(player)
@@ -319,12 +331,13 @@ function BayService.new(dependencies: Dependencies): BayService
 		local rarity = EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId]
 		local size = EggConfig.SIZES[egg.size :: EggConfig.SizeId]
 		local grade = AlienConfig.GRADES[egg.grade]
-		if not rarity or not size or not grade then
+		local variant = grade and grade.variants[(egg.variant or "Normal") :: AlienConfig.VariantId]
+		if not rarity or not size or not variant then
 			warn(`[BayService] Egg {egg.uid} ({egg.rarity} {egg.size}, grade {egg.grade}) cannot hatch; dropped`)
 			return nil, nil
 		end
 		local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, rarity.luck + size.luck, random:NextNumber())
-		local alienId = grade.aliens[tier]
+		local alienId = variant[tier]
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end
 

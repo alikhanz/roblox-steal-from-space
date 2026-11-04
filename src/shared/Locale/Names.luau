@@ -11,8 +11,13 @@ local UpgradeConfig = require("../Config/UpgradeConfig")
 
 local Names = {}
 
--- The two halves of an alien's name: its tier and its guardian. Nil for an alien this build
--- does not know.
+-- `name` with the variant's word in front ("Meteor · Rare"); the usual variant adds nothing.
+local function withVariant(locale: Text.Locale, name: string, variantKey: any): string
+	return if variantKey then `{Text.get(locale, variantKey)} · {name}` else name
+end
+
+-- The two halves of an alien's name: its tier (with its variant) and its guardian. Nil for an
+-- alien this build does not know.
 function Names.alienParts(locale: Text.Locale, alienId: string): (string?, string?)
 	local alien = AlienConfig.ALIENS[alienId]
 	local post = alien and GuardianConfig.POSTS[alien.grade]
@@ -23,7 +28,8 @@ function Names.alienParts(locale: Text.Locale, alienId: string): (string?, strin
 	-- because the union of every string key is too much for the type checker here.
 	local tierKey: any = AlienConfig.TIERS[alien.tier].nameKey
 	local postKey: any = post.nameKey
-	return Text.get(locale, tierKey), Text.get(locale, postKey)
+	local tier = withVariant(locale, Text.get(locale, tierKey), AlienConfig.VARIANTS[alien.variant].nameKey)
+	return tier, Text.get(locale, postKey)
 end
 
 -- "<tier> · <guardian>", or nil for an unknown alien.
@@ -42,14 +48,15 @@ function Names.guardian(locale: Text.Locale, grade: number): string?
 	return Text.get(locale, key)
 end
 
--- Nil for an unknown rarity.
-function Names.egg(locale: Text.Locale, rarity: string): string?
+-- "Rare egg", "Meteor · Rare egg"; nil for an unknown rarity or variant.
+function Names.egg(locale: Text.Locale, rarity: string, variant: string?): string?
 	local config = EggConfig.RARITIES[rarity :: EggConfig.RarityId]
-	if not config then
+	local variantConfig = AlienConfig.VARIANTS[(variant or "Normal") :: AlienConfig.VariantId]
+	if not config or not variantConfig then
 		return nil
 	end
 	local key: any = config.nameKey
-	return Text.get(locale, key)
+	return withVariant(locale, Text.get(locale, key), variantConfig.eggNameKey)
 end
 
 -- The jetpack of `level` (0-based). Levels past the named ones are the last name "+n".

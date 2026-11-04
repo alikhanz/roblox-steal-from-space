@@ -2,6 +2,7 @@
 -- Cross-references between configs (CONVENTIONS, economy: checked automatically).
 
 local AlienConfig = require("../../src/shared/Config/AlienConfig")
+local AlienIndex = require("../../src/shared/Domain/AlienIndex")
 local BayConfig = require("../../src/shared/Config/BayConfig")
 local BigNum = require("../../src/shared/Domain/BigNum")
 local EggConfig = require("../../src/shared/Config/EggConfig")
@@ -33,6 +34,22 @@ describe("AlienConfig", function()
 				expect(alien).toBeTruthy()
 				expect(alien.grade).toBe(grade.index)
 				expect(alien.tier).toBe(tier)
+			end
+		end
+	end)
+
+	it("has a meteor alien for every usual one, earning twice as much", function()
+		expect(AlienConfig.GRADES[7].variants.Meteor.Rare).toBe("IceRings1.Rare.Meteor")
+		for _, grade in AlienConfig.GRADES do
+			expect(grade.variants.Normal).toBe(grade.aliens)
+			for _, tier in AlienConfig.TIER_ORDER do
+				local usual = AlienConfig.ALIENS[grade.variants.Normal[tier]]
+				local meteor = AlienConfig.ALIENS[grade.variants.Meteor[tier]]
+				expect(meteor.variant).toBe("Meteor")
+				expect(meteor.grade).toBe(usual.grade)
+				expect(meteor.tier).toBe(tier)
+				local factor = AlienConfig.VARIANTS.Meteor.incomeFactor
+				expect(BigNum.toNumber(meteor.income) / BigNum.toNumber(usual.income)).toBeCloseTo(factor)
 			end
 		end
 	end)
@@ -181,13 +198,17 @@ describe("BayConfig", function()
 end)
 
 describe("IndexConfig", function()
-	it("holds every alien of the registry in exactly one set, by grade", function()
+	it("holds every alien of the registry in exactly one set, by grade and variant", function()
 		local seen: { [string]: boolean } = {}
-		for grade, set in IndexConfig.SETS do
-			expect(set.grade).toBe(grade)
+		expect(#IndexConfig.SETS).toBe(#AlienConfig.GRADES * #AlienConfig.VARIANT_ORDER)
+		for _, set in IndexConfig.SETS do
+			expect(IndexConfig.SETS_BY_ID[set.id]).toBe(set)
+			expect(set.id).toBe(AlienIndex.setId(set.grade, set.variant))
 			expect(#set.aliens).toBe(#AlienConfig.TIER_ORDER)
 			for _, alienId in set.aliens do
-				expect(AlienConfig.ALIENS[alienId].grade).toBe(grade)
+				local alien = AlienConfig.ALIENS[alienId]
+				expect(alien.grade).toBe(set.grade)
+				expect(alien.variant).toBe(set.variant)
 				expect(seen[alienId]).toBeNil()
 				seen[alienId] = true
 			end
@@ -195,6 +216,11 @@ describe("IndexConfig", function()
 		for alienId in AlienConfig.ALIENS do
 			expect(seen[alienId]).toBe(true)
 		end
+	end)
+
+	it("keeps the usual sets named by their grade, as saved before variants", function()
+		expect(IndexConfig.SETS_BY_ID["3"].variant).toBe("Normal")
+		expect(IndexConfig.SETS_BY_ID["3.Meteor"].variant).toBe("Meteor")
 	end)
 
 	it("pays every tier", function()

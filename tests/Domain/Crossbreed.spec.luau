@@ -14,17 +14,41 @@ local TIERS: { Loot.Entry<string> } = {
 }
 
 describe("Crossbreed.check", function()
-	it("accepts the required number of aliens of one grade", function()
-		expect(Crossbreed.check({ 2, 2, 2 }, 3)).toBeNil()
+	local function usual(grade: number): Crossbreed.Parent
+		return { grade = grade, variant = "Normal" }
+	end
+	local function meteor(grade: number): Crossbreed.Parent
+		return { grade = grade, variant = "Meteor" }
+	end
+
+	it("accepts the required number of aliens of one grade and variant", function()
+		expect(Crossbreed.check({ usual(2), usual(2), usual(2) }, 3)).toBeNil()
+		expect(Crossbreed.check({ meteor(4), meteor(4), meteor(4) }, 3)).toBeNil()
 	end)
 
 	it("rejects the wrong count", function()
-		expect(Crossbreed.check({ 1, 1 }, 3)).toBe("WrongCount")
+		expect(Crossbreed.check({ usual(1), usual(1) }, 3)).toBe("WrongCount")
 		expect(Crossbreed.check({}, 3)).toBe("WrongCount")
 	end)
 
 	it("rejects mixed grades", function()
-		expect(Crossbreed.check({ 1, 1, 2 }, 3)).toBe("MixedGrades")
+		expect(Crossbreed.check({ usual(1), usual(1), usual(2) }, 3)).toBe("MixedGrades")
+	end)
+
+	it("rejects mixed variants of one grade", function()
+		expect(Crossbreed.check({ usual(3), meteor(3), usual(3) }, 3)).toBe("MixedVariants")
+	end)
+end)
+
+describe("Crossbreed.mismatch", function()
+	it("names the first difference, grade before variant", function()
+		expect(Crossbreed.mismatch({ grade = 1, variant = "Normal" }, { grade = 1, variant = "Normal" })).toBeNil()
+		expect(Crossbreed.mismatch({ grade = 1, variant = "Normal" }, { grade = 2, variant = "Meteor" })).toBe(
+			"MixedGrades"
+		)
+		expect(Crossbreed.mismatch({ grade = 2, variant = "Normal" }, { grade = 2, variant = "Meteor" })).toBe(
+			"MixedVariants"
+		)
 	end)
 end)
 

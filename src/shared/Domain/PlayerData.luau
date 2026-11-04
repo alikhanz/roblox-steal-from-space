@@ -25,6 +25,8 @@ export type EggRecord = {
 	size: string,
 	grade: number,
 	hatchAt: number,
+	-- The alien variant it hatches into (AlienConfig.VariantId); nil: the usual one.
+	variant: string?,
 }
 
 export type Pod = {
@@ -78,7 +80,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 9
+PlayerData.SCHEMA_VERSION = 10
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -124,6 +126,18 @@ PlayerData.MIGRATIONS = {
 		end
 		AlienIndex.seed(index, owned)
 		data.index = index
+	end,
+	-- v10: aliens come in variants (meteor ones), so index sets are named by id ("3",
+	-- "3.Meteor") instead of a bare grade; eggs may carry a variant (none before).
+	[9] = function(data: { [string]: any })
+		local index = data.index
+		if type(index) == "table" and type(index.sets) == "table" then
+			local ids = {}
+			for _, grade in index.sets do
+				table.insert(ids, if type(grade) == "number" then AlienIndex.setId(grade, "Normal") else grade)
+			end
+			index.sets = ids
+		end
 	end,
 } :: { [number]: Migrations.Step }
 
@@ -198,6 +212,9 @@ local function validateEgg(record: any, seen: Uids): string?
 	end
 	if not isFinite(record.hatchAt) then
 		return "egg hatch time is invalid"
+	end
+	if record.variant ~= nil and (type(record.variant) ~= "string" or record.variant == "") then
+		return "egg variant is invalid"
 	end
 	return validateUid(record, seen)
 end
@@ -280,8 +297,8 @@ local function validateIndex(index: any): string?
 		end
 	end
 	local count = 0
-	for key, grade in index.sets do
-		if not isInteger(key) or key < 1 or key > #index.sets or not isInteger(grade) or grade < 1 then
+	for key, setId in index.sets do
+		if not isInteger(key) or key < 1 or key > #index.sets or type(setId) ~= "string" or setId == "" then
 			return "index sets is invalid"
 		end
 		count += 1

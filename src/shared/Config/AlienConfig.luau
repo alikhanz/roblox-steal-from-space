@@ -10,6 +10,9 @@ local Strings = require("../Locale/Strings")
 local ZoneConfig = require("./ZoneConfig")
 
 export type TierId = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary"
+-- Every alien comes in each variant: the usual one from guardians' eggs, and the meteor one
+-- from the meteor shower's eggs, which earns more.
+export type VariantId = "Normal" | "Meteor"
 export type AlienId = string
 
 export type Tier = {
@@ -20,10 +23,20 @@ export type Tier = {
 	read hatchWeight: number,
 }
 
+export type Variant = {
+	-- Multiplies the income of the same grade and tier.
+	read incomeFactor: number,
+	-- Added in front of the tier in the alien's name, and in front of its egg's name (an egg is
+	-- grammatically neuter in Russian, hence its own word); nil for the usual aliens.
+	read nameKey: keyof<typeof(Strings)>?,
+	read eggNameKey: keyof<typeof(Strings)>?,
+}
+
 export type Alien = {
 	read id: AlienId,
 	read grade: number,
 	read tier: TierId,
+	read variant: VariantId,
 	-- Coins per second while in a pod.
 	read income: BigNum.BigNum,
 }
@@ -31,7 +44,9 @@ export type Alien = {
 export type Grade = {
 	read index: number,
 	read zone: ZoneConfig.ZoneId,
+	-- The usual aliens by tier (the same as variants.Normal).
 	read aliens: { [TierId]: AlienId },
+	read variants: { [VariantId]: { [TierId]: AlienId } },
 }
 
 -- From the lowest tier up. Hatch and Crossbreed rely on this order.
@@ -57,26 +72,55 @@ for position, tier in TIER_ORDER do
 	HATCH_ENTRIES[position] = table.freeze({ id = tier, weight = TIERS[tier].hatchWeight })
 end
 
+-- The usual variant first. Ids of the usual aliens carry no variant.
+local VARIANT_ORDER: { VariantId } = { "Normal", "Meteor" }
+
+local VARIANTS: { [VariantId]: Variant } = {
+	Normal = { incomeFactor = 1 },
+	-- About twice the usual alien of the same grade and tier (stage 7, meteor shower).
+	Meteor = {
+		incomeFactor = 2,
+		nameKey = "variant.meteor.title" :: keyof<typeof(Strings)>,
+		eggNameKey = "variant.meteorEgg.title" :: keyof<typeof(Strings)>,
+	},
+}
+
 -- One grade per guardian post, in post order (six per zone). Ids name the zone and the post's
--- number within it: "IceRings3.Rare".
+-- number within it, then the tier, then the variant unless it is the usual one:
+-- "IceRings3.Rare", "IceRings3.Rare.Meteor". Part of the save format: never renumber.
 local GRADES: { Grade } = {}
 local ALIENS: { [AlienId]: Alien } = {}
 for index = 1, ZoneConfig.POST_COUNT do
 	local zone, localIndex = ZoneConfig.zoneOfPost(index)
 	local baseIncome = BigNum.mul(INCOME_BASE, BigNum.pow(INCOME_GROWTH, index - 1))
-	local aliens: { [TierId]: AlienId } = {}
-	for _, tier in TIER_ORDER do
-		-- Part of the save format: never renumber.
-		local id = `{zone}{localIndex}.{tier}`
-		aliens[tier] = id
-		ALIENS[id] = table.freeze({
-			id = id,
-			grade = index,
-			tier = tier,
-			income = BigNum.mul(baseIncome, BigNum.fromNumber(TIERS[tier].incomeFactor)),
-		})
+	local variants: { [VariantId]: { [TierId]: AlienId } } = {}
+	for _, variant in VARIANT_ORDER do
+		local aliens: { [TierId]: AlienId } = {}
+		local suffix = if variant == "Normal" then "" else `.{variant}`
+		for _, tier in TIER_ORDER do
+			local id = `{zone}{localIndex}.{tier}{suffix}`
+			aliens[tier] = id
+			local factor = TIERS[tier].incomeFactor * VARIANTS[variant].incomeFactor
+			ALIENS[id] = table.freeze({
+				id = id,
+				grade = index,
+				tier = tier,
+				variant = variant,
+				income = BigNum.mul(baseIncome, BigNum.fromNumber(factor)),
+			})
+		end
+		variants[variant] = table.freeze(aliens)
 	end
-	GRADES[index] = table.freeze({ index = index, zone = zone, aliens = table.freeze(aliens) })
+	GRADES[index] = table.freeze({
+		index = index,
+		zone = zone,
+		aliens = variants.Normal,
+		variants = table.freeze(variants),
+	})
+end
+
+for _, variant in VARIANTS do
+	table.freeze(variant)
 end
 
 return table.freeze({
@@ -88,6 +132,8 @@ return table.freeze({
 	HATCH_ENTRIES = table.freeze(HATCH_ENTRIES),
 	INCOME_BASE = INCOME_BASE,
 	INCOME_GROWTH = INCOME_GROWTH,
+	VARIANT_ORDER = table.freeze(VARIANT_ORDER),
+	VARIANTS = table.freeze(VARIANTS),
 	GRADES = table.freeze(GRADES),
 	ALIENS = table.freeze(ALIENS),
 })

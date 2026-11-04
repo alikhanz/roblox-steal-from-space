@@ -166,15 +166,25 @@ function Bay.podPrice(
 	return BigNum.mul(base, BigNum.pow(growth, bought))
 end
 
--- Puts an egg in the incubator, hatching at `hatchAt` (server time). The one way eggs get there:
--- delivered, given by the login gift or a Studio command.
-function Bay.addEgg(data: Data, rarity: string, size: string, grade: number, hatchAt: number): PlayerData.EggRecord
+-- Puts an egg in the incubator, hatching at `hatchAt` (server time), into an alien of `variant`
+-- (nil or "Normal": the usual one). The one way eggs get there: delivered, given by the login
+-- gift or a Studio command.
+function Bay.addEgg(
+	data: Data,
+	rarity: string,
+	size: string,
+	grade: number,
+	hatchAt: number,
+	variant: string?
+): PlayerData.EggRecord
 	local egg: PlayerData.EggRecord = {
 		uid = Bay.newUid(data),
 		rarity = rarity,
 		size = size,
 		grade = grade,
 		hatchAt = hatchAt,
+		-- The usual variant is left out of the save.
+		variant = if variant == "Normal" then nil else variant,
 	}
 	table.insert(data.incubator, egg)
 	return egg

@@ -444,6 +444,10 @@ local Strings = {
 		ru = "Это разные стражи. Для скрещивания нужны 3 пришельца одного стража",
 		en = "Different guardians. Crossbreeding needs 3 aliens of one guardian",
 	},
+	["bay.crossbreedVariants.hint"] = {
+		ru = "Метеоритные скрещиваются только с метеоритными",
+		en = "Meteor aliens crossbreed only with meteor ones",
+	},
 	["notice.inventoryFull.toast"] = {
 		ru = "Инвентарь полный: продай или скрести",
 		en = "Inventory full: sell or crossbreed",
@@ -547,6 +551,30 @@ local Strings = {
 	["key.space.hint"] = {
 		ru = "Пробел",
 		en = "Space",
+	},
+	["event.meteor.title"] = {
+		ru = "Метеоритный дождь",
+		en = "Meteor shower",
+	},
+	["variant.meteor.title"] = {
+		ru = "Метеоритный",
+		en = "Meteor",
+	},
+	["variant.meteorEgg.title"] = {
+		ru = "Метеоритное",
+		en = "Meteor",
+	},
+	["index.normal.button"] = {
+		ru = "Обычные",
+		en = "Regular",
+	},
+	["index.meteor.button"] = {
+		ru = "Метеоритные",
+		en = "Meteor",
+	},
+	["notice.mixedVariants.toast"] = {
+		ru = "Скрещивай метеоритных только между собой",
+		en = "Crossbreed meteor aliens together",
 	},
 	["event.storm.title"] = {
 		ru = "Солнечная буря",

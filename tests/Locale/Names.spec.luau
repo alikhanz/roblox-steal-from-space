@@ -22,6 +22,13 @@ describe("Names.alien", function()
 		expect(Names.guardian("en", 24)).toBe("Space Whale")
 		expect(Names.guardian("en", 99)).toBeNil()
 	end)
+
+	it("puts the variant in front of a meteor alien's tier", function()
+		expect(Names.alien("ru", "DebrisBelt1.Rare.Meteor")).toBe(
+			"Метеоритный · Редкий · Слизень-сторож"
+		)
+		expect(Names.alien("en", "DebrisBelt1.Rare.Meteor")).toBe("Meteor · Rare · Slime Warden")
+	end)
 end)
 
 describe("Names.jetpack", function()
@@ -45,5 +52,11 @@ describe("Names.egg", function()
 		expect(Names.egg("ru", "Rare")).toBe("Редкое яйцо")
 		expect(Names.egg("en", "Common")).toBe("Common egg")
 		expect(Names.egg("en", "Mythic")).toBeNil()
+	end)
+
+	it("puts the variant in front of a meteor egg's name", function()
+		expect(Names.egg("ru", "Rare", "Meteor")).toBe("Метеоритное · Редкое яйцо")
+		expect(Names.egg("en", "Rare", "Meteor")).toBe("Meteor · Rare egg")
+		expect(Names.egg("en", "Rare", "Normal")).toBe("Rare egg")
 	end)
 end)

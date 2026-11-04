@@ -9,6 +9,7 @@
 --   game.ServerStorage.DevCommands.SetSpeed:Invoke(2500)
 --   game.ServerStorage.DevCommands.GiveAlien:Invoke(2, "Rare")
 --   game.ServerStorage.DevCommands.GiveEgg:Invoke("Uncommon", "Large", 1)
+--   game.ServerStorage.DevCommands.GiveEgg:Invoke("Rare", "Medium", 3, "Meteor")
 --   game.ServerStorage.DevCommands.HatchNow:Invoke()
 --   game.ServerStorage.DevCommands.DumpProfile:Invoke()
 --   game.ServerStorage.DevCommands.SimulateAway:Invoke(3600)
@@ -26,6 +27,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local CarryService = require(script.Parent.CarryService)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
@@ -44,16 +46,16 @@ local SPAWN_DISTANCE = 5
 local DUMMY_DISTANCE = 10
 
 export type Dependencies = {
-	spawnLooseEgg: (
-		rarity: EggConfig.RarityId,
-		size: EggConfig.SizeId,
-		nestId: string,
-		position: Vector3,
-		launch: Vector3?
-	) -> (),
+	spawnLooseEgg: (egg: CarryService.Egg, position: Vector3, launch: Vector3?, lifetime: number?) -> (),
 	setSpeed: (player: Player, speed: BigNum.BigNum) -> boolean,
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
-	addEgg: (player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number) -> boolean,
+	addEgg: (
+		player: Player,
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		grade: number,
+		variant: AlienConfig.VariantId?
+	) -> boolean,
 	hastenHatching: (player: Player) -> boolean,
 	settleOffline: (player: Player) -> (),
 	getData: (player: Player) -> PlayerData.PlayerData?,
@@ -98,21 +100,25 @@ function DevService.new(dependencies: Dependencies): DevService
 	local commands: { [string]: (...any) -> any } = {
 		-- Floats an egg in front of the first player; it returns to `nestId` (default: the first
 		-- nest of the Debris Belt) later.
-		SpawnEggNearPlayer = function(rarity: string?, size: string?, nestId: string?): string
+		SpawnEggNearPlayer = function(rarity: string?, size: string?, nestId: string?, variant: string?): string
 			local _, root = firstPlayerRoot()
 			if not root then
 				return "no character"
 			end
 			local chosenRarity = (rarity or "Common") :: EggConfig.RarityId
 			local chosenSize = (size or EggConfig.TYPICAL_SIZE) :: EggConfig.SizeId
+			local chosenVariant = (variant or "Normal") :: AlienConfig.VariantId
 			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)
 			assert(EggConfig.SIZES[chosenSize], `Unknown size {chosenSize}`)
-			dependencies.spawnLooseEgg(
-				chosenRarity,
-				chosenSize,
-				nestId or "DebrisBeltNest1",
-				root.Position + root.CFrame.LookVector * SPAWN_DISTANCE
-			)
+			assert(AlienConfig.VARIANTS[chosenVariant], `Unknown variant {chosenVariant}`)
+			-- Not from the nest: a test egg must not add an egg to the nest when it leaves play.
+			dependencies.spawnLooseEgg({
+				rarity = chosenRarity,
+				size = chosenSize,
+				nestId = nestId or "DebrisBeltNest1",
+				variant = chosenVariant,
+				fromNest = false,
+			}, root.Position + root.CFrame.LookVector * SPAWN_DISTANCE)
 			return "spawned"
 		end,
 		RefillOxygen = function(): string
@@ -179,13 +185,13 @@ function DevService.new(dependencies: Dependencies): DevService
 				egg.CFrame = body.CFrame * CFrame.new(0, -0.2, -1.2)
 			end)
 			dependencies.addDummy(model, body, function(direction)
-				dependencies.spawnLooseEgg(
-					chosenRarity,
-					EggConfig.TYPICAL_SIZE,
-					"DebrisBeltNest1",
-					egg.Position,
-					direction * EggConfig.DROP_SPEED
-				)
+				dependencies.spawnLooseEgg({
+					rarity = chosenRarity,
+					size = EggConfig.TYPICAL_SIZE,
+					nestId = "DebrisBeltNest1",
+					variant = "Normal",
+					fromNest = false,
+				}, egg.Position, direction * EggConfig.DROP_SPEED)
 				model:Destroy()
 				return true
 			end)
@@ -283,22 +289,27 @@ function DevService.new(dependencies: Dependencies): DevService
 			dependencies.refresh(player)
 			return `added {BigNum.format(BigNum.fromNumber(amount))} coins`
 		end,
-		-- Gives the first player an alien of `grade` (guardian post number) and `tier`.
-		GiveAlien = function(grade: number?, tier: string?): string
+		-- Gives the first player an alien of `grade` (guardian post number), `tier` and `variant`.
+		GiveAlien = function(grade: number?, tier: string?, variant: string?): string
 			local player = firstPlayerRoot()
 			if not player then
 				return "no player"
 			end
 			local gradeConfig = assert(AlienConfig.GRADES[grade or 1], `Unknown grade {grade}`)
-			local alienId = assert(gradeConfig.aliens[(tier or "Common") :: AlienConfig.TierId], `Unknown tier {tier}`)
+			local aliens = assert(
+				gradeConfig.variants[(variant or "Normal") :: AlienConfig.VariantId],
+				`Unknown variant {variant}`
+			)
+			local alienId = assert(aliens[(tier or "Common") :: AlienConfig.TierId], `Unknown tier {tier}`)
 			local location = dependencies.addAlien(player, alienId)
 			if location then
 				dependencies.discoverAlien(player, alienId)
 			end
 			return if location then `{alienId} -> {location}` else "profile not active yet"
 		end,
-		-- Puts an egg into the first player's incubator, as if delivered from guardian `grade`.
-		GiveEgg = function(rarity: string?, size: string?, grade: number?): string
+		-- Puts an egg into the first player's incubator, as if delivered from guardian `grade`
+		-- (a meteor egg with `variant` "Meteor").
+		GiveEgg = function(rarity: string?, size: string?, grade: number?, variant: string?): string
 			local player = firstPlayerRoot()
 			if not player then
 				return "no player"
@@ -307,7 +318,9 @@ function DevService.new(dependencies: Dependencies): DevService
 			local chosenSize = (size or EggConfig.TYPICAL_SIZE) :: EggConfig.SizeId
 			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)
 			assert(EggConfig.SIZES[chosenSize], `Unknown size {chosenSize}`)
-			local added = dependencies.addEgg(player, chosenRarity, chosenSize, grade or 1)
+			local chosenVariant = (variant or "Normal") :: AlienConfig.VariantId
+			assert(AlienConfig.VARIANTS[chosenVariant], `Unknown variant {chosenVariant}`)
+			local added = dependencies.addEgg(player, chosenRarity, chosenSize, grade or 1, chosenVariant)
 			return if added then "egg in the incubator" else "profile not active yet"
 		end,
 		-- Every egg in the first player's incubator hatches on the next tick.

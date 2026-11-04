@@ -130,6 +130,8 @@ return table.freeze({
 	CARRIED_EGG_TAG = "CarriedEgg",
 	LOOSE_EGG_RARITY_ATTRIBUTE = "Rarity",
 	LOOSE_EGG_SIZE_ATTRIBUTE = "Size",
+	-- On every egg part: the alien variant it hatches into (AlienConfig.VariantId).
+	EGG_VARIANT_ATTRIBUTE = "Variant",
 
 	-- Character attributes.
 	GRAB_PROGRESS_ATTRIBUTE = "GrabProgress",

@@ -31,7 +31,21 @@ local create = Vide.create
 local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
-local ALIEN_COUNT = #IndexConfig.SETS * #AlienConfig.TIER_ORDER
+
+-- The index sections, one per alien variant, with their tab texts.
+local SECTION_KEYS: { [AlienConfig.VariantId]: Text.Key } = {
+	Normal = "index.normal.button",
+	Meteor = "index.meteor.button",
+}
+
+-- Each section's sets, in IndexConfig.SETS order.
+local SECTION_SETS: { [string]: { AlienIndex.Set } } = {}
+for _, variant in AlienConfig.VARIANT_ORDER do
+	SECTION_SETS[variant] = {}
+end
+for _, set in IndexConfig.SETS do
+	table.insert(SECTION_SETS[set.variant], set)
+end
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
@@ -49,6 +63,7 @@ function IndexController.new(dependencies: Dependencies): IndexController
 	local profile = dependencies.profile
 	local toast = dependencies.toasts.push
 	local isOpen = source(false)
+	local section = source("Normal" :: AlienConfig.VariantId)
 	local locale: Text.Locale = "en"
 
 	local function text(key: Text.Key, args: Text.Args?): string
@@ -76,7 +91,7 @@ function IndexController.new(dependencies: Dependencies): IndexController
 	local function guardianRow(set: AlienIndex.Set): IndexWindow.Row
 		local index = profile.index()
 		local found = AlienIndex.foundOf(index, set.aliens)
-		local setState: IndexWindow.SetState = if AlienIndex.isSetClaimed(index, set.grade)
+		local setState: IndexWindow.SetState = if AlienIndex.isSetClaimed(index, set)
 			then "Done"
 			elseif found == #set.aliens then "Ready"
 			else "Collecting"
@@ -92,25 +107,25 @@ function IndexController.new(dependencies: Dependencies): IndexController
 		return {
 			kind = "Guardian",
 			title = Names.guardian(locale, set.grade) or "?",
-			grade = set.grade,
+			setId = set.id,
 			cells = cells,
 			setText = setText,
 			setState = setState,
 		}
 	end
 
-	-- Zone headers and guardian rows, from the station outwards.
+	-- The open section's zone headers and guardian rows, from the station outwards.
 	local function rows(): { IndexWindow.Row }
 		local result: { IndexWindow.Row } = {}
 		local zone: string? = nil
-		for _, set in IndexConfig.SETS do
+		for _, set in SECTION_SETS[section()] do
 			local grade = AlienConfig.GRADES[set.grade]
 			if grade.zone ~= zone then
 				zone = grade.zone
 				local header: IndexWindow.Row = {
 					kind = "Zone",
 					title = nameOf(ZoneConfig.ZONES[grade.zone].nameKey),
-					grade = 0,
+					setId = "",
 					cells = {},
 					setText = "",
 					setState = "Collecting",
@@ -126,12 +141,42 @@ function IndexController.new(dependencies: Dependencies): IndexController
 		return AlienIndex.waiting(profile.index(), IndexConfig.SETS)
 	end
 
+	local function waitingIn(variant: AlienConfig.VariantId): number
+		return AlienIndex.waiting(profile.index(), SECTION_SETS[variant])
+	end
+
+	-- Found aliens of the open section, and how many it has.
 	local function foundCount(): number
+		local index = profile.index()
 		local count = 0
-		for _ in profile.index().found do
-			count += 1
+		for _, set in SECTION_SETS[section()] do
+			count += AlienIndex.foundOf(index, set.aliens)
 		end
 		return count
+	end
+
+	local function sectionSize(): number
+		return #SECTION_SETS[section()] * #AlienConfig.TIER_ORDER
+	end
+
+	local function tabs(): { IndexWindow.Tab }
+		local result: { IndexWindow.Tab } = {}
+		for _, variant in AlienConfig.VARIANT_ORDER do
+			table.insert(result, {
+				name = `{variant}Tab`,
+				text = text(SECTION_KEYS[variant]),
+				active = function()
+					return section() == variant
+				end,
+				badge = function()
+					return waitingIn(variant)
+				end,
+				onClick = function()
+					section(variant)
+				end,
+			})
+		end
+		return result
 	end
 
 	-- New aliens in the index since the last update: cheer, once for a batch arriving together
@@ -191,17 +236,18 @@ function IndexController.new(dependencies: Dependencies): IndexController
 					title = text("index.window.title"),
 					hints = {
 						function()
-							return text("index.found.hint", { count = foundCount(), total = ALIEN_COUNT })
+							return text("index.found.hint", { count = foundCount(), total = sectionSize() })
 						end,
 						text("index.tap.hint"),
 					},
+					tabs = tabs(),
 					rows = rows,
 					setDone = text("index.setDone.hint"),
 					onClaimAlien = function(alienId)
 						Remotes.ClaimIndexAlien.Fire(alienId)
 					end,
-					onClaimSet = function(grade)
-						Remotes.ClaimIndexSet.Fire(grade)
+					onClaimSet = function(setId)
+						Remotes.ClaimIndexSet.Fire(setId)
 					end,
 					onClose = function()
 						isOpen(false)

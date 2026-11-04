@@ -1,9 +1,10 @@
 --!strict
 -- Builds the greybox space egg: an elongated sphere in its rarity's color, scaled by its size;
--- rarer eggs glow.
+-- rarer eggs glow, meteor eggs burn.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 
@@ -12,12 +13,19 @@ local EggModel = {}
 local GLOW_RANGE = 14
 local GLOW_BRIGHTNESS = 2
 
--- `glowScale` (default 1) scales the light of a glowing egg: a pile in an incubator keeps its
--- shine but not twelve full lights.
-function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, glowScale: number?): Part
+export type Options = {
+	-- Scales the light of a glowing egg (default 1): a pile in an incubator keeps its shine but
+	-- not twelve full lights.
+	glowScale: number?,
+	-- The alien variant it hatches into; a meteor egg burns (EggLooks.METEOR).
+	variant: AlienConfig.VariantId?,
+}
+
+function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, options: Options?): Part
 	local config = EggLooks.RARITIES[rarity]
 	local sizeConfig = EggConfig.SIZES[size]
-	local glow = config.glow * (glowScale or 1)
+	local glow = config.glow * (if options and options.glowScale then options.glowScale else 1)
+	local variant = if options and options.variant then options.variant else "Normal"
 	local glows = glow > 0
 
 	local egg = Instance.new("Part")
@@ -44,8 +52,18 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, glow
 		light.Parent = egg
 	end
 
+	if variant == "Meteor" then
+		local fire = Instance.new("Fire")
+		fire.Color = EggLooks.METEOR.fireColor
+		fire.SecondaryColor = EggLooks.METEOR.fireSecondaryColor
+		fire.Size = EggLooks.METEOR.fireSize * sizeConfig.scale
+		fire.Heat = EggLooks.METEOR.fireHeat
+		fire.Parent = egg
+	end
+
 	egg:SetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE, rarity)
 	egg:SetAttribute(EggConfig.LOOSE_EGG_SIZE_ATTRIBUTE, size)
+	egg:SetAttribute(EggConfig.EGG_VARIANT_ATTRIBUTE, variant)
 	return egg
 end
 

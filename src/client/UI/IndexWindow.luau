@@ -24,6 +24,8 @@ local CELL_SIZE = 64
 local CELL_TEXT_SIZE = 11
 local UNKNOWN_TEXT_SIZE = 26
 local HEADER_HEIGHT = 26
+-- Room above the tab buttons for their badges (the list clips what sticks out of a row).
+local TAB_BADGE_ROOM = 10
 local UNKNOWN_COLOR = Color3.fromRGB(28, 32, 48)
 
 export type CellState = "Unknown" | "New" | "Found"
@@ -39,24 +41,35 @@ export type Cell = {
 export type SetState = "Collecting" | "Ready" | "Done"
 
 export type Row = {
-	-- A zone header, or a guardian row (with grade and cells).
+	-- A zone header, or a guardian row (with its set and cells).
 	kind: "Zone" | "Guardian",
 	title: string,
-	grade: number,
+	setId: string,
 	cells: { Cell },
 	-- "3/5", or the claim button's text when the set is ready.
 	setText: string,
 	setState: SetState,
 }
 
+-- A section of the index (the usual aliens, the meteor ones), picked by a tab.
+export type Tab = {
+	name: string,
+	text: string,
+	active: () -> boolean,
+	-- How many rewards wait in this section.
+	badge: () -> number,
+	onClick: () -> (),
+}
+
 export type Props = {
 	visible: () -> boolean,
 	title: string,
 	hints: { string | () -> string },
+	tabs: { Tab },
 	rows: () -> { Row },
 	setDone: string,
 	onClaimAlien: (alienId: string) -> (),
-	onClaimSet: (grade: number) -> (),
+	onClaimSet: (setId: string) -> (),
 	onClose: () -> (),
 }
 
@@ -216,12 +229,44 @@ local function IndexWindow(props: Props): Frame
 					end,
 					color = Theme.COINS_DARK,
 					onClick = function()
-						props.onClaimSet(entry().grade)
+						props.onClaimSet(entry().setId)
 					end,
 				}),
 			}),
 		}) :: Frame
 	end
+
+	local tabButtons = {}
+	for order, tab in props.tabs do
+		table.insert(
+			tabButtons,
+			Button({
+				name = tab.name,
+				layoutOrder = order,
+				text = tab.text,
+				badge = tab.badge,
+				-- The open section stands out; the other one is dimmed until picked.
+				dimmed = function()
+					return not tab.active()
+				end,
+				onClick = tab.onClick,
+			})
+		)
+	end
+	local tabs = create("Frame")({
+		Name = "Tabs",
+		LayoutOrder = 0,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Horizontal,
+			Padding = UDim.new(0, GAP + TAB_BADGE_ROOM),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		Layout.padding(0, TAB_BADGE_ROOM),
+		tabButtons,
+	})
 
 	return Window({
 		name = "IndexWindow",
@@ -230,7 +275,7 @@ local function IndexWindow(props: Props): Frame
 		hints = props.hints,
 		maxSize = MAX_SIZE,
 		onClose = props.onClose,
-		rows = indexes(props.rows, row),
+		rows = { tabs, indexes(props.rows, row) },
 	})
 end
 

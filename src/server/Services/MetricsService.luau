@@ -57,7 +57,6 @@ export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
 	getSpeed: (player: Player) -> BigNum.BigNum,
-	getNestGrade: (nestId: string) -> number?,
 	scheduler: Scheduler.Scheduler,
 	-- The facts reported.
 	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>,
@@ -337,16 +336,16 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 			reach(player, "GrabbedEgg")
 			local session = HttpService:GenerateGUID(false)
 			thefts[player] = session
-			sendTheftStep(player, session, "Grabbed", { source, zoneOfGrade(dependencies.getNestGrade(egg.nestId)) })
+			sendTheftStep(player, session, "Grabbed", { source, zoneOfGrade(egg.grade), egg.variant })
 		end)
 		dependencies.eggReachedStation.connect(function(player, egg)
 			local session = thefts[player]
 			if session then
-				sendTheftStep(player, session, "ReachedStation", { zoneOfGrade(dependencies.getNestGrade(egg.nestId)) })
+				sendTheftStep(player, session, "ReachedStation", { zoneOfGrade(egg.grade) })
 			end
 		end)
 		dependencies.eggDelivered.connect(function(player, egg)
-			local grade = dependencies.getNestGrade(egg.nestId)
+			local grade = egg.grade
 			local session = thefts[player]
 			thefts[player] = nil
 			if session then
@@ -362,7 +361,7 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 		end)
 		dependencies.eggLost.connect(function(player, egg, reason)
 			thefts[player] = nil
-			local grade = dependencies.getNestGrade(egg.nestId)
+			local grade = egg.grade
 			count(player, "EggLost", { reason, zoneOfGrade(grade) })
 			if reason == "Guardian" then
 				count(player, "GuardianCatch", { `Post - {grade or 0}` })

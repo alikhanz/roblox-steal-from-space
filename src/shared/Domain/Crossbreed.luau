@@ -1,22 +1,40 @@
 --!strict
--- Crossbreeding: several aliens of one grade become one alien of that grade, never below the
--- lowest tier put in, with the odds tilted toward the top.
+-- Crossbreeding: several aliens of one grade and variant become one alien of that grade and
+-- variant, never below the lowest tier put in, with the odds tilted toward the top.
 
 local Hatch = require("./Hatch")
 local Loot = require("./Loot")
 
-export type Problem = "WrongCount" | "MixedGrades"
+export type Problem = "WrongCount" | "MixedGrades" | "MixedVariants"
+
+-- What decides whether aliens go together: an alien of the registry fits.
+export type Parent = {
+	read grade: number,
+	read variant: string,
+}
 
 local Crossbreed = {}
 
+-- Why these two aliens cannot be crossbred together, or nil when they can.
+function Crossbreed.mismatch(a: Parent, b: Parent): Problem?
+	if a.grade ~= b.grade then
+		return "MixedGrades"
+	end
+	if a.variant ~= b.variant then
+		return "MixedVariants"
+	end
+	return nil
+end
+
 -- Why these aliens cannot be crossbred, or nil when they can.
-function Crossbreed.check(grades: { number }, required: number): Problem?
-	if #grades ~= required then
+function Crossbreed.check(parents: { Parent }, required: number): Problem?
+	if #parents ~= required then
 		return "WrongCount"
 	end
-	for _, grade in grades do
-		if grade ~= grades[1] then
-			return "MixedGrades"
+	for _, parent in parents do
+		local problem = Crossbreed.mismatch(parents[1], parent)
+		if problem then
+			return problem
 		end
 	end
 	return nil

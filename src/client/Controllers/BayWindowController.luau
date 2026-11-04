@@ -17,6 +17,7 @@ local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayWindow = require(script.Parent.Parent.UI.BayWindow)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Button = require(script.Parent.Parent.UI.Button)
+local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local Layout = require(script.Parent.Parent.UI.Layout)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
@@ -46,6 +47,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	NoSuchPod = "notice.unknownAlien.toast",
 	WrongCount = "notice.wrongAliens.toast",
 	MixedGrades = "notice.wrongAliens.toast",
+	MixedVariants = "notice.mixedVariants.toast",
 	TooFast = "notice.tooFast.toast",
 	NotReady = "pvp.notReady.toast",
 	AttackerInStation = "pvp.inStation.toast",
@@ -176,33 +178,27 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		pendingSale(nil)
 	end
 
-	local function canCrossbreed(): boolean
-		local records = selectedRecords()
-		if #records ~= BayConfig.CROSSBREED_COUNT then
-			return false
-		end
-		local grade: number? = nil
-		for _, entry in records do
-			local alien = AlienConfig.ALIENS[entry.record.id]
-			if not alien or (grade and alien.grade ~= grade) then
-				return false
-			end
-			grade = alien.grade
-		end
-		return true
-	end
-
-	-- The grade every selected alien shares, or nil when none is selected or they differ.
-	local function selectedGrade(): number?
-		local grade: number? = nil
+	-- The first selected alien when every selected one goes with it (the same grade and variant,
+	-- the server's rule in Domain/Crossbreed); otherwise nil and why they do not.
+	local function selectedLine(): (AlienConfig.Alien?, Crossbreed.Problem?)
+		local first: AlienConfig.Alien? = nil
 		for _, entry in selectedRecords() do
 			local alien = AlienConfig.ALIENS[entry.record.id]
-			if not alien or (grade and alien.grade ~= grade) then
-				return nil
+			if not alien then
+				return nil, "MixedGrades"
 			end
-			grade = alien.grade
+			local problem = if first then Crossbreed.mismatch(first, alien) else nil
+			if problem then
+				return nil, problem
+			end
+			first = first or alien
 		end
-		return grade
+		return first, nil
+	end
+
+	local function canCrossbreed(): boolean
+		local line = selectedLine()
+		return line ~= nil and #selectedRecords() == BayConfig.CROSSBREED_COUNT
 	end
 
 	-- The line above the buttons: what is selected and what can happen to it.
@@ -219,12 +215,14 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		elseif canCrossbreed() then
 			return text("bay.crossbreedReady.hint")
 		end
-		local grade = selectedGrade()
-		if not grade then
+		local line, problem = selectedLine()
+		if problem == "MixedVariants" then
+			return text("bay.crossbreedVariants.hint")
+		elseif not line then
 			return text("bay.crossbreedMixed.hint")
 		end
 		return text("bay.crossbreedSame.hint", {
-			guardian = Names.guardian(locale, grade) or "?",
+			guardian = Names.guardian(locale, line.grade) or "?",
 			count = #records,
 			left = BayConfig.CROSSBREED_COUNT - #records,
 		})
@@ -383,12 +381,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
 					end,
-					-- Once a guardian is picked, aliens of other guardians fade: they cannot
-					-- join the crossbreed (they can still be tapped for a move or a sale).
+					-- Once a guardian is picked, aliens of other guardians or variants fade: they
+					-- cannot join the crossbreed (they can still be tapped for a move or a sale).
 					isDimmed = function(alienId)
-						local grade = selectedGrade()
+						local line = selectedLine()
 						local alien = AlienConfig.ALIENS[alienId]
-						return grade ~= nil and alien ~= nil and alien.grade ~= grade
+						return line ~= nil and alien ~= nil and Crossbreed.mismatch(line, alien) ~= nil
 					end,
 					onToggle = toggle,
 					canCrossbreed = canCrossbreed,

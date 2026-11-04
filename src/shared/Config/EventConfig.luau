@@ -7,7 +7,7 @@ local EventClock = require("../Domain/EventClock")
 -- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
 local Strings = require("../Locale/Strings")
 
-export type EventId = "Storm"
+export type EventId = "Storm" | "Meteor"
 
 export type Event = {
 	read id: EventId,
@@ -30,6 +30,15 @@ local EVENTS: { [EventId]: Event } = {
 		scheduled = true,
 		alwaysShowTimer = true,
 	},
+	-- 15-25 minutes apart, a 30-second warning, then 2 minutes of meteor eggs falling at one
+	-- guardian's post (MeteorConfig, MeteorService).
+	Meteor = {
+		id = "Meteor",
+		nameKey = "event.meteor.title",
+		schedule = { gapMin = 15 * 60, gapMax = 25 * 60, warningSeconds = 30, activeSeconds = 2 * 60 },
+		scheduled = true,
+		alwaysShowTimer = false,
+	},
 }
 
 for _, event in EVENTS do
@@ -40,7 +49,7 @@ end
 return table.freeze({
 	EVENTS = table.freeze(EVENTS),
 	-- Banner order, top first.
-	ORDER = table.freeze({ "Storm" } :: { EventId }),
+	ORDER = table.freeze({ "Storm", "Meteor" } :: { EventId }),
 	-- The events' state for clients: a folder in ReplicatedStorage with one child per event,
 	-- holding these attributes.
 	FOLDER_NAME = "Events",

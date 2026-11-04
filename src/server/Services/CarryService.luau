@@ -1,7 +1,10 @@
 --!strict
--- Owns eggs once they leave a nest: confirms grabs requested by the simulation, holds the egg
--- in the thief's arms, hands it to the bay at the station, drops the egg when its carrier is
--- caught or dies, and returns floating eggs to their nests after a while.
+-- Owns eggs out of their nests: confirms grabs requested by the simulation, holds the egg in the
+-- thief's arms, hands it to the bay at the station, drops the egg when its carrier is caught or
+-- dies, and puts floating eggs out of play after a while. Every egg belongs to a nest: the one it
+-- was taken from, or, for a meteor egg, the one it fell next to. That nest's guardian guards it
+-- and its grade is the egg's. An egg from a nest goes back there when it leaves play; a meteor egg
+-- is simply gone.
 -- Runs after each simulation step (PostSimulation): it creates and destroys instances.
 
 local CollectionService = game:GetService("CollectionService")
@@ -9,6 +12,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
@@ -26,6 +30,19 @@ local LOOSE_FOLDER_NAME = "LooseEggs"
 -- Carried egg position in front of the chest, relative to the UpperTorso.
 local CARRY_OFFSET = CFrame.new(0, -0.2, -1.4)
 
+-- An egg out of its nest, carried or floating loose.
+export type Egg = {
+	rarity: EggConfig.RarityId,
+	size: EggConfig.SizeId,
+	-- The nest it belongs to: its guardian guards the egg, and its grade is the egg's.
+	nestId: string,
+	-- The alien variant it hatches into.
+	variant: AlienConfig.VariantId,
+	-- Taken from that nest: back there when it leaves play. False for a meteor egg, which only
+	-- fell next to the nest and is gone when it leaves play.
+	fromNest: boolean,
+}
+
 export type Dependencies = {
 	takeNestEgg: (nestId: string) -> (EggConfig.RarityId?, EggConfig.SizeId?),
 	returnNestEgg: (nestId: string, rarity: EggConfig.RarityId, size: EggConfig.SizeId) -> (),
@@ -35,14 +52,17 @@ export type Dependencies = {
 	getNestGrade: (nestId: string) -> number?,
 	-- Takes a delivered egg into the player's bay. False when the bay cannot take it yet (no
 	-- active profile): the egg then stays in the thief's arms.
-	deliverEgg: (player: Player, rarity: EggConfig.RarityId, size: EggConfig.SizeId, grade: number) -> boolean,
+	deliverEgg: (
+		player: Player,
+		rarity: EggConfig.RarityId,
+		size: EggConfig.SizeId,
+		grade: number,
+		variant: AlienConfig.VariantId?
+	) -> boolean,
 }
 
-export type Carried = {
-	rarity: EggConfig.RarityId,
-	size: EggConfig.SizeId,
-	nestId: string,
-}
+-- An egg as the other services see it: with its grade (nil if its nest has none).
+export type Carried = Egg & { grade: number? }
 
 -- Why a carried egg left the thief's hands without being delivered.
 export type LossReason = "Guardian" | "Pvp" | "Death" | "Left" | "Storm"
@@ -55,23 +75,20 @@ export type CarryService = {
 	-- Knocks the carried egg loose, flying off at `launch` if given; `reason` says who did it
 	-- (a death when not given). Returns true if dropped.
 	dropEgg: (player: Player, launch: Vector3?, reason: LossReason?) -> boolean,
-	-- Sends the carried egg straight back to its nest (no loose egg). Returns true if there was one.
+	-- Takes the carried egg out of play at once (no loose egg). Returns true if there was one.
 	returnEgg: (player: Player, reason: LossReason) -> boolean,
 	-- What the player carries, or nil when not carrying.
 	getCarried: (player: Player) -> Carried?,
-	-- Who carries the egg of `nestId` right now, or nil.
+	-- Who carries an egg of `nestId` right now, or nil.
 	findCarrier: (nestId: string) -> Player?,
-	-- Where the eggs of `nestId` lie knocked out (usually one; empty while the egg is in the
-	-- nest or carried).
+	-- Where eggs of `nestId` lie loose (knocked out, or meteor eggs fallen next to the nest).
 	findLooseEggs: (nestId: string) -> { Vector3 },
-	-- Puts a floating egg at `position` that returns to `nestId` when it expires.
-	spawnLooseEgg: (
-		rarity: EggConfig.RarityId,
-		size: EggConfig.SizeId,
-		nestId: string,
-		position: Vector3,
-		launch: Vector3?
-	) -> (),
+	-- Puts a floating egg at `position` (drifting off at `launch`), out of play after `lifetime`
+	-- seconds (EggConfig.LOOSE_SECONDS by default).
+	spawnLooseEgg: (egg: Egg, position: Vector3, launch: Vector3?, lifetime: number?) -> (),
+	-- Takes every loose egg of `variant` that is not from a nest out of play (the end of a
+	-- meteor shower).
+	clearLooseEggs: (variant: AlienConfig.VariantId) -> (),
 	-- The egg's journey, for analytics: taken, carried inside the station border (safe from
 	-- guardians), delivered to the bay, or lost on the way.
 	grabbed: Signal.Signal<Player, Carried, GrabSource>,
@@ -81,18 +98,14 @@ export type CarryService = {
 }
 
 type CarriedEntry = {
-	rarity: EggConfig.RarityId,
-	size: EggConfig.SizeId,
-	nestId: string,
+	egg: Egg,
 	model: Part,
 	-- Already carried inside the station border once (reachedStation fired).
 	reachedStation: boolean,
 }
 
 type LooseEgg = {
-	rarity: EggConfig.RarityId,
-	size: EggConfig.SizeId,
-	nestId: string,
+	egg: Egg,
 	part: Part,
 	expiresAt: number,
 	-- Drift left from the knock-out; the egg coasts to a stop and tumbles meanwhile.
@@ -114,8 +127,22 @@ function CarryService.new(dependencies: Dependencies): CarryService
 	local delivered = Signal.new() :: Signal.Signal<Player, Carried>
 	local lost = Signal.new() :: Signal.Signal<Player, Carried, LossReason>
 
-	local function publicOf(entry: CarriedEntry): Carried
-		return { rarity = entry.rarity, size = entry.size, nestId = entry.nestId }
+	local function publicOf(egg: Egg): Carried
+		return {
+			rarity = egg.rarity,
+			size = egg.size,
+			nestId = egg.nestId,
+			variant = egg.variant,
+			fromNest = egg.fromNest,
+			grade = dependencies.getNestGrade(egg.nestId),
+		}
+	end
+
+	-- The egg leaves play: back to its nest if it came from one; a meteor egg is just gone.
+	local function leavePlay(egg: Egg)
+		if egg.fromNest then
+			dependencies.returnNestEgg(egg.nestId, egg.rarity, egg.size)
+		end
 	end
 
 	local function clearGrab(character: Model)
@@ -123,34 +150,28 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		character:SetAttribute(EggConfig.GRAB_TARGET_ATTRIBUTE, nil)
 	end
 
-	local function giveEgg(
-		player: Player,
-		character: Model,
-		rarity: EggConfig.RarityId,
-		size: EggConfig.SizeId,
-		nestId: string
-	)
+	local function giveEgg(player: Player, character: Model, egg: Egg)
 		local torso = character:FindFirstChild("UpperTorso")
 		if not torso or not torso:IsA("BasePart") then
-			dependencies.returnNestEgg(nestId, rarity, size)
+			leavePlay(egg)
 			return
 		end
-		local egg = EggModel.build(rarity, size)
-		egg.Name = "CarriedEgg"
-		CollectionService:AddTag(egg, EggConfig.CARRIED_EGG_TAG)
-		egg.CFrame = torso.CFrame * CARRY_OFFSET
+		local model = EggModel.build(egg.rarity, egg.size, { variant = egg.variant })
+		model.Name = "CarriedEgg"
+		CollectionService:AddTag(model, EggConfig.CARRIED_EGG_TAG)
+		model.CFrame = torso.CFrame * CARRY_OFFSET
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = torso
-		weld.Part1 = egg
-		weld.Parent = egg
-		egg.Parent = character
+		weld.Part1 = model
+		weld.Parent = model
+		model.Parent = character
 
-		carried[player] = { rarity = rarity, size = size, nestId = nestId, model = egg, reachedStation = false }
-		character:SetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE, rarity)
-		character:SetAttribute(EggConfig.CARRIED_SIZE_ATTRIBUTE, size)
+		carried[player] = { egg = egg, model = model, reachedStation = false }
+		character:SetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE, egg.rarity)
+		character:SetAttribute(EggConfig.CARRIED_SIZE_ATTRIBUTE, egg.size)
 	end
 
-	local function releaseCarried(player: Player): CarriedEntry?
+	local function releaseCarried(player: Player): Egg?
 		local entry = carried[player]
 		if not entry then
 			return nil
@@ -162,23 +183,17 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			character:SetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE, nil)
 			character:SetAttribute(EggConfig.CARRIED_SIZE_ATTRIBUTE, nil)
 		end
-		return entry
+		return entry.egg
 	end
 
-	local function spawnLoose(
-		rarity: EggConfig.RarityId,
-		size: EggConfig.SizeId,
-		nestId: string,
-		position: Vector3,
-		launch: Vector3?
-	)
+	local function spawnLoose(egg: Egg, position: Vector3, launch: Vector3?, lifetime: number?)
 		local folder = looseFolder
 		if not folder then
-			dependencies.returnNestEgg(nestId, rarity, size)
+			leavePlay(egg)
 			return
 		end
 		looseCounter += 1
-		local part = EggModel.build(rarity, size)
+		local part = EggModel.build(egg.rarity, egg.size, { variant = egg.variant })
 		part.Name = `LooseEgg{looseCounter}`
 		part.Anchored = true
 		-- An egg knocked loose inside the dome pops out through it.
@@ -186,57 +201,65 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		part.Parent = folder
 		CollectionService:AddTag(part, EggConfig.LOOSE_EGG_TAG)
 		loose[part.Name] = {
-			rarity = rarity,
-			size = size,
-			nestId = nestId,
+			egg = egg,
 			part = part,
-			expiresAt = os.clock() + EggConfig.LOOSE_SECONDS,
+			expiresAt = os.clock() + (lifetime or EggConfig.LOOSE_SECONDS),
 			velocity = launch or Vector3.zero,
 		}
 	end
 
 	local function dropEgg(player: Player, launch: Vector3?, reason: LossReason?): boolean
-		local entry = releaseCarried(player)
-		if not entry then
+		local egg = releaseCarried(player)
+		if not egg then
 			return false
 		end
-		lost.fire(player, publicOf(entry), reason or "Death")
+		lost.fire(player, publicOf(egg), reason or "Death")
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not root or not root:IsA("BasePart") then
-			dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
+			leavePlay(egg)
 			return true
 		end
-		spawnLoose(entry.rarity, entry.size, entry.nestId, root.Position, launch)
+		spawnLoose(egg, root.Position, launch)
 		return true
 	end
 
 	local function returnEgg(player: Player, reason: LossReason): boolean
-		local entry = releaseCarried(player)
-		if not entry then
+		local egg = releaseCarried(player)
+		if not egg then
 			return false
 		end
-		lost.fire(player, publicOf(entry), reason)
-		dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
+		lost.fire(player, publicOf(egg), reason)
+		leavePlay(egg)
 		return true
+	end
+
+	local function clearLooseEggs(variant: AlienConfig.VariantId)
+		for id, entry in loose do
+			if entry.egg.variant == variant and not entry.egg.fromNest then
+				loose[id] = nil
+				entry.part:Destroy()
+			end
+		end
 	end
 
 	-- Knocked-out eggs coast and tumble until they stop; they are anchored, so this moves them.
 	-- The dome turns them aside: an egg drifting at the station slides along it, outside.
 	local function driftLooseEggs(deltaTime: number)
-		for _, egg in loose do
-			if egg.velocity.Magnitude < DRIFT_REST_SPEED then
+		for _, entry in loose do
+			if entry.velocity.Magnitude < DRIFT_REST_SPEED then
 				continue
 			end
-			egg.velocity = Bounds.keepOutside(egg.part.Position, egg.velocity, DOME_CENTER, EGG_DOME_RADIUS)
+			local part = entry.part
+			entry.velocity = Bounds.keepOutside(part.Position, entry.velocity, DOME_CENTER, EGG_DOME_RADIUS)
 			local spin = EggConfig.DROP_SPIN_RATE * deltaTime
-			local moved = egg.part.Position + egg.velocity * deltaTime
-			egg.part.CFrame = CFrame.new(Bounds.pushOutside(moved, DOME_CENTER, EGG_DOME_RADIUS))
-				* egg.part.CFrame.Rotation
+			local moved = part.Position + entry.velocity * deltaTime
+			part.CFrame = CFrame.new(Bounds.pushOutside(moved, DOME_CENTER, EGG_DOME_RADIUS))
+				* part.CFrame.Rotation
 				* CFrame.Angles(spin, spin * 0.6, 0)
-			egg.velocity *= EggConfig.DROP_RETENTION_PER_SECOND ^ deltaTime
-			if egg.velocity.Magnitude < DRIFT_REST_SPEED then
-				egg.velocity = Vector3.zero
+			entry.velocity *= EggConfig.DROP_RETENTION_PER_SECOND ^ deltaTime
+			if entry.velocity.Magnitude < DRIFT_REST_SPEED then
+				entry.velocity = Vector3.zero
 			end
 		end
 	end
@@ -258,10 +281,10 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			if (looseEgg.part.Position - root.Position).Magnitude <= EggConfig.GRAB_REACH + REACH_TOLERANCE then
 				loose[targetId] = nil
 				looseEgg.part:Destroy()
-				giveEgg(player, character, looseEgg.rarity, looseEgg.size, looseEgg.nestId)
+				giveEgg(player, character, looseEgg.egg)
 				local entry = carried[player]
 				if entry then
-					grabbed.fire(player, publicOf(entry), "Loose")
+					grabbed.fire(player, publicOf(entry.egg), "Loose")
 				end
 			end
 			return
@@ -273,10 +296,16 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 		local rarity, size = dependencies.takeNestEgg(targetId)
 		if rarity and size then
-			giveEgg(player, character, rarity, size, targetId)
+			giveEgg(player, character, {
+				rarity = rarity,
+				size = size,
+				nestId = targetId,
+				variant = "Normal",
+				fromNest = true,
+			})
 			local entry = carried[player]
 			if entry then
-				grabbed.fire(player, publicOf(entry), "Nest")
+				grabbed.fire(player, publicOf(entry.egg), "Nest")
 			end
 		end
 	end
@@ -286,17 +315,20 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		if not entry then
 			return
 		end
-		local grade = dependencies.getNestGrade(entry.nestId)
+		local egg = entry.egg
+		local grade = dependencies.getNestGrade(egg.nestId)
 		if not grade then
-			warn(`[CarryService] {entry.nestId} has no grade; egg returned`)
+			warn(`[CarryService] {egg.nestId} has no grade; egg out of play`)
 			releaseCarried(player)
-			dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
+			leavePlay(egg)
 			return
 		end
-		if dependencies.deliverEgg(player, entry.rarity, entry.size, grade) then
+		if dependencies.deliverEgg(player, egg.rarity, egg.size, grade, egg.variant) then
 			releaseCarried(player)
-			dependencies.nestEggDelivered(entry.nestId)
-			delivered.fire(player, publicOf(entry))
+			if egg.fromNest then
+				dependencies.nestEggDelivered(egg.nestId)
+			end
+			delivered.fire(player, publicOf(egg))
 		end
 	end
 
@@ -313,7 +345,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			local insideBorder = (root.Position - DOME_CENTER).Magnitude <= StationConfig.BORDER_RADIUS
 			if entry and not entry.reachedStation and insideBorder then
 				entry.reachedStation = true
-				reachedStation.fire(player, publicOf(entry))
+				reachedStation.fire(player, publicOf(entry.egg))
 			end
 			-- Back on the station platform with an egg: delivered.
 			if carried[player] and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == false then
@@ -322,11 +354,11 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 
 		local now = os.clock()
-		for id, egg in loose do
-			if now >= egg.expiresAt then
+		for id, entry in loose do
+			if now >= entry.expiresAt then
 				loose[id] = nil
-				egg.part:Destroy()
-				dependencies.returnNestEgg(egg.nestId, egg.rarity, egg.size)
+				entry.part:Destroy()
+				leavePlay(entry.egg)
 			end
 		end
 	end
@@ -362,10 +394,10 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 		Players.PlayerAdded:Connect(watchPlayer)
 		Players.PlayerRemoving:Connect(function(player)
-			local entry = releaseCarried(player)
-			if entry then
-				lost.fire(player, publicOf(entry), "Left")
-				dependencies.returnNestEgg(entry.nestId, entry.rarity, entry.size)
+			local egg = releaseCarried(player)
+			if egg then
+				lost.fire(player, publicOf(egg), "Left")
+				leavePlay(egg)
 			end
 		end)
 		RunService.PostSimulation:Connect(postSimulation)
@@ -378,11 +410,11 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		returnEgg = returnEgg,
 		getCarried = function(player: Player): Carried?
 			local entry = carried[player]
-			return if entry then publicOf(entry) else nil
+			return if entry then publicOf(entry.egg) else nil
 		end,
 		findCarrier = function(nestId: string): Player?
 			for player, entry in carried do
-				if entry.nestId == nestId then
+				if entry.egg.nestId == nestId then
 					return player
 				end
 			end
@@ -390,14 +422,15 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end,
 		findLooseEggs = function(nestId: string): { Vector3 }
 			local positions = {}
-			for _, egg in loose do
-				if egg.nestId == nestId then
-					table.insert(positions, egg.part.Position)
+			for _, entry in loose do
+				if entry.egg.nestId == nestId then
+					table.insert(positions, entry.part.Position)
 				end
 			end
 			return positions
 		end,
 		spawnLooseEgg = spawnLoose,
+		clearLooseEggs = clearLooseEggs,
 		grabbed = grabbed,
 		reachedStation = reachedStation,
 		delivered = delivered,

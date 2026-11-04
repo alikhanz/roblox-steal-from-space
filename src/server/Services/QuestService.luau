@@ -37,7 +37,6 @@ export type Dependencies = {
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
 	scheduler: Scheduler.Scheduler,
 	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
-	getNestGrade: (nestId: string) -> number?,
 	-- Re-publishes the speed stat after a reward added speed points.
 	publishSpeed: (player: Player) -> (),
 	-- What the player did, from the other services.
@@ -265,7 +264,7 @@ function QuestService.new(dependencies: Dependencies): QuestService
 		dependencies.scheduler.every(SEND_INTERVAL_SECONDS, sendUnsent)
 
 		dependencies.eggDelivered.connect(function(player, egg)
-			local grade = dependencies.getNestGrade(egg.nestId)
+			local grade = egg.grade
 			local known = grade ~= nil and grade >= 1 and grade <= ZoneConfig.POST_COUNT
 			local zone = if known then (ZoneConfig.zoneOfPost(grade :: number)) else ""
 			advance(player, { kind = "Delivered", zone = zone })

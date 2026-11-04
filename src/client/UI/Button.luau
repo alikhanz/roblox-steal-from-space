@@ -28,6 +28,8 @@ export type Props = {
 	layoutOrder: number?,
 	-- Something waits behind the button: a red bubble with this count, hidden at 0.
 	badge: (() -> number)?,
+	-- Looks faded but still works (an unpicked tab); a disabled button does not work.
+	dimmed: (() -> boolean)?,
 }
 
 local function Badge(count: () -> number): Frame
@@ -65,21 +67,21 @@ local function Button(props: Props): TextButton
 	local function isEnabled(): boolean
 		return if props.enabled then props.enabled() else true
 	end
+	local function transparency(): number
+		local faded = not isEnabled() or (props.dimmed ~= nil and props.dimmed())
+		return if faded then DISABLED_TRANSPARENCY else 0
+	end
 	return create("TextButton")({
 		Name = props.name,
 		LayoutOrder = props.layoutOrder or 0,
 		Size = UDim2.fromOffset(0, HEIGHT),
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundColor3 = props.color or Theme.ACCENT,
-		BackgroundTransparency = function()
-			return if isEnabled() then 0 else DISABLED_TRANSPARENCY
-		end,
+		BackgroundTransparency = transparency,
 		FontFace = Theme.FONT,
 		TextSize = Theme.TEXT_SIZE,
 		TextColor3 = Theme.TEXT,
-		TextTransparency = function()
-			return if isEnabled() then 0 else DISABLED_TRANSPARENCY
-		end,
+		TextTransparency = transparency,
 		Text = props.text,
 		AutoButtonColor = isEnabled,
 		Activated = function()

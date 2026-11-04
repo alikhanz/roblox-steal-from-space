@@ -1,8 +1,8 @@
 --!strict
 -- The alien index: every alien a player has ever had. An alien is found the first time it
 -- comes to the player (hatched, crossbred); its reward waits in the index until the player
--- takes it. A guardian whose aliens are all found makes a set, with a reward of its own, once.
--- Pure: which aliens make a set is passed in (AlienConfig.GRADES).
+-- takes it. A guardian whose aliens of one variant are all found makes a set, with a reward of
+-- its own, once. Pure: which aliens make a set is passed in (IndexConfig.SETS).
 
 local AlienIndex = {}
 
@@ -10,15 +10,23 @@ local AlienIndex = {}
 export type State = {
 	-- Alien id -> its reward is taken. Present: found.
 	found: { [string]: boolean },
-	-- Grades whose set reward is taken.
-	sets: { number },
+	-- Sets whose reward is taken, by set id.
+	sets: { string },
 }
 
--- One guardian's set: its grade and its aliens, lowest tier first (IndexConfig.SETS).
+-- One guardian's aliens of one variant, lowest tier first (IndexConfig.SETS).
 export type Set = {
+	-- Stable: "3" for the usual aliens of grade 3, "3.Meteor" for its meteor ones (save format).
+	read id: string,
 	read grade: number,
+	read variant: string,
 	read aliens: { string },
 }
+
+-- The id of the set of `grade` in `variant`.
+function AlienIndex.setId(grade: number, variant: string): string
+	return if variant == "Normal" then tostring(grade) else `{grade}.{variant}`
+end
 
 export type ClaimRefusal = "IndexNothing" | "IndexClaimed"
 
@@ -70,31 +78,32 @@ function AlienIndex.foundOf(state: State, alienIds: { string }): number
 	return count
 end
 
-function AlienIndex.isSetClaimed(state: State, grade: number): boolean
-	return table.find(state.sets, grade) ~= nil
+function AlienIndex.isSetClaimed(state: State, set: Set): boolean
+	return table.find(state.sets, set.id) ~= nil
 end
 
--- Takes the reward of the set of `grade`, whose aliens are `alienIds`, once it is complete.
-function AlienIndex.claimSet(state: State, grade: number, alienIds: { string }): ClaimRefusal?
-	if AlienIndex.isSetClaimed(state, grade) then
+-- Takes the reward of `set` once it is complete.
+function AlienIndex.claimSet(state: State, set: Set): ClaimRefusal?
+	if AlienIndex.isSetClaimed(state, set) then
 		return "IndexClaimed"
-	elseif AlienIndex.foundOf(state, alienIds) < #alienIds then
+	elseif AlienIndex.foundOf(state, set.aliens) < #set.aliens then
 		return "IndexNothing"
 	end
-	table.insert(state.sets, grade)
+	table.insert(state.sets, set.id)
 	return nil
 end
 
--- Rewards waiting to be taken: found aliens not yet claimed, plus complete sets not yet claimed.
+-- Rewards waiting to be taken in `sets` (all of them, or one section's): their found aliens not
+-- yet claimed, plus those of them complete and not yet claimed.
 function AlienIndex.waiting(state: State, sets: { Set }): number
 	local count = 0
-	for _, taken in state.found do
-		if not taken then
-			count += 1
-		end
-	end
 	for _, set in sets do
-		if not AlienIndex.isSetClaimed(state, set.grade) and AlienIndex.foundOf(state, set.aliens) == #set.aliens then
+		for _, alienId in set.aliens do
+			if state.found[alienId] == false then
+				count += 1
+			end
+		end
+		if not AlienIndex.isSetClaimed(state, set) and AlienIndex.foundOf(state, set.aliens) == #set.aliens then
 			count += 1
 		end
 	end

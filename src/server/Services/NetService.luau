@@ -285,8 +285,8 @@ function NetService.new(dependencies: Dependencies): NetService
 		Remotes.ClaimIndexAlien.SetCallback(guarded(function(player, alienId: string)
 			return alienIndex.claimAlien(player, alienId)
 		end))
-		Remotes.ClaimIndexSet.SetCallback(guarded(function(player, grade: number)
-			return alienIndex.claimSet(player, grade)
+		Remotes.ClaimIndexSet.SetCallback(guarded(function(player, setId: string)
+			return alienIndex.claimSet(player, setId)
 		end))
 
 		PlayerEvents.observe(function() end, function(player)

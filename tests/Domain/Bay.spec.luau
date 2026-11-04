@@ -215,6 +215,13 @@ describe("Bay incubator", function()
 		expect(Bay.addEgg(data, "Common", "Small", 1, 5).uid > egg.uid).toBe(true)
 	end)
 
+	it("keeps a meteor egg's variant and saves none for the usual one", function()
+		local data = fresh()
+		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, "Meteor").variant).toBe("Meteor")
+		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, "Normal").variant).toBeNil()
+		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000).variant).toBeNil()
+	end)
+
 	it("runs faster: every egg comes closer to hatching", function()
 		local data = fresh()
 		Bay.addEgg(data, "Rare", "Medium", 1, 1000)
