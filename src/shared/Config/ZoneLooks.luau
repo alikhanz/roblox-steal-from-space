@@ -34,6 +34,17 @@ local ZONES: { [ZoneConfig.ZoneId]: ZoneLook } = {
 return table.freeze({
 	ZONES = table.freeze(ZONES),
 
+	-- How far the sign over a guardian shows, studs. Nests stand farther apart in the far zones
+	-- (about 170 studs in the Debris Belt, 300 in the Ice Rings, 430 in the Red Nebula, 510 on
+	-- the Event Horizon), so the signs reach farther there: the next 3-4 nests around are always
+	-- in sight, without the whole map covered in text.
+	GUARDIAN_SIGN_DISTANCE = table.freeze({
+		DebrisBelt = 500,
+		IceRings = 750,
+		RedNebula = 950,
+		EventHorizon = 1150,
+	} :: { [ZoneConfig.ZoneId]: number }),
+
 	-- The plain asteroids of the field, everywhere.
 	FIELD_ROCK_COLORS = table.freeze({ rgb(96, 92, 104), rgb(120, 112, 118), rgb(78, 80, 92), rgb(110, 98, 90) }),
 

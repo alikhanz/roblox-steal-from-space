@@ -14,6 +14,7 @@ local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
 
 -- The strike: the body swells and snaps back.
 local STRIKE_SCALE = 1.35
@@ -85,6 +86,7 @@ function GuardianViewController.new(): GuardianViewController
 				adornee = body,
 				name = Text.get(locale, nameKey),
 				recommended = recommendedText(instance),
+				maxDistance = ZoneLooks.GUARDIAN_SIGN_DISTANCE[post.zone],
 			})
 		end, instance)
 		paintEyes(instance)

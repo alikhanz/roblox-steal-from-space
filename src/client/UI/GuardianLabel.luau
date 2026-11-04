@@ -12,8 +12,6 @@ local create = Vide.create
 local SIZE = UDim2.fromOffset(220, 60)
 -- Height of the sign above the guardian's center, studs.
 local STUDS_ABOVE = 5
--- Signs fade out beyond this distance so the field is not covered in text, studs.
-local MAX_DISTANCE = 350
 local VALUE_TEXT_SIZE = 24
 
 export type Props = {
@@ -21,6 +19,8 @@ export type Props = {
 	name: string,
 	-- Formatted recommended speed, e.g. "1.5K".
 	recommended: string,
+	-- The sign is hidden beyond this distance, studs (ZoneLooks.GUARDIAN_SIGN_DISTANCE).
+	maxDistance: number,
 }
 
 local function GuardianLabel(props: Props): BillboardGui
@@ -29,7 +29,7 @@ local function GuardianLabel(props: Props): BillboardGui
 		Adornee = props.adornee,
 		Size = SIZE,
 		StudsOffset = Vector3.new(0, STUDS_ABOVE, 0),
-		MaxDistance = MAX_DISTANCE,
+		MaxDistance = props.maxDistance,
 		AlwaysOnTop = true,
 		LightInfluence = 0,
 
