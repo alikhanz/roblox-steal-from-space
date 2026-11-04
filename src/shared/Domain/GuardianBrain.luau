@@ -53,6 +53,35 @@ function GuardianBrain.next(state: State, situation: Situation, tuning: Tuning):
 	return if situation.distanceToHome <= tuning.homeRadius then "Sleep" else "Return"
 end
 
+-- A thief who carries one of the guardian's eggs (a meteor shower leaves it several).
+export type Candidate<T> = {
+	who: T,
+	distance: number,
+	-- Inside the station border, out of reach.
+	safe: boolean,
+}
+
+-- Whom the guardian goes after: the one it already chases while still in reach, so it does not
+-- turn from thief to thief; otherwise the nearest in reach, then the nearest at all (safe: the
+-- guardian returns home). Nil with nobody carrying.
+function GuardianBrain.pickTarget<T>(current: T?, candidates: { Candidate<T> }): T?
+	local nearest: Candidate<T>? = nil
+	local nearestReachable: Candidate<T>? = nil
+	for _, candidate in candidates do
+		if candidate.who == current and not candidate.safe then
+			return current
+		end
+		if not nearest or candidate.distance < nearest.distance then
+			nearest = candidate
+		end
+		if not candidate.safe and (not nearestReachable or candidate.distance < nearestReachable.distance) then
+			nearestReachable = candidate
+		end
+	end
+	local chosen = nearestReachable or nearest
+	return if chosen then chosen.who else nil
+end
+
 function GuardianBrain.canCatch(state: State, distanceToTarget: number, tuning: Tuning): boolean
 	return state == "Chase" and distanceToTarget <= tuning.catchRadius
 end

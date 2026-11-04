@@ -74,3 +74,32 @@ describe("GuardianBrain.canCatch", function()
 		expect(GuardianBrain.canCatch("Return", 1, TUNING)).toBe(false)
 	end)
 end)
+
+describe("GuardianBrain.pickTarget", function()
+	local function thief(who: string, distance: number, safe: boolean?): GuardianBrain.Candidate<string>
+		return { who = who, distance = distance, safe = safe == true }
+	end
+
+	it("has nobody to chase without thieves", function()
+		expect(GuardianBrain.pickTarget(nil, {})).toBeNil()
+		expect(GuardianBrain.pickTarget("A", {})).toBeNil()
+	end)
+
+	it("goes after the nearest thief in reach", function()
+		expect(GuardianBrain.pickTarget(nil, { thief("A", 50), thief("B", 20) })).toBe("B")
+		expect(GuardianBrain.pickTarget(nil, { thief("A", 50), thief("B", 20, true) })).toBe("A")
+	end)
+
+	it("keeps after the same thief while they are in reach, however near another one gets", function()
+		expect(GuardianBrain.pickTarget("A", { thief("A", 80), thief("B", 5) })).toBe("A")
+	end)
+
+	it("turns to another thief once the chased one is safe or gone", function()
+		expect(GuardianBrain.pickTarget("A", { thief("A", 5, true), thief("B", 80) })).toBe("B")
+		expect(GuardianBrain.pickTarget("A", { thief("B", 80) })).toBe("B")
+	end)
+
+	it("names a safe thief when every one is safe, so the guardian heads home", function()
+		expect(GuardianBrain.pickTarget(nil, { thief("A", 30, true), thief("B", 10, true) })).toBe("B")
+	end)
+end)

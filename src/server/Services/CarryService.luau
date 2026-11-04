@@ -79,8 +79,8 @@ export type CarryService = {
 	returnEgg: (player: Player, reason: LossReason) -> boolean,
 	-- What the player carries, or nil when not carrying.
 	getCarried: (player: Player) -> Carried?,
-	-- Who carries an egg of `nestId` right now, or nil.
-	findCarrier: (nestId: string) -> Player?,
+	-- Who carries an egg of `nestId` right now (several during a meteor shower).
+	findCarriers: (nestId: string) -> { Player },
 	-- Where eggs of `nestId` lie loose (knocked out, or meteor eggs fallen next to the nest).
 	findLooseEggs: (nestId: string) -> { Vector3 },
 	-- Puts a floating egg at `position` (drifting off at `launch`), out of play after `lifetime`
@@ -412,13 +412,14 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			local entry = carried[player]
 			return if entry then publicOf(entry.egg) else nil
 		end,
-		findCarrier = function(nestId: string): Player?
+		findCarriers = function(nestId: string): { Player }
+			local players = {}
 			for player, entry in carried do
 				if entry.egg.nestId == nestId then
-					return player
+					table.insert(players, player)
 				end
 			end
-			return nil
+			return players
 		end,
 		findLooseEggs = function(nestId: string): { Vector3 }
 			local positions = {}

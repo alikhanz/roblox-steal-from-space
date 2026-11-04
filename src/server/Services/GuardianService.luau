@@ -32,7 +32,7 @@ export type Dependencies = {
 	getNestSites: () -> { WorldService.NestSite },
 	-- The post of a nest (NestService ranks nests by distance).
 	getNestGrade: (nestId: string) -> number?,
-	findCarrier: (nestId: string) -> Player?,
+	findCarriers: (nestId: string) -> { Player },
 	-- Where the eggs of `nestId` lie knocked out (empty while the egg is in the nest or carried).
 	findLooseEggs: (nestId: string) -> { Vector3 },
 	getCarried: (player: Player) -> CarryService.Carried?,
@@ -60,6 +60,8 @@ type Guardian = {
 	-- Flight speed on the way home and while settling, studs per second.
 	cruiseSpeed: number,
 	state: GuardianBrain.State,
+	-- The thief it goes after, while someone carries one of its eggs.
+	target: Player?,
 	stolenSeconds: number,
 	catchReadyAt: number,
 }
@@ -164,11 +166,14 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 
 	-- A guardian guards its egg, not a spot: knocked out of a thief's hands, the egg lies where
 	-- it fell and the guardian settles over it, so taking it again is the same deal as taking it
-	-- from the nest. While the egg is carried the watch point stays where the egg last lay;
-	-- once the egg is back in the nest, so is the guardian.
-	-- A nest has one egg out at a time (Domain/NestCycle); should more lie about all the same
-	-- (Studio test eggs claim a nest), the nearest is watched.
+	-- from the nest. While an egg is carried the watch point stays where the egg last lay, even
+	-- with more of its eggs lying about (a meteor shower): the guardian does not turn away to
+	-- them while a thief gets off. Once its egg is back in the nest, so is the guardian.
+	-- With several loose eggs and nobody carrying, the nearest is watched.
 	local function followEgg(guardian: Guardian, carrier: Player?)
+		if carrier then
+			return
+		end
 		local nearest: Vector3? = nil
 		local nearestDistance = math.huge
 		for _, position in dependencies.findLooseEggs(guardian.nestId) do
@@ -177,15 +182,29 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 				nearest, nearestDistance = position, distance
 			end
 		end
-		if nearest then
-			guardian.home = nearest + Vector3.yAxis * GuardianConfig.HOVER_HEIGHT
-		elseif not carrier then
-			guardian.home = guardian.nestHome
+		guardian.home = if nearest then nearest + Vector3.yAxis * GuardianConfig.HOVER_HEIGHT else guardian.nestHome
+	end
+
+	-- Whom the guardian goes after among the thieves carrying its eggs: the same one until it is
+	-- caught or safe, then the nearest (Domain/GuardianBrain.pickTarget).
+	local function chooseTarget(guardian: Guardian): Player?
+		local candidates: { GuardianBrain.Candidate<Player> } = {}
+		for _, player in dependencies.findCarriers(guardian.nestId) do
+			local character, root = thiefRoot(player)
+			if character and root then
+				table.insert(candidates, {
+					who = player,
+					distance = (root.Position - guardian.body.Position).Magnitude,
+					safe = isThiefSafe(character, root),
+				})
+			end
 		end
+		guardian.target = GuardianBrain.pickTarget(guardian.target, candidates)
+		return guardian.target
 	end
 
 	local function tickGuardian(guardian: Guardian, deltaTime: number)
-		local carrier = dependencies.findCarrier(guardian.nestId)
+		local carrier = chooseTarget(guardian)
 		local character: Model?, root: BasePart? = nil, nil
 		if carrier then
 			character, root = thiefRoot(carrier)
@@ -268,6 +287,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			home = home,
 			cruiseSpeed = Speed.flightSpeed(post.speed, SpeedConfig.FLIGHT),
 			state = "Sleep",
+			target = nil,
 			stolenSeconds = 0,
 			catchReadyAt = 0,
 		}
