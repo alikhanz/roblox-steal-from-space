@@ -72,27 +72,25 @@ local function addFlightConstraints(root: BasePart)
 	align.Parent = root
 end
 
--- A character that dies out in space keeps drifting instead of falling: the flight simulation
--- no longer holds it up, so every part of the body gets a force that cancels the station's
--- gravity (there is none in space). The station's floor needs gravity, so it stays on.
+-- A character that dies out in space keeps drifting, whole, instead of falling: its joints stay
+-- (Humanoid.BreakJointsOnDeath is off, see `equip`), and as the flight simulation no longer
+-- holds it up, its root gets a force that cancels the station's gravity for the whole body
+-- (there is none in space). The station's floor needs gravity, so it stays on.
 local function floatWhenDead(character: Model)
-	if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true then
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true or not root or not root:IsA("BasePart") then
 		return
 	end
-	for _, part in character:GetDescendants() do
-		if part:IsA("BasePart") and not part.Anchored then
-			local attachment = Instance.new("Attachment")
-			attachment.Name = "Weightless"
-			attachment.Parent = part
-			local force = Instance.new("VectorForce")
-			force.Name = "Weightless"
-			force.Attachment0 = attachment
-			force.RelativeTo = Enum.ActuatorRelativeTo.World
-			force.ApplyAtCenterOfMass = true
-			force.Force = Vector3.yAxis * part:GetMass() * workspace.Gravity
-			force.Parent = part
-		end
-	end
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "Weightless"
+	attachment.Parent = root
+	local force = Instance.new("VectorForce")
+	force.Name = "Weightless"
+	force.Attachment0 = attachment
+	force.RelativeTo = Enum.ActuatorRelativeTo.World
+	force.ApplyAtCenterOfMass = true
+	force.Force = Vector3.yAxis * root.AssemblyMass * workspace.Gravity
+	force.Parent = root
 end
 
 -- Out of oxygen: the character dies and respawns at the station.
@@ -119,6 +117,8 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 		addFlightConstraints(character:FindFirstChild("HumanoidRootPart") :: BasePart)
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid then
+			-- A body that comes apart would scatter its pieces in weightlessness (floatWhenDead).
+			humanoid.BreakJointsOnDeath = false
 			humanoid.Died:Once(function()
 				floatWhenDead(character)
 			end)
