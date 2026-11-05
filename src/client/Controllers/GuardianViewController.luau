@@ -1,7 +1,7 @@
 --!strict
--- The client side of guardians: the sign with the name (coloured by how the player stands
--- against the guardian: red, white, green, see GuardianLooks.standingColor) and the recommended
--- speed over each one, and
+-- The client side of guardians: the sign with the name over each one, coloured by how the player
+-- stands against the guardian's recommended speed (red, white, green: GuardianLooks.standingColor),
+-- and
 -- eyes that light up with the guardian's state. Guardians stream in and out, so everything is
 -- keyed by the model and torn down when it goes.
 
@@ -94,7 +94,6 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 			return GuardianLabel({
 				adornee = body,
 				name = Text.get(locale, nameKey),
-				recommended = if recommended then BigNum.format(recommended) else "?",
 				nameColor = function(): Color3
 					if not recommended then
 						return GuardianLooks.standingColor(0)

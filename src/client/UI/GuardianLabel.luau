@@ -1,6 +1,8 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The sign over a guardian: its name and the recommended speed to steal from it.
+-- The sign over a guardian: its name, coloured by how the player stands against it (red to
+-- white to green, GuardianLooks.standingColor). The number itself is not shown here: the colour
+-- tells whether to try, and the HUD's goal shows how far the next guardian is.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -9,16 +11,13 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
 
-local SIZE = UDim2.fromOffset(220, 60)
+local SIZE = UDim2.fromOffset(220, 32)
 -- Height of the sign above the guardian's center, studs.
 local STUDS_ABOVE = 5
-local VALUE_TEXT_SIZE = 24
 
 export type Props = {
 	adornee: BasePart,
 	name: string,
-	-- Formatted recommended speed, e.g. "1.5K".
-	recommended: string,
 	-- The name's colour: how the player stands against this guardian (GuardianLooks.standingColor).
 	nameColor: () -> Color3,
 	-- The sign is hidden beyond this distance, studs (ZoneLooks.GUARDIAN_SIGN_DISTANCE).
@@ -35,35 +34,16 @@ local function GuardianLabel(props: Props): BillboardGui
 		AlwaysOnTop = true,
 		LightInfluence = 0,
 
-		create("UIListLayout")({
-			FillDirection = Enum.FillDirection.Vertical,
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
-
 		create("TextLabel")({
 			-- Not "Name": that would shadow the Instance property for anyone reading the sign.
 			Name = "Title",
-			LayoutOrder = 1,
-			AutomaticSize = Enum.AutomaticSize.XY,
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			FontFace = Theme.FONT,
 			TextSize = Theme.TEXT_SIZE,
 			TextColor3 = props.nameColor,
 			TextStrokeTransparency = 0.4,
 			Text = props.name,
-		}),
-
-		create("TextLabel")({
-			Name = "Recommended",
-			LayoutOrder = 2,
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = VALUE_TEXT_SIZE,
-			TextColor3 = Theme.SPEED,
-			TextStrokeTransparency = 0.4,
-			Text = `⚡ {props.recommended}`,
 		}),
 	}) :: BillboardGui
 end

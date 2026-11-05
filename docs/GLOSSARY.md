@@ -101,7 +101,7 @@
 | `DevourerSwarm` | Рой пожирателей | Devourer Swarm |
 | `StarRay` | Звёздный скат | Star Ray |
 | `SpaceWhale` | Космический Кит | Space Whale |
-| `RecommendedSpeed` | рекомендуемая скорость | recommended speed | Над стражем; не гарантия |
+| `RecommendedSpeed` | рекомендуемая скорость | recommended speed | Числом — в цели HUD; над стражем — цветом имени; не гарантия |
 
 Выше — виды тел. Посты (24 именованных стража, по 6 на зону, от станции наружу):
 
