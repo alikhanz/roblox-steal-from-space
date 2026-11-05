@@ -20,6 +20,8 @@ local source = Vide.source
 local TOUCH_BADGE = "✋"
 -- Studs past the prompt's reach where its picture still shows, so it does not blink at the edge.
 local PROMPT_DISTANCE_SLACK = 2
+-- The prompt sits on the thing itself: its sign (an alien's name and income) is above it.
+local PROMPT_STUDS_ABOVE = 0
 
 export type PromptViewController = {
 	name: string,
@@ -79,6 +81,7 @@ function PromptViewController.new(): PromptViewController
 					return adornee
 				end,
 				progress = progress,
+				studsAbove = PROMPT_STUDS_ABOVE,
 				showBar = function()
 					return prompt.HoldDuration > 0
 				end,

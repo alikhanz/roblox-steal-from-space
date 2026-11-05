@@ -31,6 +31,8 @@ export type Props = {
 	onBadge: (badge: GuiButton) -> (),
 	-- Beyond this distance the prompt is not drawn at all, studs; default: always.
 	maxDistance: number?,
+	-- Height above the target's center, studs; default: over an egg.
+	studsAbove: number?,
 }
 
 -- Vide's instance types do not list UIStroke, so it is made directly.
@@ -53,7 +55,7 @@ local function GrabPrompt(props: Props): BillboardGui
 		-- Needed for the badge to receive touches on phones.
 		Active = true,
 		Size = UDim2.fromOffset(160, BADGE_SIZE + BAR_SIZE.Y + 30 + GAP * 2),
-		StudsOffset = Vector3.new(0, STUDS_ABOVE, 0),
+		StudsOffset = Vector3.new(0, props.studsAbove or STUDS_ABOVE, 0),
 		MaxDistance = props.maxDistance or math.huge,
 		LightInfluence = 0,
 
