@@ -137,6 +137,9 @@ type Snapshot = {
 	speed: number,
 	income: number,
 	pods: number,
+	-- Incubator slots and eggs waiting for one.
+	slots: number,
+	waiting: number,
 	trainerLevel: number,
 	jetpackLevel: number,
 	bestPost: number,
@@ -279,9 +282,28 @@ local function simulate(profile: Profile, seed: number): Run
 		return nextOne / now - 1
 	end
 
-	-- A pod whenever an alien waits for one; otherwise whichever upgrade gives more speed per coin.
-	local function buy()
+	local function slotPrice(): number
+		return toNumber(
+			Bay.slotPrice(
+				data.incubatorSlots,
+				BayConfig.STARTING_INCUBATOR_SLOTS,
+				BayConfig.SLOT_PRICE_BASE,
+				BayConfig.SLOT_PRICE_GROWTH
+			)
+		)
+	end
+
+	-- An incubator slot whenever an egg waits for one, a pod whenever an alien waits for one;
+	-- otherwise whichever upgrade gives more speed per coin.
+	local function buy(now: number)
 		while true do
+			local slotWanted = #data.waiting > 0 and data.incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+			if slotWanted and coins >= slotPrice() then
+				coins -= slotPrice()
+				data.incubatorSlots += 1
+				Bay.fillSlots(data, now)
+				continue
+			end
 			if #data.pods < BayConfig.MAX_PODS and #data.inventory > 0 and coins >= podPrice() then
 				coins -= podPrice()
 				table.insert(data.pods, {})
@@ -366,7 +388,7 @@ local function simulate(profile: Profile, seed: number): Run
 			end
 		end
 		hatch(now)
-		buy()
+		buy(now)
 		now += dt
 
 		local day = now / DAY_SECONDS
@@ -375,6 +397,8 @@ local function simulate(profile: Profile, seed: number): Run
 				speed = speed(),
 				income = incomeRate,
 				pods = #data.pods,
+				slots = data.incubatorSlots,
+				waiting = #data.waiting,
 				trainerLevel = trainerLevel,
 				jetpackLevel = jetpackLevel,
 				bestPost = bestPost,
@@ -463,7 +487,10 @@ for _, profile in PROFILES do
 			local levels = `trainer {snapshot.trainerLevel} jetpack {snapshot.jetpackLevel}`
 			print(
 				`  day {pad(tostring(day), 3)} speed {pad(formatNumber(snapshot.speed), 8)} `
-					.. `income {pad(formatNumber(snapshot.income), 8)} pods {pad(tostring(snapshot.pods), 3)} `
+					.. `income {pad(formatNumber(snapshot.income), 8)} pods {pad(tostring(snapshot.pods), 3)} slots {snapshot.slots} queue {pad(
+						tostring(snapshot.waiting),
+						3
+					)} `
 					.. `{pad(levels, 22)} post {snapshot.bestPost}`
 			)
 		end
