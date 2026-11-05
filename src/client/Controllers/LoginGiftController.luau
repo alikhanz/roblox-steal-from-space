@@ -25,6 +25,7 @@ local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
+local WindowState = require(script.Parent.Parent.State.WindowState)
 
 local create = Vide.create
 local source = Vide.source
@@ -44,6 +45,7 @@ export type Dependencies = {
 	toasts: ToastState.ToastState,
 	-- The welcome-back screen is up; the gift waits for it.
 	welcomeOpen: () -> boolean,
+	windows: WindowState.WindowState,
 }
 
 export type LoginGiftController = {
@@ -56,7 +58,7 @@ local LoginGiftController = {}
 function LoginGiftController.new(dependencies: Dependencies): LoginGiftController
 	local profile = dependencies.profile
 	local toast = dependencies.toasts.push
-	local isOpen = source(false)
+	local isOpen = dependencies.windows.slot("LoginGift")
 	local pulse = source(1)
 	-- Bumped every second while open, for the countdown.
 	local clock = source(0)

@@ -29,6 +29,7 @@ local ToastState = require(script.Parent.Parent.State.ToastState)
 local Toasts = require(script.Parent.Parent.UI.Toasts)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WelcomeBack = require(script.Parent.Parent.UI.WelcomeBack)
+local WindowState = require(script.Parent.Parent.State.WindowState)
 
 local create = Vide.create
 local source = Vide.source
@@ -72,6 +73,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
 	toasts: ToastState.ToastState,
+	windows: WindowState.WindowState,
 }
 
 export type BayWindowController = {
@@ -88,7 +90,7 @@ local BayWindowController = {}
 
 function BayWindowController.new(dependencies: Dependencies): BayWindowController
 	local profile = dependencies.profile
-	local isOpen = source(false)
+	local isOpen = dependencies.windows.slot("Bay")
 	-- Selected uids, in the order they were tapped; a fresh table each change so Vide sees it.
 	local selection = source({} :: { number })
 	-- The alien whose sale waits for a second tap.
@@ -316,7 +318,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 				),
 
 				BayWindow({
-					visible = isOpen,
+					visible = function()
+						return isOpen()
+					end,
 					bay = profile.bay,
 					texts = {
 						title = text("bay.window.title"),

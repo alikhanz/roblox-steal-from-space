@@ -25,6 +25,7 @@ local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
+local WindowState = require(script.Parent.Parent.State.WindowState)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local create = Vide.create
@@ -47,6 +48,7 @@ local TASK_KEYS: { [ProfileState.QuestKind]: Text.Key } = {
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
 	toasts: ToastState.ToastState,
+	windows: WindowState.WindowState,
 }
 
 export type QuestController = {
@@ -63,7 +65,7 @@ end
 function QuestController.new(dependencies: Dependencies): QuestController
 	local profile = dependencies.profile
 	local toast = dependencies.toasts.push
-	local isOpen = source(false)
+	local isOpen = dependencies.windows.slot("Quests")
 	-- Bumped every second while the window is open, so the countdown recomputes.
 	local clock = source(0)
 	local locale: Text.Locale = "en"
@@ -174,7 +176,9 @@ function QuestController.new(dependencies: Dependencies): QuestController
 				),
 
 				QuestWindow({
-					visible = isOpen,
+					visible = function()
+						return isOpen()
+					end,
 					rows = rows,
 					texts = {
 						title = text("quests.window.title"),

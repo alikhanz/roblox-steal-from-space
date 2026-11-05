@@ -30,11 +30,15 @@ local StationBeaconController = require(script.Parent.Controllers.StationBeaconC
 local StationBorderController = require(script.Parent.Controllers.StationBorderController)
 local ToastState = require(script.Parent.State.ToastState)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
+local WindowState = require(script.Parent.State.WindowState)
 
 local profileState = ProfileState.new()
 local toastState = ToastState.new()
 local abilityState = AbilityState.new(profileState)
-local bayWindowController = BayWindowController.new({ profile = profileState, toasts = toastState })
+-- One window open at a time: opening one closes the other.
+local windowState = WindowState.new()
+local bayWindowController =
+	BayWindowController.new({ profile = profileState, toasts = toastState, windows = windowState })
 local eventController = EventController.new()
 
 Lifecycle.run({
@@ -48,15 +52,16 @@ Lifecycle.run({
 	BayViewController.new({ profile = profileState }),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
-	ShopController.new({ profile = profileState }),
+	ShopController.new({ profile = profileState, windows = windowState }),
 	CoinBoardController.new(),
-	QuestController.new({ profile = profileState, toasts = toastState }),
+	QuestController.new({ profile = profileState, toasts = toastState, windows = windowState }),
 	LoginGiftController.new({
 		profile = profileState,
 		toasts = toastState,
 		welcomeOpen = bayWindowController.welcomeOpen,
+		windows = windowState,
 	}),
-	IndexController.new({ profile = profileState, toasts = toastState }),
+	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),

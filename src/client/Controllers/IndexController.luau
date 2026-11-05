@@ -25,6 +25,7 @@ local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local Vide = require(ReplicatedStorage.Packages.Vide)
+local WindowState = require(script.Parent.Parent.State.WindowState)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local create = Vide.create
@@ -50,6 +51,7 @@ end
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
 	toasts: ToastState.ToastState,
+	windows: WindowState.WindowState,
 }
 
 export type IndexController = {
@@ -62,7 +64,7 @@ local IndexController = {}
 function IndexController.new(dependencies: Dependencies): IndexController
 	local profile = dependencies.profile
 	local toast = dependencies.toasts.push
-	local isOpen = source(false)
+	local isOpen = dependencies.windows.slot("Index")
 	local section = source("Normal" :: AlienConfig.VariantId)
 	local locale: Text.Locale = "en"
 
@@ -232,7 +234,9 @@ function IndexController.new(dependencies: Dependencies): IndexController
 				),
 
 				IndexWindow({
-					visible = isOpen,
+					visible = function()
+						return isOpen()
+					end,
 					title = text("index.window.title"),
 					hints = {
 						function()

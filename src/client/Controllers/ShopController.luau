@@ -21,10 +21,10 @@ local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local Vide = require(ReplicatedStorage.Packages.Vide)
+local WindowState = require(script.Parent.Parent.State.WindowState)
 local WorldLabel = require(script.Parent.Parent.UI.WorldLabel)
 
 local create = Vide.create
-local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 local PART_WAIT_TIMEOUT = 10
@@ -36,6 +36,7 @@ local ROWS_AHEAD = 2
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
+	windows: WindowState.WindowState,
 }
 
 export type ShopController = {
@@ -47,7 +48,7 @@ local ShopController = {}
 
 function ShopController.new(dependencies: Dependencies): ShopController
 	local profile = dependencies.profile
-	local isOpen = source(false)
+	local isOpen = dependencies.windows.slot("Shop")
 	local locale: Text.Locale = "en"
 
 	local function text(key: Text.Key, args: Text.Args?): string
@@ -89,7 +90,9 @@ function ShopController.new(dependencies: Dependencies): ShopController
 				ResetOnSpawn = false,
 				DisplayOrder = 11,
 				ShopWindow({
-					visible = isOpen,
+					visible = function()
+						return isOpen()
+					end,
 					rows = rows,
 					texts = {
 						title = text("shop.window.title"),
