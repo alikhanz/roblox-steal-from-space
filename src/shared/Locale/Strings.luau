@@ -304,9 +304,29 @@ local Strings = {
 		ru = "Капсула: {price}",
 		en = "Pod: {price}",
 	},
-	["bay.incubator.title"] = {
-		ru = "Инкубатор",
-		en = "Incubator",
+	["bay.incubatorSlots.title"] = {
+		ru = "Инкубатор · {count}/{slots}",
+		en = "Incubator · {count}/{slots}",
+	},
+	["bay.buySlot.button"] = {
+		ru = "+1 место {price} ●",
+		en = "+1 slot {price} ●",
+	},
+	["bay.incubatorWaiting.hint"] = {
+		ru = "Ждут места: {count}",
+		en = "Waiting for a slot: {count}",
+	},
+	["bay.incubatorFree.hint"] = {
+		ru = "Есть свободное место",
+		en = "A slot is free",
+	},
+	["bay.incubatorFull.hint"] = {
+		ru = "Все места заняты",
+		en = "Every slot is taken",
+	},
+	["egg.waiting.hint"] = {
+		ru = "Ждёт места",
+		en = "Waiting for a slot",
 	},
 	["bay.incubatorEmpty.hint"] = {
 		ru = "Пусто. Укради яйцо и принеси его сюда",
@@ -327,14 +347,6 @@ local Strings = {
 	["bay.floorFull.hint"] = {
 		ru = "Инвентарь полный: продай или скрести кого-нибудь, тогда сможешь подбирать",
 		en = "Inventory full: sell or crossbreed someone, then you can pick them up",
-	},
-	["bay.incubatorSign.title"] = {
-		ru = "Инкубатор · яиц: {count}",
-		en = "Incubator · eggs: {count}",
-	},
-	["bay.incubatorIdle.hint"] = {
-		ru = "Пусто",
-		en = "Empty",
 	},
 	["alien.hatchedMany.toast"] = {
 		ru = {

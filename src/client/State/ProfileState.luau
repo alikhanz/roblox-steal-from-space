@@ -16,6 +16,7 @@ local source = Vide.source
 export type Alien = Remotes.Alien
 export type Pod = Remotes.Pod
 export type Egg = Remotes.Egg
+export type WaitingEgg = Remotes.WaitingEgg
 export type Bay = Remotes.Bay
 export type Upgrades = Remotes.Upgrades
 export type Notice = Remotes.Notice

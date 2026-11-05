@@ -47,6 +47,11 @@ return table.freeze({
 	EGG_RING_RADIUS = 3,
 	EGG_RING_SLOTS = 10,
 	EGG_STACK_HEIGHT = 1.4,
+	-- Eggs waiting for a slot lie on the platform around the incubator, on a ring just outside
+	-- it, then a wider one (decision 058).
+	WAITING_RING_RADIUS = 6,
+	WAITING_RING_SLOTS = 12,
+	WAITING_RING_STEP = 2,
 
 	POD_TIERS = POD_TIERS,
 	POD_TIER_HEIGHT = POD_TIER_HEIGHT,

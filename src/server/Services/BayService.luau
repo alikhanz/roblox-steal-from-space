@@ -127,7 +127,20 @@ function BayService.new(dependencies: Dependencies): BayService
 		return model
 	end
 
-	local function placeEgg(egg: PlayerData.EggRecord, cframe: CFrame, parent: Instance)
+	-- An egg's model in the bay: warming in a slot (`hatchAt` given, for its countdown) or
+	-- waiting for one on the platform.
+	local function placeEgg(
+		egg: {
+			read uid: number,
+			read rarity: string,
+			read size: string,
+			read variant: string?,
+			read luck: number?,
+		},
+		cframe: CFrame,
+		parent: Instance,
+		hatchAt: number?
+	)
 		if
 			not EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId]
 			or not EggConfig.SIZES[egg.size :: EggConfig.SizeId]
@@ -144,8 +157,12 @@ function BayService.new(dependencies: Dependencies): BayService
 		part.Anchored = true
 		part.CFrame = cframe
 		part:SetAttribute(BayConfig.EGG_UID_ATTRIBUTE, egg.uid)
-		part:SetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE, egg.hatchAt)
-		CollectionService:AddTag(part, BayConfig.INCUBATOR_EGG_TAG)
+		if hatchAt then
+			part:SetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE, hatchAt)
+			CollectionService:AddTag(part, BayConfig.INCUBATOR_EGG_TAG)
+		else
+			CollectionService:AddTag(part, BayConfig.WAITING_EGG_TAG)
+		end
 		part.Parent = parent
 	end
 
@@ -205,17 +222,20 @@ function BayService.new(dependencies: Dependencies): BayService
 				placeAlien(pod.alien, BayModel.podAlienCFrame(bay.origin, index), contents)
 			end
 		end
-		local nextHatchAt: number? = nil
 		for index, egg in data.incubator do
-			if index <= BayConfig.INCUBATOR_SHOWN_MAX then
-				placeEgg(egg, BayModel.eggCFrame(bay.origin, index), contents)
+			placeEgg(egg, BayModel.eggCFrame(bay.origin, index), contents, egg.hatchAt)
+		end
+		for index, egg in data.waiting do
+			if index > BayConfig.WAITING_SHOWN_MAX then
+				break
 			end
-			nextHatchAt = math.min(nextHatchAt or math.huge, egg.hatchAt)
+			placeEgg(egg, BayModel.waitingEggCFrame(bay.origin, index), contents)
 		end
 		local incubator = bay.model:FindFirstChild(BayConfig.INCUBATOR_NAME)
 		if incubator then
 			incubator:SetAttribute(BayConfig.INCUBATOR_COUNT_ATTRIBUTE, #data.incubator)
-			incubator:SetAttribute(BayConfig.INCUBATOR_NEXT_HATCH_ATTRIBUTE, nextHatchAt)
+			incubator:SetAttribute(BayConfig.INCUBATOR_SLOTS_ATTRIBUTE, data.incubatorSlots)
+			incubator:SetAttribute(BayConfig.INCUBATOR_WAITING_ATTRIBUTE, #data.waiting)
 		end
 		-- Floor aliens can be picked up only while the inventory has room: no prompt otherwise.
 		local hasRoom = #data.inventory < BayConfig.INVENTORY_SLOTS
@@ -356,10 +376,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			return
 		end
 		local hatchAtByUid: { [number]: number } = {}
-		local nextHatchAt: number? = nil
 		for _, egg in data.incubator do
 			hatchAtByUid[egg.uid] = egg.hatchAt
-			nextHatchAt = math.min(nextHatchAt or math.huge, egg.hatchAt)
 		end
 		for _, part in contentsOf(bay):GetChildren() do
 			local uid = part:GetAttribute(BayConfig.EGG_UID_ATTRIBUTE)
@@ -367,10 +385,6 @@ function BayService.new(dependencies: Dependencies): BayService
 			if hatchAt then
 				part:SetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE, hatchAt)
 			end
-		end
-		local incubator = bay.model:FindFirstChild(BayConfig.INCUBATOR_NAME)
-		if incubator then
-			incubator:SetAttribute(BayConfig.INCUBATOR_NEXT_HATCH_ATTRIBUTE, nextHatchAt)
 		end
 		changed.fire(player)
 	end

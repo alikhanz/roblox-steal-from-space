@@ -73,6 +73,19 @@ function BayModel.eggCFrame(origin: CFrame, index: number): CFrame
 		* CFrame.new(math.cos(angle) * BayLooks.EGG_RING_RADIUS, lift, math.sin(angle) * BayLooks.EGG_RING_RADIUS)
 end
 
+-- Where queued egg `index` (1-based) lies: on the platform around the incubator, then on a
+-- wider ring around it.
+function BayModel.waitingEggCFrame(origin: CFrame, index: number): CFrame
+	local slot = (index - 1) % BayLooks.WAITING_RING_SLOTS
+	local ring = (index - 1) // BayLooks.WAITING_RING_SLOTS
+	-- The second ring sits half a step round, between the first ring's eggs.
+	local angle = (slot + ring * 0.5) / BayLooks.WAITING_RING_SLOTS * math.pi * 2
+	local radius = BayLooks.WAITING_RING_RADIUS + ring * BayLooks.WAITING_RING_STEP
+	return origin
+		* CFrame.new(BayLooks.INCUBATOR_POSITION)
+		* CFrame.new(math.cos(angle) * radius, 1, math.sin(angle) * radius)
+end
+
 -- Where floor alien `index` (1-based) waits: down the right side, then the left, then again.
 function BayModel.floorCFrame(origin: CFrame, index: number): CFrame
 	local perRound = BayLooks.FLOOR_SPOTS_PER_SIDE * 2

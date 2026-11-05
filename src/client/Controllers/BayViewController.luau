@@ -1,6 +1,7 @@
 --!strict
 -- The client side of bays: the owner's name on the sign, a label over every alien (what it is
--- and what it earns), one countdown over the incubator and the trainer's sign. Everything is
+-- and what it earns), the incubator's sign with its slots, a countdown over every egg warming
+-- (and "waiting" over the queued ones) and the trainer's sign. Everything is
 -- keyed by the instance and torn down when it goes, since bays stream and are rebuilt by the
 -- server.
 
@@ -34,6 +35,8 @@ local TRAINER_STUDS_ABOVE = 5
 local PODS_SIGN_STUDS_ABOVE = 0.5
 local ALIEN_STUDS_ABOVE = 2
 local INCUBATOR_STUDS_ABOVE = 4
+-- Each egg's countdown, just over it.
+local EGG_STUDS_ABOVE = 1.6
 -- The owner's name reads from across the platform; the upgrade signs with the camera pulled
 -- back; what stands in the bay only up close, or the labels pile up on each other.
 local SIGN_MAX_DISTANCE = 120
@@ -285,8 +288,8 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		end)
 	end
 
-	-- One sign for the whole incubator (a sign per egg piles up once there are dozens): how
-	-- many eggs lie in it and when the next one hatches, from the incubator's attributes.
+	-- The incubator's sign (decision 058): eggs warming of its slots, whether one is free or how
+	-- many wait, and for the owner a button for one more slot. The countdowns are over the eggs.
 	function watchIncubator(bay: Instance)
 		task.spawn(function()
 			local incubator = bay:WaitForChild(BayConfig.INCUBATOR_NAME, PART_WAIT_TIMEOUT)
@@ -294,41 +297,91 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				return
 			end
 			label(incubator, nil, function(part)
-				local count = Vide.source(0)
-				local value = Vide.source("")
-				local function tick()
-					local eggs = incubator:GetAttribute(BayConfig.INCUBATOR_COUNT_ATTRIBUTE)
-					local nextHatchAt = incubator:GetAttribute(BayConfig.INCUBATOR_NEXT_HATCH_ATTRIBUTE)
-					count(if type(eggs) == "number" then eggs else 0)
-					if type(nextHatchAt) ~= "number" or count() == 0 then
-						value(Text.get(locale, "bay.incubatorIdle.hint"))
-						return
-					end
-					local left = nextHatchAt - workspace:GetServerTimeNow()
-					value(
-						if left > 0
-							then Text.get(locale, "egg.hatchIn.hint", { time = Duration.clock(left) })
-							else Text.get(locale, "egg.hatching.hint")
+				local count = attributeSource(incubator, BayConfig.INCUBATOR_COUNT_ATTRIBUTE)
+				local slots = attributeSource(incubator, BayConfig.INCUBATOR_SLOTS_ATTRIBUTE)
+				local waiting = attributeSource(incubator, BayConfig.INCUBATOR_WAITING_ATTRIBUTE)
+				local function price(): BigNum.BigNum
+					return Bay.slotPrice(
+						slots(),
+						BayConfig.STARTING_INCUBATOR_SLOTS,
+						BayConfig.SLOT_PRICE_BASE,
+						BayConfig.SLOT_PRICE_GROWTH
 					)
 				end
-				tick()
-				local connection =
-					incubator:GetAttributeChangedSignal(BayConfig.INCUBATOR_COUNT_ATTRIBUTE):Connect(tick)
-				Vide.cleanup(function()
-					connection:Disconnect()
-				end)
+				local function hasRoom(): boolean
+					return slots() < BayConfig.MAX_INCUBATOR_SLOTS
+				end
+				local own = isOwn(bay)
 				return WorldLabel({
 					adornee = part,
 					title = function()
-						return Text.get(locale, "bay.incubatorSign.title", { count = count() })
+						return Text.get(locale, "bay.incubatorSlots.title", { count = count(), slots = slots() })
 					end,
-					value = value,
+					value = function()
+						if waiting() > 0 then
+							return Text.get(locale, "bay.incubatorWaiting.hint", { count = waiting() })
+						end
+						return Text.get(
+							locale,
+							if count() < slots() then "bay.incubatorFree.hint" else "bay.incubatorFull.hint"
+						)
+					end,
 					valueColor = Theme.SPEED,
 					studsAbove = INCUBATOR_STUDS_ABOVE,
-					maxDistance = CONTENTS_MAX_DISTANCE,
+					maxDistance = UPGRADE_SIGN_MAX_DISTANCE,
+					button = if own
+						then {
+							text = function()
+								return Text.get(locale, "bay.buySlot.button", { price = BigNum.format(price()) })
+							end,
+							enabled = function()
+								return hasRoom() and canAfford(price())
+							end,
+							visible = hasRoom,
+							onClick = function()
+								Remotes.BuyIncubatorSlot.Fire()
+							end,
+						}
+						else nil,
 				}),
-					tick
-			end)
+					nil
+			end, isOwn(bay))
+		end)
+	end
+
+	-- Every egg warming in a slot shows its own countdown; an egg in the queue says it waits.
+	local function watchIncubatorEgg(instance: Instance)
+		label(instance, nil, function(part)
+			local remaining = Vide.source("")
+			local function tick()
+				local hatchAt = part:GetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE)
+				local left = if type(hatchAt) == "number" then hatchAt - workspace:GetServerTimeNow() else 0
+				remaining(if left > 0 then Duration.clock(left) else Text.get(locale, "egg.hatching.hint"))
+			end
+			tick()
+			return WorldLabel({
+				adornee = part,
+				title = "",
+				value = remaining,
+				valueColor = Theme.SPEED,
+				studsAbove = EGG_STUDS_ABOVE,
+				maxDistance = CONTENTS_MAX_DISTANCE,
+			}),
+				tick
+		end)
+	end
+
+	local function watchWaitingEgg(instance: Instance)
+		label(instance, nil, function(part)
+			return WorldLabel({
+				adornee = part,
+				title = "",
+				value = Text.get(locale, "egg.waiting.hint"),
+				valueColor = Theme.MUTED,
+				studsAbove = EGG_STUDS_ABOVE,
+				maxDistance = CONTENTS_MAX_DISTANCE,
+			}),
+				nil
 		end)
 	end
 
@@ -345,6 +398,8 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		observe(BayConfig.TAG, watchBay)
 		observe(BayConfig.ALIEN_TAG, watchAlien)
+		observe(BayConfig.INCUBATOR_EGG_TAG, watchIncubatorEgg)
+		observe(BayConfig.WAITING_EGG_TAG, watchWaitingEgg)
 
 		local sinceCountdown = 0
 		RunService.Heartbeat:Connect(function(deltaTime)

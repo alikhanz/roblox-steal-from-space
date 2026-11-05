@@ -53,16 +53,18 @@ return table.freeze({
 	TRAINER_TOLERANCE = 1.2,
 	TRAINER_PROMPT_DISTANCE = 8,
 
-	-- The bay shows at most this many incubator eggs and floor aliens as models; the rest stay
-	-- in the profile and the window (a pile of eighty glowing eggs lit the whole station).
-	INCUBATOR_SHOWN_MAX = 12,
+	-- The bay shows at most this many queued eggs and floor aliens as models; the rest stay in
+	-- the profile and the window (a pile of eighty glowing eggs lit the whole station). The
+	-- incubator shows all of its eggs: no more than MAX_INCUBATOR_SLOTS.
+	WAITING_SHOWN_MAX = 24,
 	FLOOR_SHOWN_MAX = 24,
 
 	-- Bay model attributes and tags (replicated for the client views).
 	TAG = "Bay",
-	-- On the incubator part: how many eggs it holds and the server time the next one hatches.
+	-- On the incubator part: how many eggs warm in it, its slots and how many eggs wait.
 	INCUBATOR_COUNT_ATTRIBUTE = "EggCount",
-	INCUBATOR_NEXT_HATCH_ATTRIBUTE = "NextHatchAt",
+	INCUBATOR_SLOTS_ATTRIBUTE = "Slots",
+	INCUBATOR_WAITING_ATTRIBUTE = "Waiting",
 	OWNER_ID_ATTRIBUTE = "OwnerUserId",
 	OWNER_NAME_ATTRIBUTE = "OwnerName",
 	-- Instance names inside a bay model.
@@ -78,8 +80,9 @@ return table.freeze({
 	ALIEN_TAG = "Alien",
 	ALIEN_ID_ATTRIBUTE = "AlienId",
 	ALIEN_UID_ATTRIBUTE = "Uid",
-	-- Eggs lying in an incubator; HatchAt is server (Unix) time.
+	-- Eggs lying in an incubator (HatchAt is server, Unix, time) and eggs waiting for a slot.
 	INCUBATOR_EGG_TAG = "IncubatorEgg",
+	WAITING_EGG_TAG = "WaitingEgg",
 	EGG_UID_ATTRIBUTE = "Uid",
 	EGG_HATCH_AT_ATTRIBUTE = "HatchAt",
 })

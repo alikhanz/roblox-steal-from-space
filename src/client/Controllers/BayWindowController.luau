@@ -247,17 +247,37 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return BigNum.mul(income, BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
 	end
 
-	local function eggLine(egg: ProfileState.Egg): string
-		local _ = clock()
+	local function slotPrice(): BigNum.BigNum
+		return Bay.slotPrice(
+			profile.bay().incubatorSlots,
+			BayConfig.STARTING_INCUBATOR_SLOTS,
+			BayConfig.SLOT_PRICE_BASE,
+			BayConfig.SLOT_PRICE_GROWTH
+		)
+	end
+
+	-- "<egg> · <guardian>[ · ★ star]", the start of every egg's line.
+	local function eggName(
+		egg: { read rarity: string, read variant: string?, read grade: number, read luck: number? }
+	): string
 		local name = Names.egg(locale, egg.rarity, egg.variant) or "?"
 		local guardian = Names.guardian(locale, egg.grade) or "?"
+		-- Extra luck comes only with the star egg: it hatches luckier.
+		local luck = if egg.luck and egg.luck > 0 then ` · {text("egg.starEgg.hint")}` else ""
+		return `{name} · {guardian}{luck}`
+	end
+
+	local function eggLine(egg: ProfileState.Egg): string
+		local _ = clock()
 		local left = egg.hatchAt - workspace:GetServerTimeNow()
 		local when = if left > 0
 			then text("egg.hatchIn.hint", { time = Duration.clock(left) })
 			else text("egg.hatching.hint")
-		-- Extra luck comes only with the star egg: it hatches luckier.
-		local luck = if egg.luck and egg.luck > 0 then ` · {text("egg.starEgg.hint")}` else ""
-		return `{name} · {guardian}{luck} — {when}`
+		return `{eggName(egg)} — {when}`
+	end
+
+	local function waitingLine(egg: ProfileState.WaitingEgg): string
+		return `{eggName(egg)} — {text("egg.waiting.hint")}`
 	end
 
 	-- Drops selections of aliens that are gone (sold, crossbred, hatched into their place).
@@ -287,10 +307,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		end
 	end
 
-	-- A delivered egg shows up as one more egg in the incubator: that is the moment to cheer.
+	-- A delivered egg shows up as one more egg in the incubator or its queue: that is the moment
+	-- to cheer (an egg moving from the queue into a slot is not a new one).
 	local incubatorCount: number? = nil
 	local function watchIncubator()
-		local count = #profile.bay().incubator
+		local bay = profile.bay()
+		local count = #bay.incubator + #bay.waiting
 		local previous = incubatorCount
 		incubatorCount = count
 		if previous ~= nil and count > previous then
@@ -332,8 +354,17 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						buyPod = function()
 							return text("bay.buyPod.button", { price = BigNum.format(podPrice()) })
 						end,
-						incubator = text("bay.incubator.title"),
+						incubator = function()
+							local bay = profile.bay()
+							return text(
+								"bay.incubatorSlots.title",
+								{ count = #bay.incubator, slots = bay.incubatorSlots }
+							)
+						end,
 						incubatorEmpty = text("bay.incubatorEmpty.hint"),
+						buySlot = function()
+							return text("bay.buySlot.button", { price = BigNum.format(slotPrice()) })
+						end,
 						inventory = function()
 							return text(
 								"bay.inventory.title",
@@ -386,6 +417,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						return if alien then AlienLooks.TIERS[alien.tier].color else Theme.MUTED
 					end,
 					eggLine = eggLine,
+					waitingLine = waitingLine,
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
 					end,
@@ -414,6 +446,13 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					canBuyPod = function()
 						return #profile.bay().pods < BayConfig.MAX_PODS
 							and not BigNum.lessThan(profile.coins(), podPrice())
+					end,
+					slotForSale = function()
+						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+					end,
+					canBuySlot = function()
+						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+							and not BigNum.lessThan(profile.coins(), slotPrice())
 					end,
 					onClose = function()
 						isOpen(false)
@@ -461,6 +500,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					end,
 					onBuyPod = function()
 						Remotes.BuyPod.Fire()
+					end,
+					onBuySlot = function()
+						Remotes.BuyIncubatorSlot.Fire()
 					end,
 				}),
 

@@ -7,6 +7,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienCard = require(script.Parent.AlienCard)
+local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local Button = require(script.Parent.Button)
 local Layout = require(script.Parent.Layout)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
@@ -34,8 +35,11 @@ export type Texts = {
 	pods: string,
 	emptyPod: string,
 	buyPod: () -> string,
-	incubator: string,
+	-- "Incubator · 2/4": eggs warming of the slots.
+	incubator: () -> string,
 	incubatorEmpty: string,
+	-- "+1 slot 450 ●".
+	buySlot: () -> string,
 	inventory: () -> string,
 	floor: () -> string,
 	-- How to pick them up, or why not right now.
@@ -61,6 +65,8 @@ export type Props = {
 	alienColor: (alienId: string) -> Color3,
 	-- Egg line: "<name> — hatches in …", refreshed by the controller.
 	eggLine: (egg: ProfileState.Egg) -> string,
+	-- A queued egg's line: "<name> — waiting for a slot".
+	waitingLine: (egg: ProfileState.WaitingEgg) -> string,
 	isSelected: (uid: number) -> boolean,
 	-- True for an alien that cannot join the current crossbreed selection.
 	isDimmed: (alienId: string) -> boolean,
@@ -70,6 +76,9 @@ export type Props = {
 	canMoveToPod: () -> boolean,
 	canMoveToInventory: () -> boolean,
 	canBuyPod: () -> boolean,
+	-- Shown while the incubator can take another slot; enabled when it is affordable.
+	canBuySlot: () -> boolean,
+	slotForSale: () -> boolean,
 	onClose: () -> (),
 	onAutoPlace: () -> (),
 	onCrossbreed: () -> (),
@@ -77,6 +86,7 @@ export type Props = {
 	onMoveToPod: () -> (),
 	onMoveToInventory: () -> (),
 	onBuyPod: () -> (),
+	onBuySlot: () -> (),
 }
 
 local function sectionTitle(text: string | () -> string, order: number, visible: (() -> boolean)?): TextLabel
@@ -188,6 +198,14 @@ local function BayWindow(props: Props): Frame
 			return props.eggLine(egg())
 		end, index)
 	end)
+	-- The queue after the eggs warming: ordered after any number of them.
+	local waitingEggs = indexes(function()
+		return props.bay().waiting
+	end, function(egg, index)
+		return hint(function()
+			return props.waitingLine(egg())
+		end, BayConfig.MAX_INCUBATOR_SLOTS + (index :: number))
+	end)
 
 	return create("Frame")({
 		Name = "BayWindow",
@@ -262,6 +280,7 @@ local function BayWindow(props: Props): Frame
 					return #props.bay().incubator == 0
 				end),
 				eggs,
+				waitingEggs,
 			}),
 			sectionTitle(texts.inventory, 5),
 			hint(texts.crossbreedHint, 6),
@@ -340,6 +359,21 @@ local function BayWindow(props: Props): Frame
 				enabled = props.canBuyPod,
 				color = Theme.COINS_DARK,
 				onClick = props.onBuyPod,
+			}),
+			create("Frame")({
+				Name = "BuySlotSlot",
+				LayoutOrder = 7,
+				Size = UDim2.fromScale(0, 0),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Visible = props.slotForSale,
+				Button({
+					name = "BuySlot",
+					text = texts.buySlot,
+					enabled = props.canBuySlot,
+					color = Theme.COINS_DARK,
+					onClick = props.onBuySlot,
+				}),
 			}),
 		}),
 	}) :: Frame
