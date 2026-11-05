@@ -19,6 +19,8 @@ export type Props = {
 	name: string,
 	-- Formatted recommended speed, e.g. "1.5K".
 	recommended: string,
+	-- The name's colour: how the player stands against this guardian (GuardianLooks.standingColor).
+	nameColor: () -> Color3,
 	-- The sign is hidden beyond this distance, studs (ZoneLooks.GUARDIAN_SIGN_DISTANCE).
 	maxDistance: number,
 }
@@ -47,7 +49,7 @@ local function GuardianLabel(props: Props): BillboardGui
 			BackgroundTransparency = 1,
 			FontFace = Theme.FONT,
 			TextSize = Theme.TEXT_SIZE,
-			TextColor3 = Theme.TEXT,
+			TextColor3 = props.nameColor,
 			TextStrokeTransparency = 0.4,
 			Text = props.name,
 		}),

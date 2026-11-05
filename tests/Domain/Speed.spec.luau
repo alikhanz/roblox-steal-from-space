@@ -92,3 +92,29 @@ describe("Speed.recommended", function()
 		expect(BigNum.toNumber(Speed.withEgg(recommended, 0.25))).toBeCloseTo(100, 1e-9)
 	end)
 end)
+
+describe("Speed.standing", function()
+	-- At maxRatio 1.5 and exponent 0.5 the guardian is at its fastest 2.25 times below its stat.
+	local chase: Speed.ChaseTuning = { ratioExponent = 0.5, minRatio = 0.6, maxRatio = 1.5 }
+
+	it("is level at the recommended stat", function()
+		expect(Speed.standing(n(1000), n(1000), chase, 1)).toBeCloseTo(0)
+	end)
+
+	it("reaches -1 where the guardian flies its fastest, and stays there", function()
+		expect(Speed.standing(n(1000 / 2.25), n(1000), chase, 1)).toBeCloseTo(-1)
+		expect(Speed.standing(n(1), n(1000), chase, 1)).toBe(-1)
+		local halfway = Speed.standing(n(1000 / 1.5), n(1000), chase, 1)
+		expect(halfway).toBeCloseTo(-0.5)
+	end)
+
+	it("reaches 1 at greenDecades tenfolds above, and stays there", function()
+		expect(Speed.standing(n(10000), n(1000), chase, 1)).toBeCloseTo(1)
+		expect(Speed.standing(n(1e9), n(1000), chase, 1)).toBe(1)
+		expect(Speed.standing(n(3162.3), n(1000), chase, 1)).toBeCloseTo(0.5, 1e-3)
+	end)
+
+	it("works on huge stats", function()
+		expect(Speed.standing(BigNum.new(1, 40), BigNum.new(1, 40), chase, 1)).toBeCloseTo(0)
+	end)
+end)

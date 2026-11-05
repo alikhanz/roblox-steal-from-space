@@ -74,6 +74,29 @@ function Speed.chaseSpeed(
 	return thiefFlightSpeed * ratio
 end
 
+-- How a thief with `stat` stands against a guardian whose recommended stat is `recommended`, on a
+-- scale from -1 to 1, for the colour of its name: 0 is level (the recommended stat: with the
+-- head start the thief gets away), -1 is a guardian the thief cannot get away from at all (it
+-- flies its fastest relative to the thief, Speed.chaseSpeed's maxRatio), 1 is a guardian
+-- `greenDecades` tenfolds weaker (an easy egg, but a poor one). Measured on the log scale.
+function Speed.standing(
+	stat: BigNum.BigNum,
+	recommended: BigNum.BigNum,
+	chase: ChaseTuning,
+	greenDecades: number
+): number
+	if BigNum.isZero(stat) or BigNum.isNegative(stat) or BigNum.isZero(recommended) then
+		return -1
+	end
+	local decades = BigNum.log10(stat) - BigNum.log10(recommended)
+	if decades >= 0 then
+		return math.min(decades / greenDecades, 1)
+	end
+	-- The guardian reaches its top speed against the thief when the stats are this far apart.
+	local redDecades = math.log10(chase.maxRatio) / chase.ratioExponent
+	return math.max(decades / redDecades, -1)
+end
+
 -- The stat shown over a guardian: with it a thief flies level with the guardian while carrying
 -- an egg of `typicalWeight`. Lighter eggs need less, heavier ones more.
 function Speed.recommended(guardianSpeed: BigNum.BigNum, typicalWeight: number): BigNum.BigNum

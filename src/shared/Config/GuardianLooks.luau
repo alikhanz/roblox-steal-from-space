@@ -70,8 +70,23 @@ local EYE_COLORS: { [GuardianBrain.State]: Color3 } = {
 	Return = Color3.fromRGB(255, 170, 40),
 }
 
+-- The guardian's name over it shows how the player stands against it (Speed.standing, -1..1):
+-- deep red where it cannot be outrun, white where the player just gets away, green where it is
+-- far too weak to be worth it.
+local CANNOT_ESCAPE = Color3.fromRGB(255, 60, 50)
+local LEVEL = Color3.fromRGB(255, 255, 255)
+local TOO_WEAK = Color3.fromRGB(80, 230, 110)
+
+local function standingColor(standing: number): Color3
+	if standing < 0 then
+		return LEVEL:Lerp(CANNOT_ESCAPE, math.min(-standing, 1))
+	end
+	return LEVEL:Lerp(TOO_WEAK, math.min(standing, 1))
+end
+
 return table.freeze({
 	KINDS = table.freeze(KINDS),
 	POSTS = table.freeze(POSTS),
 	EYE_COLORS = table.freeze(EYE_COLORS),
+	standingColor = standingColor,
 })

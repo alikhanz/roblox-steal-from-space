@@ -1,5 +1,7 @@
 --!strict
--- The client side of guardians: the sign with the name and recommended speed over each one, and
+-- The client side of guardians: the sign with the name (coloured by how the player stands
+-- against the guardian: red, white, green, see GuardianLooks.standingColor) and the recommended
+-- speed over each one, and
 -- eyes that light up with the guardian's state. Guardians stream in and out, so everything is
 -- keyed by the model and torn down when it goes.
 
@@ -13,12 +15,19 @@ local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local Mount = require(script.Parent.Parent.UI.Mount)
+local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
+local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
 
 -- The strike: the body swells and snaps back.
 local STRIKE_SCALE = 1.35
 local STRIKE_TWEEN = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true)
+
+export type Dependencies = {
+	-- The player's speed stat: the names are coloured by it.
+	speed: () -> BigNum.BigNum,
+}
 
 export type GuardianViewController = {
 	name: string,
@@ -32,12 +41,11 @@ type View = {
 
 local GuardianViewController = {}
 
-local function recommendedText(model: Model): string
-	local value = BigNum.fromSaved({
+local function recommendedOf(model: Model): BigNum.BigNum?
+	return BigNum.fromSaved({
 		mantissa = model:GetAttribute(GuardianConfig.RECOMMENDED_MANTISSA_ATTRIBUTE),
 		exponent = model:GetAttribute(GuardianConfig.RECOMMENDED_EXPONENT_ATTRIBUTE),
 	})
-	return if value then BigNum.format(value) else "?"
 end
 
 local function paintEyes(model: Model)
@@ -50,7 +58,7 @@ local function paintEyes(model: Model)
 	end
 end
 
-function GuardianViewController.new(): GuardianViewController
+function GuardianViewController.new(dependencies: Dependencies): GuardianViewController
 	local views: { [Instance]: View } = {}
 	-- Body watchers of every tagged guardian, present body or not.
 	local tracked: { [Instance]: { RBXScriptConnection } } = {}
@@ -81,11 +89,24 @@ function GuardianViewController.new(): GuardianViewController
 		-- The key is checked at the config; it passes through `any` because the union of every
 		-- string key is too much for the type checker here.
 		local nameKey: any = post.nameKey
+		local recommended = recommendedOf(instance)
 		local unmount = Mount.instance(function()
 			return GuardianLabel({
 				adornee = body,
 				name = Text.get(locale, nameKey),
-				recommended = recommendedText(instance),
+				recommended = if recommended then BigNum.format(recommended) else "?",
+				nameColor = function(): Color3
+					if not recommended then
+						return GuardianLooks.standingColor(0)
+					end
+					local standing = Speed.standing(
+						dependencies.speed(),
+						recommended,
+						SpeedConfig.CHASE,
+						SpeedConfig.STANDING_GREEN_DECADES
+					)
+					return GuardianLooks.standingColor(standing)
+				end,
 				maxDistance = ZoneLooks.GUARDIAN_SIGN_DISTANCE[post.zone],
 			})
 		end, instance)

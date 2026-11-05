@@ -28,7 +28,6 @@ local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
-local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local StatBadge = require(script.Parent.Parent.UI.StatBadge)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -46,6 +45,8 @@ export type Dependencies = {
 	-- Shows a short message (grabbed, delivered or dropped egg).
 	toast: (text: string, color: Color3) -> (),
 	abilities: AbilityState.AbilityState,
+	-- The player's speed stat.
+	speed: () -> BigNum.BigNum,
 }
 
 export type HudController = {
@@ -60,7 +61,7 @@ function HudController.new(dependencies: Dependencies): HudController
 	local inSpace = source(false)
 	-- Slow mode is on (the simulation keeps it on the character).
 	local slowMode = source(false)
-	local speed = source(SpeedConfig.STARTING_SPEED)
+	local speed = dependencies.speed
 	local stunned = source(false)
 	-- What the current hit says: a guardian's catch, the serpent's or a player's strike.
 	local hitToast = source("guardian.caught.toast" :: Text.Key)
@@ -112,13 +113,6 @@ function HudController.new(dependencies: Dependencies): HudController
 	local carried = source(nil :: string?)
 	local readCarried = carried :: () -> string?
 	local characterConnections: { RBXScriptConnection } = {}
-
-	local function readSpeed(player: Player)
-		local mantissa = player:GetAttribute(SpeedConfig.MANTISSA_ATTRIBUTE)
-		local exponent = player:GetAttribute(SpeedConfig.EXPONENT_ATTRIBUTE)
-		local value = BigNum.fromSaved({ mantissa = mantissa, exponent = exponent })
-		speed(value or SpeedConfig.STARTING_SPEED)
-	end
 
 	local function watchCharacter(character: Model)
 		for _, connection in characterConnections do
@@ -432,14 +426,6 @@ function HudController.new(dependencies: Dependencies): HudController
 				dependencies.toast(Text.get(locale, "pvp.harpooned.toast"), Theme.TOAST_BAD)
 			end
 		end)
-		-- Mantissa and exponent arrive separately; reading both on either change is harmless.
-		player:GetAttributeChangedSignal(SpeedConfig.MANTISSA_ATTRIBUTE):Connect(function()
-			readSpeed(player)
-		end)
-		player:GetAttributeChangedSignal(SpeedConfig.EXPONENT_ATTRIBUTE):Connect(function()
-			readSpeed(player)
-		end)
-		readSpeed(player)
 	end
 
 	return {
