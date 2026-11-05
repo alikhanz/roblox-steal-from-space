@@ -38,6 +38,7 @@ local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
+local PvpService = require(script.Parent.PvpService)
 local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -66,7 +67,7 @@ export type Dependencies = {
 	-- Rebuilds the bay (which also sends the client its coins).
 	refresh: (player: Player) -> (),
 	-- Registers a strike target that is not a player, and reads the ability counters.
-	addDummy: (model: Model, root: BasePart, onHit: (direction: Vector3) -> boolean) -> (),
+	addCreature: (creature: PvpService.Creature) -> (),
 	getPvpUsage: () -> { [string]: { used: number, hit: number } },
 	-- Daily quests: finish all of today's; give a fresh set as if a new day began.
 	completeQuests: (player: Player) -> boolean,
@@ -188,7 +189,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				body.CFrame = ahead()
 				egg.CFrame = body.CFrame * CFrame.new(0, -0.2, -1.2)
 			end)
-			dependencies.addDummy(model, body, function(direction)
+			local function knockOut(direction: Vector3): boolean
 				dependencies.spawnLooseEgg({
 					rarity = chosenRarity,
 					size = EggConfig.TYPICAL_SIZE,
@@ -197,7 +198,17 @@ function DevService.new(dependencies: Dependencies): DevService
 				}, egg.Position, direction * EggConfig.DROP_SPEED)
 				model:Destroy()
 				return true
-			end)
+			end
+			dependencies.addCreature({
+				model = model,
+				root = body,
+				radius = 0,
+				isCarrying = function()
+					return true
+				end,
+				onHit = knockOut,
+				onHarpoon = knockOut,
+			})
 			return "dummy thief ahead"
 		end,
 		-- Sets every player's total play time (to leave or re-enter the newbie protection).

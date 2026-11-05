@@ -49,12 +49,28 @@ export type Dependencies = {
 	scheduler: Scheduler.Scheduler,
 }
 
--- Something an attack can land on: a player's character, or a test dummy.
-export type Target = {
+-- Something an attack can land on that is not a player: the star serpent, a test dummy.
+export type Creature = {
+	model: Model,
+	root: BasePart,
+	-- Its body's radius around `root`, studs: attacks land on its surface (0: a point).
+	radius: number,
+	-- True while it holds an egg (the harpoon only goes for egg carriers).
+	isCarrying: () -> boolean,
+	-- Takes a hit thrown along `direction`; returns true if an egg came loose.
+	onHit: (direction: Vector3) -> boolean,
+	-- Loses the egg (no throw), launched along `launch`; returns true if an egg came loose.
+	onHarpoon: (launch: Vector3) -> boolean,
+}
+
+-- Something an attack can land on: a player's character, or a creature.
+type Target = {
 	model: Model,
 	root: BasePart,
 	player: Player?,
-	side: () -> Pvp.Side,
+	radius: number,
+	-- Why `attacker` may not attack it right now, or nil when they may.
+	refusal: (attacker: Pvp.Side) -> Pvp.Refusal?,
 	isCarrying: () -> boolean,
 	-- Takes a hit thrown along `direction`; returns true if an egg came loose.
 	onHit: (direction: Vector3) -> boolean,
@@ -65,8 +81,8 @@ export type Target = {
 export type PvpService = {
 	name: string,
 	start: () -> (),
-	-- Registers a target that is not a player (playtests). It is forgotten when its model goes.
-	addDummy: (model: Model, root: BasePart, onHit: (direction: Vector3) -> boolean) -> (),
+	-- Registers a creature attacks can land on. It is forgotten when its model goes.
+	addCreature: (creature: Creature) -> (),
 	-- How many times each ability was used and how many of those landed, by ability name.
 	getUsage: () -> { [string]: { used: number, hit: number } },
 	-- Fires after an ability resolved: the player, the ability, whether it hit, whether an egg dropped.
@@ -100,6 +116,10 @@ local function toVector(v: Vector3): Abilities.Vector
 	return { x = v.X, y = v.Y, z = v.Z }
 end
 
+local function fromVector(v: Abilities.Vector): Vector3
+	return Vector3.new(v.x, v.y, v.z)
+end
+
 local function isInSpace(character: Model): boolean
 	return character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true
 end
@@ -117,7 +137,7 @@ end
 
 function PvpService.new(dependencies: Dependencies): PvpService
 	local states: { [Player]: PlayerState } = {}
-	local dummies: { Target } = {}
+	local creatures: { Target } = {}
 	local usage: { [string]: { used: number, hit: number } } = {}
 	local abilityUsed = Signal.new() :: Signal.Signal<Player, AbilityKind, boolean, boolean>
 
@@ -187,8 +207,9 @@ function PvpService.new(dependencies: Dependencies): PvpService
 				model = character,
 				root = root,
 				player = other,
-				side = function()
-					return sideOf(other, character)
+				radius = 0,
+				refusal = function(attackerSide)
+					return Pvp.refusal(attackerSide, sideOf(other, character), time(), PvpConfig.RULES)
 				end,
 				isCarrying = function()
 					return dependencies.isCarrying(other)
@@ -201,10 +222,16 @@ function PvpService.new(dependencies: Dependencies): PvpService
 				end,
 			})
 		end
-		for _, dummy in dummies do
-			table.insert(targets, dummy)
+		for _, creature in creatures do
+			table.insert(targets, creature)
 		end
 		return targets
+	end
+
+	-- Where an attack from `from` meets the target: its surface toward `from` (a player is a
+	-- point at the root).
+	local function contactPoint(target: Target, from: Vector3): Abilities.Vector
+		return Abilities.nearestPoint(toVector(target.root.Position), target.radius, toVector(from))
 	end
 
 	-- The nearest target in the cone ahead of `root`, among those passing `filter`.
@@ -219,7 +246,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		local candidates: { { id: number, position: Abilities.Vector } } = {}
 		for index, target in targets do
 			if filter(target) then
-				table.insert(candidates, { id = index, position = toVector(target.root.Position) })
+				table.insert(candidates, { id = index, position = contactPoint(target, root.Position) })
 			end
 		end
 		local index =
@@ -297,7 +324,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			return
 		end
 		lunge.touched = true
-		local refusal = Pvp.refusal(sideOf(player, character), target.side(), time(), PvpConfig.RULES)
+		local refusal = target.refusal(sideOf(player, character))
 		if refusal then
 			dependencies.notify(player, refusal)
 			count("Strike", false)
@@ -338,7 +365,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			resolved(player, "Harpoon", false, false)
 			return
 		end
-		local refusal = Pvp.refusal(attacker, target.side(), time(), PvpConfig.RULES)
+		local refusal = target.refusal(attacker)
 		if refusal then
 			dependencies.notify(player, refusal)
 			count("Harpoon", false)
@@ -362,12 +389,12 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		local targets = targetsFor(player)
 		local candidates: { { id: number, position: Abilities.Vector } } = {}
 		for index, target in targets do
-			table.insert(candidates, { id = index, position = toVector(target.root.Position) })
+			table.insert(candidates, { id = index, position = contactPoint(target, center) })
 		end
 		local hit, dropped = false, false
 		for _, index in Abilities.withinRadius(toVector(center), candidates, PvpConfig.BOMB.radiusStuds) do
 			local target = targets[index]
-			if Pvp.refusal(attacker, target.side(), time(), PvpConfig.RULES) then
+			if target.refusal(attacker) then
 				continue
 			end
 			local away = target.root.Position - center
@@ -388,7 +415,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		-- Goes off early when it reaches someone, so a throw at a player lands on them.
 		local function touches(position: Vector3): boolean
 			for _, target in targetsFor(player) do
-				if (target.root.Position - position).Magnitude <= PvpConfig.BOMB.contactStuds then
+				if (fromVector(contactPoint(target, position)) - position).Magnitude <= PvpConfig.BOMB.contactStuds then
 					return true
 				end
 			end
@@ -456,33 +483,22 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		end)
 	end
 
-	local function addDummy(model: Model, root: BasePart, onHit: (direction: Vector3) -> boolean)
-		-- A seasoned, very fast target: no rule ever shields it.
-		local seasoned: Pvp.Side = {
-			speed = BigNum.new(1, 30),
-			playSeconds = math.huge,
-			isInStation = false,
-			spawnedAt = -math.huge,
-			shieldUntil = 0,
-		}
+	local function addCreature(creature: Creature)
 		local target: Target = {
-			model = model,
-			root = root,
+			model = creature.model,
+			root = creature.root,
 			player = nil,
-			side = function()
-				return seasoned
-			end,
-			isCarrying = function()
-				return true
-			end,
-			onHit = onHit,
-			onHarpoon = onHit,
+			radius = creature.radius,
+			refusal = Pvp.creatureRefusal,
+			isCarrying = creature.isCarrying,
+			onHit = creature.onHit,
+			onHarpoon = creature.onHarpoon,
 		}
-		table.insert(dummies, target)
-		model.Destroying:Once(function()
-			local index = table.find(dummies, target)
+		table.insert(creatures, target)
+		creature.model.Destroying:Once(function()
+			local index = table.find(creatures, target)
 			if index then
-				table.remove(dummies, index)
+				table.remove(creatures, index)
 			end
 		end)
 	end
@@ -499,7 +515,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 	return {
 		name = "PvpService",
 		start = start,
-		addDummy = addDummy,
+		addCreature = addCreature,
 		getUsage = function()
 			return usage
 		end,

@@ -90,3 +90,18 @@ describe("Abilities.stepStrike", function()
 		expect(started).toBe(true)
 	end)
 end)
+
+describe("Abilities.nearestPoint", function()
+	it("meets a round body at its surface toward the attacker", function()
+		local point = Abilities.nearestPoint({ x = 0, y = 0, z = -20 }, 5, ORIGIN)
+		expect(point.x).toBeCloseTo(0)
+		expect(point.z).toBeCloseTo(-15)
+	end)
+
+	it("is the attacker itself inside the body, and the middle of a point body", function()
+		local inside = { x = 1, y = 0, z = -18 }
+		expect(Abilities.nearestPoint({ x = 0, y = 0, z = -20 }, 5, inside)).toEqual(inside)
+		local point = Abilities.nearestPoint({ x = 0, y = 0, z = -20 }, 0, ORIGIN)
+		expect(point.z).toBeCloseTo(-20)
+	end)
+end)

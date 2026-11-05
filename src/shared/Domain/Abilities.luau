@@ -94,6 +94,19 @@ function Abilities.isInCone(origin: Vector, facing: Vector, target: Vector, reac
 	return cosine >= math.cos(halfAngle)
 end
 
+-- Where an attack from `from` first meets a round body of `radius` around `center`: the point
+-- of the body nearest to `from` (`from` itself when inside it). Attacks aim at that point, so
+-- a big body is hit at its surface, not only at its middle.
+function Abilities.nearestPoint(center: Vector, radius: number, from: Vector): Vector
+	local offset = subtract(from, center)
+	local distance = length(offset)
+	if distance <= radius then
+		return from
+	end
+	local scale = radius / distance
+	return { x = center.x + offset.x * scale, y = center.y + offset.y * scale, z = center.z + offset.z * scale }
+end
+
 -- The nearest of `targets` inside the cone, or nil. Targets are {id, position}.
 function Abilities.nearestInCone<T>(
 	origin: Vector,

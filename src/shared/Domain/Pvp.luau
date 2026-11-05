@@ -36,6 +36,13 @@ function Pvp.isNewbie(playSeconds: number, rules: Rules): boolean
 	return playSeconds < rules.newbieSeconds
 end
 
+-- Why `attacker` may not attack a creature (the star serpent, a test dummy) right now, or nil
+-- when they may. The rules between players (newbies, a stat far apart, shields) are about
+-- fairness to the other player and do not apply; only the station stays a safe zone.
+function Pvp.creatureRefusal(attacker: Side): Refusal?
+	return if attacker.isInStation then "AttackerInStation" else nil
+end
+
 -- Why `attacker` may not attack `victim` right now, or nil when they may.
 function Pvp.refusal(attacker: Side, victim: Side, now: number, rules: Rules): Refusal?
 	if attacker.isInStation then
