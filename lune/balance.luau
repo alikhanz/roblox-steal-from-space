@@ -23,6 +23,7 @@ local PlayerData = require("../src/shared/Domain/PlayerData")
 local QuestConfig = require("../src/shared/Config/QuestConfig")
 local SerpentConfig = require("../src/shared/Config/SerpentConfig")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
+local StarEgg = require("../src/shared/Domain/StarEgg")
 local StormConfig = require("../src/shared/Config/StormConfig")
 local UpgradeConfig = require("../src/shared/Config/UpgradeConfig")
 local Upgrades = require("../src/shared/Domain/Upgrades")
@@ -47,6 +48,10 @@ local ASSUMPTIONS = {
 	-- Meteor eggs a player brings home from a shower: from a crater in the farthest zone they
 	-- can handle, at a guardian they can beat (the strip runs through every zone).
 	meteorEggsPerShower = 1,
+	-- The share of serpent hunts a player wins the star egg in: one egg per server, so with a
+	-- few players around a player gets it now and then (upper estimate). Only from a zone past
+	-- the first whose middle guardian they beat: that is who catches the serpent there.
+	starEggShare = 0.5,
 	-- Random runs averaged per profile.
 	runs = 3,
 }
@@ -93,10 +98,9 @@ local function afterStormCycle(event: EventConfig.Event): number
 	) * ASSUMPTIONS.stepSeconds
 end
 local METEOR_CYCLE = afterStormCycle(EventConfig.EVENTS.Meteor)
--- The star serpent's hunt: eggs delivered in it hatch luckier. Thefts go on as usual meanwhile
--- (the serpent catches some, the head start covers others: taken as even).
-local SERPENT = EventConfig.EVENTS.Serpent
-local SERPENT_CYCLE = afterStormCycle(SERPENT)
+-- The star serpent's hunt: its star egg (Domain/StarEgg) for whoever knocks it out and brings
+-- it home.
+local SERPENT_CYCLE = afterStormCycle(EventConfig.EVENTS.Serpent)
 
 -- The day's quests are worth this many minutes on average: the pool's mean reward by weight,
 -- times the quests a day.
@@ -196,19 +200,27 @@ local function simulate(profile: Profile, seed: number): Run
 		Bay.addEgg(data, rarity, size, grade, hatchAt, variant, luck)
 	end
 
-	-- An egg of `post`'s zone loot, the usual one or a meteor one, delivered now: in the star
-	-- serpent's hunt it hatches luckier.
+	-- An egg of `post`'s zone loot, the usual one or a meteor one, delivered now.
 	local function steal(post: number, now: number, variant: AlienConfig.VariantId?)
 		local zone = ZoneConfig.ZONES[ZoneConfig.zoneOfPost(post)]
-		local inHunt = now % DAY_SECONDS % SERPENT_CYCLE >= SERPENT_CYCLE - SERPENT.schedule.activeSeconds
-		incubate(
-			Loot.pick(zone.rarityLoot, math.random()),
-			Loot.pick(zone.sizeLoot, math.random()),
-			post,
-			now,
-			variant,
-			if inHunt then SerpentConfig.EGG_LUCK else nil
-		)
+		incubate(Loot.pick(zone.rarityLoot, math.random()), Loot.pick(zone.sizeLoot, math.random()), post, now, variant)
+	end
+
+	-- The star egg of the farthest zone past the first whose middle guardian the player beats,
+	-- if any.
+	local function winStarEgg(farthest: number, now: number)
+		local zone, inZone = ZoneConfig.zoneOfPost(farthest)
+		local zoneIndex = table.find(ZoneConfig.ZONE_ORDER, zone) :: number
+		if inZone < SerpentConfig.POWER_POST then
+			zoneIndex -= 1
+		end
+		-- The serpent never comes into the first zone.
+		if zoneIndex <= 1 then
+			return
+		end
+		zone = ZoneConfig.ZONE_ORDER[zoneIndex]
+		local egg = StarEgg.roll(zone, math.random(), math.random())
+		incubate(egg.rarity, egg.size, egg.grade, now, nil, egg.luck)
 	end
 
 	-- The index: a new alien's reward and, once its guardian's set is full, the set's, taken at
@@ -305,6 +317,10 @@ local function simulate(profile: Profile, seed: number): Run
 					steal(bestPost - math.random(0, inZone - 1), now, "Meteor")
 				end
 			end
+			-- The star serpent's hunt: now and then the player wins its egg.
+			if inDay % SERPENT_CYCLE < dt and bestPost > 0 and math.random() < ASSUMPTIONS.starEggShare then
+				winStarEgg(bestPost, now)
+			end
 			-- The login gift, taken first thing each day: the streak never breaks here.
 			if profile.daily and inDay == 0 then
 				local giftDay = (now // DAY_SECONDS) % LoginGiftConfig.LENGTH + 1
@@ -399,7 +415,7 @@ print(
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
 		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index; a solar storm every {STORM_CYCLE}s and a meteor shower every {METEOR_CYCLE}s `
 		.. `({ASSUMPTIONS.meteorEggsPerShower} egg if its guardian is beaten), a serpent hunt every {SERPENT_CYCLE}s `
-		.. `(eggs delivered in it +{SerpentConfig.EGG_LUCK} luck) for all`
+		.. `(the star egg, +{SerpentConfig.STAR_EGG_LUCK} luck, in {ASSUMPTIONS.starEggShare * 100}% of them) for all`
 )
 print("")
 

@@ -1,11 +1,20 @@
 --!strict
--- The star serpent's hunt, on its event's clock (EventService, SerpentConfig). As the hunt is
--- announced, a spot in the Event Horizon is picked; when it starts the serpent comes out there
--- and goes after everyone out in space past the first zone: the same one until it is caught or
--- gets away (Domain/GuardianBrain.pickTarget), as fast as a guardian with the speed stat of the
--- middle guardian of that player's zone would be (SerpentConfig.powerAt, Prey.chaseSpeed). A catch is a guardian's: the player is thrown and the egg knocked out; then the
--- serpent leaves them alone for a while. With nobody to hunt it roams. Its pin follows it
--- (EventService.movePlace).
+-- The star serpent's hunt for its egg, on its event's clock (EventService, SerpentConfig,
+-- decision 055). As the hunt is announced a spot in the Event Horizon is picked; when it starts
+-- the serpent comes out there carrying the star egg. What it does follows where the egg is
+-- (Domain/SerpentHunt):
+--   * egg inside: it flees the nearest player in space (SerpentConfig.fleeSpeedAt), roaming
+--     when nobody is near; hits on its head (it is a PvP creature) count up, and the last one
+--     knocks the egg out (Domain/StarEgg);
+--   * egg out: it guards the egg like a guardian (Domain/GuardianBrain): over it while it lies
+--     loose, after whoever carries it, at a guardian's chase speed with its stat
+--     (Prey.chaseSpeed), throwing them and knocking it out.
+-- The egg's home is the serpent's (Domain/EggHomes, SerpentConfig.EGG_HOME_ID): it gives the
+-- egg its grade, takes it back inside when it leaves play, and ends the event when it reaches a
+-- bay. When the time is up the serpent leaves: with the egg if it is inside; a loose egg is
+-- gone; an egg in hands stays there, and the home lasts until that egg is delivered or lost.
+-- The clients follow it through the event's folder (EventService.setDetail) and its pin, which
+-- follows the serpent, then the egg (EventService.movePlace).
 --
 -- The serpent's head is a server-owned physics mover, like a guardian, not predicted on clients;
 -- the clients draw its body behind it.
@@ -17,6 +26,8 @@ local RunService = game:GetService("RunService")
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local CarryService = require(script.Parent.CarryService)
+local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggHomes = require(ReplicatedStorage.Shared.Domain.EggHomes)
 local EventClock = require(ReplicatedStorage.Shared.Domain.EventClock)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventService = require(script.Parent.EventService)
@@ -24,19 +35,22 @@ local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local Knockback = require(script.Parent.Parent.Character.Knockback)
 local Prey = require(script.Parent.Parent.Character.Prey)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
+local PvpService = require(script.Parent.PvpService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
+local SerpentHunt = require(ReplicatedStorage.Shared.Domain.SerpentHunt)
 local SerpentModel = require(script.Parent.Parent.World.SerpentModel)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local StarEgg = require(ReplicatedStorage.Shared.Domain.StarEgg)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local CENTER = StationConfig.PLATFORM_CENTER
+local HOME_ID = SerpentConfig.EGG_HOME_ID
 -- A roaming serpent picks its next spot once it is this close to the last one, studs.
 local ROAM_ARRIVE_RADIUS = 30
--- Roams between the first zone past its hunting line and the last zone's outer edge.
+-- Roams between the first zone past the Debris Belt and the last zone's outer edge.
 local ROAM_MIN_RADIUS = ZoneConfig.ZONES.IceRings.ringMin
-local ROAM_MAX_RADIUS = ZoneConfig.ZONES.EventHorizon.ringMax
 local ROAM_HEIGHT = ZoneConfig.ZONES.EventHorizon.heightSpread
 
 export type Dependencies = {
@@ -44,17 +58,36 @@ export type Dependencies = {
 	placeOf: (id: EventConfig.EventId) -> EventService.Place?,
 	setPlacer: (id: EventConfig.EventId, placer: EventService.Placer) -> (),
 	movePlace: (id: EventConfig.EventId, position: Vector3) -> (),
+	setDetail: (id: EventConfig.EventId, name: string, value: string | number | boolean | nil) -> (),
+	stopEvent: (id: EventConfig.EventId) -> (),
+	homes: EggHomes.EggHomes,
 	getCarried: (player: Player) -> CarryService.Carried?,
+	findCarriers: (homeId: string) -> { Player },
+	findLooseEggs: (homeId: string) -> { Vector3 },
 	dropEgg: (player: Player, launch: Vector3?, reason: CarryService.LossReason?) -> boolean,
+	spawnLooseEgg: (egg: CarryService.Egg, position: Vector3, launch: Vector3?) -> (),
+	removeLooseEggs: (homeId: string) -> (),
+	-- Brings the star egg home: the serpent's job is done.
+	eggDelivered: Signal.Signal<Player, CarryService.Carried>,
 	getSpeed: (player: Player) -> BigNum.BigNum,
+	addCreature: (creature: PvpService.Creature) -> (),
 	scheduler: Scheduler.Scheduler,
 }
 
 export type SerpentService = {
 	name: string,
 	start: () -> (),
-	-- It caught a player; true if that knocked an egg out of their hands.
-	caught: Signal.Signal<Player, boolean>,
+	-- Hits on the serpent while the egg is inside, as if a player landed them (Studio command).
+	-- Returns false when the serpent is not out or its egg is not inside.
+	hit: (player: Player, direction: Vector3) -> boolean,
+	-- A player's attack landed on the serpent; true if it knocked the egg out.
+	struck: Signal.Signal<Player, boolean>,
+	-- It caught a player carrying its egg.
+	caught: Signal.Signal<Player>,
+	-- The star egg reached a bay.
+	delivered: Signal.Signal<Player, CarryService.Carried>,
+	-- The hunt's time ran out (not after a delivery): what became of the egg.
+	ended: Signal.Signal<SerpentHunt.Ending>,
 }
 
 -- The serpent while it is out.
@@ -63,11 +96,15 @@ type Serpent = {
 	head: BasePart,
 	velocity: LinearVelocity,
 	align: AlignOrientation,
-	target: Player?,
-	-- Players it caught, left alone until this time().
-	spared: { [Player]: number },
 	roamGoal: Vector3?,
 	sincePin: number,
+	-- Guarding the egg once it is out, like a guardian.
+	brain: GuardianBrain.State,
+	target: Player?,
+	stolenSeconds: number,
+	catchReadyAt: number,
+	-- Where it keeps watch: over the egg where it last lay.
+	watch: Vector3,
 }
 
 local SerpentService = {}
@@ -79,60 +116,55 @@ local function aroundStation(random: Random, radius: number, height: number): Ve
 	return CENTER + Vector3.new(math.cos(angle) * radius, lift, math.sin(angle) * radius)
 end
 
--- Out of its reach: on the station, or within the first zone.
+local function distanceFromStation(position: Vector3): number
+	return (position - CENTER).Magnitude
+end
+
+-- Out of its reach: on the station, or within the Debris Belt.
 local function isOutOfReach(character: Model, root: BasePart): boolean
-	return not Prey.inSpace(character) or (root.Position - CENTER).Magnitude <= SerpentConfig.HUNT_RADIUS
+	return not Prey.inSpace(character) or distanceFromStation(root.Position) <= SerpentConfig.HUNT_RADIUS
 end
 
 function SerpentService.new(dependencies: Dependencies): SerpentService
 	local random = Random.new()
-	local caught = Signal.new() :: Signal.Signal<Player, boolean>
-	local serpent: Serpent? = nil
+	local struck = Signal.new() :: Signal.Signal<Player, boolean>
+	local caught = Signal.new() :: Signal.Signal<Player>
+	local delivered = Signal.new() :: Signal.Signal<Player, CarryService.Carried>
+	local ended = Signal.new() :: Signal.Signal<SerpentHunt.Ending>
 
-	local function pickPlace(): EventService.Place?
-		return { zone = "EventHorizon", position = aroundStation(random, SerpentConfig.SPAWN_RADIUS, 0) }
+	local serpent: Serpent? = nil
+	local hunt = SerpentHunt.start()
+	-- The star egg out of the serpent (rolled as it is knocked out), nil while inside.
+	local starEgg: StarEgg.Egg? = nil
+	-- The egg's home is registered from the serpent's coming out until its egg is done with:
+	-- delivered, gone, or taken away; past the hunt while a player still holds it.
+	local homeOpen = false
+
+	local function publish(by: Player?)
+		if by then
+			-- Before the egg's place, so the clients' announcement of the change names them.
+			dependencies.setDetail("Serpent", SerpentConfig.EGG_BY_ATTRIBUTE, by.DisplayName)
+		end
+		dependencies.setDetail("Serpent", SerpentConfig.HITS_ATTRIBUTE, hunt.hits)
+		dependencies.setDetail("Serpent", SerpentConfig.EGG_ATTRIBUTE, hunt.egg)
+	end
+
+	local function closeHome()
+		if homeOpen then
+			homeOpen = false
+			dependencies.homes.unregister(HOME_ID)
+		end
+		starEgg = nil
 	end
 
 	local function steer(current: Serpent, velocity: Vector3)
-		local limited = Bounds.keepOutside(current.head.Position, velocity, CENTER, SerpentConfig.HUNT_RADIUS)
+		local position = current.head.Position
+		local inside = Bounds.keepOutside(position, velocity, CENTER, SerpentConfig.HUNT_RADIUS)
+		local limited = Bounds.limitVelocity(position, inside, CENTER, SerpentConfig.OUTER_RADIUS)
 		current.velocity.VectorVelocity = limited
 		if limited.Magnitude > 1 then
 			current.align.CFrame = CFrame.lookAlong(Vector3.zero, limited.Unit)
 		end
-	end
-
-	-- Whom it goes after: players out in space past the first zone that it has not just caught.
-	local function chooseTarget(current: Serpent): Player?
-		local now = time()
-		local candidates: { GuardianBrain.Candidate<Player> } = {}
-		for _, player in Players:GetPlayers() do
-			local character, root = Prey.root(player)
-			local sparedUntil = current.spared[player]
-			if character and root and not isOutOfReach(character, root) and not (sparedUntil and now < sparedUntil) then
-				table.insert(candidates, {
-					who = player,
-					distance = (root.Position - current.head.Position).Magnitude,
-					safe = false,
-				})
-			end
-		end
-		current.target = GuardianBrain.pickTarget(current.target, candidates)
-		return current.target
-	end
-
-	local function catch(current: Serpent, player: Player, character: Model, root: BasePart)
-		local strike = Prey.strike(current.head.Position, root)
-		local dropped = dependencies.dropEgg(player, strike.eggLaunch, "Serpent")
-		Knockback.apply(
-			character,
-			strike.direction * SerpentConfig.KNOCKBACK_SPEED,
-			strike.sideways,
-			SerpentConfig.STUN_SECONDS,
-			SerpentConfig.HIT_BY
-		)
-		current.spared[player] = time() + SerpentConfig.SPARE_SECONDS
-		current.target = nil
-		caught.fire(player, dropped)
 	end
 
 	-- Where a roaming serpent heads: the same spot until it gets there, then a new one.
@@ -141,30 +173,100 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		if goal and (goal - current.head.Position).Magnitude > ROAM_ARRIVE_RADIUS then
 			return goal
 		end
-		local fresh = aroundStation(random, random:NextNumber(ROAM_MIN_RADIUS, ROAM_MAX_RADIUS), ROAM_HEIGHT)
+		local radius = random:NextNumber(ROAM_MIN_RADIUS, SerpentConfig.OUTER_RADIUS)
+		local fresh = aroundStation(random, radius, ROAM_HEIGHT)
 		current.roamGoal = fresh
 		return fresh
 	end
 
-	local function roam(current: Serpent)
-		local goal = roamGoal(current)
-		steer(current, Pursuit.seekVelocity(current.head.Position, goal, SerpentConfig.ROAM_SPEED, ROAM_ARRIVE_RADIUS))
+	-- The nearest player out in space within its flee radius, if any.
+	local function nearestThreat(current: Serpent): BasePart?
+		local nearest: BasePart? = nil
+		local nearestDistance = SerpentConfig.FLEE_RADIUS
+		for _, player in Players:GetPlayers() do
+			local character, root = Prey.root(player)
+			if character and root and Prey.inSpace(character) then
+				local distance = (root.Position - current.head.Position).Magnitude
+				if distance <= nearestDistance then
+					nearest, nearestDistance = root, distance
+				end
+			end
+		end
+		return nearest
 	end
 
-	local function tick(deltaTime: number)
-		local current = serpent
-		if not current then
+	local function flee(current: Serpent)
+		local position = current.head.Position
+		local threat = nearestThreat(current)
+		if threat then
+			current.roamGoal = nil
+			local speed = SerpentConfig.fleeSpeedAt(distanceFromStation(position))
+			steer(current, Pursuit.fleeVelocity(position, threat.Position, speed))
+		else
+			local goal = roamGoal(current)
+			steer(current, Pursuit.seekVelocity(position, goal, SerpentConfig.ROAM_SPEED, ROAM_ARRIVE_RADIUS))
+		end
+	end
+
+	local function catchThief(current: Serpent, player: Player, character: Model, root: BasePart)
+		local strike = Prey.strike(current.head.Position, root)
+		if not dependencies.dropEgg(player, strike.eggLaunch, "Serpent") then
 			return
 		end
-		local prey = chooseTarget(current)
-		local character: Model?, root: BasePart? = nil, nil
-		if prey then
-			character, root = Prey.root(prey)
+		Knockback.apply(
+			character,
+			strike.direction * SerpentConfig.KNOCKBACK_SPEED,
+			strike.sideways,
+			SerpentConfig.STUN_SECONDS,
+			SerpentConfig.HIT_BY
+		)
+		current.catchReadyAt = time() + SerpentConfig.CATCH_COOLDOWN_SECONDS
+		caught.fire(player)
+	end
+
+	-- Its egg is out: a guardian's watch over it (GuardianService does the same for nests).
+	local function guard(current: Serpent, deltaTime: number)
+		local candidates: { GuardianBrain.Candidate<Player> } = {}
+		for _, player in dependencies.findCarriers(HOME_ID) do
+			local character, root = Prey.root(player)
+			if character and root then
+				table.insert(candidates, {
+					who = player,
+					distance = (root.Position - current.head.Position).Magnitude,
+					safe = isOutOfReach(character, root),
+				})
+			end
 		end
-		if prey and character and root then
-			local position = current.head.Position
-			local power = SerpentConfig.powerAt((root.Position - CENTER).Magnitude)
-			local speed = Prey.chaseSpeed(character, dependencies.getSpeed(prey), dependencies.getCarried(prey), power)
+		current.target = GuardianBrain.pickTarget(current.target, candidates)
+		local carrier = current.target
+		local character: Model?, root: BasePart? = nil, nil
+		if carrier then
+			character, root = Prey.root(carrier)
+		else
+			-- Nobody carries it: watch over where it lies (the nearest, should there be more).
+			local nearestDistance = math.huge
+			for _, position in dependencies.findLooseEggs(HOME_ID) do
+				local distance = (position - current.head.Position).Magnitude
+				if distance < nearestDistance then
+					nearestDistance = distance
+					current.watch = position + Vector3.yAxis * SerpentConfig.HOVER_HEIGHT
+				end
+			end
+		end
+		current.stolenSeconds = if root then current.stolenSeconds + deltaTime else 0
+
+		local position = current.head.Position
+		current.brain = GuardianBrain.next(current.brain, {
+			hasTarget = root ~= nil,
+			stolenSeconds = current.stolenSeconds,
+			targetSafe = character ~= nil and root ~= nil and isOutOfReach(character, root),
+			distanceToHome = (position - current.watch).Magnitude,
+		}, SerpentConfig.BRAIN)
+
+		if current.brain == "Chase" and carrier and character and root then
+			local power = SerpentConfig.powerAt(distanceFromStation(root.Position))
+			local speed =
+				Prey.chaseSpeed(character, dependencies.getSpeed(carrier), dependencies.getCarried(carrier), power)
 			local goal = Pursuit.interceptPoint(
 				position,
 				root.Position,
@@ -173,24 +275,94 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 				SerpentConfig.MAX_LEAD_SECONDS
 			)
 			steer(current, Pursuit.seekVelocity(position, goal, speed, 0))
-			if (root.Position - position).Magnitude <= SerpentConfig.CATCH_RADIUS then
-				catch(current, prey, character, root)
+			local distance = (root.Position - position).Magnitude
+			local ready = time() >= current.catchReadyAt
+			if ready and GuardianBrain.canCatch(current.brain, distance, SerpentConfig.BRAIN) then
+				catchThief(current, carrier, character, root)
 			end
 		else
-			roam(current)
+			local speed = SerpentConfig.fleeSpeedAt(distanceFromStation(position))
+			steer(current, Pursuit.seekVelocity(position, current.watch, speed, SerpentConfig.ARRIVE_RADIUS))
+		end
+	end
+
+	-- Where its pin points: at the serpent while the egg is inside, at the egg once it is out
+	-- (in a player's hands, or lying loose).
+	local function pinPosition(current: Serpent): Vector3
+		if hunt.egg == "Out" then
+			for _, player in dependencies.findCarriers(HOME_ID) do
+				local _, root = Prey.root(player)
+				if root then
+					return root.Position
+				end
+			end
+			local loose = dependencies.findLooseEggs(HOME_ID)[1]
+			if loose then
+				return loose
+			end
+		end
+		return current.head.Position
+	end
+
+	local function tick(deltaTime: number)
+		local current = serpent
+		if not current then
+			return
+		end
+		local behavior = SerpentHunt.behavior(hunt)
+		if behavior == "Flee" then
+			flee(current)
+		elseif behavior == "Guard" then
+			guard(current, deltaTime)
 		end
 
 		current.sincePin += deltaTime
 		if current.sincePin >= SerpentConfig.PIN_SECONDS then
 			current.sincePin = 0
-			dependencies.movePlace("Serpent", current.head.Position)
+			dependencies.movePlace("Serpent", pinPosition(current))
 		end
+	end
+
+	-- A hit on its head by `player`: counts while the egg is inside; the last one knocks it out,
+	-- flying off along `launch`.
+	local function takeHit(player: Player, launch: Vector3): boolean
+		local current = serpent
+		if not current or hunt.egg ~= "Inside" then
+			return false
+		end
+		local knocked
+		hunt, knocked = SerpentHunt.hit(hunt, SerpentConfig.HITS_TO_DROP)
+		current.head:SetAttribute(SerpentConfig.LAST_HIT_ATTRIBUTE, workspace:GetServerTimeNow())
+		if knocked then
+			local position = current.head.Position
+			local zone = SerpentConfig.zoneAt(distanceFromStation(position))
+			local egg = StarEgg.roll(zone, random:NextNumber(), random:NextNumber())
+			starEgg = egg
+			dependencies.spawnLooseEgg({
+				rarity = egg.rarity,
+				size = egg.size,
+				nestId = HOME_ID,
+				variant = "Normal",
+				luck = egg.luck,
+			}, position, launch)
+			-- It turns to guard the egg from where it is.
+			current.brain = "Return"
+			current.target = nil
+			current.stolenSeconds = 0
+			current.watch = position
+		end
+		publish(if knocked then player else nil)
+		struck.fire(player, knocked)
+		return knocked
 	end
 
 	local function comeOut()
 		if serpent then
 			return
 		end
+		-- A star egg still in hands from the last hunt is no longer the serpent's to guard.
+		closeHome()
+		hunt = SerpentHunt.start()
 		local place = dependencies.placeOf("Serpent")
 		local at = if place then place.position else aroundStation(random, SerpentConfig.SPAWN_RADIUS, 0)
 		local model = SerpentModel.build()
@@ -204,23 +376,90 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			head = head,
 			velocity = head:FindFirstChild(SerpentConfig.VELOCITY_NAME) :: LinearVelocity,
 			align = head:FindFirstChild(SerpentConfig.ALIGN_NAME) :: AlignOrientation,
-			target = nil,
-			spared = {},
 			roamGoal = nil,
 			sincePin = 0,
+			brain = "Return",
+			target = nil,
+			stolenSeconds = 0,
+			catchReadyAt = 0,
+			watch = at,
 		}
+
+		homeOpen = true
+		dependencies.homes.register(HOME_ID, {
+			grade = function(): number?
+				return if starEgg then starEgg.grade else nil
+			end,
+			-- Left play undelivered: back inside the serpent while it is out, else gone.
+			returnEgg = function()
+				if serpent then
+					hunt = SerpentHunt.returned(hunt)
+					starEgg = nil
+					publish(nil)
+				else
+					closeHome()
+				end
+			end,
+			delivered = function()
+				hunt = SerpentHunt.delivered(hunt)
+			end,
+		})
+		dependencies.addCreature({
+			model = model,
+			root = head,
+			radius = SerpentConfig.HIT_RADIUS,
+			isCarrying = function()
+				return hunt.egg == "Inside"
+			end,
+			onHit = function(direction, attacker)
+				return takeHit(attacker, direction * EggConfig.DROP_SPEED)
+			end,
+			onHarpoon = function(launch, attacker)
+				return takeHit(attacker, launch)
+			end,
+		})
+		dependencies.setDetail("Serpent", SerpentConfig.ENDING_ATTRIBUTE, nil)
+		dependencies.setDetail("Serpent", SerpentConfig.EGG_BY_ATTRIBUTE, nil)
+		publish(nil)
 	end
 
 	local function goAway()
 		local current = serpent
+		if not current then
+			return
+		end
 		serpent = nil
-		if current then
-			current.model:Destroy()
+		current.model:Destroy()
+		if hunt.egg == "Delivered" then
+			return
+		end
+		local ending = SerpentHunt.ending(hunt, #dependencies.findCarriers(HOME_ID) > 0)
+		dependencies.setDetail("Serpent", SerpentConfig.ENDING_ATTRIBUTE, ending)
+		if ending == "EggLost" then
+			dependencies.removeLooseEggs(HOME_ID)
+		end
+		if ending ~= "EggKept" then
+			closeHome()
+		end
+		ended.fire(ending)
+	end
+
+	local function onDelivered(player: Player, egg: CarryService.Carried)
+		if egg.nestId ~= HOME_ID then
+			return
+		end
+		closeHome()
+		delivered.fire(player, egg)
+		if serpent then
+			publish(player)
+			dependencies.stopEvent("Serpent")
 		end
 	end
 
 	local function start()
-		dependencies.setPlacer("Serpent", pickPlace)
+		dependencies.setPlacer("Serpent", function(): EventService.Place?
+			return { zone = "EventHorizon", position = aroundStation(random, SerpentConfig.SPAWN_RADIUS, 0) }
+		end)
 		dependencies.eventChanged.connect(function(id, phase)
 			if id ~= "Serpent" then
 				return
@@ -231,13 +470,11 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 				goAway()
 			end
 		end)
+		dependencies.eggDelivered.connect(onDelivered)
 		dependencies.scheduler.every(SerpentConfig.TICK_SECONDS, tick)
 		Players.PlayerRemoving:Connect(function(player)
-			if serpent then
-				serpent.spared[player] = nil
-				if serpent.target == player then
-					serpent.target = nil
-				end
+			if serpent and serpent.target == player then
+				serpent.target = nil
 			end
 		end)
 	end
@@ -245,7 +482,17 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 	return {
 		name = "SerpentService",
 		start = start,
+		hit = function(player: Player, direction: Vector3): boolean
+			if not serpent or hunt.egg ~= "Inside" then
+				return false
+			end
+			takeHit(player, direction * EggConfig.DROP_SPEED)
+			return true
+		end,
+		struck = struck,
 		caught = caught,
+		delivered = delivered,
+		ended = ended,
 	}
 end
 

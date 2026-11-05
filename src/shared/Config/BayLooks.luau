@@ -43,8 +43,6 @@ return table.freeze({
 	INCUBATOR_COLOR = Color3.fromRGB(255, 170, 60),
 	-- Rare eggs still shine in the incubator, at this share of their light.
 	INCUBATOR_GLOW_SCALE = 0.2,
-	-- An egg with extra luck (delivered in the star serpent's hunt) sparkles in the incubator.
-	LUCKY_EGG_SPARKLE_COLOR = Color3.fromRGB(190, 170, 255),
 	-- Eggs lie on this ring inside the incubator; more eggs than slots go round again, higher.
 	EGG_RING_RADIUS = 3,
 	EGG_RING_SLOTS = 10,

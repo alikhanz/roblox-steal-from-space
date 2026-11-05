@@ -185,9 +185,18 @@ local serpentService = SerpentService.new({
 	placeOf = eventService.placeOf,
 	setPlacer = eventService.setPlacer,
 	movePlace = eventService.movePlace,
+	setDetail = eventService.setDetail,
+	stopEvent = eventService.stop,
+	homes = eggHomes,
 	getCarried = carryService.getCarried,
+	findCarriers = carryService.findCarriers,
+	findLooseEggs = carryService.findLooseEggs,
 	dropEgg = carryService.dropEgg,
+	spawnLooseEgg = carryService.spawnLooseEgg,
+	removeLooseEggs = carryService.removeLooseEggs,
+	eggDelivered = carryService.delivered,
 	getSpeed = speedService.getSpeed,
+	addCreature = pvpService.addCreature,
 	scheduler = scheduler,
 })
 
@@ -243,8 +252,14 @@ eventService.changed.connect(function(id, phase)
 		metricsService.serverEvent(id)
 	end
 end)
-serpentService.caught.connect(function(player, droppedEgg)
-	metricsService.count(player, "SerpentCatch", { if droppedEgg then "EggLoose" else "Empty" })
+serpentService.struck.connect(function(player, knocked)
+	metricsService.count(player, if knocked then "StarEggKnocked" else "SerpentHit")
+end)
+serpentService.caught.connect(function(player)
+	metricsService.count(player, "SerpentCatch")
+end)
+serpentService.delivered.connect(function(player, egg)
+	metricsService.count(player, "StarEggDelivered", { egg.rarity, egg.size })
 end)
 indexService.discovered.connect(function(player, alienId)
 	metricsService.found(player, alienId)
@@ -279,6 +294,7 @@ local devService = DevService.new({
 	idleSeconds = activityService.idleSeconds,
 	queueEvent = eventService.queue,
 	stopEvent = eventService.stop,
+	hitSerpent = serpentService.hit,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.

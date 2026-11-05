@@ -138,6 +138,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		local part = EggModel.build(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, {
 			glowScale = BayLooks.INCUBATOR_GLOW_SCALE,
 			variant = egg.variant :: AlienConfig.VariantId?,
+			luck = egg.luck,
 		})
 		part.Name = `Egg{egg.uid}`
 		part.Anchored = true
@@ -145,11 +146,6 @@ function BayService.new(dependencies: Dependencies): BayService
 		part:SetAttribute(BayConfig.EGG_UID_ATTRIBUTE, egg.uid)
 		part:SetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE, egg.hatchAt)
 		CollectionService:AddTag(part, BayConfig.INCUBATOR_EGG_TAG)
-		if egg.luck and egg.luck > 0 then
-			local sparkles = Instance.new("Sparkles")
-			sparkles.SparkleColor = BayLooks.LUCKY_EGG_SPARKLE_COLOR
-			sparkles.Parent = part
-		end
 		part.Parent = parent
 	end
 

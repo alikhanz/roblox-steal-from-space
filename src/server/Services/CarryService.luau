@@ -162,7 +162,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			leavePlay(egg)
 			return
 		end
-		local model = EggModel.build(egg.rarity, egg.size, { variant = egg.variant })
+		local model = EggModel.build(egg.rarity, egg.size, { variant = egg.variant, luck = egg.luck })
 		model.Name = "CarriedEgg"
 		CollectionService:AddTag(model, EggConfig.CARRIED_EGG_TAG)
 		model.CFrame = torso.CFrame * CARRY_OFFSET
@@ -199,7 +199,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return
 		end
 		looseCounter += 1
-		local part = EggModel.build(egg.rarity, egg.size, { variant = egg.variant })
+		local part = EggModel.build(egg.rarity, egg.size, { variant = egg.variant, luck = egg.luck })
 		part.Name = `LooseEgg{looseCounter}`
 		part.Anchored = true
 		-- An egg knocked loose inside the dome pops out through it.

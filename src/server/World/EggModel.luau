@@ -1,6 +1,6 @@
 --!strict
 -- Builds the greybox space egg: an elongated sphere in its rarity's color, scaled by its size;
--- rarer eggs glow, meteor eggs burn.
+-- rarer eggs glow, meteor eggs burn, lucky ones (the star egg) sparkle.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -19,6 +19,8 @@ export type Options = {
 	glowScale: number?,
 	-- The alien variant it hatches into; a meteor egg burns (EggLooks.METEOR).
 	variant: AlienConfig.VariantId?,
+	-- Luck on top of its own (the star egg); an egg with some sparkles.
+	luck: number?,
 }
 
 function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, options: Options?): Part
@@ -59,6 +61,13 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, opti
 		fire.Size = EggLooks.METEOR.fireSize * sizeConfig.scale
 		fire.Heat = EggLooks.METEOR.fireHeat
 		fire.Parent = egg
+	end
+
+	local luck = if options then options.luck else nil
+	if luck and luck > 0 then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = EggLooks.LUCKY_SPARKLE_COLOR
+		sparkles.Parent = egg
 	end
 
 	egg:SetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE, rarity)

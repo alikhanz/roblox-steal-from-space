@@ -43,10 +43,14 @@ export type EventService = {
 	-- service's choosing; `hideSpot` takes it away (a key not shown is fine).
 	showSpot: (id: EventConfig.EventId, key: string, zone: ZoneConfig.ZoneId, position: Vector3) -> (),
 	hideSpot: (id: EventConfig.EventId, key: string) -> (),
+	-- An attribute of the event's own (the star serpent's hits) on its folder in
+	-- ReplicatedStorage.Events, for the clients; nil clears it.
+	setDetail: (id: EventConfig.EventId, name: string, value: string | number | boolean | nil) -> (),
 	-- Studio commands: the event right now (somewhere in `zone`, if given); the event in
-	-- `seconds`, warning and all; back to quiet.
+	-- `seconds`, warning and all.
 	activate: (id: EventConfig.EventId, zone: ZoneConfig.ZoneId?) -> (),
 	queue: (id: EventConfig.EventId, seconds: number) -> (),
+	-- Back to quiet now: a Studio command, or an event that is over early (the star egg delivered).
 	stop: (id: EventConfig.EventId) -> (),
 }
 
@@ -263,6 +267,9 @@ function EventService.new(dependencies: Dependencies): EventService
 		movePlace = movePlace,
 		showSpot = showSpot,
 		hideSpot = hideSpot,
+		setDetail = function(id, name, value)
+			assert(running[id], `unknown event {id}`).folder:SetAttribute(name, value)
+		end,
 		activate = activate,
 		queue = queue,
 		stop = stop,

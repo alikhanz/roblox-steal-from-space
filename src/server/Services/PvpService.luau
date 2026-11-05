@@ -57,10 +57,11 @@ export type Creature = {
 	radius: number,
 	-- True while it holds an egg (the harpoon only goes for egg carriers).
 	isCarrying: () -> boolean,
-	-- Takes a hit thrown along `direction`; returns true if an egg came loose.
-	onHit: (direction: Vector3) -> boolean,
-	-- Loses the egg (no throw), launched along `launch`; returns true if an egg came loose.
-	onHarpoon: (launch: Vector3) -> boolean,
+	-- Takes a hit by `attacker` thrown along `direction`; returns true if an egg came loose.
+	onHit: (direction: Vector3, attacker: Player) -> boolean,
+	-- Loses the egg to `attacker`'s harpoon (no throw), launched along `launch`; returns true
+	-- if an egg came loose.
+	onHarpoon: (launch: Vector3, attacker: Player) -> boolean,
 }
 
 -- Something an attack can land on: a player's character, or a creature.
@@ -72,10 +73,8 @@ type Target = {
 	-- Why `attacker` may not attack it right now, or nil when they may.
 	refusal: (attacker: Pvp.Side) -> Pvp.Refusal?,
 	isCarrying: () -> boolean,
-	-- Takes a hit thrown along `direction`; returns true if an egg came loose.
-	onHit: (direction: Vector3) -> boolean,
-	-- Loses the egg (no throw), launched along `launch`; returns true if an egg came loose.
-	onHarpoon: (launch: Vector3) -> boolean,
+	onHit: (direction: Vector3, attacker: Player) -> boolean,
+	onHarpoon: (launch: Vector3, attacker: Player) -> boolean,
 }
 
 export type PvpService = {
@@ -331,7 +330,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			return
 		end
 		PvpEffects.strikeImpact(root.Position:Lerp(target.root.Position, 0.6))
-		resolved(player, "Strike", true, target.onHit(aim))
+		resolved(player, "Strike", true, target.onHit(aim, player))
 	end
 
 	local function watchLunges()
@@ -375,7 +374,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		local toShooter = root.Position - target.root.Position
 		local launch = (if toShooter.Magnitude > 1e-3 then toShooter.Unit else -direction) * EggConfig.DROP_SPEED
 		PvpEffects.harpoonBeam(root, target.root.Position)
-		resolved(player, "Harpoon", true, target.onHarpoon(launch))
+		resolved(player, "Harpoon", true, target.onHarpoon(launch, player))
 	end
 
 	-- The bomb flies straight ahead for the fuse, then everyone around it is thrown outward
@@ -400,7 +399,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			local away = target.root.Position - center
 			local push = if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis
 			hit = true
-			dropped = target.onHit(push) or dropped
+			dropped = target.onHit(push, player) or dropped
 		end
 		resolved(player, "Bomb", hit, dropped)
 	end

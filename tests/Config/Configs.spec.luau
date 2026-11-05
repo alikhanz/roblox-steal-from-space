@@ -281,9 +281,23 @@ describe("MeteorConfig", function()
 end)
 
 describe("SerpentConfig", function()
-	it("comes out where it hunts", function()
+	it("comes out within its grounds, past the Debris Belt", function()
 		expect(SerpentConfig.SPAWN_RADIUS > SerpentConfig.HUNT_RADIUS).toBe(true)
+		expect(SerpentConfig.SPAWN_RADIUS < SerpentConfig.OUTER_RADIUS).toBe(true)
 		expect(SerpentConfig.HUNT_RADIUS > StationSize.BORDER_RADIUS).toBe(true)
+	end)
+
+	it("flees a little slower than a player with its stat flies", function()
+		local ring = ZoneConfig.ZONES.IceRings
+		local middle = (ring.ringMin + ring.ringMax) / 2
+		local playerSpeed = Speed.flightSpeed(SerpentConfig.powerAt(middle), SpeedConfig.FLIGHT)
+		expect(SerpentConfig.fleeSpeedAt(middle) < playerSpeed).toBe(true)
+		expect(SerpentConfig.fleeSpeedAt(middle) > SerpentConfig.ROAM_SPEED).toBe(true)
+	end)
+
+	it("takes a few hits and guards its egg like a guardian", function()
+		expect(SerpentConfig.HITS_TO_DROP > 1).toBe(true)
+		expect(SerpentConfig.BRAIN.aggroDelaySeconds).toBe(GuardianConfig.BRAIN.aggroDelaySeconds)
 	end)
 
 	it("is as strong as the middle guardian of its prey's zone", function()
@@ -300,7 +314,7 @@ describe("SerpentConfig", function()
 		expect(BigNum.equals(SerpentConfig.powerAt(nearRings), ringsPost.speed)).toBe(true)
 	end)
 
-	it("keeps pace with a thief who has its guardian's recommended speed and a typical egg", function()
+	it("guards its egg as fast as a guardian with its stat would chase", function()
 		local ring = ZoneConfig.ZONES.RedNebula
 		local post = GuardianConfig.POSTS[ZoneConfig.postIndex("RedNebula", SerpentConfig.POWER_POST)]
 		local weight = GuardianConfig.TYPICAL_WEIGHT
@@ -315,6 +329,6 @@ describe("SerpentConfig", function()
 	it("adds its luck on top of an egg's own", function()
 		local own = EggConfig.luckOf("Rare", "Large")
 		expect(own).toBe(EggConfig.RARITIES.Rare.luck + EggConfig.SIZES.Large.luck)
-		expect(EggConfig.luckOf("Rare", "Large", SerpentConfig.EGG_LUCK)).toBe(own + SerpentConfig.EGG_LUCK)
+		expect(EggConfig.luckOf("Rare", "Large", SerpentConfig.STAR_EGG_LUCK)).toBe(own + SerpentConfig.STAR_EGG_LUCK)
 	end)
 end)

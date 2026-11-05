@@ -18,6 +18,7 @@
 --   game.ServerStorage.DevCommands.SetPlayTime:Invoke(3600)
 --   game.ServerStorage.DevCommands.PvpStats:Invoke()
 --   game.ServerStorage.DevCommands.ActivityStatus:Invoke()
+--   game.ServerStorage.DevCommands.HitSerpent:Invoke(3)
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -39,6 +40,7 @@ local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpService = require(script.Parent.PvpService)
+local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -80,6 +82,8 @@ export type Dependencies = {
 	activateEvent: (id: EventConfig.EventId, zone: ZoneConfig.ZoneId?) -> (),
 	queueEvent: (id: EventConfig.EventId, seconds: number) -> (),
 	stopEvent: (id: EventConfig.EventId) -> (),
+	-- A hit on the star serpent as if `player` landed it; false when it cannot take one.
+	hitSerpent: (player: Player, direction: Vector3) -> boolean,
 	-- How long a player has done nothing, seconds (ActivityService).
 	idleSeconds: (player: Player) -> number,
 }
@@ -253,6 +257,30 @@ function DevService.new(dependencies: Dependencies): DevService
 			assert(EventConfig.EVENTS[id :: EventConfig.EventId], `unknown event {id}`)
 			dependencies.stopEvent(id :: EventConfig.EventId)
 			return `{id} stopped`
+		end,
+		-- `count` hits (default 1) on the star serpent, as if the first player landed them: the
+		-- one that makes SerpentConfig.HITS_TO_DROP knocks the star egg out, flying away from them.
+		HitSerpent = function(count: number?): string
+			local player, root = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local world = workspace:FindFirstChild("World") or workspace
+			local serpentModel = world:FindFirstChild(SerpentConfig.MODEL_NAME)
+			local head = serpentModel and serpentModel:FindFirstChild(SerpentConfig.HEAD_NAME)
+			if not head or not head:IsA("BasePart") then
+				return "the serpent is not out"
+			end
+			local away = if root then head.Position - root.Position else Vector3.yAxis
+			local direction = if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis
+			local landed = 0
+			for _ = 1, count or 1 do
+				if not dependencies.hitSerpent(player, direction) then
+					break
+				end
+				landed += 1
+			end
+			return `{landed} hit(s) landed`
 		end,
 		-- Gives the first player a fresh set of quests and a fresh swap, as if a new day began.
 		NewQuestDay = function(): string

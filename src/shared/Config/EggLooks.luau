@@ -36,6 +36,9 @@ return table.freeze({
 		fireSize = 4,
 		fireHeat = 6,
 	}),
+	-- An egg with extra luck (the star egg) sparkles, wherever it is: in hands, loose, in the
+	-- incubator. Greybox.
+	LUCKY_SPARKLE_COLOR = Color3.fromRGB(190, 170, 255),
 	-- Sparks around a carried egg: they hang behind a thief in flight.
 	SPARK_RATE = 45,
 	SPARK_LIFETIME = NumberRange.new(0.8, 1.4),
