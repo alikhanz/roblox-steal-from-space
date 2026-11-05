@@ -24,4 +24,9 @@ return table.freeze({
 		starEvery = 3,
 		starColor = Color3.fromRGB(255, 250, 200),
 	}),
+	-- A hit on its head flashes it white for a moment.
+	HIT_FLASH = table.freeze({
+		color = Color3.fromRGB(255, 255, 255),
+		seconds = 0.35,
+	}),
 })

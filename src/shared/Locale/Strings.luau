@@ -272,9 +272,9 @@ local Strings = {
 		ru = "Легендарное яйцо",
 		en = "Legendary egg",
 	},
-	["egg.serpentLuck.hint"] = {
-		ru = "★ удача змея",
-		en = "★ serpent luck",
+	["egg.starEgg.hint"] = {
+		ru = "★ звёздное",
+		en = "★ star",
 	},
 	["egg.hatchIn.hint"] = {
 		ru = "Вылупится через {time}",
@@ -613,8 +613,41 @@ local Strings = {
 		en = "{name} in {zone}!",
 	},
 	["event.serpent.announce"] = {
-		ru = "Звёздный змей охотится! Доставь яйцо — вылупится лучше",
-		en = "Star Serpent is hunting! Eggs brought now hatch better",
+		ru = "Звёздный змей несёт звёздное яйцо! Бей его в голову",
+		en = "The Star Serpent has a star egg! Hit it on the head",
+	},
+	-- The star serpent's pin and what happens to its egg (decision 055).
+	["serpent.hits.title"] = {
+		ru = "Звёздный змей {hits}/{total}",
+		en = "Star Serpent {hits}/{total}",
+	},
+	["serpent.egg.title"] = {
+		ru = "Звёздное яйцо",
+		en = "Star egg",
+	},
+	["serpent.knocked.announce"] = {
+		ru = "{name}: звёздное яйцо выбито!",
+		en = "{name} knocked the star egg loose!",
+	},
+	["serpent.delivered.announce"] = {
+		ru = "{name}: звёздное яйцо в отсеке!",
+		en = "{name} got the star egg home!",
+	},
+	["serpent.returned.announce"] = {
+		ru = "Звёздное яйцо снова в змее! Бей ещё раз",
+		en = "The star egg is back in the serpent. Hit it again!",
+	},
+	["serpent.escaped.announce"] = {
+		ru = "Змей уполз со звёздным яйцом",
+		en = "The serpent got away with the star egg",
+	},
+	["serpent.eggLost.announce"] = {
+		ru = "Звёздное яйцо пропало",
+		en = "The star egg is gone",
+	},
+	["serpent.eggKept.announce"] = {
+		ru = "Змей уполз! Довези звёздное яйцо домой",
+		en = "The serpent is gone! Bring the star egg home",
 	},
 	["event.crater.announce"] = {
 		ru = "Новый кратер в зоне «{zone}»!",

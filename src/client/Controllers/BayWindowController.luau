@@ -251,8 +251,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		local when = if left > 0
 			then text("egg.hatchIn.hint", { time = Duration.clock(left) })
 			else text("egg.hatching.hint")
-		-- Delivered in the star serpent's hunt: it hatches luckier.
-		local luck = if egg.luck and egg.luck > 0 then ` · {text("egg.serpentLuck.hint")}` else ""
+		-- Extra luck comes only with the star egg: it hatches luckier.
+		local luck = if egg.luck and egg.luck > 0 then ` · {text("egg.starEgg.hint")}` else ""
 		return `{name} · {guardian}{luck} — {when}`
 	end
 

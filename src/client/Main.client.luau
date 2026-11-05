@@ -35,6 +35,7 @@ local profileState = ProfileState.new()
 local toastState = ToastState.new()
 local abilityState = AbilityState.new(profileState)
 local bayWindowController = BayWindowController.new({ profile = profileState, toasts = toastState })
+local eventController = EventController.new()
 
 Lifecycle.run({
 	profileState,
@@ -60,8 +61,8 @@ Lifecycle.run({
 	NewbieViewController.new(),
 	StationBeaconController.new(),
 	StationBorderController.new(),
-	EventController.new(),
-	SerpentController.new(),
+	eventController,
+	SerpentController.new({ events = eventController }),
 	EggEffectsController.new(),
 	HitEffectsController.new(),
 	JetpackEffectsController.new(),

@@ -33,6 +33,10 @@ local REFRESH_SECONDS = 0.25
 export type EventController = {
 	name: string,
 	start: () -> (),
+	-- For an event's own controller (the star serpent's): the big line in the event's color.
+	say: (id: EventConfig.EventId, message: string) -> (),
+	-- The title over the event's pin instead of its name; nil puts the name back.
+	setPinTitle: (id: EventConfig.EventId, title: string?) -> (),
 }
 
 -- One event as the client sees it.
@@ -68,6 +72,11 @@ function EventController.new(): EventController
 	local seen: { Seen } = {}
 	local announcedUntil = 0
 	local gui: Instance? = nil
+	-- Titles other controllers put over an event's pin (setPinTitle), by event.
+	local pinTitles: { [EventConfig.EventId]: Vide.Source<string?> } = {}
+	for _, id in EventConfig.ORDER do
+		pinTitles[id] = source(nil :: string?)
+	end
 
 	local function text(key: Text.Key, args: Text.Args?): string
 		return Text.get(locale, key, args)
@@ -106,9 +115,13 @@ function EventController.new(): EventController
 	end
 
 	-- The big line in the event's color, for a few seconds; the next one replaces it.
-	local function say(entry: Seen, message: string)
-		announcement({ text = message, color = EventLooks.COLORS[entry.event.id] })
+	local function sayFor(id: EventConfig.EventId, message: string)
+		announcement({ text = message, color = EventLooks.COLORS[id] })
 		announcedUntil = os.clock() + EventLooks.ANNOUNCE_SECONDS
+	end
+
+	local function say(entry: Seen, message: string)
+		sayFor(entry.event.id, message)
 	end
 
 	local function announce(entry: Seen, phase: string)
@@ -274,10 +287,14 @@ function EventController.new(): EventController
 					announceSpot(entry, spot)
 				end)
 			end
+			local readTitle = pinTitles[id] :: () -> string?
+			local eventName = nameOf(entry.event)
 			Vide.mount(function()
 				return entry.pin.view({
 					name = `EventPin{id}`,
-					title = nameOf(entry.event),
+					title = function(): string
+						return readTitle() or eventName
+					end,
 					color = EventLooks.COLORS[id],
 				})
 			end, playerGui)
@@ -326,6 +343,10 @@ function EventController.new(): EventController
 	return {
 		name = "EventController",
 		start = start,
+		say = sayFor,
+		setPinTitle = function(id: EventConfig.EventId, title: string?)
+			pinTitles[id](title)
+		end,
 	}
 end
 
