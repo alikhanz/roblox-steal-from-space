@@ -27,6 +27,11 @@
 				}
 			}
 		},
+		"Lighting": {
+			"$properties": {
+				"Technology": "Voxel"
+			}
+		},
 		"TextChatService": {
 			"$properties": {
 				"ChatVersion": "TextChatService"
