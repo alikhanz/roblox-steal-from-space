@@ -57,6 +57,7 @@ export type Dependencies = {
 	placeOf: (id: EventConfig.EventId) -> EventService.Place?,
 	setPlacer: (id: EventConfig.EventId, placer: EventService.Placer) -> (),
 	movePlace: (id: EventConfig.EventId, position: Vector3) -> (),
+	setFollow: (id: EventConfig.EventId, part: BasePart?) -> (),
 	setDetail: (id: EventConfig.EventId, name: string, value: string | number | boolean | nil) -> (),
 	stopEvent: (id: EventConfig.EventId) -> (),
 	homes: EggHomes.EggHomes,
@@ -314,21 +315,22 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 	end
 
 	-- Where its pin points: at the serpent while the egg is inside, at the egg once it is out
-	-- (in a player's hands, or lying loose).
-	local function pinPosition(current: Serpent): Vector3
+	-- (in a player's hands, or lying loose); and the moving part there, which clients follow
+	-- every frame (nil for an egg lying loose: it barely moves).
+	local function pinTarget(current: Serpent): (Vector3, BasePart?)
 		if hunt.egg == "Out" then
 			for _, player in dependencies.findCarriers(HOME_ID) do
 				local _, root = Prey.root(player)
 				if root then
-					return root.Position
+					return root.Position, root
 				end
 			end
 			local loose = dependencies.findLooseEggs(HOME_ID)[1]
 			if loose then
-				return loose
+				return loose, nil
 			end
 		end
-		return current.head.Position
+		return current.head.Position, current.head
 	end
 
 	local function tick(deltaTime: number)
@@ -348,7 +350,9 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		current.sincePin += deltaTime
 		if current.sincePin >= SerpentConfig.PIN_SECONDS then
 			current.sincePin = 0
-			dependencies.movePlace("Serpent", pinPosition(current))
+			local position, part = pinTarget(current)
+			dependencies.movePlace("Serpent", position)
+			dependencies.setFollow("Serpent", part)
 		end
 	end
 

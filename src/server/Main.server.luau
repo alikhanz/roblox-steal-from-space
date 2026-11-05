@@ -185,6 +185,7 @@ local serpentService = SerpentService.new({
 	placeOf = eventService.placeOf,
 	setPlacer = eventService.setPlacer,
 	movePlace = eventService.movePlace,
+	setFollow = eventService.setFollow,
 	setDetail = eventService.setDetail,
 	stopEvent = eventService.stop,
 	homes = eggHomes,

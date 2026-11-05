@@ -45,6 +45,8 @@ type Seen = {
 	folder: Instance,
 	-- The pin to the event's point.
 	pin: ScreenPin.Pin,
+	-- The part that point follows, if the event moves (EventConfig.FOLLOW_NAME).
+	follow: ObjectValue?,
 	-- Its spots, if it can have any (EventConfig.SPOTS_FOLDER_NAME), and their pins by zone,
 	-- made as zones come up.
 	spots: Instance?,
@@ -64,6 +66,12 @@ type Shown = {
 }
 
 local EventController = {}
+
+-- The event's follow value (EventConfig.FOLLOW_NAME), once it has replicated.
+local function followOf(folder: Instance): ObjectValue?
+	local follow = folder:WaitForChild(EventConfig.FOLLOW_NAME, FOLDER_WAIT_TIMEOUT)
+	return if follow and follow:IsA("ObjectValue") then follow else nil
+end
 
 function EventController.new(): EventController
 	local locale: Text.Locale = "en"
@@ -193,6 +201,18 @@ function EventController.new(): EventController
 		return pin
 	end
 
+	-- Where the part the event's pin follows is this frame (EventConfig.FOLLOW_NAME): smooth,
+	-- unlike its place, which the server moves a few times a second. Nil without one, or while
+	-- it is not streamed in.
+	local function followedPosition(entry: Seen): Vector3?
+		local follow = entry.follow
+		local part = if follow then follow.Value else nil
+		if part and part:IsA("BasePart") and part:IsDescendantOf(workspace) then
+			return part.Position
+		end
+		return nil
+	end
+
 	-- What of `entry` to mark for a player at `from`: its spots, one per zone, or else its point.
 	local function collectPins(entry: Seen, from: Vector3, shown: { Shown })
 		local spots: { EventSpots.Spot<Vector3> } = {}
@@ -209,7 +229,7 @@ function EventController.new(): EventController
 			end
 			return
 		end
-		local position = entry.folder:GetAttribute(EventConfig.POSITION_ATTRIBUTE)
+		local position = followedPosition(entry) or entry.folder:GetAttribute(EventConfig.POSITION_ATTRIBUTE)
 		if not entry.spotted and phaseOf(entry) ~= "Idle" and typeof(position) == "Vector3" then
 			table.insert(shown, { pin = entry.pin, point = position, studs = (position - from).Magnitude })
 		end
@@ -272,6 +292,7 @@ function EventController.new(): EventController
 				event = EventConfig.EVENTS[id],
 				folder = child,
 				pin = ScreenPin.new(),
+				follow = followOf(child),
 				spots = child:WaitForChild(EventConfig.SPOTS_FOLDER_NAME, FOLDER_WAIT_TIMEOUT),
 				zonePins = {},
 				spotted = false,

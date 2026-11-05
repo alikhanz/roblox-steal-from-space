@@ -39,6 +39,9 @@ export type EventService = {
 	setPlacer: (id: EventConfig.EventId, placer: Placer) -> (),
 	-- The place of an event that moves (the star serpent) is now here; its zone stays.
 	movePlace: (id: EventConfig.EventId, position: Vector3) -> (),
+	-- The part the event's pin follows every frame (EventConfig.FOLLOW_NAME); nil: its place.
+	-- Cleared when the event goes quiet.
+	setFollow: (id: EventConfig.EventId, part: BasePart?) -> (),
 	-- One of the many places of an event (EventConfig.SPOTS_FOLDER_NAME), by a key of its
 	-- service's choosing; `hideSpot` takes it away (a key not shown is fine).
 	showSpot: (id: EventConfig.EventId, key: string, zone: ZoneConfig.ZoneId, position: Vector3) -> (),
@@ -61,6 +64,8 @@ type Running = {
 	placer: Placer?,
 	folder: Configuration,
 	spots: Folder,
+	-- The part its pin follows (EventConfig.FOLLOW_NAME).
+	follow: ObjectValue,
 	-- For an event that comes after another (EventConfig `after`): its gap is over and it waits
 	-- for that one to end; then it is released into its warning.
 	waiting: boolean,
@@ -124,6 +129,7 @@ function EventService.new(dependencies: Dependencies): EventService
 		entry.waiting = false
 		if phase == "Idle" then
 			entry.place = nil
+			entry.follow.Value = nil
 			entry.released = false
 			if not entry.event.scheduled then
 				entry.clock = quiet(entry.event, now())
@@ -170,12 +176,16 @@ function EventService.new(dependencies: Dependencies): EventService
 			local spots = Instance.new("Folder")
 			spots.Name = EventConfig.SPOTS_FOLDER_NAME
 			spots.Parent = child
+			local follow = Instance.new("ObjectValue")
+			follow.Name = EventConfig.FOLLOW_NAME
+			follow.Parent = child
 			local entry: Running = {
 				event = event,
 				clock = quiet(event, now()),
 				place = nil,
 				folder = child,
 				spots = spots,
+				follow = follow,
 				waiting = false,
 				released = false,
 			}
@@ -265,6 +275,9 @@ function EventService.new(dependencies: Dependencies): EventService
 			running[id].placer = placer
 		end,
 		movePlace = movePlace,
+		setFollow = function(id, part)
+			assert(running[id], `unknown event {id}`).follow.Value = part
+		end,
 		showSpot = showSpot,
 		hideSpot = hideSpot,
 		setDetail = function(id, name, value)

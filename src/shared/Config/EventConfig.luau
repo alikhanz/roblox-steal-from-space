@@ -89,6 +89,10 @@ return table.freeze({
 	-- While it has spots, they are marked one pin per zone (Domain/EventSpots) instead of the
 	-- event's point.
 	SPOTS_FOLDER_NAME = "Spots",
+	-- An event that moves (the star serpent) points this ObjectValue in its child at the part
+	-- it is on: the pin follows that part every frame while the client has it, and the
+	-- POSITION_ATTRIBUTE (a few updates a second) only when it does not (streamed out).
+	FOLLOW_NAME = "Follow",
 	-- The clocks are moved on this often, seconds.
 	TICK_SECONDS = 0.25,
 })
