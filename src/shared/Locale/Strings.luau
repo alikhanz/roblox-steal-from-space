@@ -645,9 +645,9 @@ local Strings = {
 		ru = "Змей уполз со звёздным яйцом",
 		en = "The serpent got away with the star egg",
 	},
-	["serpent.eggLost.announce"] = {
-		ru = "Звёздное яйцо пропало",
-		en = "The star egg is gone",
+	["serpent.eggLeft.announce"] = {
+		ru = "Змей уполз! Звёздное яйцо без охраны, забирай",
+		en = "The serpent is gone! Grab the star egg, it's unguarded",
 	},
 	["serpent.eggKept.announce"] = {
 		ru = "Змей уполз! Довези звёздное яйцо домой",

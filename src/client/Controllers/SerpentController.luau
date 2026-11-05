@@ -142,8 +142,8 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 			local ending = read(SerpentConfig.ENDING_ATTRIBUTE)
 			if ending == "TookEgg" then
 				events.say("Serpent", text("serpent.escaped.announce"))
-			elseif ending == "EggLost" then
-				events.say("Serpent", text("serpent.eggLost.announce"))
+			elseif ending == "EggLeft" then
+				events.say("Serpent", text("serpent.eggLeft.announce"))
 			elseif ending == "EggKept" then
 				events.say("Serpent", text("serpent.eggKept.announce"))
 			end

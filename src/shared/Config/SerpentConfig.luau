@@ -76,6 +76,9 @@ return table.freeze({
 	-- own (EggConfig.luckOf): twice the first version's hunt luck.
 	STAR_EGG_MIN_RARITY = "Rare" :: EggConfig.RarityId,
 	STAR_EGG_LUCK = 0.7,
+	-- A star egg lying loose when the hunt's time runs out stays this long, unguarded, for whoever
+	-- gets to it first, seconds: a knock-out in the last moment is not wasted.
+	STAR_EGG_LINGER_SECONDS = 30,
 	-- The egg's home (Domain/EggHomes): carried and loose star eggs name it.
 	EGG_HOME_ID = "StarSerpent",
 

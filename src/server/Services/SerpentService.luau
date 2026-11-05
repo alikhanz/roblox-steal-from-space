@@ -160,8 +160,11 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 	-- The star egg out of the serpent (rolled as it is knocked out), nil while inside.
 	local starEgg: StarEgg.Egg? = nil
 	-- The egg's home is registered from the serpent's coming out until its egg is done with:
-	-- delivered, gone, or taken away; past the hunt while a player still holds it.
+	-- delivered, gone, or taken away; past the hunt while a player still holds it or it lies
+	-- unguarded for a while.
 	local homeOpen = false
+	-- Hunts so far, to tell a late callback of an old hunt from the current one.
+	local huntCount = 0
 
 	local function publish(by: Player?)
 		if by then
@@ -385,8 +388,11 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		if serpent then
 			return
 		end
-		-- A star egg still in hands from the last hunt is no longer the serpent's to guard.
+		-- A star egg still about from the last hunt is no longer the serpent's: one lying loose
+		-- goes, one in hands stays a star egg nobody guards.
+		dependencies.removeLooseEggs(HOME_ID)
 		closeHome()
+		huntCount += 1
 		hunt = SerpentHunt.start()
 		-- Its zone and spot were picked as the hunt was announced (a Studio start may name any
 		-- zone: one it does not come out in counts as the nearest it does).
@@ -465,11 +471,18 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		end
 		local ending = SerpentHunt.ending(hunt, #dependencies.findCarriers(HOME_ID) > 0)
 		dependencies.setDetail("Serpent", SerpentConfig.ENDING_ATTRIBUTE, ending)
-		if ending == "EggLost" then
-			dependencies.removeLooseEggs(HOME_ID)
-		end
-		if ending ~= "EggKept" then
+		if ending == "TookEgg" then
 			closeHome()
+		elseif ending == "EggLeft" then
+			-- Unguarded for a little while; then gone, unless someone has it in hands by then (or
+			-- the next hunt has begun).
+			local thisHunt = huntCount
+			task.delay(SerpentConfig.STAR_EGG_LINGER_SECONDS, function()
+				if huntCount == thisHunt and homeOpen and #dependencies.findCarriers(HOME_ID) == 0 then
+					dependencies.removeLooseEggs(HOME_ID)
+					closeHome()
+				end
+			end)
 		end
 		ended.fire(ending)
 	end

@@ -26,8 +26,9 @@ export type Behavior = "Flee" | "Guard" | "Leave"
 export type Ending =
 	-- Still inside: the serpent takes it away.
 	"TookEgg"
-	-- Lying loose: it is gone.
-	| "EggLost"
+	-- Lying loose: it lies unguarded a little longer (SerpentConfig.STAR_EGG_LINGER_SECONDS),
+	-- for whoever gets there, then it is gone.
+	| "EggLeft"
 	-- In a player's hands: they keep it and may bring it home in peace.
 	| "EggKept"
 	-- Already delivered.
@@ -80,7 +81,7 @@ function SerpentHunt.ending(state: State, carried: boolean): Ending
 	elseif state.egg == "Delivered" then
 		return "Delivered"
 	end
-	return if carried then "EggKept" else "EggLost"
+	return if carried then "EggKept" else "EggLeft"
 end
 
 return table.freeze(SerpentHunt)
