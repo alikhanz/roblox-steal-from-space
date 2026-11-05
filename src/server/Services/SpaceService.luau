@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local DeathPose = require(ReplicatedStorage.Shared.Character.DeathPose)
 local FlightAnimation = require(ReplicatedStorage.Shared.Character.FlightAnimation)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
@@ -16,6 +17,7 @@ local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
+local RigPose = require(script.Parent.Parent.Character.RigPose)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 
@@ -74,10 +76,11 @@ end
 
 -- A character that dies out in space keeps drifting, whole, instead of falling under the
 -- station's gravity (the flight simulation no longer holds it up; the station's floor needs
--- gravity, so it stays on). The body freezes as it was, every part anchored, and the server
--- moves it on at the speed it had until it is gone (respawn). No physics on the dead body:
--- forces on a ragdoll under Server Authority crash Studio. Its joints are kept
--- (Humanoid.BreakJointsOnDeath is off, see `equip`), so nothing comes apart before it freezes.
+-- gravity, so it stays on). The body freezes, every part anchored, goes limp (DeathPose, set
+-- by Character/RigPose) and the server moves it on at the speed it had, slowly tumbling, until
+-- it is gone (respawn). No physics on the dead body: forces on a ragdoll under Server
+-- Authority crash Studio. Its joints are kept (Humanoid.BreakJointsOnDeath is off, see
+-- `equip`), so nothing comes apart before it freezes.
 local function floatWhenDead(character: Model)
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true or not root or not root:IsA("BasePart") then
@@ -89,13 +92,20 @@ local function floatWhenDead(character: Model)
 			part.Anchored = true
 		end
 	end
+	RigPose.apply(character, DeathPose.JOINTS)
+
+	local axis = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5)
+	axis = if axis.Magnitude > 1e-3 then axis.Unit else Vector3.xAxis
+	local spinRate = math.rad(DeathPose.TUMBLE_DEGREES_PER_SECOND)
 	local drift: RBXScriptConnection
 	drift = RunService.Heartbeat:Connect(function(deltaTime)
 		if character.Parent == nil then
 			drift:Disconnect()
 			return
 		end
-		character:PivotTo(character:GetPivot() + velocity * deltaTime)
+		local pivot = character:GetPivot()
+		local turned = CFrame.fromAxisAngle(axis, spinRate * deltaTime) * pivot.Rotation
+		character:PivotTo(CFrame.new(pivot.Position + velocity * deltaTime) * turned)
 	end)
 end
 
