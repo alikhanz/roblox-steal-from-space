@@ -160,10 +160,6 @@ local Strings = {
 		ru = "Попал!",
 		en = "Hit!",
 	},
-	["pvp.strikeMiss.toast"] = {
-		ru = "Мимо",
-		en = "Miss",
-	},
 	["pvp.strike.button"] = {
 		ru = "Удар",
 		en = "Strike",
@@ -208,10 +204,6 @@ local Strings = {
 		ru = "Гарпун попал!",
 		en = "Harpoon hit!",
 	},
-	["pvp.harpoonMiss.toast"] = {
-		ru = "Гарпун никого не зацепил",
-		en = "The harpoon caught nobody",
-	},
 	["pvp.bombEgg.toast"] = {
 		ru = "Бах! Яйцо выбито",
 		en = "Boom! An egg is loose",
@@ -219,10 +211,6 @@ local Strings = {
 	["pvp.bombHit.toast"] = {
 		ru = "Бах! Кого-то снесло",
 		en = "Boom! Someone went flying",
-	},
-	["pvp.bombMiss.toast"] = {
-		ru = "Бах! Никого рядом",
-		en = "Boom! Nobody around",
 	},
 	["pvp.harpooned.toast"] = {
 		ru = "Яйцо вырвали гарпуном!",

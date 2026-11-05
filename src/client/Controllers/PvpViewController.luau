@@ -1,6 +1,7 @@
 --!strict
--- What the attacker sees of their own abilities: a toast when a strike lands, knocks an egg
--- loose or whiffs. The victim's side is the hit flash in the HUD.
+-- What the attacker sees of their own abilities: a toast when an attack lands or knocks an egg
+-- loose. A miss says nothing: the attack visibly went nowhere. The victim's side is the hit
+-- flash in the HUD.
 
 local LocalizationService = game:GetService("LocalizationService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,11 +27,11 @@ local PvpViewController = {}
 function PvpViewController.new(dependencies: Dependencies): PvpViewController
 	local function start()
 		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
-		local KEYS: { [string]: { egg: Text.Key, hit: Text.Key, miss: Text.Key } } = {
-			Strike = { egg = "pvp.strikeEgg.toast", hit = "pvp.strikeHit.toast", miss = "pvp.strikeMiss.toast" },
+		local KEYS: { [string]: { egg: Text.Key, hit: Text.Key } } = {
+			Strike = { egg = "pvp.strikeEgg.toast", hit = "pvp.strikeHit.toast" },
 			-- A harpoon on a creature (the star serpent) may hit without an egg coming loose.
-			Harpoon = { egg = "pvp.harpoonEgg.toast", hit = "pvp.harpoonHit.toast", miss = "pvp.harpoonMiss.toast" },
-			Bomb = { egg = "pvp.bombEgg.toast", hit = "pvp.bombHit.toast", miss = "pvp.bombMiss.toast" },
+			Harpoon = { egg = "pvp.harpoonEgg.toast", hit = "pvp.harpoonHit.toast" },
+			Bomb = { egg = "pvp.bombEgg.toast", hit = "pvp.bombHit.toast" },
 		}
 		dependencies.profile.abilityResult.connect(function(kind, hit, droppedEgg)
 			if kind == "Shield" then
@@ -47,8 +48,6 @@ function PvpViewController.new(dependencies: Dependencies): PvpViewController
 				dependencies.toasts.push(Text.get(locale, keys.egg), Theme.TOAST_GOOD)
 			elseif hit then
 				dependencies.toasts.push(Text.get(locale, keys.hit), Theme.TOAST_GOOD)
-			else
-				dependencies.toasts.push(Text.get(locale, keys.miss), Theme.TOAST_BAD)
 			end
 		end)
 	end
