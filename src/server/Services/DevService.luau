@@ -19,6 +19,7 @@
 --   game.ServerStorage.DevCommands.PvpStats:Invoke()
 --   game.ServerStorage.DevCommands.ActivityStatus:Invoke()
 --   game.ServerStorage.DevCommands.HitSerpent:Invoke(3)
+--   game.ServerStorage.DevCommands.HoldSerpent:Invoke(true, 30)
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -84,6 +85,8 @@ export type Dependencies = {
 	stopEvent: (id: EventConfig.EventId) -> (),
 	-- A hit on the star serpent as if `player` landed it; false when it cannot take one.
 	hitSerpent: (player: Player, direction: Vector3) -> boolean,
+	-- Holds the star serpent still at a point (nil lets it go); false when it is not out.
+	holdSerpent: (position: Vector3?, facing: Vector3?) -> boolean,
 	-- How long a player has done nothing, seconds (ActivityService).
 	idleSeconds: (player: Player) -> number,
 }
@@ -102,6 +105,14 @@ local function firstPlayerRoot(): (Player?, BasePart?)
 		return player, root
 	end
 	return player, nil
+end
+
+-- Where the player aims: the camera direction their input context carries, or where the
+-- character faces.
+local function aimOf(player: Player, root: BasePart): Vector3
+	local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
+	local aim = (if context then FlightInputs.readAim(context) else nil) or root.CFrame.LookVector
+	return if aim.Magnitude > 1e-3 then aim.Unit else root.CFrame.LookVector
 end
 
 function DevService.new(dependencies: Dependencies): DevService
@@ -160,9 +171,7 @@ function DevService.new(dependencies: Dependencies): DevService
 			end
 			local studsAhead = distance or DUMMY_DISTANCE
 			local function ahead(): CFrame
-				local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
-				local aim = (if context then FlightInputs.readAim(context) else nil) or root.CFrame.LookVector
-				return CFrame.lookAt(root.Position + aim.Unit * studsAhead, root.Position)
+				return CFrame.lookAt(root.Position + aimOf(player, root) * studsAhead, root.Position)
 			end
 			local chosenRarity = (rarity or "Common") :: EggConfig.RarityId
 			assert(EggConfig.RARITIES[chosenRarity], `Unknown rarity {chosenRarity}`)
@@ -281,6 +290,23 @@ function DevService.new(dependencies: Dependencies): DevService
 				landed += 1
 			end
 			return `{landed} hit(s) landed`
+		end,
+		-- Brings the star serpent `studs` (default 30) ahead of the first player's aim and holds
+		-- it still there, to try the strike, harpoon and bomb on it; false lets it go again.
+		HoldSerpent = function(on: boolean?, studs: number?): string
+			if on == false then
+				return if dependencies.holdSerpent(nil, nil) then "serpent let go" else "the serpent is not out"
+			end
+			local player, root = firstPlayerRoot()
+			if not player or not root then
+				return "no character"
+			end
+			local aim = aimOf(player, root)
+			local position = root.Position + aim * (studs or 30)
+			if not dependencies.holdSerpent(position, aim) then
+				return "the serpent is not out"
+			end
+			return "serpent held ahead"
 		end,
 		-- Gives the first player a fresh set of quests and a fresh swap, as if a new day began.
 		NewQuestDay = function(): string

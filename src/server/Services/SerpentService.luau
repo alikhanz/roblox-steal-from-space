@@ -80,6 +80,9 @@ export type SerpentService = {
 	-- Hits on the serpent while the egg is inside, as if a player landed them (Studio command).
 	-- Returns false when the serpent is not out or its egg is not inside.
 	hit: (player: Player, direction: Vector3) -> boolean,
+	-- Holds the serpent still at `position`, facing `facing` (Studio command: try the attacks on
+	-- it); nil lets it go. Returns false when it is not out.
+	hold: (position: Vector3?, facing: Vector3?) -> boolean,
 	-- A player's attack landed on the serpent; true if it knocked the egg out.
 	struck: Signal.Signal<Player, boolean>,
 	-- It caught a player carrying its egg.
@@ -105,6 +108,8 @@ type Serpent = {
 	catchReadyAt: number,
 	-- Where it keeps watch: over the egg where it last lay.
 	watch: Vector3,
+	-- Held still by a Studio command (`hold`).
+	held: boolean,
 }
 
 local SerpentService = {}
@@ -310,7 +315,9 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			return
 		end
 		local behavior = SerpentHunt.behavior(hunt)
-		if behavior == "Flee" then
+		if current.held then
+			current.velocity.VectorVelocity = Vector3.zero
+		elseif behavior == "Flee" then
 			flee(current)
 		elseif behavior == "Guard" then
 			guard(current, deltaTime)
@@ -383,6 +390,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			stolenSeconds = 0,
 			catchReadyAt = 0,
 			watch = at,
+			held = false,
 		}
 
 		homeOpen = true
@@ -487,6 +495,19 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 				return false
 			end
 			takeHit(player, direction * EggConfig.DROP_SPEED)
+			return true
+		end,
+		hold = function(position: Vector3?, facing: Vector3?): boolean
+			local current = serpent
+			if not current then
+				return false
+			end
+			current.held = position ~= nil
+			if position then
+				local look = if facing and facing.Magnitude > 1e-3 then position + facing else CENTER
+				current.model:PivotTo(CFrame.lookAt(position, look))
+				current.velocity.VectorVelocity = Vector3.zero
+			end
 			return true
 		end,
 		struck = struck,

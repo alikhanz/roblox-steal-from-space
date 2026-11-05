@@ -295,6 +295,7 @@ local devService = DevService.new({
 	queueEvent = eventService.queue,
 	stopEvent = eventService.stop,
 	hitSerpent = serpentService.hit,
+	holdSerpent = serpentService.hold,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
