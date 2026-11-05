@@ -52,9 +52,8 @@ local EVENTS: { [EventId]: Event } = {
 		spotAnnounceKey = "event.crater.announce" :: keyof<typeof(Strings)>,
 	},
 	-- 15-25 minutes apart, right after a storm like the meteor shower (the two may come
-	-- together: a meteor egg delivered in the hunt is a lucky one), a 30-second warning, then 3
-	-- minutes of the star serpent hunting everyone past the first zone (SerpentConfig,
-	-- SerpentService).
+	-- together), a 30-second warning, then 3 minutes of the star serpent carrying the star egg
+	-- in one zone past the first (SerpentConfig, SerpentService; decision 055).
 	Serpent = {
 		id = "Serpent",
 		nameKey = "event.serpent.title",
