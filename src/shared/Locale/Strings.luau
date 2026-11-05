@@ -460,6 +460,10 @@ local Strings = {
 		ru = "Больше капсул не поставить",
 		en = "No room for more pods",
 	},
+	["notice.maxIncubatorSlots.toast"] = {
+		ru = "В инкубаторе больше нет мест",
+		en = "The incubator is fully upgraded",
+	},
 	["notice.jetpackTop.toast"] = {
 		ru = "Это лучший джетпак",
 		en = "That's the best jetpack",

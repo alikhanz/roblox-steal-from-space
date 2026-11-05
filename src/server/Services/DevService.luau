@@ -19,6 +19,7 @@
 --   game.ServerStorage.DevCommands.PvpStats:Invoke()
 --   game.ServerStorage.DevCommands.ActivityStatus:Invoke()
 --   game.ServerStorage.DevCommands.HitSerpent:Invoke(3)
+--   game.ServerStorage.DevCommands.SetIncubatorSlots:Invoke(6)
 --   game.ServerStorage.DevCommands.HoldSerpent:Invoke(true, 30)
 
 local CollectionService = game:GetService("CollectionService")
@@ -30,6 +31,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local ActivityConfig = require(ReplicatedStorage.Shared.Config.ActivityConfig)
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
+local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CarryService = require(script.Parent.CarryService)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
@@ -400,7 +402,24 @@ function DevService.new(dependencies: Dependencies): DevService
 			local chosenVariant = (variant or "Normal") :: AlienConfig.VariantId
 			assert(AlienConfig.VARIANTS[chosenVariant], `Unknown variant {chosenVariant}`)
 			local added = dependencies.addEgg(player, chosenRarity, chosenSize, grade or 1, chosenVariant, luck)
-			return if added then "egg in the incubator" else "profile not active yet"
+			return if added then "egg in the incubator (or its queue)" else "profile not active yet"
+		end,
+		-- Sets the first player's incubator slots (1 to BayConfig.MAX_INCUBATOR_SLOTS), as if bought;
+		-- waiting eggs move into the new ones.
+		SetIncubatorSlots = function(slots: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local count = math.clamp(math.floor(slots), 1, BayConfig.MAX_INCUBATOR_SLOTS)
+			local written = dependencies.update(player, function(data)
+				data.incubatorSlots = count
+				Bay.fillSlots(data, workspace:GetServerTimeNow())
+			end)
+			if written then
+				dependencies.refresh(player)
+			end
+			return if written then `{count} incubator slots` else "profile not active yet"
 		end,
 		-- Every egg in the first player's incubator hatches on the next tick.
 		HatchNow = function(): string

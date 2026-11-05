@@ -65,7 +65,7 @@ export type ProfileState = {
 local ProfileState = {}
 
 local function emptyBay(): Bay
-	return { pods = {}, inventory = {}, floor = {}, incubator = {} }
+	return { pods = {}, inventory = {}, floor = {}, incubator = {}, incubatorSlots = 2, waiting = {} }
 end
 
 function ProfileState.new(): ProfileState

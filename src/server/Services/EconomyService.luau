@@ -29,6 +29,7 @@ export type Notice =
 	| "MixedGrades"
 	| "MixedVariants"
 	| "JetpackTop"
+	| "MaxIncubatorSlots"
 
 export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
@@ -46,6 +47,8 @@ export type EconomyService = {
 	crossbreed: (player: Player, uids: { number }) -> Notice?,
 	sell: (player: Player, uid: number) -> Notice?,
 	buyPod: (player: Player) -> Notice?,
+	-- One more incubator slot.
+	buyIncubatorSlot: (player: Player) -> Notice?,
 	-- Buys the next level of the trainer or the jetpack.
 	upgradeTrainer: (player: Player) -> Notice?,
 	upgradeJetpack: (player: Player) -> Notice?,
@@ -58,7 +61,7 @@ export type EconomyService = {
 	coinsTraded: Signal.Signal<Player, CoinTrade, BigNum.BigNum, BigNum.BigNum>,
 }
 
-export type CoinTrade = "Pod" | "Trainer" | "Jetpack" | "Sell"
+export type CoinTrade = "Pod" | "IncubatorSlot" | "Trainer" | "Jetpack" | "Sell"
 
 local EconomyService = {}
 
@@ -236,6 +239,45 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		return notice
 	end
 
+	local function slotPrice(data: PlayerData.PlayerData): BigNum.BigNum
+		return Bay.slotPrice(
+			data.incubatorSlots,
+			BayConfig.STARTING_INCUBATOR_SLOTS,
+			BayConfig.SLOT_PRICE_BASE,
+			BayConfig.SLOT_PRICE_GROWTH
+		)
+	end
+
+	-- One more incubator slot (decision 058); the first waiting egg moves straight into it.
+	local function buyIncubatorSlot(player: Player): Notice?
+		local paid: BigNum.BigNum? = nil
+		local balance: BigNum.BigNum? = nil
+		local notice = command(player, function(data)
+			if data.incubatorSlots >= BayConfig.MAX_INCUBATOR_SLOTS then
+				return "MaxIncubatorSlots"
+			end
+			if BigNum.lessThan(data.coins, slotPrice(data)) then
+				return "NotEnoughCoins"
+			end
+			return nil
+		end, function(data)
+			-- Checked again inside the update: the profile is the one that counts.
+			local cost = slotPrice(data)
+			if data.incubatorSlots >= BayConfig.MAX_INCUBATOR_SLOTS or BigNum.lessThan(data.coins, cost) then
+				return
+			end
+			data.coins = BigNum.sub(data.coins, cost)
+			data.incubatorSlots += 1
+			-- The bay's clock: BayService hatches against server time.
+			Bay.fillSlots(data, workspace:GetServerTimeNow())
+			paid, balance = cost, data.coins
+		end)
+		if not notice and paid and balance then
+			coinsTraded.fire(player, "IncubatorSlot", paid, balance)
+		end
+		return notice
+	end
+
 	-- Spends coins on the next level of an upgrade; `priceOf` and `level` read the live profile.
 	local function upgrade(
 		player: Player,
@@ -295,6 +337,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		crossbreed = crossbreed,
 		sell = sell,
 		buyPod = buyPod,
+		buyIncubatorSlot = buyIncubatorSlot,
 		upgradeTrainer = upgradeTrainer,
 		upgradeJetpack = upgradeJetpack,
 		crossbred = crossbred,

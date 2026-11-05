@@ -37,12 +37,25 @@ type Egg = struct {
 	luck: f32?,
 }
 
+-- An egg waiting for an incubator slot: it takes this long to hatch once in one.
+type WaitingEgg = struct {
+	uid: u32,
+	rarity: string.utf8,
+	size: string.utf8,
+	grade: u8,
+	hatchSeconds: f32,
+	variant: string.utf8?,
+	luck: f32?,
+}
+
 -- The owner's bay, as the profile holds it.
 type Bay = struct {
 	pods: Pod[],
 	inventory: Alien[],
 	floor: Alien[],
 	incubator: Egg[],
+	incubatorSlots: u8,
+	waiting: WaitingEgg[],
 }
 
 -- The owner's upgrade levels (the speed stat itself travels as player attributes).
@@ -87,8 +100,10 @@ type Notice = enum {
 	StormTeleport,
 	-- Crossbreeding: meteor aliens only go with meteor aliens.
 	MixedVariants,
-	-- The jetpack is at its top level (Antimatter): there is no next one.
+	-- The jetpack is at its top level (Infinity): there is no next one.
 	JetpackTop,
+	-- The incubator has every slot there can be.
+	MaxIncubatorSlots,
 }
 
 -- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the
@@ -332,6 +347,13 @@ event Sell = {
 }
 
 event BuyPod = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}
+
+-- One more incubator slot.
+event BuyIncubatorSlot = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,

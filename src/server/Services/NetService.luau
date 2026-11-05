@@ -81,6 +81,8 @@ local function bayOf(data: PlayerData.PlayerData)
 		inventory = data.inventory,
 		floor = data.floor,
 		incubator = data.incubator,
+		incubatorSlots = data.incubatorSlots,
+		waiting = data.waiting,
 	}
 end
 
@@ -270,6 +272,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.BuyPod.SetCallback(guarded(function(player)
 			return economy.buyPod(player)
+		end))
+		Remotes.BuyIncubatorSlot.SetCallback(guarded(function(player)
+			return economy.buyIncubatorSlot(player)
 		end))
 		Remotes.UpgradeJetpack.SetCallback(guarded(function(player)
 			return economy.upgradeJetpack(player)
