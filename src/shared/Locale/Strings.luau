@@ -272,6 +272,10 @@ local Strings = {
 		ru = "Легендарное яйцо",
 		en = "Legendary egg",
 	},
+	["egg.serpentLuck.hint"] = {
+		ru = "★ удача змея",
+		en = "★ serpent luck",
+	},
 	["egg.hatchIn.hint"] = {
 		ru = "Вылупится через {time}",
 		en = "Hatches in {time}",

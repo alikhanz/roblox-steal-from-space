@@ -245,13 +245,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 	local function eggLine(egg: ProfileState.Egg): string
 		local _ = clock()
-		local name = Names.egg(locale, egg.rarity) or "?"
+		local name = Names.egg(locale, egg.rarity, egg.variant) or "?"
 		local guardian = Names.guardian(locale, egg.grade) or "?"
 		local left = egg.hatchAt - workspace:GetServerTimeNow()
 		local when = if left > 0
 			then text("egg.hatchIn.hint", { time = Duration.clock(left) })
 			else text("egg.hatching.hint")
-		return `{name} · {guardian} — {when}`
+		-- Delivered in the star serpent's hunt: it hatches luckier.
+		local luck = if egg.luck and egg.luck > 0 then ` · {text("egg.serpentLuck.hint")}` else ""
+		return `{name} · {guardian}{luck} — {when}`
 	end
 
 	-- Drops selections of aliens that are gone (sold, crossbred, hatched into their place).
