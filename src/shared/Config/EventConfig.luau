@@ -24,7 +24,7 @@ export type Event = {
 	-- Announced as each of its spots first comes up (SPOTS_FOLDER_NAME), with `{zone}`.
 	read spotAnnounceKey: keyof<typeof(Strings)>?,
 	-- Announced as it starts instead of the usual "{name} is here" line, when it has more to
-	-- tell.
+	-- tell; `{zone}` is its place's zone.
 	read startAnnounceKey: keyof<typeof(Strings)>?,
 }
 

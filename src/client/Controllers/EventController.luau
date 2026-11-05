@@ -131,8 +131,9 @@ function EventController.new(): EventController
 			local left = startsAt(entry) - workspace:GetServerTimeNow()
 			message = text("event.soon.announce", { name = name, time = Duration.describe(locale, left) })
 		elseif entry.event.startAnnounceKey then
+			-- The event's own words; they may name its zone.
 			local key: any = entry.event.startAnnounceKey
-			message = text(key)
+			message = text(key, { zone = zoneName(entry) or "" })
 		else
 			local zone = zoneName(entry)
 			message = if zone

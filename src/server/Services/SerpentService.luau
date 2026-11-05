@@ -1,11 +1,13 @@
 --!strict
 -- The star serpent's hunt for its egg, on its event's clock (EventService, SerpentConfig,
--- decision 055). As the hunt is announced a spot in the Event Horizon is picked; when it starts
--- the serpent comes out there carrying the star egg. What it does follows where the egg is
+-- decision 055). As the hunt is announced a zone past the first is picked at random
+-- (SerpentConfig.ZONES) and a spot in the middle of its ring; when it starts the serpent comes
+-- out there carrying the star egg, and it is that zone's serpent to the end, wherever it is
+-- chased: its speed and its egg's grade are the zone's. What it does follows where the egg is
 -- (Domain/SerpentHunt):
---   * egg inside: it flees the nearest player in space (SerpentConfig.fleeSpeedAt), roaming
---     when nobody is near; hits on its head (it is a PvP creature) count up, and the last one
---     knocks the egg out (Domain/StarEgg);
+--   * egg inside: it flees the nearest player in space (SerpentConfig.fleeSpeedIn), roaming
+--     its zone's ring when nobody is near; hits on its head (it is a PvP creature) count up,
+--     and the last one knocks the egg out (Domain/StarEgg);
 --   * egg out: it guards the egg like a guardian (Domain/GuardianBrain): over it while it lies
 --     loose, after whoever carries it, at a guardian's chase speed with its stat
 --     (Prey.chaseSpeed), throwing them and knocking it out.
@@ -49,9 +51,6 @@ local CENTER = StationConfig.PLATFORM_CENTER
 local HOME_ID = SerpentConfig.EGG_HOME_ID
 -- A roaming serpent picks its next spot once it is this close to the last one, studs.
 local ROAM_ARRIVE_RADIUS = 30
--- Roams between the first zone past the Debris Belt and the last zone's outer edge.
-local ROAM_MIN_RADIUS = ZoneConfig.ZONES.IceRings.ringMin
-local ROAM_HEIGHT = ZoneConfig.ZONES.EventHorizon.heightSpread
 
 export type Dependencies = {
 	eventChanged: Signal.Signal<EventConfig.EventId, EventClock.Phase>,
@@ -99,6 +98,8 @@ type Serpent = {
 	head: BasePart,
 	velocity: LinearVelocity,
 	align: AlignOrientation,
+	-- The zone it came out in: its speed, its egg's grade and its roaming ring, for the hunt.
+	zone: ZoneConfig.ZoneId,
 	roamGoal: Vector3?,
 	sincePin: number,
 	-- Guarding the egg once it is out, like a guardian.
@@ -123,6 +124,23 @@ end
 
 local function distanceFromStation(position: Vector3): number
 	return (position - CENTER).Magnitude
+end
+
+-- The serpent's zone for an event place: the place's zone if the serpent comes out there, the
+-- nearest such zone if not (the Debris Belt, from a Studio start), the first one without a zone.
+local function zoneOf(place: EventService.Place?): ZoneConfig.ZoneId
+	local zones = SerpentConfig.ZONES
+	local zone = if place then place.zone else nil
+	if zone and table.find(zones, zone) then
+		return zone
+	end
+	return zones[1]
+end
+
+-- A point in the middle of `zone`'s ring, at a random angle, level with the station.
+local function inZoneMiddle(random: Random, zone: ZoneConfig.ZoneId): Vector3
+	local ring = ZoneConfig.ZONES[zone]
+	return aroundStation(random, (ring.ringMin + ring.ringMax) / 2, 0)
 end
 
 -- Out of its reach: on the station, or within the Debris Belt.
@@ -172,14 +190,15 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		end
 	end
 
-	-- Where a roaming serpent heads: the same spot until it gets there, then a new one.
+	-- Where a roaming serpent heads: the same spot of its zone's ring until it gets there, then
+	-- a new one. A serpent chased out of its zone roams back into it.
 	local function roamGoal(current: Serpent): Vector3
 		local goal = current.roamGoal
 		if goal and (goal - current.head.Position).Magnitude > ROAM_ARRIVE_RADIUS then
 			return goal
 		end
-		local radius = random:NextNumber(ROAM_MIN_RADIUS, SerpentConfig.OUTER_RADIUS)
-		local fresh = aroundStation(random, radius, ROAM_HEIGHT)
+		local ring = ZoneConfig.ZONES[current.zone]
+		local fresh = aroundStation(random, random:NextNumber(ring.ringMin, ring.ringMax), ring.heightSpread)
 		current.roamGoal = fresh
 		return fresh
 	end
@@ -205,7 +224,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		local threat = nearestThreat(current)
 		if threat then
 			current.roamGoal = nil
-			local speed = SerpentConfig.fleeSpeedAt(distanceFromStation(position))
+			local speed = SerpentConfig.fleeSpeedIn(current.zone)
 			steer(current, Pursuit.fleeVelocity(position, threat.Position, speed))
 		else
 			local goal = roamGoal(current)
@@ -269,7 +288,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		}, SerpentConfig.BRAIN)
 
 		if current.brain == "Chase" and carrier and character and root then
-			local power = SerpentConfig.powerAt(distanceFromStation(root.Position))
+			local power = SerpentConfig.powerIn(current.zone)
 			local speed =
 				Prey.chaseSpeed(character, dependencies.getSpeed(carrier), dependencies.getCarried(carrier), power)
 			local goal = Pursuit.interceptPoint(
@@ -286,7 +305,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 				catchThief(current, carrier, character, root)
 			end
 		else
-			local speed = SerpentConfig.fleeSpeedAt(distanceFromStation(position))
+			local speed = SerpentConfig.fleeSpeedIn(current.zone)
 			steer(current, Pursuit.seekVelocity(position, current.watch, speed, SerpentConfig.ARRIVE_RADIUS))
 		end
 	end
@@ -342,8 +361,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		current.head:SetAttribute(SerpentConfig.LAST_HIT_ATTRIBUTE, workspace:GetServerTimeNow())
 		if knocked then
 			local position = current.head.Position
-			local zone = SerpentConfig.zoneAt(distanceFromStation(position))
-			local egg = StarEgg.roll(zone, random:NextNumber(), random:NextNumber())
+			local egg = StarEgg.roll(current.zone, random:NextNumber(), random:NextNumber())
 			starEgg = egg
 			dependencies.spawnLooseEgg({
 				rarity = egg.rarity,
@@ -370,8 +388,11 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		-- A star egg still in hands from the last hunt is no longer the serpent's to guard.
 		closeHome()
 		hunt = SerpentHunt.start()
+		-- Its zone and spot were picked as the hunt was announced (a Studio start may name any
+		-- zone: one it does not come out in counts as the nearest it does).
 		local place = dependencies.placeOf("Serpent")
-		local at = if place then place.position else aroundStation(random, SerpentConfig.SPAWN_RADIUS, 0)
+		local zone = zoneOf(place)
+		local at = if place and place.zone == zone then place.position else inZoneMiddle(random, zone)
 		local model = SerpentModel.build()
 		model:PivotTo(CFrame.lookAt(at, CENTER))
 		model.Parent = workspace:FindFirstChild("World") or workspace
@@ -383,6 +404,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			head = head,
 			velocity = head:FindFirstChild(SerpentConfig.VELOCITY_NAME) :: LinearVelocity,
 			align = head:FindFirstChild(SerpentConfig.ALIGN_NAME) :: AlignOrientation,
+			zone = zone,
 			roamGoal = nil,
 			sincePin = 0,
 			brain = "Return",
@@ -465,8 +487,11 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 	end
 
 	local function start()
+		-- One zone past the first at random, named in the announcement.
 		dependencies.setPlacer("Serpent", function(): EventService.Place?
-			return { zone = "EventHorizon", position = aroundStation(random, SerpentConfig.SPAWN_RADIUS, 0) }
+			local zones = SerpentConfig.ZONES
+			local zone = zones[random:NextInteger(1, #zones)]
+			return { zone = zone, position = inZoneMiddle(random, zone) }
 		end)
 		dependencies.eventChanged.connect(function(id, phase)
 			if id ~= "Serpent" then

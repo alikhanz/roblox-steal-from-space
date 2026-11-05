@@ -1,13 +1,14 @@
 --!strict
 -- The star serpent (EventConfig.EVENTS.Serpent has its clock; decision 055). For the 3 minutes
--- of its hunt it comes out of the Event Horizon carrying the star egg and flees whoever comes
--- near, as fast as a player with the speed stat of the middle guardian of the zone it is in:
--- whoever is strong enough for that zone catches it. HITS_TO_DROP hits on its head (strike,
--- harpoon, bomb; the whole server together) knock the egg out (Domain/StarEgg: that zone's middle
--- guardian's grade, rare or better, extra luck). Then it guards the egg like a guardian: hovers
--- over it lying loose and chases whoever carries it, with that same stat (Speed.chaseSpeed),
--- throwing them and knocking it out. Pure Luau: the balance calculator and tests load it.
--- Looks live in SerpentLooks.
+-- of its hunt it comes out in one zone past the first, picked as the hunt is announced, and is
+-- that zone's serpent to the end, wherever it is chased: the speed stat of the zone's middle
+-- guardian, an egg of that guardian's grade. It roams its zone carrying the star egg and flees
+-- whoever comes near, as fast as a player with its stat would fly (a little slower): whoever
+-- is strong enough for the zone catches it. HITS_TO_DROP hits on its head (strike, harpoon,
+-- bomb; the whole server together) knock the egg out (Domain/StarEgg: rare or better, extra
+-- luck). Then it guards the egg like a guardian: hovers over it lying loose and chases whoever
+-- carries it, with that same stat (Speed.chaseSpeed), throwing them and knocking it out. Pure
+-- Luau: the balance calculator and tests load it. Looks live in SerpentLooks.
 
 local BigNum = require("../Domain/BigNum")
 local EggConfig = require("./EggConfig")
@@ -27,20 +28,19 @@ local POWER_POST = 3
 -- on it.
 local FLEE_SPEED_SHARE = 0.9
 
--- The zone `distance` studs from the station, for the serpent: the nearest zone between rings.
-local function zoneAt(distance: number): ZoneConfig.ZoneId
-	return ZoneConfig.zoneAtDistance(distance) or ZoneConfig.ZONE_ORDER[1]
+-- The zones it can come out in: every zone past the first, where it never goes.
+local ZONES: { ZoneConfig.ZoneId } = table.clone(ZoneConfig.ZONE_ORDER)
+table.remove(ZONES, 1)
+
+-- The serpent of `zone` (the one it came out in, for the whole hunt, wherever it is chased):
+-- the speed stat of that zone's POWER_POST guardian.
+local function powerIn(zone: ZoneConfig.ZoneId): BigNum.BigNum
+	return GuardianConfig.POSTS[ZoneConfig.postIndex(zone, POWER_POST)].speed
 end
 
--- The serpent's speed stat `distance` studs from the station: that of the POWER_POST guardian
--- of the zone there.
-local function powerAt(distance: number): BigNum.BigNum
-	return GuardianConfig.POSTS[ZoneConfig.postIndex(zoneAt(distance), POWER_POST)].speed
-end
-
--- How fast it flees `distance` studs from the station, studs per second.
-local function fleeSpeedAt(distance: number): number
-	return Speed.flightSpeed(powerAt(distance), SpeedConfig.FLIGHT) * FLEE_SPEED_SHARE
+-- How fast the serpent of `zone` flees, studs per second.
+local function fleeSpeedIn(zone: ZoneConfig.ZoneId): number
+	return Speed.flightSpeed(powerIn(zone), SpeedConfig.FLIGHT) * FLEE_SPEED_SHARE
 end
 
 -- How it guards its egg once it is out: a guardian's brain, a guardian's head start.
@@ -57,16 +57,15 @@ return table.freeze({
 	HUNT_RADIUS = DEBRIS_BELT.ringMax,
 	-- Nor farther than the edge of the last zone.
 	OUTER_RADIUS = EVENT_HORIZON.ringMax,
-	-- Comes out in the middle of the Event Horizon's ring.
-	SPAWN_RADIUS = (EVENT_HORIZON.ringMin + EVENT_HORIZON.ringMax) / 2,
+	-- The zones it comes out in (one per hunt, at random), from the station outwards.
+	ZONES = table.freeze(ZONES),
 	POWER_POST = POWER_POST,
 	FLEE_SPEED_SHARE = FLEE_SPEED_SHARE,
-	zoneAt = zoneAt,
-	powerAt = powerAt,
-	fleeSpeedAt = fleeSpeedAt,
+	powerIn = powerIn,
+	fleeSpeedIn = fleeSpeedIn,
 	-- Flees from the nearest player in space within this distance of its head, studs.
 	FLEE_RADIUS = 150,
-	-- With nobody near it roams its grounds at this speed, studs per second.
+	-- With nobody near it roams its zone's ring at this speed, studs per second.
 	ROAM_SPEED = 60,
 
 	-- Hits on its head that knock the egg out, the whole server together.

@@ -281,18 +281,23 @@ describe("MeteorConfig", function()
 end)
 
 describe("SerpentConfig", function()
-	it("comes out within its grounds, past the Debris Belt", function()
-		expect(SerpentConfig.SPAWN_RADIUS > SerpentConfig.HUNT_RADIUS).toBe(true)
-		expect(SerpentConfig.SPAWN_RADIUS < SerpentConfig.OUTER_RADIUS).toBe(true)
+	it("comes out only in zones past the Debris Belt, all of them within its bounds", function()
 		expect(SerpentConfig.HUNT_RADIUS > StationSize.BORDER_RADIUS).toBe(true)
+		expect(table.find(SerpentConfig.ZONES, "DebrisBelt" :: ZoneConfig.ZoneId)).toBeNil()
+		expect(#SerpentConfig.ZONES).toBe(#ZoneConfig.ZONE_ORDER - 1)
+		for _, zone in SerpentConfig.ZONES do
+			local ring = ZoneConfig.ZONES[zone]
+			expect(ring.ringMin > SerpentConfig.HUNT_RADIUS).toBe(true)
+			expect(ring.ringMax <= SerpentConfig.OUTER_RADIUS).toBe(true)
+		end
 	end)
 
 	it("flees a little slower than a player with its stat flies", function()
-		local ring = ZoneConfig.ZONES.IceRings
-		local middle = (ring.ringMin + ring.ringMax) / 2
-		local playerSpeed = Speed.flightSpeed(SerpentConfig.powerAt(middle), SpeedConfig.FLIGHT)
-		expect(SerpentConfig.fleeSpeedAt(middle) < playerSpeed).toBe(true)
-		expect(SerpentConfig.fleeSpeedAt(middle) > SerpentConfig.ROAM_SPEED).toBe(true)
+		for _, zone in SerpentConfig.ZONES do
+			local playerSpeed = Speed.flightSpeed(SerpentConfig.powerIn(zone), SpeedConfig.FLIGHT)
+			expect(SerpentConfig.fleeSpeedIn(zone) < playerSpeed).toBe(true)
+			expect(SerpentConfig.fleeSpeedIn(zone) > SerpentConfig.ROAM_SPEED).toBe(true)
+		end
 	end)
 
 	it("takes a few hits and guards its egg like a guardian", function()
@@ -300,26 +305,18 @@ describe("SerpentConfig", function()
 		expect(SerpentConfig.BRAIN.aggroDelaySeconds).toBe(GuardianConfig.BRAIN.aggroDelaySeconds)
 	end)
 
-	it("is as strong as the middle guardian of its prey's zone", function()
-		for _, zone in ZoneConfig.ZONE_ORDER do
-			local ring = ZoneConfig.ZONES[zone]
+	it("is as strong as the middle guardian of the zone it came out in", function()
+		for _, zone in SerpentConfig.ZONES do
 			local post = GuardianConfig.POSTS[ZoneConfig.postIndex(zone, SerpentConfig.POWER_POST)]
-			local power = SerpentConfig.powerAt((ring.ringMin + ring.ringMax) / 2)
-			expect(BigNum.equals(power, post.speed)).toBe(true)
+			expect(BigNum.equals(SerpentConfig.powerIn(zone), post.speed)).toBe(true)
 		end
-		-- Between rings: the nearer zone's.
-		local belt, rings = ZoneConfig.ZONES.DebrisBelt, ZoneConfig.ZONES.IceRings
-		local nearRings = rings.ringMin - (rings.ringMin - belt.ringMax) / 4
-		local ringsPost = GuardianConfig.POSTS[ZoneConfig.postIndex("IceRings", SerpentConfig.POWER_POST)]
-		expect(BigNum.equals(SerpentConfig.powerAt(nearRings), ringsPost.speed)).toBe(true)
 	end)
 
 	it("guards its egg as fast as a guardian with its stat would chase", function()
-		local ring = ZoneConfig.ZONES.RedNebula
 		local post = GuardianConfig.POSTS[ZoneConfig.postIndex("RedNebula", SerpentConfig.POWER_POST)]
 		local weight = GuardianConfig.TYPICAL_WEIGHT
 		local loaded = Speed.withEgg(post.recommended, weight)
-		local power = SerpentConfig.powerAt((ring.ringMin + ring.ringMax) / 2)
+		local power = SerpentConfig.powerIn("RedNebula")
 		expect(Speed.chaseSpeed(100, power, loaded, SpeedConfig.CHASE)).toBeCloseTo(100)
 		-- Weaker than that, the serpent is faster.
 		local weaker = Speed.withEgg(BigNum.div(post.recommended, BigNum.fromNumber(10)), weight)

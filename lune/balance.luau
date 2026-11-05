@@ -206,19 +206,14 @@ local function simulate(profile: Profile, seed: number): Run
 		incubate(Loot.pick(zone.rarityLoot, math.random()), Loot.pick(zone.sizeLoot, math.random()), post, now, variant)
 	end
 
-	-- The star egg of the farthest zone past the first whose middle guardian the player beats,
-	-- if any.
+	-- The serpent comes out in a random zone; its star egg is the player's if they beat that
+	-- zone's middle guardian (as fast as the serpent): `farthest` is their farthest guardian.
 	local function winStarEgg(farthest: number, now: number)
-		local zone, inZone = ZoneConfig.zoneOfPost(farthest)
-		local zoneIndex = table.find(ZoneConfig.ZONE_ORDER, zone) :: number
-		if inZone < SerpentConfig.POWER_POST then
-			zoneIndex -= 1
-		end
-		-- The serpent never comes into the first zone.
-		if zoneIndex <= 1 then
+		local zones = SerpentConfig.ZONES
+		local zone = zones[math.random(1, #zones)]
+		if farthest < ZoneConfig.postIndex(zone, SerpentConfig.POWER_POST) then
 			return
 		end
-		zone = ZoneConfig.ZONE_ORDER[zoneIndex]
 		local egg = StarEgg.roll(zone, math.random(), math.random())
 		incubate(egg.rarity, egg.size, egg.grade, now, nil, egg.luck)
 	end
