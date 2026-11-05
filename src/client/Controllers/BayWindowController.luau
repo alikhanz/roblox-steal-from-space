@@ -45,6 +45,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	InventoryFull = "notice.inventoryFull.toast",
 	NotEnoughCoins = "notice.notEnoughCoins.toast",
 	MaxPods = "notice.maxPods.toast",
+	JetpackTop = "notice.jetpackTop.toast",
 	NoSuchPod = "notice.unknownAlien.toast",
 	WrongCount = "notice.wrongAliens.toast",
 	MixedGrades = "notice.wrongAliens.toast",

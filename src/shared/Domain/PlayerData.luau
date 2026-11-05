@@ -82,7 +82,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 11
+PlayerData.SCHEMA_VERSION = 12
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -143,6 +143,15 @@ PlayerData.MIGRATIONS = {
 	end,
 	-- v11: eggs may carry extra luck (delivered during the star serpent's hunt); none before.
 	[10] = function(_data: { [string]: any }) end,
+	-- v12: jetpacks come in two marks (x2, x3, x4, x6...) up to Antimatter x128 (decision 056).
+	-- Level L used to multiply by 2^L: the same multiplier is now level 2L - 1, and nothing
+	-- goes past level 13 (x128). Fixed numbers: this is how v11 and v12 were.
+	[11] = function(data: { [string]: any })
+		local level = data.jetpackLevel
+		if type(level) == "number" and level > 0 then
+			data.jetpackLevel = math.min(2 * level - 1, 13)
+		end
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.

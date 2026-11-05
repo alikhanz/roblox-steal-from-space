@@ -14,11 +14,16 @@ local TUNING: Upgrades.Tuning = {
 	trainerCostBase = BigNum.fromNumber(300),
 	trainerCostGrowth = BigNum.fromNumber(6),
 
-	-- Each jetpack level multiplies the whole speed stat by this.
-	jetpackMultiplier = BigNum.fromNumber(2),
-	-- Jetpack level n costs 2000 * 10^(n-1) coins.
+	-- Jetpacks in two marks each: I doubles the previous jetpack's I, II is x1.5 on top, so the
+	-- multipliers read x2, x3, x4, x6, x8, x12... up to the last jetpack, Antimatter (7), which
+	-- has its first mark only: x128 is the top (decision 056).
+	jetpackGrowth = 2,
+	jetpackMarks = table.freeze({ 1, 1.5 }),
+	jetpackLast = 7,
+	-- The first level (x2) costs 2000 coins; every doubling of the multiplier costs 10 times
+	-- more (x4 20K, x8 200K), the marks between in proportion (x3 7.7K).
 	jetpackCostBase = BigNum.fromNumber(2000),
-	jetpackCostGrowth = BigNum.fromNumber(10),
+	jetpackCostPerDoubling = 10,
 }
 
 return table.freeze({
@@ -27,8 +32,8 @@ return table.freeze({
 	-- The trainer pays out this often while its owner stands on it: quick numbers feel alive.
 	TRAINING_TICK_SECONDS = 0.25,
 
-	-- Names of the jetpacks by level (level 0 first); levels past the list keep the last name
-	-- with a "+n" (Names.jetpack). JetpackLooks describes the same levels.
+	-- Names of the jetpacks (the starting one first; Upgrades.jetpackModel gives a level's
+	-- jetpack), each with its mark (Names.jetpack). JetpackLooks describes the same jetpacks.
 	JETPACK_NAME_KEYS = table.freeze({
 		"jetpack.level0.title",
 		"jetpack.level1.title",

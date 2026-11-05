@@ -31,8 +31,6 @@ local PART_WAIT_TIMEOUT = 10
 -- From the panel's center to just over its top edge.
 local SIGN_STUDS_ABOVE = 4.5
 local SIGN_MAX_DISTANCE = 120
--- Rows shown past the owned one, so the next few goals are always on the list.
-local ROWS_AHEAD = 2
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
@@ -55,15 +53,20 @@ function ShopController.new(dependencies: Dependencies): ShopController
 		return Text.get(locale, key, args)
 	end
 
-	local function nextPrice(): BigNum.BigNum
-		return Upgrades.jetpackPrice(profile.upgrades().jetpackLevel, UpgradeConfig.TUNING)
+	local top = Upgrades.jetpackMaxLevel(UpgradeConfig.TUNING)
+
+	-- The next level's price; nil at the top, where there is nothing to buy.
+	local function nextPrice(): BigNum.BigNum?
+		local owned = profile.upgrades().jetpackLevel
+		return if owned < top then Upgrades.jetpackPrice(owned, UpgradeConfig.TUNING) else nil
 	end
 
+	-- Every level, the starting one to the top.
 	local function rows(): { ShopWindow.Row }
 		local owned = profile.upgrades().jetpackLevel
-		local count = math.max(#JetpackLooks.LEVELS, owned + 1 + ROWS_AHEAD)
+		local price = nextPrice()
 		local list = {}
-		for level = 0, count - 1 do
+		for level = 0, top do
 			local state: "Past" | "Owned" | "Next" | "Locked" = if level < owned
 				then "Past"
 				elseif level == owned then "Owned"
@@ -77,7 +80,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 				}),
 				color = JetpackLooks.forLevel(level).flameEnd,
 				state = state,
-				price = text("shop.buy.button", { price = BigNum.format(nextPrice()) }),
+				price = if price then text("shop.buy.button", { price = BigNum.format(price) }) else "",
 			})
 		end
 		return list
@@ -102,7 +105,8 @@ function ShopController.new(dependencies: Dependencies): ShopController
 						locked = text("shop.locked.hint"),
 					},
 					canBuy = function()
-						return not BigNum.lessThan(profile.coins(), nextPrice())
+						local price = nextPrice()
+						return price ~= nil and not BigNum.lessThan(profile.coins(), price)
 					end,
 					onBuy = function()
 						Remotes.UpgradeJetpack.Fire()

@@ -87,6 +87,8 @@ type Notice = enum {
 	StormTeleport,
 	-- Crossbreeding: meteor aliens only go with meteor aliens.
 	MixedVariants,
+	-- The jetpack is at its top level (Antimatter): there is no next one.
+	JetpackTop,
 }
 
 -- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the

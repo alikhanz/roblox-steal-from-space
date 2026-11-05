@@ -1,6 +1,6 @@
 --!strict
 -- Player-facing names of things that have no name of their own yet: an alien is "<tier> · <its
--- guardian>", an egg is "<rarity> egg", a jetpack is its level's name. Pure, so the names are
+-- guardian>", an egg is "<rarity> egg", a jetpack is its jetpack's name and mark. Pure, so the names are
 -- testable in Lune.
 
 local AlienConfig = require("../Config/AlienConfig")
@@ -8,6 +8,7 @@ local EggConfig = require("../Config/EggConfig")
 local GuardianConfig = require("../Config/GuardianConfig")
 local Text = require("./Text")
 local UpgradeConfig = require("../Config/UpgradeConfig")
+local Upgrades = require("../Domain/Upgrades")
 
 local Names = {}
 
@@ -60,14 +61,21 @@ function Names.egg(locale: Text.Locale, rarity: string, variant: string?): strin
 end
 
 -- The jetpack of `level` (0-based). Levels past the named ones are the last name "+n".
+-- Marks of a jetpack model, as they follow its name.
+local MARKS = { "I", "II", "III", "IV" }
+
+-- A jetpack level's name: its jetpack's name and mark ("Spark II"). The starting jetpack and
+-- the last one come in one model and carry no mark.
 function Names.jetpack(locale: Text.Locale, level: number): string
-	assert(level >= 0 and level % 1 == 0, `jetpack level must be a whole number, got {level}`)
+	local tuning = UpgradeConfig.TUNING
+	local top = Upgrades.jetpackMaxLevel(tuning)
+	local jetpack, mark = Upgrades.jetpackModel(math.min(level, top), tuning)
 	local keys: { any } = UpgradeConfig.JETPACK_NAME_KEYS
-	if level < #keys then
-		return Text.get(locale, keys[level + 1])
+	local name = Text.get(locale, keys[jetpack + 1])
+	if jetpack == 0 or jetpack == tuning.jetpackLast then
+		return name
 	end
-	local last = Text.get(locale, keys[#keys])
-	return Text.get(locale, "jetpack.beyond.title", { name = last, extra = level - (#keys - 1) })
+	return `{name} {assert(MARKS[mark], `no mark {mark}`)}`
 end
 
 return table.freeze(Names)

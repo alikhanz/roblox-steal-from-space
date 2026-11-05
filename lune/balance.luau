@@ -260,8 +260,21 @@ local function simulate(profile: Profile, seed: number): Run
 	local function trainerPrice(): number
 		return toNumber(Upgrades.trainerPrice(trainerLevel, UpgradeConfig.TUNING))
 	end
+	local jetpackTop = Upgrades.jetpackMaxLevel(UpgradeConfig.TUNING)
+	-- Nothing to buy past the top jetpack.
 	local function jetpackPrice(): number
-		return toNumber(Upgrades.jetpackPrice(jetpackLevel, UpgradeConfig.TUNING))
+		return if jetpackLevel < jetpackTop
+			then toNumber(Upgrades.jetpackPrice(jetpackLevel, UpgradeConfig.TUNING))
+			else math.huge
+	end
+	-- What the next jetpack level adds, as a share of the stat (0.5 for x2 -> x3).
+	local function jetpackStep(): number
+		if jetpackLevel >= jetpackTop then
+			return 0
+		end
+		local now = toNumber(Upgrades.jetpackMultiplier(jetpackLevel, UpgradeConfig.TUNING))
+		local nextOne = toNumber(Upgrades.jetpackMultiplier(jetpackLevel + 1, UpgradeConfig.TUNING))
+		return nextOne / now - 1
 	end
 
 	-- A pod whenever an alien waits for one; otherwise whichever upgrade gives more speed per coin.
@@ -275,7 +288,7 @@ local function simulate(profile: Profile, seed: number): Run
 				continue
 			end
 			local trainerGain = (toNumber(UpgradeConfig.TUNING.trainerRateGrowth) - 1) / trainerPrice()
-			local jetpackGain = (toNumber(UpgradeConfig.TUNING.jetpackMultiplier) - 1) / jetpackPrice()
+			local jetpackGain = jetpackStep() / jetpackPrice()
 			if trainerGain >= jetpackGain and coins >= trainerPrice() then
 				coins -= trainerPrice()
 				trainerLevel += 1

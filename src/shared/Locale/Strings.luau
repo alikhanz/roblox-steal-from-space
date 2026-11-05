@@ -460,6 +460,10 @@ local Strings = {
 		ru = "Больше капсул не поставить",
 		en = "No room for more pods",
 	},
+	["notice.jetpackTop.toast"] = {
+		ru = "Это лучший джетпак",
+		en = "That's the best jetpack",
+	},
 	["notice.wrongAliens.toast"] = {
 		ru = "Нужны 3 пришельца одного стража",
 		en = "Pick 3 aliens of one guardian",
@@ -916,10 +920,6 @@ local Strings = {
 	["jetpack.level7.title"] = {
 		ru = "Антиматерия",
 		en = "Antimatter",
-	},
-	["jetpack.beyond.title"] = {
-		ru = "{name} +{extra}",
-		en = "{name} +{extra}",
 	},
 	["alien.pickUp.button"] = {
 		ru = "Подобрать",

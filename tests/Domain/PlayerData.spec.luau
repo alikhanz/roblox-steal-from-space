@@ -465,6 +465,31 @@ describe("PlayerData migration v10 -> v11", function()
 	end)
 end)
 
+describe("PlayerData migration v11 -> v12", function()
+	local function migrated(level: number): number?
+		local saved = savedTemplate()
+		saved.schemaVersion = 11
+		saved.jetpackLevel = level
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		return if outcome.ok then outcome.data.jetpackLevel else nil
+	end
+
+	it("keeps each jetpack's multiplier on the two-mark levels", function()
+		expect(migrated(0)).toBe(0)
+		-- x2 was level 1 and stays level 1; x4 was 2, now 3; x8 was 3, now 5.
+		expect(migrated(1)).toBe(1)
+		expect(migrated(2)).toBe(3)
+		expect(migrated(3)).toBe(5)
+		-- x128 was 7, now the top, 13.
+		expect(migrated(7)).toBe(13)
+	end)
+
+	it("brings a jetpack past the old names down to the top", function()
+		expect(migrated(11)).toBe(13)
+	end)
+end)
+
 describe("PlayerData migration v8 -> v9", function()
 	it("finds the aliens the player has, with their rewards taken", function()
 		local saved = savedTemplate()

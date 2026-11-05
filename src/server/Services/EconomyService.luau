@@ -28,6 +28,7 @@ export type Notice =
 	| "WrongCount"
 	| "MixedGrades"
 	| "MixedVariants"
+	| "JetpackTop"
 
 export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
@@ -275,6 +276,10 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 	end
 
 	local function upgradeJetpack(player: Player): Notice?
+		local current = dependencies.getData(player)
+		if current and current.jetpackLevel >= Upgrades.jetpackMaxLevel(UpgradeConfig.TUNING) then
+			return "JetpackTop"
+		end
 		return upgrade(player, function(data)
 			return Upgrades.jetpackPrice(data.jetpackLevel, UpgradeConfig.TUNING)
 		end, function(data)

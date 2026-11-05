@@ -1,9 +1,10 @@
 --!strict
--- How each jetpack level looks: tank colors and the flame. Every level burns a different color
--- and brighter than the last, so a better jetpack is visible from across the station. Levels
--- past the list keep the last look. The names live in UpgradeConfig.JETPACK_NAME_KEYS.
+-- How each jetpack looks: tank colors and the flame. Every jetpack burns a different color and
+-- brighter than the last, so a better jetpack is visible from across the station; its marks
+-- (Upgrades.jetpackModel) look alike. The names live in UpgradeConfig.JETPACK_NAME_KEYS.
 
 local UpgradeConfig = require("./UpgradeConfig")
+local Upgrades = require("../Domain/Upgrades")
 
 export type Looks = {
 	read bodyColor: Color3,
@@ -118,8 +119,11 @@ JetpackLooks.FLAME_SIZE_KEYPOINTS = table.freeze({
 	{ time = 1, size = 0.1 },
 })
 
+-- The look of a jetpack level: its jetpack's (both marks of a jetpack look the same).
 function JetpackLooks.forLevel(level: number): Looks
-	return LEVELS[math.clamp(math.floor(level) + 1, 1, #LEVELS)]
+	local top = Upgrades.jetpackMaxLevel(UpgradeConfig.TUNING)
+	local jetpack = Upgrades.jetpackModel(math.clamp(math.floor(level), 0, top), UpgradeConfig.TUNING)
+	return LEVELS[math.clamp(jetpack + 1, 1, #LEVELS)]
 end
 
 function JetpackLooks.flameSize(scale: number): NumberSequence
