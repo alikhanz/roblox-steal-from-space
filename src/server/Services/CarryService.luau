@@ -37,6 +37,8 @@ export type Egg = {
 	nestId: string,
 	-- The alien variant it hatches into.
 	variant: AlienConfig.VariantId,
+	-- Luck on top of its rarity's and size's (EggConfig.luckOf), carried to the bay; nil: none.
+	luck: number?,
 }
 
 export type Dependencies = {
@@ -61,8 +63,6 @@ export type Dependencies = {
 		variant: AlienConfig.VariantId?,
 		luck: number?
 	) -> boolean,
-	-- Extra luck for an egg delivered right now (the star serpent's hunt); 0 most of the time.
-	deliveryLuck: () -> number,
 }
 
 -- An egg as the other services see it: with its grade (nil if its nest has none).
@@ -135,6 +135,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			size = egg.size,
 			nestId = egg.nestId,
 			variant = egg.variant,
+			luck = egg.luck,
 			grade = dependencies.getNestGrade(egg.nestId),
 		}
 	end
@@ -307,7 +308,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			leavePlay(egg)
 			return
 		end
-		if dependencies.deliverEgg(player, egg.rarity, egg.size, grade, egg.variant, dependencies.deliveryLuck()) then
+		if dependencies.deliverEgg(player, egg.rarity, egg.size, grade, egg.variant, egg.luck) then
 			releaseCarried(player)
 			dependencies.nestEggDelivered(egg.nestId)
 			delivered.fire(player, publicOf(egg))

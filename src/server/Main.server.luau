@@ -123,9 +123,6 @@ local spaceService = SpaceService.new({
 	getSpawn = worldService.getSpawn,
 	getJetpackLooks = jetpackService.getLooks,
 })
--- The star serpent knocks eggs out of hands, so it comes after the carry service, which asks it
--- for the luck of a delivered egg.
-local serpentService: SerpentService.SerpentService
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
 	returnNestEgg = nestService.returnEgg,
@@ -133,9 +130,6 @@ local carryService = CarryService.new({
 	getNestEggCFrame = nestService.getEggCFrame,
 	getNestGrade = nestService.getGrade,
 	deliverEgg = bayService.addEgg,
-	deliveryLuck = function(): number
-		return serpentService.deliveryLuck()
-	end,
 })
 
 pvpDependencies.getData = profile.getData
@@ -179,7 +173,7 @@ local meteorService = MeteorService.new({
 	activePlayers = activityService.activeCount,
 })
 
-serpentService = SerpentService.new({
+local serpentService = SerpentService.new({
 	eventChanged = eventService.changed,
 	placeOf = eventService.placeOf,
 	setPlacer = eventService.setPlacer,

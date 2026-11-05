@@ -5,7 +5,7 @@
 -- gets away (Domain/GuardianBrain.pickTarget), as fast as a guardian with the speed stat of the
 -- middle guardian of that player's zone would be (SerpentConfig.powerAt, Prey.chaseSpeed). A catch is a guardian's: the player is thrown and the egg knocked out; then the
 -- serpent leaves them alone for a while. With nobody to hunt it roams. Its pin follows it
--- (EventService.movePlace). Eggs delivered while it hunts hatch luckier (`deliveryLuck`).
+-- (EventService.movePlace).
 --
 -- The serpent's head is a server-owned physics mover, like a guardian, not predicted on clients;
 -- the clients draw its body behind it.
@@ -53,8 +53,6 @@ export type Dependencies = {
 export type SerpentService = {
 	name: string,
 	start: () -> (),
-	-- Extra luck for an egg delivered right now: SerpentConfig.EGG_LUCK while it hunts, else 0.
-	deliveryLuck: () -> number,
 	-- It caught a player; true if that knocked an egg out of their hands.
 	caught: Signal.Signal<Player, boolean>,
 }
@@ -90,7 +88,6 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 	local random = Random.new()
 	local caught = Signal.new() :: Signal.Signal<Player, boolean>
 	local serpent: Serpent? = nil
-	local hunting = false
 
 	local function pickPlace(): EventService.Place?
 		return { zone = "EventHorizon", position = aroundStation(random, SerpentConfig.SPAWN_RADIUS, 0) }
@@ -228,8 +225,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			if id ~= "Serpent" then
 				return
 			end
-			hunting = phase == "Active"
-			if hunting then
+			if phase == "Active" then
 				comeOut()
 			elseif phase == "Idle" then
 				goAway()
@@ -249,9 +245,6 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 	return {
 		name = "SerpentService",
 		start = start,
-		deliveryLuck = function(): number
-			return if hunting then SerpentConfig.EGG_LUCK else 0
-		end,
 		caught = caught,
 	}
 end
