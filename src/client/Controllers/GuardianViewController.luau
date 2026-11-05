@@ -8,9 +8,11 @@
 local CollectionService = game:GetService("CollectionService")
 local LocalizationService = game:GetService("LocalizationService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
@@ -46,6 +48,16 @@ local function recommendedOf(model: Model): BigNum.BigNum?
 		mantissa = model:GetAttribute(GuardianConfig.RECOMMENDED_MANTISSA_ATTRIBUTE),
 		exponent = model:GetAttribute(GuardianConfig.RECOMMENDED_EXPONENT_ATTRIBUTE),
 	})
+end
+
+-- Debug only, Studio only (DevConfig.STUDIO_GUARDIAN_SPEED): the guardian's own speed stat and
+-- its recommended one under its name. Nil in a live game, where players never see numbers there.
+local function debugTextOf(post: GuardianConfig.Post, recommended: BigNum.BigNum?): string?
+	if not RunService:IsStudio() or not DevConfig.STUDIO_GUARDIAN_SPEED then
+		return nil
+	end
+	local rec = if recommended then BigNum.format(recommended) else "?"
+	return `⚡ {BigNum.format(post.speed)} · rec {rec}`
 end
 
 local function paintEyes(model: Model)
@@ -107,6 +119,7 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 					return GuardianLooks.standingColor(standing)
 				end,
 				maxDistance = ZoneLooks.GUARDIAN_SIGN_DISTANCE[post.zone],
+				debugText = debugTextOf(post, recommended),
 			})
 		end, instance)
 		paintEyes(instance)
