@@ -20,6 +20,7 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
+local GoalBadge = require(script.Parent.Parent.UI.GoalBadge)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
@@ -28,6 +29,7 @@ local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
+local SpeedGoal = require(ReplicatedStorage.Shared.Domain.SpeedGoal)
 local StatBadge = require(script.Parent.Parent.UI.StatBadge)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -39,6 +41,15 @@ local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 local STAT_GAP = 8
+
+-- Every guardian's recommended stat, from the station outwards: the speed goals (SpeedGoal).
+local RECOMMENDED = (function(): { BigNum.BigNum }
+	local list = {}
+	for _, post in GuardianConfig.POSTS do
+		table.insert(list, post.recommended)
+	end
+	return list
+end)()
 
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
@@ -256,8 +267,25 @@ function HudController.new(dependencies: Dependencies): HudController
 			return inSpace() and inputMode() ~= Enum.PreferredInput.Touch
 		end
 
+		local function goal(): SpeedGoal.Goal?
+			return SpeedGoal.next(speed(), RECOMMENDED)
+		end
+
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
+			-- A guardian comes within reach: cheer. The first reading only notes where the player is.
+			local lastGoal: number? = nil
+			Vide.effect(function()
+				local current = goal()
+				local post = if current then current.post else #RECOMMENDED + 1
+				local before = lastGoal
+				lastGoal = post
+				if before and post > before then
+					local reached: any = GuardianConfig.POSTS[post - 1].nameKey
+					local name = Text.get(locale, reached)
+					dependencies.toast(Text.get(locale, "speed.goalReached.toast", { name = name }), Theme.TOAST_GOOD)
+				end
+			end)
 			local children: { Instance } = {
 				Crosshair({
 					visible = inSpace,
@@ -291,6 +319,30 @@ function HudController.new(dependencies: Dependencies): HudController
 						end,
 						layoutOrder = 1,
 					}),
+					-- The next guardian to grow towards, and how far the stat is from it.
+					GoalBadge({
+						name = "GoalBadge",
+						title = function()
+							local current = goal()
+							local key: any = if current then GuardianConfig.POSTS[current.post].nameKey else nil
+							return if key
+								then Text.get(locale, "speed.goal.title", { name = Text.get(locale, key) })
+								else ""
+						end,
+						value = function()
+							local current = goal()
+							return if current then `{BigNum.format(speed())} / {BigNum.format(current.target)}` else ""
+						end,
+						progress = function()
+							local current = goal()
+							return if current then current.progress else 1
+						end,
+						color = Theme.SPEED,
+						visible = function()
+							return goal() ~= nil
+						end,
+						layoutOrder = 2,
+					}),
 					StatBadge({
 						name = "CoinsBadge",
 						title = Text.get(locale, "coins.stat.title"),
@@ -299,7 +351,7 @@ function HudController.new(dependencies: Dependencies): HudController
 						value = function()
 							return BigNum.format(dependencies.coins())
 						end,
-						layoutOrder = 2,
+						layoutOrder = 3,
 					}),
 					-- How long nobody can rob this player (and they cannot rob anyone).
 					StatBadge({
@@ -314,7 +366,7 @@ function HudController.new(dependencies: Dependencies): HudController
 						visible = function()
 							return newbieSecondsLeft() > 0
 						end,
-						layoutOrder = 4,
+						layoutOrder = 5,
 					}),
 					-- The egg in hand: the thief sees their own back, so the HUD says it.
 					StatBadge({
@@ -329,7 +381,7 @@ function HudController.new(dependencies: Dependencies): HudController
 						visible = function()
 							return readCarried() ~= nil
 						end,
-						layoutOrder = 3,
+						layoutOrder = 4,
 					}),
 				}),
 				OxygenBar({

@@ -985,6 +985,15 @@ local Strings = {
 		ru = "Скорость",
 		en = "Speed",
 	},
+	-- The next speed goal under the stat: the nearest guardian not yet within reach.
+	["speed.goal.title"] = {
+		ru = "Цель: {name}",
+		en = "Next: {name}",
+	},
+	["speed.goalReached.toast"] = {
+		ru = "Теперь тебе по силам {name}!",
+		en = "{name} is within reach now!",
+	},
 	["oxygen.low.toast"] = {
 		ru = "Кислород кончается! Лети к станции",
 		en = "Low oxygen! Fly back to the station",
