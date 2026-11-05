@@ -4,7 +4,7 @@ local MeteorShower = require("../../src/shared/Domain/MeteorShower")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
-local TUNING: MeteorShower.Tuning = { EGGS_PER_PLAYER = 2, MIN_EGGS = 4, MAX_EGGS = 16, FALL_SHARE = 0.75 }
+local TUNING: MeteorShower.Tuning = { EGGS_PER_PLAYER = 2, MIN_EGGS = 4, MAX_EGGS = 16, FALL_STEP_SECONDS = 3 }
 
 describe("MeteorShower.eggCount", function()
 	it("grows with the players within the bounds", function()
@@ -16,18 +16,17 @@ describe("MeteorShower.eggCount", function()
 end)
 
 describe("MeteorShower.fallTimes", function()
-	it("starts at once and spreads the eggs evenly over the falling share", function()
-		local times = MeteorShower.fallTimes(4, 120, TUNING)
+	it("drops one meteor a step, the first a step after the start", function()
+		local times = MeteorShower.fallTimes(4, TUNING)
 		expect(#times).toBe(4)
-		expect(times[1]).toBe(0)
-		expect(times[2]).toBe(30)
-		expect(times[4]).toBe(90)
+		expect(times[1]).toBe(3)
+		expect(times[2]).toBe(6)
+		expect(times[4]).toBe(12)
 	end)
 
-	it("drops a single egg at once", function()
-		local times = MeteorShower.fallTimes(1, 120, TUNING)
-		expect(#times).toBe(1)
-		expect(times[1]).toBe(0)
+	it("keeps the same step however many meteors fall", function()
+		local times = MeteorShower.fallTimes(16, TUNING)
+		expect(times[16]).toBe(48)
 	end)
 end)
 

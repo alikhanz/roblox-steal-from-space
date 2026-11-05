@@ -3,9 +3,8 @@
 -- direction from the station is picked; while it lasts, meteors fall along that strip, through
 -- every zone in turn. Each meteor leaves a crater, a nest of its own with one meteor egg and a
 -- guardian of the nearest nest's post (NestService.addCrater, GuardianService), so stealing it is
--- the same deal as stealing from that nest. Players see a pin per zone (EventService spots), from
--- the start of the shower: to where its meteors are going to fall and to its craters that still
--- hold their eggs. When the shower ends the craters are retired: each
+-- the same deal as stealing from that nest. Players see a pin per zone to its craters that still
+-- hold their eggs, and hear of each new crater (EventService spots). When the shower ends the craters are retired: each
 -- goes as soon as its egg is back in it (at once if nobody took it); an egg on its way to a
 -- station keeps its crater and guardian until it is delivered or comes back.
 
@@ -25,7 +24,6 @@ local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldService = require(script.Parent.WorldService)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
-local EVENT = EventConfig.EVENTS.Meteor
 local FOLDER_NAME = "Meteors"
 -- How far a meteor may come in from the vertical, as a share of its height.
 local MAX_SLANT = 0.5
@@ -68,9 +66,8 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 	local craterCount = 0
 	-- This shower's craters, to retire when it ends.
 	local craters: { string } = {}
-	-- Where this shower's meteors that have not landed yet will land, by the name of their
-	-- crater-to-be: taken, like the craters, and marked for players from the start.
-	local landing: { [string]: Vector3 } = {}
+	-- Where meteors still in the air will land: taken, like the craters.
+	local landing: { Vector3 } = {}
 	local folder: Folder? = nil
 
 	-- The strip: a random direction; the mark is in the middle of the first zone along it.
@@ -179,50 +176,50 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		sync()
 	end
 
-	-- The crater `name` where its meteor landed; its mark stays on (markCrater takes it over).
-	local function makeCrater(name: string, zone: ZoneConfig.ZoneId, center: Vector3)
-		local site = dependencies.buildCrater(name, zone, center)
-		if site and dependencies.addCrater(site, "Meteor") then
-			table.insert(craters, site.id)
-			markCrater(site)
+	local function makeCrater(zone: ZoneConfig.ZoneId, center: Vector3)
+		craterCount += 1
+		local site = dependencies.buildCrater(`MeteorCrater{craterCount}`, zone, center)
+		if not site then
 			return
 		end
-		if site then
+		if dependencies.addCrater(site, "Meteor") then
+			table.insert(craters, site.id)
+			markCrater(site)
+		else
 			site.model:Destroy()
 		end
-		dependencies.hideSpot("Meteor", name)
 	end
 
-	-- Every meteor's landing spot is picked and marked as the shower starts, so players see all
-	-- the zones at once and can head out to the far ones before their meteors come down.
+	-- One meteor into `zone` along the strip.
+	local function drop(current: number, zone: ZoneConfig.ZoneId, direction: Vector3)
+		local spot = spotIn(zone, direction)
+		if not spot then
+			return
+		end
+		table.insert(landing, spot)
+		fall(spot, function()
+			local index = table.find(landing, spot)
+			if index then
+				table.remove(landing, index)
+			end
+			if shower == current then
+				makeCrater(zone, spot)
+			end
+		end)
+	end
+
 	local function begin()
 		shower += 1
 		local current = shower
 		local place = dependencies.placeOf("Meteor")
 		local direction = directionOf(if place then place.position else CENTER + Vector3.xAxis)
-		local active = EVENT.schedule.activeSeconds
 		local count = MeteorShower.eggCount(dependencies.activePlayers(), MeteorConfig)
 		local zones = MeteorShower.zones(count, ZoneConfig.ZONE_ORDER)
-		for index, delay in MeteorShower.fallTimes(count, active, MeteorConfig) do
-			local zone = zones[index]
-			local spot = spotIn(zone, direction)
-			if not spot then
-				continue
-			end
-			craterCount += 1
-			local name = `MeteorCrater{craterCount}`
-			landing[name] = spot
-			dependencies.showSpot("Meteor", name, zone, spot)
+		for index, delay in MeteorShower.fallTimes(count, MeteorConfig) do
 			task.delay(delay, function()
-				if shower ~= current then
-					return
+				if shower == current then
+					drop(current, zones[index], direction)
 				end
-				fall(spot, function()
-					landing[name] = nil
-					if shower == current then
-						makeCrater(name, zone, spot)
-					end
-				end)
 			end)
 		end
 	end
@@ -233,10 +230,6 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 			dependencies.retireCrater(nestId)
 		end
 		table.clear(craters)
-		-- Meteors that have not landed will not.
-		for name in landing do
-			dependencies.hideSpot("Meteor", name)
-		end
 		table.clear(landing)
 		if folder then
 			folder:ClearAllChildren()

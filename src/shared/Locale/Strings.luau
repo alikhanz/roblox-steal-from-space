@@ -600,6 +600,10 @@ local Strings = {
 		ru = "{name} в зоне «{zone}»!",
 		en = "{name} in {zone}!",
 	},
+	["event.crater.announce"] = {
+		ru = "Новый кратер в зоне «{zone}»!",
+		en = "New crater in {zone}!",
+	},
 	["index.open.button"] = {
 		ru = "Индекс",
 		en = "Index",

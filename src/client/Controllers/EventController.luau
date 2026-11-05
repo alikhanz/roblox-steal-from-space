@@ -4,7 +4,8 @@
 -- announcement when an event is about to start or starts (naming the zone, if it has one), and a
 -- pin to where it happens (UI/ScreenPin). An event in many places at once (the meteor shower's
 -- craters) gets a pin per zone instead, to its spot there nearest to the player
--- (Domain/EventSpots); pins are moved apart so none covers another (Domain/ScreenMarker).
+-- (Domain/EventSpots), and each new spot is announced; pins are moved apart so none covers
+-- another (Domain/ScreenMarker).
 
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
@@ -47,6 +48,8 @@ type Seen = {
 	-- It has had spots in this phase: from then on its point is not marked (the spots are where
 	-- it is), even once they are all gone.
 	spotted: boolean,
+	-- Spots announced in this run of the event, by name.
+	announcedSpots: { [string]: boolean },
 }
 
 -- A pin to show this frame.
@@ -102,6 +105,12 @@ function EventController.new(): EventController
 		return if phaseOf(entry) == "Idle" then endsAt + entry.event.schedule.warningSeconds else endsAt
 	end
 
+	-- The big line in the event's color, for a few seconds; the next one replaces it.
+	local function say(entry: Seen, message: string)
+		announcement({ text = message, color = EventLooks.COLORS[entry.event.id] })
+		announcedUntil = os.clock() + EventLooks.ANNOUNCE_SECONDS
+	end
+
 	local function announce(entry: Seen, phase: string)
 		local name = nameOf(entry.event)
 		local message: string
@@ -114,8 +123,19 @@ function EventController.new(): EventController
 				then text("event.startedIn.announce", { name = name, zone = zone })
 				else text("event.started.announce", { name = name })
 		end
-		announcement({ text = message, color = EventLooks.COLORS[entry.event.id] })
-		announcedUntil = os.clock() + EventLooks.ANNOUNCE_SECONDS
+		say(entry, message)
+	end
+
+	-- A spot of the event came up (a new crater): announced once per spot, as it first appears;
+	-- a spot that comes back (its egg was returned) is not news.
+	local function announceSpot(entry: Seen, spot: Instance)
+		local key: any = entry.event.spotAnnounceKey
+		local zone = zoneTitle(spot:GetAttribute(EventConfig.ZONE_ATTRIBUTE))
+		if not key or not zone or entry.announcedSpots[spot.Name] then
+			return
+		end
+		entry.announcedSpots[spot.Name] = true
+		say(entry, text(key, { zone = zone }))
 	end
 
 	local function refreshLines()
@@ -238,8 +258,19 @@ function EventController.new(): EventController
 				spots = child:WaitForChild(EventConfig.SPOTS_FOLDER_NAME, FOLDER_WAIT_TIMEOUT),
 				zonePins = {},
 				spotted = false,
+				announcedSpots = {},
 			}
 			table.insert(seen, entry)
+			local spots = entry.spots
+			if spots then
+				-- Spots already there when the player joins are not news either.
+				for _, spot in spots:GetChildren() do
+					entry.announcedSpots[spot.Name] = true
+				end
+				spots.ChildAdded:Connect(function(spot)
+					announceSpot(entry, spot)
+				end)
+			end
 			Vide.mount(function()
 				return entry.pin.view({
 					name = `EventPin{id}`,
@@ -254,6 +285,8 @@ function EventController.new(): EventController
 				local phase = phaseOf(entry)
 				if phase ~= "Idle" then
 					announce(entry, phase)
+				else
+					table.clear(entry.announcedSpots)
 				end
 			end)
 		end

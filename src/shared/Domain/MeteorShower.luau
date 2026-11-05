@@ -7,7 +7,7 @@ export type Tuning = {
 	read EGGS_PER_PLAYER: number,
 	read MIN_EGGS: number,
 	read MAX_EGGS: number,
-	read FALL_SHARE: number,
+	read FALL_STEP_SECONDS: number,
 }
 
 -- Eggs in one shower for `players` on the server.
@@ -15,13 +15,13 @@ function MeteorShower.eggCount(players: number, tuning: Tuning): number
 	return math.clamp(players * tuning.EGGS_PER_PLAYER, tuning.MIN_EGGS, tuning.MAX_EGGS)
 end
 
--- Seconds after the start at which each of `count` meteors falls: the first at once, the rest
--- evenly until `FALL_SHARE` of the shower has passed.
-function MeteorShower.fallTimes(count: number, activeSeconds: number, tuning: Tuning): { number }
-	local span = activeSeconds * tuning.FALL_SHARE
+-- Seconds after the start at which each of `count` meteors falls: one every `FALL_STEP_SECONDS`,
+-- the first a step after the start, so the shower's own announcement is read before the first
+-- crater's.
+function MeteorShower.fallTimes(count: number, tuning: Tuning): { number }
 	local times = {}
 	for index = 1, count do
-		times[index] = if count == 1 then 0 else (index - 1) * span / (count - 1)
+		times[index] = index * tuning.FALL_STEP_SECONDS
 	end
 	return times
 end

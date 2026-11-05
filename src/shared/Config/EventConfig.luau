@@ -21,6 +21,8 @@ export type Event = {
 	-- Once its gap is over it waits for this event to end and starts its warning right then, so
 	-- the two never overlap (its warning and run must fit in the other's quiet spell).
 	read after: EventId?,
+	-- Announced as each of its spots first comes up (SPOTS_FOLDER_NAME), with `{zone}`.
+	read spotAnnounceKey: keyof<typeof(Strings)>?,
 }
 
 local EVENTS: { [EventId]: Event } = {
@@ -35,7 +37,7 @@ local EVENTS: { [EventId]: Event } = {
 	},
 	-- 15-25 minutes apart (and then up to one storm cycle more: it starts as a storm ends), a
 	-- 30-second warning, then 2 minutes of meteors along a strip through every zone
-	-- (MeteorConfig, MeteorService).
+	-- (MeteorConfig, MeteorService); each crater they leave is a spot.
 	Meteor = {
 		id = "Meteor",
 		nameKey = "event.meteor.title",
@@ -43,6 +45,8 @@ local EVENTS: { [EventId]: Event } = {
 		scheduled = true,
 		alwaysShowTimer = false,
 		after = "Storm",
+		-- Inference loses the key's literal type in an optional field.
+		spotAnnounceKey = "event.crater.announce" :: keyof<typeof(Strings)>,
 	},
 }
 

@@ -12,9 +12,9 @@ return table.freeze({
 	EGGS_PER_PLAYER = 2,
 	MIN_EGGS = 4,
 	MAX_EGGS = 16,
-	-- The meteors fall evenly over this share of the shower, so the last ones still give a chance
-	-- to grab them before it ends.
-	FALL_SHARE = 0.75,
+	-- One meteor falls this often, seconds: a full shower is down in under a minute, and the rest
+	-- of it is for grabbing the eggs (a config test keeps half the shower for that).
+	FALL_STEP_SECONDS = 3,
 	-- How far a crater lands to either side of the strip's middle line, studs.
 	STRIP_HALF_WIDTH = 150,
 	-- Craters keep at least this far from every nest and other crater, so each guardian has its
