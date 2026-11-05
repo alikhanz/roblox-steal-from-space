@@ -189,7 +189,8 @@ local function promote(data: Data, startsAt: number)
 	})
 end
 
--- Fills every free slot with waiting eggs, warming from `now` (a slot bought, an egg arrived).
+-- Fills every free slot with waiting eggs, warming from `now` (a slot bought, an egg arrived or
+-- hatched).
 function Bay.fillSlots(data: Data, now: number)
 	while #data.incubator < data.incubatorSlots and #data.waiting > 0 do
 		promote(data, now)
@@ -225,8 +226,8 @@ function Bay.addEgg(
 	return uid
 end
 
--- Moves every egg in the incubator's slots `seconds` closer to hatching (a sped-up incubator);
--- the queue does not warm.
+-- Moves every egg in the incubator's slots `seconds` closer to being ready (a sped-up
+-- incubator); the queue does not warm.
 function Bay.advanceIncubator(data: Data, seconds: number)
 	assert(seconds >= 0, "the incubator only runs forwards")
 	for _, egg in data.incubator do
@@ -234,28 +235,38 @@ function Bay.advanceIncubator(data: Data, seconds: number)
 	end
 end
 
--- Removes and returns the eggs whose time has come, in the order they hatched. Each one that
--- hatches frees its slot for the first waiting egg, which warms from that moment (so it is
--- right after a long time away too, and its own time may have come by `now` as well).
-function Bay.takeHatched(data: Data, now: number): { PlayerData.EggRecord }
-	local hatched: { PlayerData.EggRecord } = {}
-	while true do
-		local earliest: number? = nil
-		for index, egg in data.incubator do
-			if egg.hatchAt <= now and (not earliest or egg.hatchAt < data.incubator[earliest].hatchAt) then
-				earliest = index
-			end
-		end
-		if not earliest then
-			break
-		end
-		local egg = table.remove(data.incubator, earliest) :: PlayerData.EggRecord
-		table.insert(hatched, egg)
-		if #data.incubator < data.incubatorSlots then
-			promote(data, egg.hatchAt)
+-- An egg in a slot whose time has come is ready: it keeps its slot until the player hatches it
+-- (decision 059).
+function Bay.isReady(egg: { read hatchAt: number }, now: number): boolean
+	return egg.hatchAt <= now
+end
+
+-- How many eggs in the slots are ready to hatch.
+function Bay.readyCount(data: { read incubator: { PlayerData.EggRecord } }, now: number): number
+	local ready = 0
+	for _, egg in data.incubator do
+		if Bay.isReady(egg, now) then
+			ready += 1
 		end
 	end
-	return hatched
+	return ready
+end
+
+-- The player hatches a ready egg: takes it out of its slot and returns it, and the first
+-- waiting egg takes the slot, warming from `now`. Nil when there is no such egg or it is not
+-- ready yet.
+function Bay.hatch(data: Data, uid: number, now: number): PlayerData.EggRecord?
+	for index, egg in data.incubator do
+		if egg.uid == uid then
+			if not Bay.isReady(egg, now) then
+				return nil
+			end
+			table.remove(data.incubator, index)
+			Bay.fillSlots(data, now)
+			return egg
+		end
+	end
+	return nil
 end
 
 return table.freeze(Bay)

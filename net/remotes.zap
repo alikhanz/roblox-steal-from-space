@@ -254,7 +254,8 @@ event BayChanged = {
 	data: Bay,
 }
 
--- What the pods earned and the trainer added while the player was away.
+-- What the pods earned and the trainer added while the player was away, and how many eggs are
+-- ready to hatch.
 event OfflineReward = {
 	from: Server,
 	type: Reliable,
@@ -263,6 +264,7 @@ event OfflineReward = {
 		coins: BigNum,
 		speed: BigNum,
 		seconds: f64,
+		readyEggs: u8,
 	},
 }
 

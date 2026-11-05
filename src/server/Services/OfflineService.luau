@@ -1,12 +1,14 @@
 --!strict
 -- Progress while the player was away, paid once when their profile activates: the pods' income
--- and the trainer's gain, each with its own cap, in one profile update. Owns the profile's
+-- and the trainer's gain, each with its own cap, in one profile update, and the eggs that
+-- became ready in the meantime (decision 059: they wait for the player). Owns the profile's
 -- clock: once a second while the player is online it moves the last-seen mark and adds to
 -- their play time.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Offline = require(ReplicatedStorage.Shared.Domain.Offline)
@@ -31,11 +33,13 @@ export type Dependencies = {
 	publishSpeed: (player: Player) -> (),
 }
 
--- What one settlement paid: coins, speed stat gained (as the player sees it) and the time away.
+-- What one settlement paid: coins, speed stat gained (as the player sees it), the time away
+-- and the eggs ready to hatch.
 export type Reward = {
 	coins: BigNum.BigNum,
 	speed: BigNum.BigNum,
 	seconds: number,
+	readyEggs: number,
 }
 
 export type OfflineService = {
@@ -73,11 +77,13 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 			-- Whole seconds: the screen says "1 hour", not "1.1 hours", for an hour and a moment.
 			local awaySeconds = if data.lastSeenAt > 0 then math.max(math.floor(current - data.lastSeenAt), 0) else 0
 			data.lastSeenAt = current
-			if not BigNum.isZero(earned) or not BigNum.isZero(gained) then
+			local readyEggs = Bay.readyCount(data, current)
+			if not BigNum.isZero(earned) or not BigNum.isZero(gained) or readyEggs > 0 then
 				reward = {
 					coins = earned,
 					speed = BigNum.mul(gained, Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)),
 					seconds = awaySeconds,
+					readyEggs = readyEggs,
 				}
 			end
 		end)
@@ -89,7 +95,7 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 		if LOG then
 			print(
 				`[OfflineService] {player.Name} was away {math.floor(paid.seconds)}s: `
-					.. `{BigNum.format(paid.coins)} coins, +{BigNum.format(paid.speed)} speed`
+					.. `{BigNum.format(paid.coins)} coins, +{BigNum.format(paid.speed)} speed, {paid.readyEggs} eggs ready`
 			)
 		end
 		settled.fire(player, paid)

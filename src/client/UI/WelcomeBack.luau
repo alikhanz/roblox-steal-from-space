@@ -1,7 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The screen on login after time away: how long it was, what the pods earned and what the
--- trainer added.
+-- The screen on login after time away: how long it was, what the pods earned, what the
+-- trainer added and how many eggs wait to be hatched.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -26,6 +26,8 @@ export type Props = {
 	-- The big numbers.
 	coins: () -> string,
 	speed: () -> string,
+	-- The ready eggs line; empty hides it.
+	eggs: () -> string,
 	claim: string,
 	onClaim: () -> (),
 }
@@ -93,9 +95,24 @@ local function WelcomeBack(props: Props): Frame
 			TextWrapped = true,
 			Text = props.details,
 		}),
+		create("TextLabel")({
+			Name = "Eggs",
+			LayoutOrder = 5,
+			Size = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			FontFace = Theme.FONT,
+			TextSize = Theme.TEXT_SIZE,
+			TextColor3 = Theme.TEXT,
+			TextWrapped = true,
+			Text = props.eggs,
+			Visible = function()
+				return props.eggs() ~= ""
+			end,
+		}),
 		Button({
 			name = "Claim",
-			layoutOrder = 5,
+			layoutOrder = 6,
 			text = props.claim,
 			color = Theme.COINS_DARK,
 			onClick = props.onClaim,

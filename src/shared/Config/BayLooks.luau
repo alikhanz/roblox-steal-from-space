@@ -43,6 +43,10 @@ return table.freeze({
 	INCUBATOR_COLOR = Color3.fromRGB(255, 170, 60),
 	-- Rare eggs still shine in the incubator, at this share of their light.
 	INCUBATOR_GLOW_SCALE = 0.2,
+	-- A ready egg (its time has come, decision 059) shines with this light until it is hatched.
+	READY_EGG_LIGHT_COLOR = Color3.fromRGB(255, 240, 150),
+	READY_EGG_LIGHT_BRIGHTNESS = 3,
+	READY_EGG_LIGHT_RANGE = 8,
 	-- Eggs lie on this ring inside the incubator; more eggs than slots go round again, higher.
 	EGG_RING_RADIUS = 3,
 	EGG_RING_SLOTS = 10,

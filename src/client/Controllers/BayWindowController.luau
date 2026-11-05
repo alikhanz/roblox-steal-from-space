@@ -86,7 +86,7 @@ export type BayWindowController = {
 }
 
 -- What the welcome-back screen shows.
-type Reward = { coins: BigNum.BigNum, speed: BigNum.BigNum, seconds: number }
+type Reward = { coins: BigNum.BigNum, speed: BigNum.BigNum, seconds: number, readyEggs: number }
 
 local BayWindowController = {}
 
@@ -272,7 +272,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		local left = egg.hatchAt - workspace:GetServerTimeNow()
 		local when = if left > 0
 			then text("egg.hatchIn.hint", { time = Duration.clock(left) })
-			else text("egg.hatching.hint")
+			else text("egg.ready.hint")
 		return `{eggName(egg)} — {when}`
 	end
 
@@ -532,6 +532,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							speed = BigNum.format(current.speed),
 						})
 					end,
+					eggs = function()
+						local current = readReward()
+						return if current and current.readyEggs > 0
+							then text("welcome.eggsReady.hint", { count = current.readyEggs })
+							else ""
+					end,
 					claim = text("welcome.claim.button"),
 					onClaim = function()
 						reward(nil)
@@ -552,7 +558,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			local args = { name = Names.alien(locale, alienId) or "?", place = placeText(location) }
 			toast(text(key, args), Theme.TOAST_GOOD)
 		end
-		-- Hatches arrive one event each; a batch (offline eggs, a full incubator) becomes one toast.
+		-- Hatches arrive one event each; several at once become one toast.
 		local pendingHatches: { { alienId: string, location: ProfileState.Location } } = {}
 		profile.hatched.connect(function(alienId, location)
 			table.insert(pendingHatches, { alienId = alienId, location = location })
@@ -576,8 +582,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			local key: Text.Key = (NOTICE_KEYS :: any)[notice] or "notice.unknownAlien.toast"
 			toast(text(key), Theme.TOAST_BAD)
 		end)
-		profile.offlineReward.connect(function(coins, speed, seconds)
-			reward({ coins = coins, speed = speed, seconds = seconds })
+		profile.offlineReward.connect(function(coins, speed, seconds, readyEggs)
+			reward({ coins = coins, speed = speed, seconds = seconds, readyEggs = readyEggs })
 		end)
 
 		UserInputService.InputBegan:Connect(function(input, gameProcessed)

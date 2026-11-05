@@ -349,14 +349,15 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		end)
 	end
 
-	-- Every egg warming in a slot shows its own countdown; an egg in the queue says it waits.
+	-- Every egg warming in a slot shows its own countdown, then that it is ready to hatch; an egg
+	-- in the queue says it waits.
 	local function watchIncubatorEgg(instance: Instance)
 		label(instance, nil, function(part)
 			local remaining = Vide.source("")
 			local function tick()
 				local hatchAt = part:GetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE)
 				local left = if type(hatchAt) == "number" then hatchAt - workspace:GetServerTimeNow() else 0
-				remaining(if left > 0 then Duration.clock(left) else Text.get(locale, "egg.hatching.hint"))
+				remaining(if left > 0 then Duration.clock(left) else Text.get(locale, "egg.ready.hint"))
 			end
 			tick()
 			return WorldLabel({

@@ -2,8 +2,9 @@
 -- Owns the bays on the station: one per player, taken when their profile is active and freed
 -- when they leave. The profile is the source of truth; the bay model is its reflection and is
 -- rebuilt from the profile after every change (`refresh`), which at this scale is cheap and
--- cannot drift. Once a second the bays hatch what is ready and pay what the pods earn; the
--- time away is paid by OfflineService.
+-- cannot drift. Once a second the bays pay what the pods earn and show the eggs that became
+-- ready; the owner hatches a ready egg with its prompt (decision 059). The time away is paid
+-- by OfflineService.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -27,9 +28,10 @@ local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 
 local FOLDER_NAME = "Bays"
--- A floor alien can be picked up from this far, studs; the server accepts a little more.
-local PICK_UP_DISTANCE = 8
-local PICK_UP_TOLERANCE = 4
+-- A floor alien can be picked up, and a ready egg hatched, from this far, studs; the server
+-- accepts a little more.
+local PROMPT_DISTANCE = 8
+local PROMPT_TOLERANCE = 4
 -- Every session transition of the bay is printed in Studio to make playtests easy to follow.
 local LOG = RunService:IsStudio()
 
@@ -60,14 +62,15 @@ export type BayService = {
 	) -> boolean,
 	-- Gives the player an alien: into a free pod, else onto the floor. Nil without an active profile.
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
-	-- Makes every egg in the incubator ready now (playtests; later the Robux instant hatch).
+	-- Makes every egg in the incubator's slots ready now, to hatch with its prompt (playtests;
+	-- later the Robux instant hatch).
 	hastenHatching: (player: Player) -> boolean,
 	-- What the player's pods earn per second; zero without an active profile.
 	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
 	-- How fast every incubator on the server runs: 1 normally, more during the solar storm (the
 	-- egg timers then follow every tick).
 	setHatchRate: (rate: number) -> (),
-	-- Fires when an egg hatches: the player, the alien and where it went.
+	-- Fires when the player hatches an egg: the player, the alien and where it went.
 	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
 	-- Fires once a player gets their bay, with its model.
 	assigned: Signal.Signal<Player, Model>,
@@ -83,6 +86,8 @@ type PlayerBay = {
 	slot: number,
 	origin: CFrame,
 	model: Model,
+	-- Ready eggs when the bay was last built: the tick rebuilds it once another becomes ready.
+	ready: number,
 }
 
 local BayService = {}
@@ -108,8 +113,9 @@ function BayService.new(dependencies: Dependencies): BayService
 	local changed = Signal.new() :: Signal.Signal<Player>
 	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
 	local incomePaid = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>
-	-- Defined below; picking up an alien rebuilds the bay.
+	-- Defined below; picking up an alien rebuilds the bay, and its prompts hatch eggs.
 	local refresh: (player: Player) -> ()
+	local hatchReady: (player: Player, uid: number) -> ()
 
 	local function contentsOf(bay: PlayerBay): Instance
 		return bay.model:FindFirstChild(BayConfig.CONTENTS_NAME) or bay.model
@@ -127,8 +133,8 @@ function BayService.new(dependencies: Dependencies): BayService
 		return model
 	end
 
-	-- An egg's model in the bay: warming in a slot (`hatchAt` given, for its countdown) or
-	-- waiting for one on the platform.
+	-- An egg's model in the bay: in a slot (`hatchAt` given, for its countdown; shining once
+	-- `ready`) or waiting for one on the platform.
 	local function placeEgg(
 		egg: {
 			read uid: number,
@@ -139,14 +145,15 @@ function BayService.new(dependencies: Dependencies): BayService
 		},
 		cframe: CFrame,
 		parent: Instance,
-		hatchAt: number?
-	)
+		hatchAt: number?,
+		ready: boolean?
+	): BasePart?
 		if
 			not EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId]
 			or not EggConfig.SIZES[egg.size :: EggConfig.SizeId]
 		then
 			warn(`[BayService] Unknown egg {egg.rarity} {egg.size} (uid {egg.uid}); not shown`)
-			return
+			return nil
 		end
 		local part = EggModel.build(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, {
 			glowScale = BayLooks.INCUBATOR_GLOW_SCALE,
@@ -163,18 +170,30 @@ function BayService.new(dependencies: Dependencies): BayService
 		else
 			CollectionService:AddTag(part, BayConfig.WAITING_EGG_TAG)
 		end
+		if ready then
+			local light = Instance.new("PointLight")
+			light.Color = BayLooks.READY_EGG_LIGHT_COLOR
+			light.Brightness = BayLooks.READY_EGG_LIGHT_BRIGHTNESS
+			light.Range = BayLooks.READY_EGG_LIGHT_RANGE
+			light.Parent = part
+		end
 		part.Parent = parent
+		return part
 	end
 
-	-- Moves a floor alien into the inventory. An engine prompt is client input: the owner, the
-	-- distance and the room are all checked here.
-	local function pickUp(player: Player, uid: number, body: BasePart)
-		local bay = bays[player]
+	-- A prompt is client input: true when the player has a bay and stands within reach of `body`.
+	local function withinReach(player: Player, body: BasePart): boolean
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if not bay or not root or not root:IsA("BasePart") then
-			return
+		if not bays[player] or not root or not root:IsA("BasePart") then
+			return false
 		end
-		if (root.Position - body.Position).Magnitude > PICK_UP_DISTANCE + PICK_UP_TOLERANCE then
+		return (root.Position - body.Position).Magnitude <= PROMPT_DISTANCE + PROMPT_TOLERANCE
+	end
+
+	-- Moves a floor alien into the inventory. The owner, the distance and the room are all
+	-- checked here.
+	local function pickUp(player: Player, uid: number, body: BasePart)
+		if not withinReach(player, body) then
 			return
 		end
 		local picked = false
@@ -186,24 +205,40 @@ function BayService.new(dependencies: Dependencies): BayService
 		end
 	end
 
+	-- A prompt on `body` that only the owner of the bay can use (and only their client draws).
+	local function addOwnerPrompt(player: Player, body: BasePart, actionKey: Text.Key, onTriggered: () -> ())
+		local prompt = Instance.new("ProximityPrompt")
+		-- Drawn by the client in the same style as the egg prompt (PromptViewController).
+		prompt.Style = Enum.ProximityPromptStyle.Custom
+		prompt.ActionText = Text.get(Text.resolveLocale(player.LocaleId), actionKey)
+		prompt.ObjectText = ""
+		prompt.MaxActivationDistance = PROMPT_DISTANCE
+		prompt.RequiresLineOfSight = false
+		prompt:SetAttribute(BayConfig.PROMPT_OWNER_ATTRIBUTE, player.UserId)
+		prompt.Triggered:Connect(function(who)
+			if who == player then
+				onTriggered()
+			end
+		end)
+		prompt.Parent = body
+	end
+
 	local function addPickUpPrompt(player: Player, model: Model, uid: number)
 		local body = model.PrimaryPart
 		if not body then
 			return
 		end
-		local prompt = Instance.new("ProximityPrompt")
-		-- Drawn by the client in the same style as the egg prompt (PromptViewController).
-		prompt.Style = Enum.ProximityPromptStyle.Custom
-		prompt.ActionText = Text.get(Text.resolveLocale(player.LocaleId), "alien.pickUp.button")
-		prompt.ObjectText = ""
-		prompt.MaxActivationDistance = PICK_UP_DISTANCE
-		prompt.RequiresLineOfSight = false
-		prompt.Triggered:Connect(function(who)
-			if who == player then
-				pickUp(player, uid, body)
+		addOwnerPrompt(player, body, "alien.pickUp.button", function()
+			pickUp(player, uid, body)
+		end)
+	end
+
+	local function addHatchPrompt(player: Player, part: BasePart, uid: number)
+		addOwnerPrompt(player, part, "egg.hatch.button", function()
+			if withinReach(player, part) then
+				hatchReady(player, uid)
 			end
 		end)
-		prompt.Parent = body
 	end
 
 	function refresh(player: Player)
@@ -222,8 +257,17 @@ function BayService.new(dependencies: Dependencies): BayService
 				placeAlien(pod.alien, BayModel.podAlienCFrame(bay.origin, index), contents)
 			end
 		end
+		local current = now()
+		bay.ready = 0
 		for index, egg in data.incubator do
-			placeEgg(egg, BayModel.eggCFrame(bay.origin, index), contents, egg.hatchAt)
+			local ready = Bay.isReady(egg, current)
+			local part = placeEgg(egg, BayModel.eggCFrame(bay.origin, index), contents, egg.hatchAt, ready)
+			if ready then
+				bay.ready += 1
+				if part then
+					addHatchPrompt(player, part, egg.uid)
+				end
+			end
 		end
 		for index, egg in data.waiting do
 			if index > BayConfig.WAITING_SHOWN_MAX then
@@ -265,7 +309,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		return if data then Bay.incomePerSecond(data, incomeOf) else BigNum.ZERO
 	end
 
-	-- Eggs that hatched while the player was away come out on the first tick, like any ready egg.
+	-- Eggs that became ready while the player was away wait in their slots, ready to hatch.
 	local function assign(player: Player)
 		if bays[player] or player.Parent ~= Players then
 			return
@@ -284,7 +328,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		model.Parent = parent
 
 		slotOwners[slot] = player
-		bays[player] = { slot = slot, origin = origin, model = model }
+		bays[player] = { slot = slot, origin = origin, model = model, ready = 0 }
 		refresh(player)
 		assigned.fire(player, model)
 	end
@@ -367,6 +411,30 @@ function BayService.new(dependencies: Dependencies): BayService
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end
 
+	-- The owner hatches a ready egg (its prompt): the alien goes where it fits, and the first
+	-- waiting egg takes the slot.
+	function hatchReady(player: Player, uid: number)
+		local alienId: AlienConfig.AlienId?, location: Bay.Location? = nil, nil
+		local taken = false
+		dependencies.update(player, function(data)
+			local egg = Bay.hatch(data, uid, now())
+			if egg then
+				taken = true
+				alienId, location = hatchEgg(data, egg)
+			end
+		end)
+		if not taken then
+			return
+		end
+		refresh(player)
+		if alienId and location then
+			if LOG then
+				print(`[BayService] {player.Name} hatched {alienId} -> {location}`)
+			end
+			hatched.fire(player, alienId, location)
+		end
+	end
+
 	-- After a sped-up tick moved the eggs on: the bay's egg timers and the owner's copy follow
 	-- without rebuilding the bay, so the countdowns visibly run faster.
 	local function syncIncubator(player: Player)
@@ -389,26 +457,21 @@ function BayService.new(dependencies: Dependencies): BayService
 		changed.fire(player)
 	end
 
-	-- One tick for every bay: run the incubator (faster in a storm), hatch what is ready, pay
-	-- the pods.
+	-- One tick for every bay: run the incubator (faster in a storm), show the eggs that became
+	-- ready, pay the pods.
 	local function tick(deltaTime: number)
 		local current = now()
 		local earnedSeconds = BigNum.fromNumber(deltaTime)
 		local extraHatchSeconds = deltaTime * (hatchRate - 1)
-		for player in bays do
-			local results: { { id: AlienConfig.AlienId, location: Bay.Location } } = {}
+		for player, bay in bays do
+			local ready = bay.ready
 			local coins: BigNum.BigNum? = nil
 			local earned: BigNum.BigNum? = nil
 			dependencies.update(player, function(data)
 				if extraHatchSeconds > 0 then
 					Bay.advanceIncubator(data, extraHatchSeconds)
 				end
-				for _, egg in Bay.takeHatched(data, current) do
-					local alienId, location = hatchEgg(data, egg)
-					if alienId and location then
-						table.insert(results, { id = alienId, location = location })
-					end
-				end
+				ready = Bay.readyCount(data, current)
 				local income = Bay.incomePerSecond(data, incomeOf)
 				if not BigNum.isZero(income) then
 					earned = BigNum.mul(income, earnedSeconds)
@@ -422,18 +485,10 @@ function BayService.new(dependencies: Dependencies): BayService
 					incomePaid.fire(player, earned, coins)
 				end
 			end
-			if #results > 0 then
+			if ready ~= bay.ready then
 				refresh(player)
 			elseif extraHatchSeconds > 0 then
 				syncIncubator(player)
-			end
-			if #results > 0 then
-				for _, result in results do
-					if LOG then
-						print(`[BayService] {player.Name} hatched {result.id} -> {result.location}`)
-					end
-					hatched.fire(player, result.id, result.location)
-				end
 			end
 		end
 	end

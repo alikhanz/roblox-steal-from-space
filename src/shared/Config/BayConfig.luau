@@ -26,11 +26,15 @@ return table.freeze({
 
 	-- Incubator slots (decision 058): a new player's, and the most there can be (as many eggs as
 	-- the incubator shows). Bought slot n costs SLOT_PRICE_BASE * SLOT_PRICE_GROWTH^(n - 1),
-	-- counting from the first bought one: cheap at first, so a new player is never kept waiting.
+	-- counting from the first bought one: cheap at first, so a new player is never kept waiting,
+	-- then steep enough to keep up with income, which grows faster than anything (decision 059:
+	-- by `lune run balance`, a free player buys the 3rd-4th in the first hour, the 5th-6th in the
+	-- first week and the 7th-8th by the third; past that a slot costs hours to days of income,
+	-- for those who steal faster than the model, and the last ones are for Robux, stage 8).
 	STARTING_INCUBATOR_SLOTS = 2,
 	MAX_INCUBATOR_SLOTS = 12,
 	SLOT_PRICE_BASE = BigNum.fromNumber(150),
-	SLOT_PRICE_GROWTH = BigNum.fromNumber(3),
+	SLOT_PRICE_GROWTH = BigNum.fromNumber(30),
 
 	INVENTORY_SLOTS = 10,
 
@@ -85,4 +89,7 @@ return table.freeze({
 	WAITING_EGG_TAG = "WaitingEgg",
 	EGG_UID_ATTRIBUTE = "Uid",
 	EGG_HATCH_AT_ATTRIBUTE = "HatchAt",
+	-- On a bay's prompts (hatch an egg, pick up an alien): the owner's UserId. Only the owner can
+	-- use them, so only the owner's client draws them.
+	PROMPT_OWNER_ATTRIBUTE = "OwnerId",
 })

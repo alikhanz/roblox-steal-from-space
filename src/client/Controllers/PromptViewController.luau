@@ -1,5 +1,6 @@
 --!strict
--- Draws every custom-style ProximityPrompt (pick up an alien, open the shop) in the same look
+-- Draws every custom-style ProximityPrompt (pick up an alien, hatch an egg, open the shop) in
+-- the same look
 -- as the egg prompt: a key badge, a hold bar and the action's words. The prompt itself stays
 -- an engine prompt; this only replaces its picture. Touch screens press the badge.
 
@@ -10,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local GrabPrompt = require(script.Parent.Parent.UI.GrabPrompt)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
@@ -68,6 +70,11 @@ function PromptViewController.new(): PromptViewController
 	local function show(prompt: ProximityPrompt)
 		local adornee = prompt.Parent
 		if prompt.Style ~= Enum.ProximityPromptStyle.Custom or views[prompt] then
+			return
+		end
+		-- Another player's bay prompt: only its owner can use it, so it is not drawn here.
+		local owner = prompt:GetAttribute(BayConfig.PROMPT_OWNER_ATTRIBUTE)
+		if owner ~= nil and owner ~= Players.LocalPlayer.UserId then
 			return
 		end
 		if not adornee or not adornee:IsA("BasePart") then

@@ -191,10 +191,12 @@ function NetService.new(dependencies: Dependencies): NetService
 			Remotes.CoinsChanged.Fire(player, wire(coins))
 		end)
 		dependencies.offlineSettled.connect(function(player, reward)
-			Remotes.OfflineReward.Fire(
-				player,
-				{ coins = wire(reward.coins), speed = wire(reward.speed), seconds = reward.seconds }
-			)
+			Remotes.OfflineReward.Fire(player, {
+				coins = wire(reward.coins),
+				speed = wire(reward.speed),
+				seconds = reward.seconds,
+				readyEggs = reward.readyEggs,
+			})
 			local data = dependencies.getData(player)
 			if data then
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))

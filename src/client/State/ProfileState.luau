@@ -47,9 +47,10 @@ export type ProfileState = {
 	loaded: Vide.Source<boolean>,
 	-- The trainer paid out: speed points gained this tick.
 	trained: Signal.Signal<BigNum.BigNum>,
-	-- Paid on login for the time away: coins earned, speed gained and the seconds away.
-	offlineReward: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number>,
-	-- An egg hatched: the alien and where it went.
+	-- Paid on login for the time away: coins earned, speed gained, the seconds away and the eggs
+	-- ready to hatch.
+	offlineReward: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number, number>,
+	-- The player hatched an egg: the alien and where it went.
 	hatched: Signal.Signal<string, Location>,
 	-- Three aliens were crossbred into this one.
 	crossbred: Signal.Signal<string, Location>,
@@ -80,7 +81,7 @@ function ProfileState.new(): ProfileState
 	local indexRewarded = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local loaded = source(false)
 	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
-	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number>
+	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number, number>
 	local hatched = Signal.new() :: Signal.Signal<string, Location>
 	local crossbred = Signal.new() :: Signal.Signal<string, Location>
 	local notice = Signal.new() :: Signal.Signal<Notice>
@@ -152,7 +153,7 @@ function ProfileState.new(): ProfileState
 			local earned = BigNum.fromSaved(reward.coins)
 			local gained = BigNum.fromSaved(reward.speed)
 			if earned and gained then
-				offlineReward.fire(earned, gained, reward.seconds)
+				offlineReward.fire(earned, gained, reward.seconds, reward.readyEggs)
 			end
 		end)
 		Remotes.Hatched.SetCallback(function(event)

@@ -272,9 +272,13 @@ local Strings = {
 		ru = "Вылупится через {time}",
 		en = "Hatches in {time}",
 	},
-	["egg.hatching.hint"] = {
-		ru = "Вот-вот вылупится!",
-		en = "Hatching any second!",
+	["egg.ready.hint"] = {
+		ru = "Готово!",
+		en = "Ready!",
+	},
+	["egg.hatch.button"] = {
+		ru = "Вылупить",
+		en = "Hatch",
 	},
 	["bay.owner.title"] = {
 		ru = "Отсек {name}",
@@ -503,6 +507,10 @@ local Strings = {
 	["welcome.earned.hint"] = {
 		ru = "Тебя не было {time}: капсулы принесли {coins} ●, тренажёр добавил {speed} ⚡",
 		en = "You were away {time}: your pods made {coins} ● and your trainer added {speed} ⚡",
+	},
+	["welcome.eggsReady.hint"] = {
+		ru = "Готово яиц: {count}. Вылупи их в отсеке",
+		en = "Eggs ready: {count}. Hatch them in your bay",
 	},
 	["welcome.claim.button"] = {
 		ru = "Забрать",

@@ -185,7 +185,7 @@ describe("Bay.podPrice", function()
 	end)
 end)
 
-describe("Bay.takeHatched", function()
+describe("Bay.hatch", function()
 	local function egg(uid: number, hatchAt: number): PlayerData.EggRecord
 		return { uid = uid, rarity = "Common", size = "Small", grade = 1, hatchAt = hatchAt }
 	end
@@ -193,44 +193,49 @@ describe("Bay.takeHatched", function()
 		return { uid = uid, rarity = "Common", size = "Small", grade = 1, hatchSeconds = hatchSeconds }
 	end
 
-	it("takes the eggs whose time has come, in the order they hatched", function()
+	it("counts the eggs whose time has come as ready, and they keep their slots", function()
 		local data = fresh()
 		data.incubatorSlots = 4
 		data.incubator = { egg(1, 300), egg(2, 100), egg(3, 500), egg(4, 200) }
-		local hatched = Bay.takeHatched(data, 300)
-		expect(uids(hatched :: any)).toEqual({ 2, 4, 1 })
-		expect(uids(data.incubator :: any)).toEqual({ 3 })
+		expect(Bay.readyCount(data, 300)).toBe(3)
+		expect(Bay.isReady(data.incubator[3], 300)).toBe(false)
+		expect(#data.incubator).toBe(4)
 	end)
 
-	it("takes nothing before the time", function()
+	it("hatches a ready egg and gives it back", function()
+		local data = fresh()
+		data.incubator = { egg(1, 300), egg(2, 100) }
+		local hatched = Bay.hatch(data, 2, 150)
+		expect((hatched :: PlayerData.EggRecord).uid).toBe(2)
+		expect(uids(data.incubator :: any)).toEqual({ 1 })
+	end)
+
+	it("does not hatch an egg before its time, or one that is not there", function()
 		local data = fresh()
 		data.incubator = { egg(1, 300) }
-		expect(Bay.takeHatched(data, 299)).toEqual({})
+		expect(Bay.hatch(data, 1, 299)).toBeNil()
+		expect(Bay.hatch(data, 7, 1000)).toBeNil()
 		expect(#data.incubator).toBe(1)
 	end)
 
-	it("moves the first waiting egg into a freed slot, warming from when the slot freed", function()
+	it("moves the first waiting egg into the slot, warming from the hatch", function()
 		local data = fresh()
 		data.incubator = { egg(1, 100), egg(2, 1000) }
 		data.waiting = { waitingEgg(3, 50), waitingEgg(4, 400) }
-		local hatched = Bay.takeHatched(data, 120)
-		expect(uids(hatched :: any)).toEqual({ 1 })
-		-- Egg 3 started at 100, when egg 1 hatched: it hatches at 150, not 170.
+		Bay.hatch(data, 1, 120)
+		-- Egg 3 starts when egg 1 is hatched, at 120, not when it was ready at 100.
 		expect(uids(data.incubator :: any)).toEqual({ 2, 3 })
-		expect(data.incubator[2].hatchAt).toBe(150)
+		expect(data.incubator[2].hatchAt).toBe(170)
 		expect(uids(data.waiting :: any)).toEqual({ 4 })
 	end)
 
-	it("runs the queue through a long time away", function()
+	it("keeps the queue waiting while ready eggs are not hatched, however long", function()
 		local data = fresh()
 		data.incubator = { egg(1, 100), egg(2, 200) }
-		data.waiting = { waitingEgg(3, 50), waitingEgg(4, 50), waitingEgg(5, 1000) }
-		local hatched = Bay.takeHatched(data, 400)
-		-- 1 at 100, then 3 (100 -> 150), 4 (150 -> 200) and 2 at 200, then 5 (200 -> 1200).
-		expect(uids(hatched :: any)).toEqual({ 1, 3, 2, 4 })
-		expect(#data.waiting).toBe(0)
-		expect(uids(data.incubator :: any)).toEqual({ 5 })
-		expect(data.incubator[1].hatchAt).toBe(1200)
+		data.waiting = { waitingEgg(3, 50) }
+		expect(Bay.readyCount(data, 100000)).toBe(2)
+		expect(#data.waiting).toBe(1)
+		expect(data.waiting[1].hatchSeconds).toBe(50)
 	end)
 end)
 
@@ -285,18 +290,18 @@ describe("Bay incubator", function()
 		Bay.addEgg(data, "Rare", "Medium", 3, 10, 0, nil, 0.7)
 		expect(data.incubator[1].luck).toBeNil()
 		expect(data.waiting[1].luck).toBe(0.7)
-		Bay.takeHatched(data, 10)
+		Bay.hatch(data, data.incubator[1].uid, 10)
 		expect(data.incubator[1].luck).toBe(0.7)
 	end)
 
-	it("runs faster: every egg in a slot comes closer to hatching", function()
+	it("runs faster: every egg in a slot comes closer to being ready", function()
 		local data = fresh()
 		Bay.addEgg(data, "Rare", "Medium", 1, 1000, 0)
 		Bay.addEgg(data, "Common", "Small", 1, 300, 0)
 		Bay.advanceIncubator(data, 290)
 		expect(data.incubator[1].hatchAt).toBe(710)
 		expect(data.incubator[2].hatchAt).toBe(10)
-		expect(#Bay.takeHatched(data, 10)).toBe(1)
+		expect(Bay.readyCount(data, 10)).toBe(1)
 	end)
 
 	it("prices slots like pods: the base for the first bought one, then growing", function()
