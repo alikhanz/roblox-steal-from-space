@@ -37,6 +37,8 @@ export type EventService = {
 	phaseOf: (id: EventConfig.EventId) -> EventClock.Phase,
 	placeOf: (id: EventConfig.EventId) -> Place?,
 	setPlacer: (id: EventConfig.EventId, placer: Placer) -> (),
+	-- The place of an event that moves (the star serpent) is now here; its zone stays.
+	movePlace: (id: EventConfig.EventId, position: Vector3) -> (),
 	-- One of the many places of an event (EventConfig.SPOTS_FOLDER_NAME), by a key of its
 	-- service's choosing; `hideSpot` takes it away (a key not shown is fine).
 	showSpot: (id: EventConfig.EventId, key: string, zone: ZoneConfig.ZoneId, position: Vector3) -> (),
@@ -202,6 +204,16 @@ function EventService.new(dependencies: Dependencies): EventService
 		publish(entry)
 	end
 
+	local function movePlace(id: EventConfig.EventId, position: Vector3)
+		local entry = assert(running[id], `unknown event {id}`)
+		local place = entry.place
+		if not place then
+			return
+		end
+		entry.place = { zone = place.zone, position = position }
+		entry.folder:SetAttribute(EventConfig.POSITION_ATTRIBUTE, position)
+	end
+
 	local function showSpot(id: EventConfig.EventId, key: string, zone: ZoneConfig.ZoneId, position: Vector3)
 		local spots = assert(running[id], `unknown event {id}`).spots
 		local spot = spots:FindFirstChild(key)
@@ -244,6 +256,7 @@ function EventService.new(dependencies: Dependencies): EventService
 		setPlacer = function(id, placer)
 			running[id].placer = placer
 		end,
+		movePlace = movePlace,
 		showSpot = showSpot,
 		hideSpot = hideSpot,
 		activate = activate,

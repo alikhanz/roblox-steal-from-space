@@ -58,15 +58,18 @@ export type Dependencies = {
 		rarity: EggConfig.RarityId,
 		size: EggConfig.SizeId,
 		grade: number,
-		variant: AlienConfig.VariantId?
+		variant: AlienConfig.VariantId?,
+		luck: number?
 	) -> boolean,
+	-- Extra luck for an egg delivered right now (the star serpent's hunt); 0 most of the time.
+	deliveryLuck: () -> number,
 }
 
 -- An egg as the other services see it: with its grade (nil if its nest has none).
 export type Carried = Egg & { grade: number? }
 
 -- Why a carried egg left the thief's hands without being delivered.
-export type LossReason = "Guardian" | "Pvp" | "Death" | "Left" | "Storm"
+export type LossReason = "Guardian" | "Serpent" | "Pvp" | "Death" | "Left" | "Storm"
 -- Where a grabbed egg came from.
 export type GrabSource = "Nest" | "Loose"
 
@@ -304,7 +307,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			leavePlay(egg)
 			return
 		end
-		if dependencies.deliverEgg(player, egg.rarity, egg.size, grade, egg.variant) then
+		if dependencies.deliverEgg(player, egg.rarity, egg.size, grade, egg.variant, dependencies.deliveryLuck()) then
 			releaseCarried(player)
 			dependencies.nestEggDelivered(egg.nestId)
 			delivered.fire(player, publicOf(egg))

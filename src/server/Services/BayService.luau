@@ -48,13 +48,15 @@ export type BayService = {
 	-- The bay's frame on the platform; nil until the player has one.
 	getOrigin: (player: Player) -> CFrame?,
 	-- Puts an egg into the incubator; it hatches after its rarity's random time, into an alien of
-	-- `variant` (the usual one when nil). False without an active profile.
+	-- `variant` (the usual one when nil), with `luck` on top of its own (EggConfig.luckOf). False
+	-- without an active profile.
 	addEgg: (
 		player: Player,
 		rarity: EggConfig.RarityId,
 		size: EggConfig.SizeId,
 		grade: number,
-		variant: AlienConfig.VariantId?
+		variant: AlienConfig.VariantId?,
+		luck: number?
 	) -> boolean,
 	-- Gives the player an alien: into a free pod, else onto the floor. Nil without an active profile.
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
@@ -281,16 +283,18 @@ function BayService.new(dependencies: Dependencies): BayService
 		rarity: EggConfig.RarityId,
 		size: EggConfig.SizeId,
 		grade: number,
-		variant: AlienConfig.VariantId?
+		variant: AlienConfig.VariantId?,
+		luck: number?
 	): boolean
 		local rarityConfig = assert(EggConfig.RARITIES[rarity], `Unknown rarity {rarity}`)
 		assert(EggConfig.SIZES[size], `Unknown size {size}`)
 		assert(AlienConfig.GRADES[grade], `Unknown grade {grade}`)
 		assert(variant == nil or AlienConfig.VARIANTS[variant], `Unknown variant {variant}`)
+		assert(luck == nil or luck >= 0, `Negative luck {luck}`)
 		local duration = Hatch.duration(rarityConfig.hatchSeconds, random:NextNumber())
 		local hatchAt = now() + duration
 		local added = dependencies.update(player, function(data)
-			Bay.addEgg(data, rarity, size, grade, hatchAt, variant)
+			Bay.addEgg(data, rarity, size, grade, hatchAt, variant, luck)
 		end)
 		if added then
 			refresh(player)
@@ -336,7 +340,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			warn(`[BayService] Egg {egg.uid} ({egg.rarity} {egg.size}, grade {egg.grade}) cannot hatch; dropped`)
 			return nil, nil
 		end
-		local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, rarity.luck + size.luck, random:NextNumber())
+		local luck = EggConfig.luckOf(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
+		local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, luck, random:NextNumber())
 		local alienId = variant[tier]
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end

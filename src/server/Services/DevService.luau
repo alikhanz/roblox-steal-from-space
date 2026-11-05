@@ -56,7 +56,8 @@ export type Dependencies = {
 		rarity: EggConfig.RarityId,
 		size: EggConfig.SizeId,
 		grade: number,
-		variant: AlienConfig.VariantId?
+		variant: AlienConfig.VariantId?,
+		luck: number?
 	) -> boolean,
 	hastenHatching: (player: Player) -> boolean,
 	settleOffline: (player: Player) -> (),
@@ -320,8 +321,9 @@ function DevService.new(dependencies: Dependencies): DevService
 			return if location then `{alienId} -> {location}` else "profile not active yet"
 		end,
 		-- Puts an egg into the first player's incubator, as if delivered from guardian `grade`
-		-- (a meteor egg with `variant` "Meteor").
-		GiveEgg = function(rarity: string?, size: string?, grade: number?, variant: string?): string
+		-- (a meteor egg with `variant` "Meteor"), with extra `luck` if given (as if delivered in
+		-- the star serpent's hunt: SerpentConfig.EGG_LUCK).
+		GiveEgg = function(rarity: string?, size: string?, grade: number?, variant: string?, luck: number?): string
 			local player = firstPlayerRoot()
 			if not player then
 				return "no player"
@@ -332,7 +334,7 @@ function DevService.new(dependencies: Dependencies): DevService
 			assert(EggConfig.SIZES[chosenSize], `Unknown size {chosenSize}`)
 			local chosenVariant = (variant or "Normal") :: AlienConfig.VariantId
 			assert(AlienConfig.VARIANTS[chosenVariant], `Unknown variant {chosenVariant}`)
-			local added = dependencies.addEgg(player, chosenRarity, chosenSize, grade or 1, chosenVariant)
+			local added = dependencies.addEgg(player, chosenRarity, chosenSize, grade or 1, chosenVariant, luck)
 			return if added then "egg in the incubator" else "profile not active yet"
 		end,
 		-- Every egg in the first player's incubator hatches on the next tick.

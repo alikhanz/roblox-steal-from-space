@@ -7,7 +7,7 @@ local EventClock = require("../Domain/EventClock")
 -- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
 local Strings = require("../Locale/Strings")
 
-export type EventId = "Storm" | "Meteor"
+export type EventId = "Storm" | "Meteor" | "Serpent"
 
 export type Event = {
 	read id: EventId,
@@ -23,6 +23,9 @@ export type Event = {
 	read after: EventId?,
 	-- Announced as each of its spots first comes up (SPOTS_FOLDER_NAME), with `{zone}`.
 	read spotAnnounceKey: keyof<typeof(Strings)>?,
+	-- Announced as it starts instead of the usual "{name} is here" line, when it has more to
+	-- tell.
+	read startAnnounceKey: keyof<typeof(Strings)>?,
 }
 
 local EVENTS: { [EventId]: Event } = {
@@ -48,6 +51,19 @@ local EVENTS: { [EventId]: Event } = {
 		-- Inference loses the key's literal type in an optional field.
 		spotAnnounceKey = "event.crater.announce" :: keyof<typeof(Strings)>,
 	},
+	-- 15-25 minutes apart, right after a storm like the meteor shower (the two may come
+	-- together: a meteor egg delivered in the hunt is a lucky one), a 30-second warning, then 3
+	-- minutes of the star serpent hunting everyone past the first zone (SerpentConfig,
+	-- SerpentService).
+	Serpent = {
+		id = "Serpent",
+		nameKey = "event.serpent.title",
+		schedule = { gapMin = 15 * 60, gapMax = 25 * 60, warningSeconds = 30, activeSeconds = 3 * 60 },
+		scheduled = true,
+		alwaysShowTimer = false,
+		after = "Storm",
+		startAnnounceKey = "event.serpent.announce" :: keyof<typeof(Strings)>,
+	},
 }
 
 for _, event in EVENTS do
@@ -58,7 +74,7 @@ end
 return table.freeze({
 	EVENTS = table.freeze(EVENTS),
 	-- Banner order, top first.
-	ORDER = table.freeze({ "Storm", "Meteor" } :: { EventId }),
+	ORDER = table.freeze({ "Storm", "Meteor", "Serpent" } :: { EventId }),
 	-- The events' state for clients: a folder in ReplicatedStorage with one child per event,
 	-- holding these attributes.
 	FOLDER_NAME = "Events",

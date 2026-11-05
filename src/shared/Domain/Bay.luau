@@ -175,7 +175,8 @@ function Bay.addEgg(
 	size: string,
 	grade: number,
 	hatchAt: number,
-	variant: string?
+	variant: string?,
+	luck: number?
 ): PlayerData.EggRecord
 	local egg: PlayerData.EggRecord = {
 		uid = Bay.newUid(data),
@@ -183,8 +184,9 @@ function Bay.addEgg(
 		size = size,
 		grade = grade,
 		hatchAt = hatchAt,
-		-- The usual variant is left out of the save.
+		-- The usual variant and no extra luck are left out of the save.
 		variant = if variant == "Normal" then nil else variant,
+		luck = if luck and luck > 0 then luck else nil,
 	}
 	table.insert(data.incubator, egg)
 	return egg

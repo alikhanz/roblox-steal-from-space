@@ -23,6 +23,7 @@ local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
 local PvpViewController = require(script.Parent.Controllers.PvpViewController)
 local QuestController = require(script.Parent.Controllers.QuestController)
+local SerpentController = require(script.Parent.Controllers.SerpentController)
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local StationBeaconController = require(script.Parent.Controllers.StationBeaconController)
@@ -60,6 +61,7 @@ Lifecycle.run({
 	StationBeaconController.new(),
 	StationBorderController.new(),
 	EventController.new(),
+	SerpentController.new(),
 	EggEffectsController.new(),
 	HitEffectsController.new(),
 	JetpackEffectsController.new(),

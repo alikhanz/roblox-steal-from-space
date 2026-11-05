@@ -117,6 +117,9 @@ function EventController.new(): EventController
 		if phase == "Warning" then
 			local left = startsAt(entry) - workspace:GetServerTimeNow()
 			message = text("event.soon.announce", { name = name, time = Duration.describe(locale, left) })
+		elseif entry.event.startAnnounceKey then
+			local key: any = entry.event.startAnnounceKey
+			message = text(key)
 		else
 			local zone = zoneName(entry)
 			message = if zone

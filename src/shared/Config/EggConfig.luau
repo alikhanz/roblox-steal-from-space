@@ -88,10 +88,17 @@ local RARITIES: { [RarityId]: Rarity } = {
 -- From the most common up. Which eggs grow where is in ZoneConfig.
 local RARITY_ORDER: { RarityId } = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 
+-- The luck an egg hatches with (Hatch.shiftedWeights): its rarity's and size's, plus any it was
+-- given on the way (eggs delivered during the star serpent's hunt, SerpentConfig).
+local function luckOf(rarity: RarityId, size: SizeId, bonus: number?): number
+	return RARITIES[rarity].luck + SIZES[size].luck + (bonus or 0)
+end
+
 return table.freeze({
 	RARITIES = table.freeze(RARITIES),
 	RARITY_ORDER = table.freeze(RARITY_ORDER),
 	SIZES = table.freeze(SIZES),
+	luckOf = luckOf,
 	-- The guardian's recommended speed is computed for an egg of this size.
 	TYPICAL_SIZE = "Medium" :: SizeId,
 	MAGNET = table.freeze(MAGNET),

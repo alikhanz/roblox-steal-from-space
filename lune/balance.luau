@@ -21,6 +21,7 @@ local Loot = require("../src/shared/Domain/Loot")
 local PlayReward = require("../src/shared/Domain/PlayReward")
 local PlayerData = require("../src/shared/Domain/PlayerData")
 local QuestConfig = require("../src/shared/Config/QuestConfig")
+local SerpentConfig = require("../src/shared/Config/SerpentConfig")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
 local StormConfig = require("../src/shared/Config/StormConfig")
 local UpgradeConfig = require("../src/shared/Config/UpgradeConfig")
@@ -84,11 +85,18 @@ local STORM = EventConfig.EVENTS.Storm
 local STORM_CYCLE = STORM.schedule.gapMin + STORM.schedule.activeSeconds
 -- The meteor shower: its average gap, then on average half a storm cycle waiting for a storm
 -- to end (EventConfig `after`), then the shower. A multiple of the step, so it is never missed.
-local METEOR = EventConfig.EVENTS.Meteor
-local METEOR_CYCLE = math.round(
-	((METEOR.schedule.gapMin + METEOR.schedule.gapMax) / 2 + STORM_CYCLE / 2 + METEOR.schedule.activeSeconds)
-		/ ASSUMPTIONS.stepSeconds
-) * ASSUMPTIONS.stepSeconds
+-- The same for every event that waits for a storm.
+local function afterStormCycle(event: EventConfig.Event): number
+	local schedule = event.schedule
+	return math.round(
+		((schedule.gapMin + schedule.gapMax) / 2 + STORM_CYCLE / 2 + schedule.activeSeconds) / ASSUMPTIONS.stepSeconds
+	) * ASSUMPTIONS.stepSeconds
+end
+local METEOR_CYCLE = afterStormCycle(EventConfig.EVENTS.Meteor)
+-- The star serpent's hunt: eggs delivered in it hatch luckier. Thefts go on as usual meanwhile
+-- (the serpent catches some, the head start covers others: taken as even).
+local SERPENT = EventConfig.EVENTS.Serpent
+local SERPENT_CYCLE = afterStormCycle(SERPENT)
 
 -- The day's quests are worth this many minutes on average: the pool's mean reward by weight,
 -- times the quests a day.
@@ -181,16 +189,26 @@ local function simulate(profile: Profile, seed: number): Run
 		size: EggConfig.SizeId,
 		grade: number,
 		now: number,
-		variant: AlienConfig.VariantId?
+		variant: AlienConfig.VariantId?,
+		luck: number?
 	)
 		local hatchAt = now + Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random())
-		Bay.addEgg(data, rarity, size, grade, hatchAt, variant)
+		Bay.addEgg(data, rarity, size, grade, hatchAt, variant, luck)
 	end
 
-	-- An egg of `post`'s zone loot, the usual one or a meteor one.
+	-- An egg of `post`'s zone loot, the usual one or a meteor one, delivered now: in the star
+	-- serpent's hunt it hatches luckier.
 	local function steal(post: number, now: number, variant: AlienConfig.VariantId?)
 		local zone = ZoneConfig.ZONES[ZoneConfig.zoneOfPost(post)]
-		incubate(Loot.pick(zone.rarityLoot, math.random()), Loot.pick(zone.sizeLoot, math.random()), post, now, variant)
+		local inHunt = now % DAY_SECONDS % SERPENT_CYCLE >= SERPENT_CYCLE - SERPENT.schedule.activeSeconds
+		incubate(
+			Loot.pick(zone.rarityLoot, math.random()),
+			Loot.pick(zone.sizeLoot, math.random()),
+			post,
+			now,
+			variant,
+			if inHunt then SerpentConfig.EGG_LUCK else nil
+		)
 	end
 
 	-- The index: a new alien's reward and, once its guardian's set is full, the set's, taken at
@@ -214,8 +232,7 @@ local function simulate(profile: Profile, seed: number): Run
 			return
 		end
 		for _, egg in hatched do
-			local luck = EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId].luck
-				+ EggConfig.SIZES[egg.size :: EggConfig.SizeId].luck
+			local luck = EggConfig.luckOf(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
 			local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, luck, math.random())
 			local variant = (egg.variant or "Normal") :: AlienConfig.VariantId
 			local alienId = alienIdFor(egg.grade, tier, variant)
@@ -381,7 +398,8 @@ print(
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
 		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index; a solar storm every {STORM_CYCLE}s and a meteor shower every {METEOR_CYCLE}s `
-		.. `({ASSUMPTIONS.meteorEggsPerShower} egg if its guardian is beaten) for all`
+		.. `({ASSUMPTIONS.meteorEggsPerShower} egg if its guardian is beaten), a serpent hunt every {SERPENT_CYCLE}s `
+		.. `(eggs delivered in it +{SerpentConfig.EGG_LUCK} luck) for all`
 )
 print("")
 

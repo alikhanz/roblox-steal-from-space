@@ -27,6 +27,7 @@ local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
+local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local StatBadge = require(script.Parent.Parent.UI.StatBadge)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
@@ -61,8 +62,8 @@ function HudController.new(dependencies: Dependencies): HudController
 	local slowMode = source(false)
 	local speed = source(SpeedConfig.STARTING_SPEED)
 	local stunned = source(false)
-	-- True while the current hit came from a guardian (the words differ for a player's strike).
-	local hitByGuardian = source(true)
+	-- What the current hit says: a guardian's catch, the serpent's or a player's strike.
+	local hitToast = source("guardian.caught.toast" :: Text.Key)
 	-- True while an egg carrier is in the harpoon's reach of the camera's aim.
 	local harpoonLocked = source(false)
 	-- Keyboard, gamepad or touch: the key hints follow it.
@@ -273,7 +274,7 @@ function HudController.new(dependencies: Dependencies): HudController
 				HitFlash({
 					visible = stunned,
 					text = function()
-						return Text.get(locale, if hitByGuardian() then "guardian.caught.toast" else "pvp.struck.toast")
+						return Text.get(locale, hitToast())
 					end,
 				}),
 				create("Frame")({
@@ -397,7 +398,12 @@ function HudController.new(dependencies: Dependencies): HudController
 			if isStunned and character then
 				local by = character:GetAttribute(GuardianConfig.HIT_BY_ATTRIBUTE)
 				-- Hitting oneself is the strike's own miss stall: no words for that.
-				hitByGuardian(by == nil or by == GuardianConfig.HIT_BY_GUARDIAN)
+				hitToast(
+					if by == nil or by == GuardianConfig.HIT_BY_GUARDIAN
+						then "guardian.caught.toast"
+						elseif by == SerpentConfig.HIT_BY then "serpent.caught.toast"
+						else "pvp.struck.toast"
+				)
 				if by == player.Name then
 					stunned(false)
 				end

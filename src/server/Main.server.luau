@@ -25,6 +25,7 @@ local OfflineService = require(script.Parent.Services.OfflineService)
 local PvpService = require(script.Parent.Services.PvpService)
 local QuestService = require(script.Parent.Services.QuestService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
+local SerpentService = require(script.Parent.Services.SerpentService)
 local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
 local StormService = require(script.Parent.Services.StormService)
@@ -122,6 +123,9 @@ local spaceService = SpaceService.new({
 	getSpawn = worldService.getSpawn,
 	getJetpackLooks = jetpackService.getLooks,
 })
+-- The star serpent knocks eggs out of hands, so it comes after the carry service, which asks it
+-- for the luck of a delivered egg.
+local serpentService: SerpentService.SerpentService
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
 	returnNestEgg = nestService.returnEgg,
@@ -129,6 +133,9 @@ local carryService = CarryService.new({
 	getNestEggCFrame = nestService.getEggCFrame,
 	getNestGrade = nestService.getGrade,
 	deliverEgg = bayService.addEgg,
+	deliveryLuck = function(): number
+		return serpentService.deliveryLuck()
+	end,
 })
 
 pvpDependencies.getData = profile.getData
@@ -170,6 +177,15 @@ local meteorService = MeteorService.new({
 	addCrater = nestService.addCrater,
 	retireCrater = nestService.retireCrater,
 	activePlayers = activityService.activeCount,
+})
+
+serpentService = SerpentService.new({
+	eventChanged = eventService.changed,
+	placeOf = eventService.placeOf,
+	setPlacer = eventService.setPlacer,
+	movePlace = eventService.movePlace,
+	dropEgg = carryService.dropEgg,
+	scheduler = scheduler,
 })
 
 local guardianService = GuardianService.new({
@@ -224,6 +240,9 @@ eventService.changed.connect(function(id, phase)
 		metricsService.serverEvent(id)
 	end
 end)
+serpentService.caught.connect(function(player, droppedEgg)
+	metricsService.count(player, "SerpentCatch", { if droppedEgg then "EggLoose" else "Empty" })
+end)
 indexService.discovered.connect(function(player, alienId)
 	metricsService.found(player, alienId)
 end)
@@ -273,6 +292,7 @@ Lifecycle.run({
 	guardianService,
 	stormService,
 	meteorService,
+	serpentService,
 	bayService,
 	economyService,
 	netService,

@@ -8,6 +8,7 @@ return table.freeze({
 	COLORS = table.freeze({
 		Storm = Color3.fromRGB(255, 170, 60),
 		Meteor = Color3.fromRGB(255, 110, 70),
+		Serpent = Color3.fromRGB(150, 120, 255),
 	} :: { [EventConfig.EventId]: Color3 }),
 	-- How long the big announcement stays, seconds.
 	ANNOUNCE_SECONDS = 3.5,

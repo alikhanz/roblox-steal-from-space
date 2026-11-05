@@ -222,6 +222,13 @@ describe("Bay incubator", function()
 		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000).variant).toBeNil()
 	end)
 
+	it("keeps an egg's extra luck and saves none for no luck", function()
+		local data = fresh()
+		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, nil, 0.35).luck).toBe(0.35)
+		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, nil, 0).luck).toBeNil()
+		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000).luck).toBeNil()
+	end)
+
 	it("runs faster: every egg comes closer to hatching", function()
 		local data = fresh()
 		Bay.addEgg(data, "Rare", "Medium", 1, 1000)

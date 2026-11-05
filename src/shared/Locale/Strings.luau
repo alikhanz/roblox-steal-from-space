@@ -144,6 +144,10 @@ local Strings = {
 		ru = "Поймали!",
 		en = "Caught!",
 	},
+	["serpent.caught.toast"] = {
+		ru = "Тебя схватил змей!",
+		en = "The serpent got you!",
+	},
 	["pvp.struck.toast"] = {
 		ru = "Тебя ударили!",
 		en = "You got hit!",
@@ -576,6 +580,10 @@ local Strings = {
 		ru = "Скрещивай метеоритных только между собой",
 		en = "Crossbreed meteor aliens together",
 	},
+	["event.serpent.title"] = {
+		ru = "Звёздный змей",
+		en = "Star Serpent",
+	},
 	["event.storm.title"] = {
 		ru = "Солнечная буря",
 		en = "Solar storm",
@@ -599,6 +607,10 @@ local Strings = {
 	["event.startedIn.announce"] = {
 		ru = "{name} в зоне «{zone}»!",
 		en = "{name} in {zone}!",
+	},
+	["event.serpent.announce"] = {
+		ru = "Звёздный змей охотится! Доставь яйцо — вылупится лучше",
+		en = "Star Serpent is hunting! Eggs brought now hatch better",
 	},
 	["event.crater.announce"] = {
 		ru = "Новый кратер в зоне «{zone}»!",

@@ -435,6 +435,36 @@ describe("PlayerData migration v9 -> v10", function()
 	end)
 end)
 
+describe("PlayerData migration v10 -> v11", function()
+	it("loads eggs from before with no extra luck", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 10
+		saved.incubator = { { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000 } }
+		saved.nextUid = 6
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.incubator[1].luck).toBeNil()
+		end
+	end)
+
+	it("keeps an egg's extra luck and rejects a negative one", function()
+		local saved = savedTemplate()
+		saved.incubator = { { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000, luck = 0.35 } }
+		saved.nextUid = 6
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.incubator[1].luck).toBe(0.35)
+		end
+		local broken = savedTemplate()
+		broken.incubator = { { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000, luck = -1 } }
+		broken.nextUid = 6
+		expectCorrupted(broken, "egg luck is invalid")
+	end)
+end)
+
 describe("PlayerData migration v8 -> v9", function()
 	it("finds the aliens the player has, with their rewards taken", function()
 		local saved = savedTemplate()

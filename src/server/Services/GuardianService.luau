@@ -12,12 +12,12 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local CarryService = require(script.Parent.CarryService)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
-local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local GuardianModel = require(script.Parent.Parent.World.GuardianModel)
 local Knockback = require(script.Parent.Parent.Character.Knockback)
+local Prey = require(script.Parent.Parent.Character.Prey)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
@@ -72,16 +72,6 @@ type Guardian = {
 
 local GuardianService = {}
 
-local function thiefRoot(player: Player): (Model?, BasePart?)
-	local character = player.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if character and humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
-		return character, root
-	end
-	return nil, nil
-end
-
 function GuardianService.new(dependencies: Dependencies): GuardianService
 	local guardians: { Guardian } = {}
 
@@ -119,29 +109,20 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 
 	-- The strike: the thief is thrown and tumbles, the egg flies off sideways, the guardian lunges.
 	local function catchThief(guardian: Guardian, player: Player, character: Model, root: BasePart)
-		local away = root.Position - guardian.body.Position
-		local direction = if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis
-		local sideways = direction:Cross(Vector3.yAxis)
-		if sideways.Magnitude < 1e-3 then
-			sideways = Vector3.xAxis
-		end
-		sideways = sideways.Unit
-
-		-- Away from the thief's throw and off to the side, so getting it back takes a turn.
-		local launch = (sideways * 0.8 - direction * 0.6).Unit * EggConfig.DROP_SPEED
-		if not dependencies.dropEgg(player, launch, "Guardian") then
+		local strike = Prey.strike(guardian.body.Position, root)
+		if not dependencies.dropEgg(player, strike.eggLaunch, "Guardian") then
 			return
 		end
 
 		Knockback.apply(
 			character,
-			direction * GuardianConfig.KNOCKBACK_SPEED,
-			sideways,
+			strike.direction * GuardianConfig.KNOCKBACK_SPEED,
+			strike.sideways,
 			GuardianConfig.STUN_SECONDS,
 			GuardianConfig.HIT_BY_GUARDIAN
 		)
 
-		guardian.velocity.VectorVelocity = direction * GuardianConfig.LUNGE_SPEED
+		guardian.velocity.VectorVelocity = strike.direction * GuardianConfig.LUNGE_SPEED
 		guardian.model:SetAttribute(GuardianConfig.LAST_CATCH_ATTRIBUTE, time())
 		guardian.catchReadyAt = time() + GuardianConfig.CATCH_COOLDOWN_SECONDS
 	end
@@ -164,8 +145,8 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 	-- The station border is where every chase ends: a thief inside it, or on the platform, is safe.
 	local function isThiefSafe(character: Model, root: BasePart): boolean
 		local station = StationConfig.STATION
-		local inStation = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true
-		return inStation or (root.Position - station.domeCenter).Magnitude <= StationConfig.BORDER_RADIUS
+		return not Prey.inSpace(character)
+			or (root.Position - station.domeCenter).Magnitude <= StationConfig.BORDER_RADIUS
 	end
 
 	-- A guardian guards its egg, not a spot: knocked out of a thief's hands, the egg lies where
@@ -194,7 +175,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 	local function chooseTarget(guardian: Guardian): Player?
 		local candidates: { GuardianBrain.Candidate<Player> } = {}
 		for _, player in dependencies.findCarriers(guardian.nestId) do
-			local character, root = thiefRoot(player)
+			local character, root = Prey.root(player)
 			if character and root then
 				table.insert(candidates, {
 					who = player,
@@ -211,7 +192,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		local carrier = chooseTarget(guardian)
 		local character: Model?, root: BasePart? = nil, nil
 		if carrier then
-			character, root = thiefRoot(carrier)
+			character, root = Prey.root(carrier)
 		end
 		followEgg(guardian, carrier)
 		guardian.stolenSeconds = if root then guardian.stolenSeconds + deltaTime else 0

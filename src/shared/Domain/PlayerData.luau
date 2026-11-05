@@ -27,6 +27,8 @@ export type EggRecord = {
 	hatchAt: number,
 	-- The alien variant it hatches into (AlienConfig.VariantId); nil: the usual one.
 	variant: string?,
+	-- Luck it was given on top of its rarity's and size's (EggConfig.luckOf); nil: none.
+	luck: number?,
 }
 
 export type Pod = {
@@ -80,7 +82,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 10
+PlayerData.SCHEMA_VERSION = 11
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -139,6 +141,8 @@ PlayerData.MIGRATIONS = {
 			index.sets = ids
 		end
 	end,
+	-- v11: eggs may carry extra luck (delivered during the star serpent's hunt); none before.
+	[10] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -215,6 +219,9 @@ local function validateEgg(record: any, seen: Uids): string?
 	end
 	if record.variant ~= nil and (type(record.variant) ~= "string" or record.variant == "") then
 		return "egg variant is invalid"
+	end
+	if record.luck ~= nil and (not isFinite(record.luck) or record.luck < 0) then
+		return "egg luck is invalid"
 	end
 	return validateUid(record, seen)
 end

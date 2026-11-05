@@ -33,6 +33,8 @@ type Egg = struct {
 	hatchAt: f64,
 	-- The alien variant it hatches into; none: the usual one.
 	variant: string.utf8?,
+	-- Luck on top of its rarity's and size's (delivered in the star serpent's hunt); none: none.
+	luck: f32?,
 }
 
 -- The owner's bay, as the profile holds it.
