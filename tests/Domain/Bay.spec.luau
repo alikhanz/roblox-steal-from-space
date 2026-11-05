@@ -9,6 +9,7 @@ local describe, it, expect = Test.describe, Test.it, Test.expect
 local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = BigNum.fromNumber(10),
 	startingPods = 3,
+	startingIncubatorSlots = 2,
 }
 local SLOTS = 2
 
@@ -188,9 +189,13 @@ describe("Bay.takeHatched", function()
 	local function egg(uid: number, hatchAt: number): PlayerData.EggRecord
 		return { uid = uid, rarity = "Common", size = "Small", grade = 1, hatchAt = hatchAt }
 	end
+	local function waitingEgg(uid: number, hatchSeconds: number): PlayerData.WaitingEgg
+		return { uid = uid, rarity = "Common", size = "Small", grade = 1, hatchSeconds = hatchSeconds }
+	end
 
-	it("takes the eggs whose time has come, oldest first", function()
+	it("takes the eggs whose time has come, in the order they hatched", function()
 		local data = fresh()
+		data.incubatorSlots = 4
 		data.incubator = { egg(1, 300), egg(2, 100), egg(3, 500), egg(4, 200) }
 		local hatched = Bay.takeHatched(data, 300)
 		expect(uids(hatched :: any)).toEqual({ 2, 4, 1 })
@@ -203,39 +208,100 @@ describe("Bay.takeHatched", function()
 		expect(Bay.takeHatched(data, 299)).toEqual({})
 		expect(#data.incubator).toBe(1)
 	end)
+
+	it("moves the first waiting egg into a freed slot, warming from when the slot freed", function()
+		local data = fresh()
+		data.incubator = { egg(1, 100), egg(2, 1000) }
+		data.waiting = { waitingEgg(3, 50), waitingEgg(4, 400) }
+		local hatched = Bay.takeHatched(data, 120)
+		expect(uids(hatched :: any)).toEqual({ 1 })
+		-- Egg 3 started at 100, when egg 1 hatched: it hatches at 150, not 170.
+		expect(uids(data.incubator :: any)).toEqual({ 2, 3 })
+		expect(data.incubator[2].hatchAt).toBe(150)
+		expect(uids(data.waiting :: any)).toEqual({ 4 })
+	end)
+
+	it("runs the queue through a long time away", function()
+		local data = fresh()
+		data.incubator = { egg(1, 100), egg(2, 200) }
+		data.waiting = { waitingEgg(3, 50), waitingEgg(4, 50), waitingEgg(5, 1000) }
+		local hatched = Bay.takeHatched(data, 400)
+		-- 1 at 100, then 3 (100 -> 150), 4 (150 -> 200) and 2 at 200, then 5 (200 -> 1200).
+		expect(uids(hatched :: any)).toEqual({ 1, 3, 2, 4 })
+		expect(#data.waiting).toBe(0)
+		expect(uids(data.incubator :: any)).toEqual({ 5 })
+		expect(data.incubator[1].hatchAt).toBe(1200)
+	end)
 end)
 
 describe("Bay incubator", function()
-	it("puts an egg in with a fresh uid", function()
+	it("puts an egg into a free slot, warming from now, with a fresh uid", function()
 		local data = fresh()
-		local egg = Bay.addEgg(data, "Rare", "Medium", 3, 1000)
-		expect(data.incubator[#data.incubator]).toBe(egg)
+		local uid = Bay.addEgg(data, "Rare", "Medium", 3, 600, 1000)
+		local egg = data.incubator[#data.incubator]
+		expect(egg.uid).toBe(uid)
 		expect(egg.grade).toBe(3)
-		expect(egg.hatchAt).toBe(1000)
-		expect(Bay.addEgg(data, "Common", "Small", 1, 5).uid > egg.uid).toBe(true)
+		expect(egg.hatchAt).toBe(1600)
+		expect(Bay.addEgg(data, "Common", "Small", 1, 5, 1000) > uid).toBe(true)
+	end)
+
+	it("queues an egg once every slot is taken, and warms none of the queue", function()
+		local data = fresh()
+		for _ = 1, DEFAULTS.startingIncubatorSlots + 2 do
+			Bay.addEgg(data, "Common", "Small", 1, 60, 0)
+		end
+		expect(#data.incubator).toBe(DEFAULTS.startingIncubatorSlots)
+		expect(#data.waiting).toBe(2)
+		Bay.advanceIncubator(data, 30)
+		expect(data.waiting[1].hatchSeconds).toBe(60)
+	end)
+
+	it("fills a slot bought with the first waiting egg, warming from now", function()
+		local data = fresh()
+		for _ = 1, DEFAULTS.startingIncubatorSlots + 1 do
+			Bay.addEgg(data, "Common", "Small", 1, 60, 0)
+		end
+		data.incubatorSlots += 1
+		Bay.fillSlots(data, 500)
+		expect(#data.waiting).toBe(0)
+		expect(data.incubator[#data.incubator].hatchAt).toBe(560)
 	end)
 
 	it("keeps a meteor egg's variant and saves none for the usual one", function()
 		local data = fresh()
-		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, "Meteor").variant).toBe("Meteor")
-		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, "Normal").variant).toBeNil()
-		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000).variant).toBeNil()
+		data.incubatorSlots = 3
+		Bay.addEgg(data, "Rare", "Medium", 3, 60, 0, "Meteor")
+		Bay.addEgg(data, "Rare", "Medium", 3, 60, 0, "Normal")
+		Bay.addEgg(data, "Rare", "Medium", 3, 60, 0)
+		expect(data.incubator[1].variant).toBe("Meteor")
+		expect(data.incubator[2].variant).toBeNil()
+		expect(data.incubator[3].variant).toBeNil()
 	end)
 
-	it("keeps an egg's extra luck and saves none for no luck", function()
+	it("keeps an egg's extra luck through the queue and saves none for no luck", function()
 		local data = fresh()
-		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, nil, 0.35).luck).toBe(0.35)
-		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000, nil, 0).luck).toBeNil()
-		expect(Bay.addEgg(data, "Rare", "Medium", 3, 1000).luck).toBeNil()
+		data.incubatorSlots = 1
+		Bay.addEgg(data, "Rare", "Medium", 3, 10, 0, nil, 0)
+		Bay.addEgg(data, "Rare", "Medium", 3, 10, 0, nil, 0.7)
+		expect(data.incubator[1].luck).toBeNil()
+		expect(data.waiting[1].luck).toBe(0.7)
+		Bay.takeHatched(data, 10)
+		expect(data.incubator[1].luck).toBe(0.7)
 	end)
 
-	it("runs faster: every egg comes closer to hatching", function()
+	it("runs faster: every egg in a slot comes closer to hatching", function()
 		local data = fresh()
-		Bay.addEgg(data, "Rare", "Medium", 1, 1000)
-		Bay.addEgg(data, "Common", "Small", 1, 300)
+		Bay.addEgg(data, "Rare", "Medium", 1, 1000, 0)
+		Bay.addEgg(data, "Common", "Small", 1, 300, 0)
 		Bay.advanceIncubator(data, 290)
 		expect(data.incubator[1].hatchAt).toBe(710)
 		expect(data.incubator[2].hatchAt).toBe(10)
 		expect(#Bay.takeHatched(data, 10)).toBe(1)
+	end)
+
+	it("prices slots like pods: the base for the first bought one, then growing", function()
+		local base, growth = BigNum.fromNumber(150), BigNum.fromNumber(3)
+		expect(BigNum.toNumber(Bay.slotPrice(2, 2, base, growth))).toBe(150)
+		expect(BigNum.toNumber(Bay.slotPrice(3, 2, base, growth))).toBe(450)
 	end)
 end)

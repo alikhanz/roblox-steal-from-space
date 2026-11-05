@@ -9,6 +9,7 @@ local describe, it, expect = Test.describe, Test.it, Test.expect
 local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = BigNum.fromNumber(10),
 	startingPods = 3,
+	startingIncubatorSlots = 2,
 }
 
 local function load(saved: unknown): PlayerData.LoadOutcome
@@ -633,5 +634,38 @@ describe("PlayerData coins earned", function()
 		if outcome.ok then
 			expect(outcome.data.coinsEarned).toEqual(BigNum.fromNumber(9000))
 		end
+	end)
+end)
+
+describe("PlayerData migration v12 -> v13", function()
+	it("gives an incubator from before two slots and an empty queue", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 12
+		saved.incubatorSlots = nil
+		saved.waiting = nil
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.incubatorSlots).toBe(2)
+			expect(outcome.data.waiting).toEqual({})
+		end
+	end)
+
+	it("keeps a queue and rejects a broken one", function()
+		local saved = savedTemplate()
+		saved.waiting = { { uid = 7, rarity = "Rare", size = "Large", grade = 2, hatchSeconds = 300 } }
+		saved.nextUid = 8
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.waiting[1].hatchSeconds).toBe(300)
+		end
+		local broken = savedTemplate()
+		broken.waiting = { { uid = 7, rarity = "Rare", size = "Large", grade = 2, hatchSeconds = -1 } }
+		broken.nextUid = 8
+		expectCorrupted(broken, "waiting egg hatch seconds are invalid")
+		local noSlots = savedTemplate()
+		noSlots.incubatorSlots = 0
+		expectCorrupted(noSlots, "incubatorSlots is invalid")
 	end)
 end)

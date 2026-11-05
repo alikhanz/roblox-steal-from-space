@@ -22,6 +22,7 @@ local LOAD_TIMEOUT_SECONDS = 30
 local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = SpeedConfig.STARTING_SPEED,
 	startingPods = BayConfig.STARTING_PODS,
+	startingIncubatorSlots = BayConfig.STARTING_INCUBATOR_SLOTS,
 }
 -- Every session transition is printed in Studio to make playtests easy to follow.
 local LOG_TRANSITIONS = RunService:IsStudio()

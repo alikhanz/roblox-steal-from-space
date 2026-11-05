@@ -24,6 +24,14 @@ return table.freeze({
 	POD_PRICE_BASE = BigNum.fromNumber(100),
 	POD_PRICE_GROWTH = BigNum.fromNumber(3),
 
+	-- Incubator slots (decision 058): a new player's, and the most there can be (as many eggs as
+	-- the incubator shows). Bought slot n costs SLOT_PRICE_BASE * SLOT_PRICE_GROWTH^(n - 1),
+	-- counting from the first bought one: cheap at first, so a new player is never kept waiting.
+	STARTING_INCUBATOR_SLOTS = 2,
+	MAX_INCUBATOR_SLOTS = 12,
+	SLOT_PRICE_BASE = BigNum.fromNumber(150),
+	SLOT_PRICE_GROWTH = BigNum.fromNumber(3),
+
 	INVENTORY_SLOTS = 10,
 
 	-- Aliens of one grade that make one crossbreed.

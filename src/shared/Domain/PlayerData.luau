@@ -31,6 +31,18 @@ export type EggRecord = {
 	luck: number?,
 }
 
+-- An egg waiting for a slot in the incubator (decision 058): it does not warm, and takes
+-- `hatchSeconds` to hatch once in a slot.
+export type WaitingEgg = {
+	uid: number,
+	rarity: string,
+	size: string,
+	grade: number,
+	hatchSeconds: number,
+	variant: string?,
+	luck: number?,
+}
+
 export type Pod = {
 	alien: AlienRecord?,
 }
@@ -51,7 +63,13 @@ export type PlayerData = {
 	inventory: { AlienRecord },
 	-- Hatched aliens with no pod and no inventory room, waiting on the bay floor.
 	floor: { AlienRecord },
+	-- Eggs in the incubator's slots, all warming at once (no more of them than slots).
 	incubator: { EggRecord },
+	-- Slots the incubator has (Domain/Bay, BayConfig).
+	incubatorSlots: number,
+	-- Eggs that came with every slot taken, first delivered first; the first moves into a slot
+	-- as one frees.
+	waiting: { WaitingEgg },
 	-- Next alien or egg uid.
 	nextUid: number,
 	-- Unix time the player was last seen; offline progress is paid from here. 0: never.
@@ -75,6 +93,7 @@ export type Defaults = {
 	-- Trained speed of a new player (their whole stat, with no jetpack level yet).
 	read startingSpeed: BigNum.BigNum,
 	read startingPods: number,
+	read startingIncubatorSlots: number,
 }
 
 export type LoadFailure = "NewerVersion" | "Corrupted"
@@ -82,7 +101,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 12
+PlayerData.SCHEMA_VERSION = 13
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -152,6 +171,12 @@ PlayerData.MIGRATIONS = {
 			data.jetpackLevel = math.min(2 * level - 1, 21)
 		end
 	end,
+	-- v13: the incubator has slots and a queue (decision 058). The game is not live yet, so a
+	-- saved incubator is not fitted to the slots: the eggs in it hatch as they are.
+	[12] = function(data: { [string]: any })
+		data.incubatorSlots = 2
+		data.waiting = {}
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -171,6 +196,8 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		inventory = {},
 		floor = {},
 		incubator = {},
+		incubatorSlots = defaults.startingIncubatorSlots,
+		waiting = {},
 		nextUid = 1,
 		lastSeenAt = 0,
 		playSeconds = 0,
@@ -213,7 +240,8 @@ local function validateAlien(record: any, seen: Uids): string?
 	return validateUid(record, seen)
 end
 
-local function validateEgg(record: any, seen: Uids): string?
+-- What every egg has, in the incubator or waiting for a slot.
+local function validateEggFields(record: any, seen: Uids): string?
 	if type(record) ~= "table" then
 		return "egg is not a table"
 	end
@@ -223,9 +251,6 @@ local function validateEgg(record: any, seen: Uids): string?
 	if not isInteger(record.grade) or record.grade < 1 then
 		return "egg grade is invalid"
 	end
-	if not isFinite(record.hatchAt) then
-		return "egg hatch time is invalid"
-	end
 	if record.variant ~= nil and (type(record.variant) ~= "string" or record.variant == "") then
 		return "egg variant is invalid"
 	end
@@ -233,6 +258,20 @@ local function validateEgg(record: any, seen: Uids): string?
 		return "egg luck is invalid"
 	end
 	return validateUid(record, seen)
+end
+
+local function validateEgg(record: any, seen: Uids): string?
+	if type(record) == "table" and not isFinite(record.hatchAt) then
+		return "egg hatch time is invalid"
+	end
+	return validateEggFields(record, seen)
+end
+
+local function validateWaitingEgg(record: any, seen: Uids): string?
+	if type(record) == "table" and (not isFinite(record.hatchSeconds) or record.hatchSeconds < 0) then
+		return "waiting egg hatch seconds are invalid"
+	end
+	return validateEggFields(record, seen)
 end
 
 local function validatePod(record: any, seen: Uids): string?
@@ -350,8 +389,12 @@ local function validate(data: { [string]: any }): string?
 		or validateList(data.inventory, "inventory", validateAlien, seen)
 		or validateList(data.floor, "floor", validateAlien, seen)
 		or validateList(data.incubator, "incubator", validateEgg, seen)
+		or validateList(data.waiting, "waiting", validateWaitingEgg, seen)
 	if problem then
 		return problem
+	end
+	if not isInteger(data.incubatorSlots) or data.incubatorSlots < 1 then
+		return "incubatorSlots is invalid"
 	end
 	if #data.pods < 1 then
 		return "no pods"

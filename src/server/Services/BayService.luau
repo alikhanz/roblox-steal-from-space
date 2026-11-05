@@ -293,9 +293,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		assert(variant == nil or AlienConfig.VARIANTS[variant], `Unknown variant {variant}`)
 		assert(luck == nil or luck >= 0, `Negative luck {luck}`)
 		local duration = Hatch.duration(rarityConfig.hatchSeconds, random:NextNumber())
-		local hatchAt = now() + duration
 		local added = dependencies.update(player, function(data)
-			Bay.addEgg(data, rarity, size, grade, hatchAt, variant, luck)
+			-- Into a free slot, or the queue (decision 058).
+			Bay.addEgg(data, rarity, size, grade, duration, now(), variant, luck)
 		end)
 		if added then
 			refresh(player)

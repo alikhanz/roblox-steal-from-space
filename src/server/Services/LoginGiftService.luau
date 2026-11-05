@@ -110,9 +110,9 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 			local egg = false
 			if day == LoginGiftConfig.EGG_DAY then
 				local grade = math.clamp(data.bestPost, 1, #AlienConfig.GRADES)
-				-- The bay's clock: BayService hatches against server time.
-				local hatchAt = workspace:GetServerTimeNow() + hatchSeconds
-				Bay.addEgg(data, LoginGiftConfig.EGG_RARITY, LoginGiftConfig.EGG_SIZE, grade, hatchAt)
+				-- The bay's clock: BayService hatches against server time. A full incubator queues it.
+				local now = workspace:GetServerTimeNow()
+				Bay.addEgg(data, LoginGiftConfig.EGG_RARITY, LoginGiftConfig.EGG_SIZE, grade, hatchSeconds, now)
 				egg = true
 			end
 			reward = { day = day, paid = paid, egg = egg }

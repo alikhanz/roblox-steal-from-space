@@ -83,6 +83,7 @@ local SNAPSHOT_DAYS = { 1, 7, 30, ASSUMPTIONS.days }
 local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = SpeedConfig.STARTING_SPEED,
 	startingPods = BayConfig.STARTING_PODS,
+	startingIncubatorSlots = BayConfig.STARTING_INCUBATOR_SLOTS,
 }
 
 -- The solar storm: quiet for its gap, then the storm (EventConfig), round and round.
@@ -187,7 +188,8 @@ local function simulate(profile: Profile, seed: number): Run
 		trained += toNumber(paidTrained)
 	end
 
-	-- An egg into the incubator, hatching after its rarity's time, as the game does it.
+	-- An egg into the incubator (or its queue), hatching after its rarity's time, as the game
+	-- does it.
 	local function incubate(
 		rarity: EggConfig.RarityId,
 		size: EggConfig.SizeId,
@@ -196,8 +198,8 @@ local function simulate(profile: Profile, seed: number): Run
 		variant: AlienConfig.VariantId?,
 		luck: number?
 	)
-		local hatchAt = now + Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random())
-		Bay.addEgg(data, rarity, size, grade, hatchAt, variant, luck)
+		local hatchSeconds = Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random())
+		Bay.addEgg(data, rarity, size, grade, hatchSeconds, now, variant, luck)
 	end
 
 	-- An egg of `post`'s zone loot, the usual one or a meteor one, delivered now.

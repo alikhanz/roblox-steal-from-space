@@ -166,33 +166,67 @@ function Bay.podPrice(
 	return BigNum.mul(base, BigNum.pow(growth, bought))
 end
 
--- Puts an egg in the incubator, hatching at `hatchAt` (server time), into an alien of `variant`
--- (nil or "Normal": the usual one). The one way eggs get there: delivered, given by the login
--- gift or a Studio command.
+-- Price of the next incubator slot for an incubator of `slots`: the first bought one costs
+-- `base`, each one after it `growth` times more (decision 058).
+function Bay.slotPrice(slots: number, startingSlots: number, base: BigNum.BigNum, growth: BigNum.BigNum): BigNum.BigNum
+	return Bay.podPrice(slots, startingSlots, base, growth)
+end
+
+-- Moves the first waiting egg into the incubator, warming from `startsAt` (server time).
+local function promote(data: Data, startsAt: number)
+	local first = table.remove(data.waiting, 1)
+	if not first then
+		return
+	end
+	table.insert(data.incubator, {
+		uid = first.uid,
+		rarity = first.rarity,
+		size = first.size,
+		grade = first.grade,
+		hatchAt = startsAt + first.hatchSeconds,
+		variant = first.variant,
+		luck = first.luck,
+	})
+end
+
+-- Fills every free slot with waiting eggs, warming from `now` (a slot bought, an egg arrived).
+function Bay.fillSlots(data: Data, now: number)
+	while #data.incubator < data.incubatorSlots and #data.waiting > 0 do
+		promote(data, now)
+	end
+end
+
+-- Takes in an egg that hatches `hatchSeconds` after it starts warming, into an alien of
+-- `variant` (nil or "Normal": the usual one): into a free slot, warming from `now`, or else to
+-- the end of the queue (decision 058). The one way eggs come: delivered, given by the login
+-- gift or a Studio command. Returns its uid.
 function Bay.addEgg(
 	data: Data,
 	rarity: string,
 	size: string,
 	grade: number,
-	hatchAt: number,
+	hatchSeconds: number,
+	now: number,
 	variant: string?,
 	luck: number?
-): PlayerData.EggRecord
-	local egg: PlayerData.EggRecord = {
-		uid = Bay.newUid(data),
+): number
+	local uid = Bay.newUid(data)
+	table.insert(data.waiting, {
+		uid = uid,
 		rarity = rarity,
 		size = size,
 		grade = grade,
-		hatchAt = hatchAt,
+		hatchSeconds = hatchSeconds,
 		-- The usual variant and no extra luck are left out of the save.
 		variant = if variant == "Normal" then nil else variant,
 		luck = if luck and luck > 0 then luck else nil,
-	}
-	table.insert(data.incubator, egg)
-	return egg
+	})
+	Bay.fillSlots(data, now)
+	return uid
 end
 
--- Moves every egg in the incubator `seconds` closer to hatching (a sped-up incubator).
+-- Moves every egg in the incubator's slots `seconds` closer to hatching (a sped-up incubator);
+-- the queue does not warm.
 function Bay.advanceIncubator(data: Data, seconds: number)
 	assert(seconds >= 0, "the incubator only runs forwards")
 	for _, egg in data.incubator do
@@ -200,22 +234,27 @@ function Bay.advanceIncubator(data: Data, seconds: number)
 	end
 end
 
--- Removes and returns the eggs whose time has come, oldest first.
+-- Removes and returns the eggs whose time has come, in the order they hatched. Each one that
+-- hatches frees its slot for the first waiting egg, which warms from that moment (so it is
+-- right after a long time away too, and its own time may have come by `now` as well).
 function Bay.takeHatched(data: Data, now: number): { PlayerData.EggRecord }
-	local hatched = {}
-	local waiting = {}
-	for _, egg in data.incubator do
-		if now >= egg.hatchAt then
-			table.insert(hatched, egg)
-		else
-			table.insert(waiting, egg)
+	local hatched: { PlayerData.EggRecord } = {}
+	while true do
+		local earliest: number? = nil
+		for index, egg in data.incubator do
+			if egg.hatchAt <= now and (not earliest or egg.hatchAt < data.incubator[earliest].hatchAt) then
+				earliest = index
+			end
+		end
+		if not earliest then
+			break
+		end
+		local egg = table.remove(data.incubator, earliest) :: PlayerData.EggRecord
+		table.insert(hatched, egg)
+		if #data.incubator < data.incubatorSlots then
+			promote(data, egg.hatchAt)
 		end
 	end
-	table.sort(hatched, function(left: PlayerData.EggRecord, right: PlayerData.EggRecord): boolean
-		return left.hatchAt < right.hatchAt
-	end)
-	table.clear(data.incubator)
-	table.move(waiting, 1, #waiting, 1, data.incubator)
 	return hatched
 end
 
