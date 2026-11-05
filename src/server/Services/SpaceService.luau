@@ -72,30 +72,31 @@ local function addFlightConstraints(root: BasePart)
 	align.Parent = root
 end
 
--- A character that dies out in space keeps drifting, whole, instead of falling. Its joints stay
--- (Humanoid.BreakJointsOnDeath is off, see `equip`): dead, the animated joints let go and the
--- body hangs on its ball sockets, a ragdoll of separate assemblies. As the flight simulation no
--- longer holds it up, every part that has weight gets a force cancelling the station's gravity
--- (there is none in space); massless ones (accessories, the jetpack) weigh nothing. The
--- station's floor needs gravity, so it stays on.
+-- A character that dies out in space keeps drifting, whole, instead of falling under the
+-- station's gravity (the flight simulation no longer holds it up; the station's floor needs
+-- gravity, so it stays on). The body freezes as it was, every part anchored, and the server
+-- moves it on at the speed it had until it is gone (respawn). No physics on the dead body:
+-- forces on a ragdoll under Server Authority crash Studio. Its joints are kept
+-- (Humanoid.BreakJointsOnDeath is off, see `equip`), so nothing comes apart before it freezes.
 local function floatWhenDead(character: Model)
-	if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true then
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true or not root or not root:IsA("BasePart") then
 		return
 	end
+	local velocity = root.AssemblyLinearVelocity
 	for _, part in character:GetDescendants() do
-		if part:IsA("BasePart") and not part.Massless and not part.Anchored then
-			local attachment = Instance.new("Attachment")
-			attachment.Name = "Weightless"
-			attachment.Parent = part
-			local force = Instance.new("VectorForce")
-			force.Name = "Weightless"
-			force.Attachment0 = attachment
-			force.RelativeTo = Enum.ActuatorRelativeTo.World
-			force.ApplyAtCenterOfMass = true
-			force.Force = Vector3.yAxis * part:GetMass() * workspace.Gravity
-			force.Parent = part
+		if part:IsA("BasePart") then
+			part.Anchored = true
 		end
 	end
+	local drift: RBXScriptConnection
+	drift = RunService.Heartbeat:Connect(function(deltaTime)
+		if character.Parent == nil then
+			drift:Disconnect()
+			return
+		end
+		character:PivotTo(character:GetPivot() + velocity * deltaTime)
+	end)
 end
 
 -- Out of oxygen: the character dies and respawns at the station.
