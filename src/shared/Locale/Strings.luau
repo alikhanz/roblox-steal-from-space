@@ -204,6 +204,10 @@ local Strings = {
 		ru = "Гарпун попал! Яйцо летит к тебе",
 		en = "Harpoon hit! The egg flies to you",
 	},
+	["pvp.harpoonHit.toast"] = {
+		ru = "Гарпун попал!",
+		en = "Harpoon hit!",
+	},
 	["pvp.harpoonMiss.toast"] = {
 		ru = "Гарпун никого не зацепил",
 		en = "The harpoon caught nobody",

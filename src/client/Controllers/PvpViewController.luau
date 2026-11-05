@@ -28,7 +28,8 @@ function PvpViewController.new(dependencies: Dependencies): PvpViewController
 		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
 		local KEYS: { [string]: { egg: Text.Key, hit: Text.Key, miss: Text.Key } } = {
 			Strike = { egg = "pvp.strikeEgg.toast", hit = "pvp.strikeHit.toast", miss = "pvp.strikeMiss.toast" },
-			Harpoon = { egg = "pvp.harpoonEgg.toast", hit = "pvp.harpoonEgg.toast", miss = "pvp.harpoonMiss.toast" },
+			-- A harpoon on a creature (the star serpent) may hit without an egg coming loose.
+			Harpoon = { egg = "pvp.harpoonEgg.toast", hit = "pvp.harpoonHit.toast", miss = "pvp.harpoonMiss.toast" },
 			Bomb = { egg = "pvp.bombEgg.toast", hit = "pvp.bombHit.toast", miss = "pvp.bombMiss.toast" },
 		}
 		dependencies.profile.abilityResult.connect(function(kind, hit, droppedEgg)
