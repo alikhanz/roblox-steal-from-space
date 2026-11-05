@@ -195,13 +195,17 @@ function EventService.new(dependencies: Dependencies): EventService
 	-- Puts the event on the clock to start in `seconds`, with its warning, schedule or not.
 	local function queue(id: EventConfig.EventId, seconds: number)
 		local entry = assert(running[id], `unknown event {id}`)
-		local warning = entry.event.schedule.warningSeconds
-		entry.clock = { phase = "Idle", endsAt = now() + math.max(seconds - warning, 0) }
+		entry.clock = EventClock.queue(now(), seconds, entry.event.schedule)
 		entry.place = nil
 		-- On the given time, without waiting for the event it usually comes after.
 		entry.waiting = false
 		entry.released = true
-		publish(entry)
+		if entry.clock.phase == "Warning" then
+			-- Sooner than its warning: the warning is on already.
+			enter(entry, "Warning")
+		else
+			publish(entry)
+		end
 	end
 
 	local function movePlace(id: EventConfig.EventId, position: Vector3)

@@ -37,6 +37,16 @@ function EventClock.activate(now: number, schedule: Schedule): State
 	return { phase = "Active", endsAt = now + schedule.activeSeconds }
 end
 
+-- The event in `seconds` from `now`, its warning included (Studio commands). Sooner than a full
+-- warning, the warning starts at once and lasts only what is left.
+function EventClock.queue(now: number, seconds: number, schedule: Schedule): State
+	local startsAt = now + math.max(seconds, 0)
+	if seconds < schedule.warningSeconds then
+		return { phase = "Warning", endsAt = startsAt }
+	end
+	return { phase = "Idle", endsAt = startsAt - schedule.warningSeconds }
+end
+
 local function next(state: State, schedule: Schedule, random: () -> number): State
 	if state.phase == "Idle" then
 		return { phase = "Warning", endsAt = state.endsAt + schedule.warningSeconds }
