@@ -106,6 +106,25 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		return if gift.reset then text("gift.reset.hint") else text("gift.streak.hint")
 	end
 
+	-- The HUD button: hidden while a brand-new player's first gift waits for their first
+	-- delivery, so it does not hang there unexplained.
+	local function giftButton(): TextButton
+		local button = Button({
+			name = "OpenGift",
+			text = text("gift.open.button"),
+			badge = function()
+				return if profile.loginGift().available then 1 else 0
+			end,
+			onClick = function()
+				isOpen(not isOpen())
+			end,
+		})
+		Vide.effect(function()
+			button.Visible = not profile.loginGift().locked
+		end)
+		return button
+	end
+
 	local function mountUi(playerGui: Instance)
 		Vide.mount(function()
 			return create("ScreenGui")({
@@ -117,19 +136,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 					layer = gui :: ScreenGui
 				end),
 
-				Layout.placeInMenu(
-					Button({
-						name = "OpenGift",
-						text = text("gift.open.button"),
-						badge = function()
-							return if profile.loginGift().available then 1 else 0
-						end,
-						onClick = function()
-							isOpen(not isOpen())
-						end,
-					}),
-					"Gift"
-				),
+				Layout.placeInMenu(giftButton(), "Gift"),
 
 				LoginGiftScreen.create({
 					visible = function()

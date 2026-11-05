@@ -105,6 +105,8 @@ type LoginGift = struct {
 	available: boolean,
 	-- A missed day started the streak over.
 	reset: boolean,
+	-- A brand-new player's first gift waits for their first delivered egg.
+	locked: boolean,
 }
 
 type QuestKind = enum {

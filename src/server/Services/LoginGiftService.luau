@@ -50,6 +50,9 @@ export type LoginGiftService = {
 	rewarded: Signal.Signal<Player, Reward>,
 	-- Today's status for `player`, or nil without a profile.
 	getStatus: (player: Player) -> LoginGift.Status?,
+	-- The player brought an egg home: a brand-new player's first gift unlocks with the first
+	-- one (once the profile has it as their farthest delivery, PlayerData.bestPost).
+	eggDelivered: (player: Player) -> (),
 	claim: (player: Player) -> Notice?,
 	-- Studio command: makes the last gift `days` days old (1: the next streak day waits; 2: a
 	-- day was missed).
@@ -68,14 +71,25 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 	local random = Random.new()
 	-- The day each online player's status was last sent for.
 	local sentDay: { [Player]: number } = {}
+	-- Whether the gift each online player was last told about was locked (no delivery yet).
+	local sentLocked: { [Player]: boolean } = {}
+
+	-- The player has brought an egg home at least once.
+	local function hasDelivered(data: PlayerData.PlayerData): boolean
+		return data.bestPost > 0
+	end
 
 	local function getStatus(player: Player): LoginGift.Status?
 		local data = dependencies.getData(player)
-		return if data then LoginGift.status(data.loginGift, today(), LoginGiftConfig.LENGTH) else nil
+		return if data
+			then LoginGift.status(data.loginGift, today(), LoginGiftConfig.LENGTH, hasDelivered(data))
+			else nil
 	end
 
 	local function send(player: Player)
 		sentDay[player] = today()
+		local status = getStatus(player)
+		sentLocked[player] = status ~= nil and status.locked
 		changed.fire(player)
 	end
 
@@ -85,7 +99,7 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 		local eggRarity = EggConfig.RARITIES[LoginGiftConfig.EGG_RARITY]
 		local hatchSeconds = Hatch.duration(eggRarity.hatchSeconds, random:NextNumber())
 		dependencies.update(player, function(data)
-			local day = LoginGift.claim(data.loginGift, today(), LoginGiftConfig.LENGTH)
+			local day = LoginGift.claim(data.loginGift, today(), LoginGiftConfig.LENGTH, hasDelivered(data))
 			if not day then
 				return
 			end
@@ -142,6 +156,7 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 		dependencies.activated.connect(send)
 		PlayerEvents.observe(function() end, function(player)
 			sentDay[player] = nil
+			sentLocked[player] = nil
 		end)
 		dependencies.scheduler.every(LoginGiftConfig.DAY_CHECK_SECONDS, checkDay)
 	end
@@ -152,6 +167,12 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 		changed = changed,
 		rewarded = rewarded,
 		getStatus = getStatus,
+		eggDelivered = function(player: Player)
+			local status = getStatus(player)
+			if sentLocked[player] and status and not status.locked then
+				send(player)
+			end
+		end,
 		claim = claim,
 		shiftDays = shiftDays,
 	}

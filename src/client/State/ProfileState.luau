@@ -73,7 +73,7 @@ function ProfileState.new(): ProfileState
 	local bay = source(emptyBay())
 	local upgrades = source({ trainerLevel = 0, jetpackLevel = 0 } :: Upgrades)
 	local quests = source({ day = 0, rerolled = false, list = {} } :: Quests)
-	local loginGift = source({ day = 1, available = false, reset = false } :: LoginGift)
+	local loginGift = source({ day = 1, available = false, reset = false, locked = true } :: LoginGift)
 	local giftRewarded = Signal.new() :: Signal.Signal<GiftReward>
 	local index = source({ found = {}, sets = {} } :: Index)
 	local indexRewarded = Signal.new() :: Signal.Signal<BigNum.BigNum>

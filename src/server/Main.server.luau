@@ -139,6 +139,12 @@ local carryService = CarryService.new({
 	deliverEgg = bayService.addEgg,
 })
 
+-- A brand-new player's first gift unlocks with their first delivery, once the analytics have
+-- noted it as their farthest one (PlayerData.bestPost): deferred past that handler.
+carryService.delivered.connect(function(player)
+	task.defer(loginGiftService.eggDelivered, player)
+end)
+
 pvpDependencies.getData = profile.getData
 pvpDependencies.getSpeed = speedService.getSpeed
 pvpDependencies.isCarrying = function(player: Player): boolean

@@ -115,8 +115,8 @@ function NetService.new(dependencies: Dependencies): NetService
 	local function giftOf(player: Player): Remotes.LoginGift
 		local status = dependencies.loginGift.getStatus(player)
 		return if status
-			then { day = status.day, available = status.available, reset = status.reset }
-			else { day = 1, available = false, reset = false }
+			then { day = status.day, available = status.available, reset = status.reset, locked = status.locked }
+			else { day = 1, available = false, reset = false, locked = false }
 	end
 
 	local function sendSnapshot(player: Player)
