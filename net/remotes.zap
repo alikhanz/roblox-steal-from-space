@@ -82,7 +82,6 @@ type Notice = enum {
 	AttackerNewbie,
 	VictimNewbie,
 	VictimJustSpawned,
-	VictimShielded,
 	VictimTooWeak,
 	-- Daily quests.
 	NoSuchQuest,
@@ -153,7 +152,6 @@ type AbilityKind = enum {
 	Strike,
 	Harpoon,
 	Bomb,
-	Shield,
 }
 
 -- Server -> client: the owner's private data. A snapshot on login, then the section that changed.

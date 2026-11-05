@@ -17,9 +17,6 @@ local BOMB_RADIUS = 1
 local BOMB_COLOR = Color3.fromRGB(150, 90, 255)
 local FLASH_COLOR = Color3.fromRGB(200, 150, 255)
 local FLASH_TRANSPARENCY = 0.5
-local SHIELD_RADIUS = 4
-local SHIELD_COLOR = Color3.fromRGB(120, 230, 255)
-local SHIELD_TRANSPARENCY = 0.6
 local IMPACT_COLOR = Color3.fromRGB(255, 240, 170)
 local IMPACT_TRANSPARENCY = 0.15
 
@@ -135,35 +132,6 @@ function PvpEffects.throwBomb(
 			bomb:Destroy()
 			onExplode(position)
 		end
-	end)
-end
-
--- The shield: a translucent bubble welded to the character for `seconds`.
-function PvpEffects.shieldBubble(character: Model, seconds: number)
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if not root or not root:IsA("BasePart") then
-		return
-	end
-	local bubble = Instance.new("Part")
-	bubble.Name = PvpConfig.SHIELD_NAME
-	bubble.Shape = Enum.PartType.Ball
-	bubble.Size = Vector3.one * SHIELD_RADIUS * 2
-	bubble.Color = SHIELD_COLOR
-	bubble.Material = Enum.Material.ForceField
-	bubble.Transparency = SHIELD_TRANSPARENCY
-	bubble.CanCollide = false
-	bubble.CanTouch = false
-	bubble.CanQuery = false
-	bubble.CastShadow = false
-	bubble.Massless = true
-	bubble.CFrame = root.CFrame
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = root
-	weld.Part1 = bubble
-	weld.Parent = bubble
-	bubble.Parent = character
-	task.delay(seconds, function()
-		bubble:Destroy()
 	end)
 end
 

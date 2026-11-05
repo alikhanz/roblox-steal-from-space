@@ -172,10 +172,6 @@ local Strings = {
 		ru = "Бомба",
 		en = "Bomb",
 	},
-	["pvp.shield.button"] = {
-		ru = "Щит",
-		en = "Shield",
-	},
 	["pvp.newbie.title"] = {
 		ru = "Новичок",
 		en = "Newbie",
@@ -191,10 +187,6 @@ local Strings = {
 	["pvp.harpoonLocked.hint"] = {
 		ru = "Гарпун: цель в прицеле",
 		en = "Harpoon: target locked",
-	},
-	["pvp.shieldOn.toast"] = {
-		ru = "Щит включён: {seconds} с тебя не взять",
-		en = "Shield up: untouchable for {seconds}s",
 	},
 	["pvp.harpoonEgg.toast"] = {
 		ru = "Гарпун попал! Яйцо летит к тебе",
@@ -235,10 +227,6 @@ local Strings = {
 	["pvp.victimJustSpawned.toast"] = {
 		ru = "Только появился, дай секунду",
 		en = "Just spawned, give them a second",
-	},
-	["pvp.victimShielded.toast"] = {
-		ru = "У него щит",
-		en = "Shielded",
 	},
 	["pvp.victimTooWeak.toast"] = {
 		ru = "Слишком слабый соперник для тебя",

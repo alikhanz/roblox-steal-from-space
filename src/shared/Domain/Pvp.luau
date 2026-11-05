@@ -19,8 +19,6 @@ export type Side = {
 	read isInStation: boolean,
 	-- Server clock of the character's spawn.
 	read spawnedAt: number,
-	-- Server clock until which a shield holds; 0 for none.
-	read shieldUntil: number,
 }
 
 export type Refusal =
@@ -29,7 +27,6 @@ export type Refusal =
 	| "AttackerNewbie"
 	| "VictimNewbie"
 	| "VictimJustSpawned"
-	| "VictimShielded"
 	| "VictimTooWeak"
 
 function Pvp.isNewbie(playSeconds: number, rules: Rules): boolean
@@ -37,7 +34,7 @@ function Pvp.isNewbie(playSeconds: number, rules: Rules): boolean
 end
 
 -- Why `attacker` may not attack a creature (the star serpent, a test dummy) right now, or nil
--- when they may. The rules between players (newbies, a stat far apart, shields) are about
+-- when they may. The rules between players (newbies, a fresh spawn, a stat far apart) are about
 -- fairness to the other player and do not apply; only the station stays a safe zone.
 function Pvp.creatureRefusal(attacker: Side): Refusal?
 	return if attacker.isInStation then "AttackerInStation" else nil
@@ -59,9 +56,6 @@ function Pvp.refusal(attacker: Side, victim: Side, now: number, rules: Rules): R
 	end
 	if now - victim.spawnedAt < rules.spawnGraceSeconds then
 		return "VictimJustSpawned"
-	end
-	if now < victim.shieldUntil then
-		return "VictimShielded"
 	end
 	-- The ratio is taken on the log scale: stats reach hundreds of billions.
 	if not BigNum.isZero(victim.speed) and not BigNum.isNegative(victim.speed) then

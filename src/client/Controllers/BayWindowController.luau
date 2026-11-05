@@ -58,7 +58,6 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	AttackerNewbie = "pvp.youAreNewbie.toast",
 	VictimNewbie = "pvp.victimNewbie.toast",
 	VictimJustSpawned = "pvp.victimJustSpawned.toast",
-	VictimShielded = "pvp.victimShielded.toast",
 	VictimTooWeak = "pvp.victimTooWeak.toast",
 	NoSuchQuest = "notice.noSuchQuest.toast",
 	QuestNotDone = "notice.questNotDone.toast",

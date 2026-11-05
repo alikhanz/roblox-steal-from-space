@@ -34,7 +34,7 @@ local function cooldownFor(kind: ProfileState.AbilityKind, hit: boolean): number
 	elseif kind == "Bomb" then
 		return PvpConfig.BOMB.cooldownSeconds
 	end
-	return PvpConfig.SHIELD.cooldownSeconds
+	return PvpConfig.STRIKE.cooldownSeconds
 end
 
 function AbilityState.new(profile: ProfileState.ProfileState): AbilityState

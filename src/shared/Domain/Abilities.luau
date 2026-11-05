@@ -41,11 +41,6 @@ export type Bomb = {
 	read cooldownSeconds: number,
 }
 
-export type Shield = {
-	read seconds: number,
-	read cooldownSeconds: number,
-}
-
 -- Advances the strike timers by `deltaTime`. `wantsToStrike` is the strike input held while
 -- striking is allowed; a lunge starts as soon as the cooldown allows, so holding the input
 -- strikes again and again. Returns the next timers and whether a lunge started this step.

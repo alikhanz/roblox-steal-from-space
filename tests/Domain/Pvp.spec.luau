@@ -13,7 +13,6 @@ local function side(patch: { [string]: any }?): Pvp.Side
 		playSeconds = 3600,
 		isInStation = false,
 		spawnedAt = 0,
-		shieldUntil = 0,
 	}
 	for key, value in patch or {} do
 		(base :: any)[key] = value
@@ -37,11 +36,9 @@ describe("Pvp.refusal", function()
 		expect(Pvp.refusal(side(), side({ playSeconds = 1200 }), 100, RULES)).toBeNil()
 	end)
 
-	it("gives a fresh spawn and a shield a moment of peace", function()
+	it("gives a fresh spawn a moment of peace", function()
 		expect(Pvp.refusal(side(), side({ spawnedAt = 95 }), 100, RULES)).toBe("VictimJustSpawned")
 		expect(Pvp.refusal(side(), side({ spawnedAt = 90 }), 100, RULES)).toBeNil()
-		expect(Pvp.refusal(side(), side({ shieldUntil = 101 }), 100, RULES)).toBe("VictimShielded")
-		expect(Pvp.refusal(side(), side({ shieldUntil = 100 }), 100, RULES)).toBeNil()
 	end)
 
 	it("holds back an attacker ten times faster, even at huge stats", function()

@@ -45,7 +45,6 @@
 | `StarEgg` | звёздное яйцо | star egg | Яйцо из Звёздного змея, одно за ивент; удача +0,7 сверх своей; в окне отсека — «★ звёздное» / ★ star |
 | `CoinBoard` | доска монет | coin board | Табличка у спавна: лучшие по монетам, заработанным за всё время, по всем серверам. Заголовок на ней — «Лучшие по монетам» / Top coin earners |
 | `Oxygen` | кислород | oxygen | |
-| `Shield` | щит | shield | |
 | `Harpoon` | гарпун | harpoon | Полное: «магнитный гарпун» / magnet harpoon |
 | `GravityBomb` | гравибомба | gravity bomb | |
 | `SmokeFlash` | дымовая вспышка | smoke flash | |

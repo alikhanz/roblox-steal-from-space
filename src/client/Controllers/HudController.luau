@@ -186,11 +186,6 @@ function HudController.new(dependencies: Dependencies): HudController
 				action = FlightInputs.BOMB,
 				text = Text.get(locale, "pvp.bomb.button"),
 			},
-			{
-				kind = "Shield" :: AbilityState.Kind,
-				action = FlightInputs.SHIELD,
-				text = Text.get(locale, "pvp.shield.button"),
-			},
 		}
 		local function coolingOf(kind: AbilityState.Kind): () -> boolean
 			return function()

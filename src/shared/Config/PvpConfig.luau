@@ -42,20 +42,13 @@ local BOMB: Abilities.Bomb = {
 	cooldownSeconds = 45,
 }
 
-local SHIELD: Abilities.Shield = {
-	seconds = 6,
-	cooldownSeconds = 30,
-}
-
+-- No shield (decision 060): it made every attack pointless.
 return table.freeze({
 	RULES = table.freeze(RULES),
 	STRIKE = table.freeze(STRIKE),
 	HARPOON = table.freeze(HARPOON),
 	BOMB = table.freeze(BOMB),
-	SHIELD = table.freeze(SHIELD),
 
-	-- Character attribute the shield writes; the rules and every client read it.
-	SHIELD_UNTIL_ATTRIBUTE = "ShieldUntil",
 	-- The strike lives in the simulation (predicted, so the attacker's lunge has no lag) and
 	-- keeps its state on the character: seconds of lunge left, seconds of cooldown left and the
 	-- lunge's direction. The server watches the lunge for a touch.
@@ -83,5 +76,4 @@ return table.freeze({
 	-- Names of the effect instances (the client could dress them up later).
 	HARPOON_BEAM_NAME = "HarpoonBeam",
 	BOMB_NAME = "GravityBomb",
-	SHIELD_NAME = "ShieldBubble",
 })

@@ -6,7 +6,7 @@
 --     way takes a guardian's hit, right at the touch.
 --   Harpoon: the nearest egg carrier in a narrow cone loses the egg toward the shooter.
 --   Bomb: flies ahead until it reaches someone, then throws everyone around it.
---   Shield: nothing lands on the player for a while.
+-- No shield (decision 060): the only defence is speed.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -34,7 +34,7 @@ local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local TICK_SECONDS = 1 / 15
 local LOG = RunService:IsStudio()
 
-export type AbilityKind = "Strike" | "Harpoon" | "Bomb" | "Shield"
+export type AbilityKind = "Strike" | "Harpoon" | "Bomb"
 export type Notice = Pvp.Refusal | "NotReady" | "NoProfile"
 
 export type Dependencies = {
@@ -100,13 +100,11 @@ type PlayerState = {
 local INPUT_ACTIONS: { [AbilityKind]: string } = {
 	Harpoon = FlightInputs.HARPOON,
 	Bomb = FlightInputs.BOMB,
-	Shield = FlightInputs.SHIELD,
 }
-local ABILITY_ORDER: { AbilityKind } = { "Harpoon", "Bomb", "Shield" }
+local ABILITY_ORDER: { AbilityKind } = { "Harpoon", "Bomb" }
 local COOLDOWNS: { [AbilityKind]: number } = {
 	Harpoon = PvpConfig.HARPOON.cooldownSeconds,
 	Bomb = PvpConfig.BOMB.cooldownSeconds,
-	Shield = PvpConfig.SHIELD.cooldownSeconds,
 }
 
 local PvpService = {}
@@ -161,16 +159,11 @@ function PvpService.new(dependencies: Dependencies): PvpService
 	local function sideOf(player: Player, character: Model): Pvp.Side
 		local data = dependencies.getData(player)
 		local state = states[player]
-		-- The shield's end is kept in server time (the simulation on every client reads it);
-		-- the rules run on the server clock.
-		local shieldUntil = character:GetAttribute(PvpConfig.SHIELD_UNTIL_ATTRIBUTE)
-		local shieldLeft = if type(shieldUntil) == "number" then shieldUntil - workspace:GetServerTimeNow() else 0
 		return {
 			speed = dependencies.getSpeed(player),
 			playSeconds = if data then data.playSeconds else 0,
 			isInStation = not isInSpace(character),
 			spawnedAt = if state then state.spawnedAt else 0,
-			shieldUntil = time() + shieldLeft,
 		}
 	end
 
@@ -427,24 +420,9 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		PvpEffects.throwBomb(start, velocity, PvpConfig.BOMB.fuseSeconds, touches, onExplode)
 	end
 
-	-- The shield: nothing lands on the player for a while. Written in server time for the
-	-- rules and every client's view.
-	local function shield(player: Player, state: PlayerState)
-		local character = prepare(player, state, "Shield")
-		if not character then
-			return
-		end
-		state.lastUsedAt.Shield = time()
-		local until_ = workspace:GetServerTimeNow() + PvpConfig.SHIELD.seconds
-		character:SetAttribute(PvpConfig.SHIELD_UNTIL_ATTRIBUTE, until_)
-		PvpEffects.shieldBubble(character, PvpConfig.SHIELD.seconds)
-		resolved(player, "Shield", true, false)
-	end
-
 	local ABILITIES: { [AbilityKind]: (Player, PlayerState) -> () } = {
 		Harpoon = harpoon,
 		Bomb = bomb,
-		Shield = shield,
 	}
 
 	-- Seconds of newbie protection left, on the player for every client's view: the sign over
