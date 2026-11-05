@@ -147,6 +147,8 @@ type Snapshot = {
 
 type Run = {
 	firstBeat: { [number]: number },
+	-- When each incubator slot was bought: slot number -> time.
+	slotBought: { [number]: number },
 	snapshots: { [number]: Snapshot },
 }
 
@@ -160,7 +162,7 @@ local function simulate(profile: Profile, seed: number): Run
 	local incomeRate = 0
 	local bestPost = 0
 	local nextTheftAt = 0
-	local run: Run = { firstBeat = {}, snapshots = {} }
+	local run: Run = { firstBeat = {}, slotBought = {}, snapshots = {} }
 
 	local function speed(): number
 		return trained * toNumber(Upgrades.jetpackMultiplier(jetpackLevel, UpgradeConfig.TUNING))
@@ -191,8 +193,11 @@ local function simulate(profile: Profile, seed: number): Run
 		trained += toNumber(paidTrained)
 	end
 
+	-- Defined below: hatches the ready eggs, done whenever the player is at the bay.
+	local hatch: (now: number) -> ()
+
 	-- An egg into the incubator (or its queue), hatching after its rarity's time, as the game
-	-- does it.
+	-- does it. The player brings it home, so the ready eggs are hatched first.
 	local function incubate(
 		rarity: EggConfig.RarityId,
 		size: EggConfig.SizeId,
@@ -201,6 +206,7 @@ local function simulate(profile: Profile, seed: number): Run
 		variant: AlienConfig.VariantId?,
 		luck: number?
 	)
+		hatch(now)
 		local hatchSeconds = Hatch.duration(EggConfig.RARITIES[rarity].hatchSeconds, math.random())
 		Bay.addEgg(data, rarity, size, grade, hatchSeconds, now, variant, luck)
 	end
@@ -238,8 +244,17 @@ local function simulate(profile: Profile, seed: number): Run
 		end
 	end
 
-	local function hatch(now: number)
-		local hatched = Bay.takeHatched(data, now)
+	-- The player hatches every ready egg when at the bay: on coming online and with each
+	-- delivery (the prompt is in the bay only). In between, and while away, ready eggs keep
+	-- their slots and the queue waits (decision 059).
+	function hatch(now: number)
+		local hatched: { PlayerData.EggRecord } = {}
+		for _, ready in table.clone(data.incubator) do
+			local egg = if Bay.isReady(ready, now) then Bay.hatch(data, ready.uid, now) else nil
+			if egg then
+				table.insert(hatched, egg)
+			end
+		end
 		if #hatched == 0 then
 			return
 		end
@@ -301,6 +316,7 @@ local function simulate(profile: Profile, seed: number): Run
 			if slotWanted and coins >= slotPrice() then
 				coins -= slotPrice()
 				data.incubatorSlots += 1
+				run.slotBought[data.incubatorSlots] = now
 				Bay.fillSlots(data, now)
 				continue
 			end
@@ -335,6 +351,10 @@ local function simulate(profile: Profile, seed: number): Run
 			trained += trainRate() * profile.packageHours * 60 * 60
 		end
 		if inDay < sessionSeconds then
+			-- Online at the station: the eggs that became ready while away are hatched first.
+			if inDay == 0 then
+				hatch(now)
+			end
 			trained += trainRate() * ASSUMPTIONS.trainShare * dt
 			coins += incomeRate * dt
 			-- The solar storm comes round while the player is on, for everyone on the server.
@@ -387,7 +407,6 @@ local function simulate(profile: Profile, seed: number): Run
 				coins += incomeRate * dt
 			end
 		end
-		hatch(now)
 		buy(now)
 		now += dt
 
@@ -429,11 +448,12 @@ local function pad(text: string, width: number): string
 	return text .. string.rep(" ", math.max(0, width - #text))
 end
 
--- Average first-beat time over the runs; nil when any run never got there.
-local function averageFirstBeat(runs: { Run }, post: number): number?
+-- Average time of a run's mark (a first beat, a slot bought) over the runs; nil when any run
+-- never got there.
+local function averageOf(runs: { Run }, markOf: (run: Run) -> number?): number?
 	local total = 0
 	for _, run in runs do
-		local at = run.firstBeat[post]
+		local at = markOf(run)
 		if not at then
 			return nil
 		end
@@ -471,7 +491,38 @@ print(header)
 for post = 1, ASSUMPTIONS.guardianCount do
 	local line = pad(tostring(post), POST_WIDTH) .. pad(formatNumber(recommendedFor(post)), SPEED_WIDTH)
 	for _, profile in PROFILES do
-		line ..= pad(formatTime(averageFirstBeat(runsByProfile[profile.name], post)), COLUMN_WIDTH)
+		line ..= pad(
+			formatTime(averageOf(runsByProfile[profile.name], function(run)
+				return run.firstBeat[post]
+			end)),
+			COLUMN_WIDTH
+		)
+	end
+	print(line)
+end
+
+print("")
+print("Incubator slots: when each is bought (average; - = not within the days)")
+header = pad("slot", POST_WIDTH) .. pad("price", SPEED_WIDTH)
+for _, profile in PROFILES do
+	header ..= pad(profile.name, COLUMN_WIDTH)
+end
+print(header)
+for slots = BayConfig.STARTING_INCUBATOR_SLOTS + 1, BayConfig.MAX_INCUBATOR_SLOTS do
+	local price = Bay.slotPrice(
+		slots - 1,
+		BayConfig.STARTING_INCUBATOR_SLOTS,
+		BayConfig.SLOT_PRICE_BASE,
+		BayConfig.SLOT_PRICE_GROWTH
+	)
+	local line = pad(tostring(slots), POST_WIDTH) .. pad(BigNum.format(price), SPEED_WIDTH)
+	for _, profile in PROFILES do
+		line ..= pad(
+			formatTime(averageOf(runsByProfile[profile.name], function(run)
+				return run.slotBought[slots]
+			end)),
+			COLUMN_WIDTH
+		)
 	end
 	print(line)
 end
