@@ -371,6 +371,13 @@ event ClaimIndexSet = {
 	data: string.utf8,
 }
 
+-- Takes every reward waiting in the index at once.
+event ClaimIndexAll = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}
+
 -- Takes today's login gift.
 event ClaimLoginGift = {
 	from: Client,

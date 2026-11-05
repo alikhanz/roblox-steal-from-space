@@ -661,6 +661,10 @@ local Strings = {
 		ru = "Нажми на светящегося пришельца и забери награду",
 		en = "Tap a glowing alien to get your reward",
 	},
+	["index.claimAll.button"] = {
+		ru = "Забрать всё",
+		en = "Claim all",
+	},
 	["index.setClaim.button"] = {
 		ru = "Набор: +{coins} ●",
 		en = "Set: +{coins} ●",

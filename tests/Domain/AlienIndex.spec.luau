@@ -94,3 +94,34 @@ describe("AlienIndex sets", function()
 		expect(AlienIndex.waiting(index, { SET, METEOR_SET })).toBe(3)
 	end)
 end)
+
+describe("AlienIndex.pending", function()
+	it("lists the finds not yet claimed and the complete sets not yet claimed", function()
+		local index = AlienIndex.empty()
+		for _, alienId in SET.aliens do
+			AlienIndex.discover(index, alienId)
+		end
+		AlienIndex.claim(index, SET.aliens[1])
+		AlienIndex.discover(index, "A.Common.Meteor")
+		local aliens, sets = AlienIndex.pending(index, { SET, METEOR_SET })
+		expect(#aliens).toBe(#SET.aliens - 1 + 1)
+		expect(table.find(aliens, SET.aliens[1])).toBeNil()
+		expect(table.find(aliens, "A.Common.Meteor") ~= nil).toBe(true)
+		expect(#sets).toBe(1)
+		expect(sets[1].id).toBe(SET.id)
+		-- As many as are waiting.
+		expect(#aliens + #sets).toBe(AlienIndex.waiting(index, { SET, METEOR_SET }))
+	end)
+
+	it("lists nothing once everything is taken", function()
+		local index = AlienIndex.empty()
+		for _, alienId in SET.aliens do
+			AlienIndex.discover(index, alienId)
+			AlienIndex.claim(index, alienId)
+		end
+		AlienIndex.claimSet(index, SET)
+		local aliens, sets = AlienIndex.pending(index, { SET })
+		expect(#aliens).toBe(0)
+		expect(#sets).toBe(0)
+	end)
+end)

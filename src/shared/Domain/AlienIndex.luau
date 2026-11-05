@@ -93,6 +93,24 @@ function AlienIndex.claimSet(state: State, set: Set): ClaimRefusal?
 	return nil
 end
 
+-- The rewards waiting in `sets`, to take them all at once: found aliens not yet claimed (in
+-- the order of `sets`), and sets complete and not yet claimed.
+function AlienIndex.pending(state: State, sets: { Set }): ({ string }, { Set })
+	local aliens: { string } = {}
+	local ready: { Set } = {}
+	for _, set in sets do
+		for _, alienId in set.aliens do
+			if state.found[alienId] == false then
+				table.insert(aliens, alienId)
+			end
+		end
+		if not AlienIndex.isSetClaimed(state, set) and AlienIndex.foundOf(state, set.aliens) == #set.aliens then
+			table.insert(ready, set)
+		end
+	end
+	return aliens, ready
+end
+
 -- Rewards waiting to be taken in `sets` (all of them, or one section's): their found aliens not
 -- yet claimed, plus those of them complete and not yet claimed.
 function AlienIndex.waiting(state: State, sets: { Set }): number

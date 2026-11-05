@@ -70,6 +70,10 @@ export type Props = {
 	setDone: string,
 	onClaimAlien: (alienId: string) -> (),
 	onClaimSet: (setId: string) -> (),
+	-- "Claim all": shown while any reward waits.
+	claimAllText: string,
+	canClaimAll: () -> boolean,
+	onClaimAll: () -> (),
 	onClose: () -> (),
 }
 
@@ -266,6 +270,20 @@ local function IndexWindow(props: Props): Frame
 		}),
 		Layout.padding(0, TAB_BADGE_ROOM),
 		tabButtons,
+		create("Frame")({
+			Name = "ClaimAllSlot",
+			LayoutOrder = #props.tabs + 1,
+			Size = UDim2.fromScale(0, 0),
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundTransparency = 1,
+			Visible = props.canClaimAll,
+			Button({
+				name = "ClaimAll",
+				text = props.claimAllText,
+				color = Theme.COINS_DARK,
+				onClick = props.onClaimAll,
+			}),
+		}),
 	})
 
 	return Window({

@@ -40,6 +40,8 @@ export type IndexService = {
 	discover: (player: Player, alienId: string) -> (),
 	claimAlien: (player: Player, alienId: string) -> Notice?,
 	claimSet: (player: Player, setId: string) -> Notice?,
+	-- Every reward waiting, at once.
+	claimAll: (player: Player) -> Notice?,
 }
 
 local IndexService = {}
@@ -117,6 +119,25 @@ function IndexService.new(dependencies: Dependencies): IndexService
 		return notice
 	end
 
+	-- Takes every reward waiting in the index, aliens and sets, each as if claimed on its own.
+	local function claimAll(player: Player): Notice?
+		local data = dependencies.getData(player)
+		if not data then
+			return "IndexNothing"
+		end
+		local aliens, sets = AlienIndex.pending(data.index, IndexConfig.SETS)
+		if #aliens == 0 and #sets == 0 then
+			return "IndexNothing"
+		end
+		for _, alienId in aliens do
+			claimAlien(player, alienId)
+		end
+		for _, set in sets do
+			claimSet(player, set.id)
+		end
+		return nil
+	end
+
 	local function start()
 		dependencies.hatched.connect(function(player, alienId)
 			discover(player, alienId)
@@ -135,6 +156,7 @@ function IndexService.new(dependencies: Dependencies): IndexService
 		discover = discover,
 		claimAlien = claimAlien,
 		claimSet = claimSet,
+		claimAll = claimAll,
 	}
 end
 

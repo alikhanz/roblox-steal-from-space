@@ -249,6 +249,13 @@ function IndexController.new(dependencies: Dependencies): IndexController
 					onClaimSet = function(setId)
 						Remotes.ClaimIndexSet.Fire(setId)
 					end,
+					claimAllText = text("index.claimAll.button"),
+					canClaimAll = function()
+						return waiting() > 0
+					end,
+					onClaimAll = function()
+						Remotes.ClaimIndexAll.Fire()
+					end,
 					onClose = function()
 						isOpen(false)
 					end,
