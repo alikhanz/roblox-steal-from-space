@@ -132,7 +132,11 @@ function RigPose.apply(character: Model, pose: PoseAnimation.Joints)
 		local limb = limbs[name]
 		local parentName = PoseAnimation.HIERARCHY[name]
 		local parent = if parentName then limbs[parentName] else nil
-		local onParent, onLimb = if limb then jointOf(limb) else nil, nil
+		local onParent: CFrame?, onLimb: CFrame? = nil, nil
+		if limb then
+			-- Both of jointOf's values: an if-expression would keep only the first.
+			onParent, onLimb = jointOf(limb)
+		end
 		if limb and parent and placed[parent] and onParent and onLimb then
 			local rotation = pose[name]
 			local turn = if rotation then toCFrame(rotation) else CFrame.identity
