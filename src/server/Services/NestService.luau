@@ -17,10 +17,8 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local NestCycle = require(ReplicatedStorage.Shared.Domain.NestCycle)
-local Posts = require(ReplicatedStorage.Shared.Domain.Posts)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
-local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldService = require(script.Parent.WorldService)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -188,18 +186,14 @@ function NestService.new(dependencies: Dependencies): NestService
 		end
 	end
 
-	-- Within a zone, nests are ranked by distance from the station and shared out among the
-	-- zone's posts: the farther, the higher the grade.
-	local function assignZone(zoneId: ZoneConfig.ZoneId, sites: { WorldService.NestSite })
-		local center = StationConfig.PLATFORM_CENTER
-		table.sort(sites, function(a: WorldService.NestSite, b: WorldService.NestSite)
-			return (a.eggCFrame.Position - center).Magnitude < (b.eggCFrame.Position - center).Magnitude
-		end)
-		local postCount = ZoneConfig.ZONES[zoneId].postCount
-		for rank, site in sites do
+	-- The world's nests, each at its post: the world laid each post's nests on a ring of their
+	-- own within the zone's (Domain/NestLayout), the first innermost.
+	local function assignNests(sites: { WorldService.NestSite })
+		for _, site in sites do
+			local post = assert(site.post, `nest {site.id} has no guardian post`)
 			local nest: Nest = {
 				site = site,
-				grade = ZoneConfig.postIndex(zoneId, Posts.indexFor(rank, #sites, postCount)),
+				grade = ZoneConfig.postIndex(site.zone, post),
 				rarity = nil,
 				size = nil,
 				variant = nil,
@@ -261,14 +255,7 @@ function NestService.new(dependencies: Dependencies): NestService
 	end
 
 	local function start()
-		local byZone: { [ZoneConfig.ZoneId]: { WorldService.NestSite } } = {}
-		for _, site in dependencies.getNestSites() do
-			byZone[site.zone] = byZone[site.zone] or {}
-			table.insert(byZone[site.zone], site)
-		end
-		for zoneId, sites in byZone do
-			assignZone(zoneId, sites)
-		end
+		assignNests(dependencies.getNestSites())
 		dependencies.scheduler.every(TICK_SECONDS, tick)
 	end
 

@@ -10,6 +10,7 @@ local BorderLooks = require(ReplicatedStorage.Shared.Config.BorderLooks)
 local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local LeaderboardModel = require(script.Parent.Parent.World.LeaderboardModel)
 local MeteorLooks = require(ReplicatedStorage.Shared.Config.MeteorLooks)
+local NestLayout = require(ReplicatedStorage.Shared.Domain.NestLayout)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local ShopModel = require(script.Parent.Parent.World.ShopModel)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
@@ -41,6 +42,9 @@ export type NestSite = {
 	zone: ZoneConfig.ZoneId,
 	-- Where an egg rests in this nest.
 	eggCFrame: CFrame,
+	-- The guardian post within its zone (1 innermost) for a nest of the world's layout
+	-- (Domain/NestLayout); nil for a meteor crater, which takes its nearest nest's.
+	post: number?,
 }
 
 export type WorldService = {
@@ -274,9 +278,13 @@ local function buildCrater(name: string, zone: ZoneConfig.ZoneId, center: Vector
 	return site
 end
 
--- Nest asteroids zone by zone: evenly spread around each zone's ring with seeded jitter.
+-- Nest asteroids zone by zone, each guardian post on its own ring within the zone's
+-- (Domain/NestLayout), with seeded jitter.
 local function buildNests(parent: Instance): { NestSite }
 	local random = Random.new(WorldConfig.SEED + 1)
+	local function roll(): number
+		return random:NextNumber()
+	end
 	local folder = Instance.new("Folder")
 	folder.Name = NESTS_FOLDER_NAME
 	local sites: { NestSite } = {}
@@ -284,15 +292,13 @@ local function buildNests(parent: Instance): { NestSite }
 	for _, zoneId in ZoneConfig.ZONE_ORDER do
 		local zone = ZoneConfig.ZONES[zoneId]
 		local look = ZoneLooks.ZONES[zoneId]
-		for index = 1, zone.nestCount do
-			local angle = (index - 1 + random:NextNumber(-0.3, 0.3)) / zone.nestCount * math.pi * 2
-			local distance = random:NextNumber(zone.ringMin, zone.ringMax)
-			local height = random:NextNumber(-zone.heightSpread, zone.heightSpread)
+		for index, spot in NestLayout.place(zone, roll) do
 			local center = StationConfig.PLATFORM_CENTER
-				+ Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance)
+				+ Vector3.new(math.cos(spot.angle) * spot.distance, spot.height, math.sin(spot.angle) * spot.distance)
 			local size = random:NextNumber(WorldConfig.NEST_ASTEROID_MIN_SIZE, WorldConfig.NEST_ASTEROID_MAX_SIZE)
 			local color = look.rockColors[random:NextInteger(1, #look.rockColors)]
 			local site = buildNest(`{zoneId}Nest{index}`, zoneId, center, size, look.rockMaterial, color)
+			site.post = spot.post
 			site.model.Parent = folder
 			table.insert(sites, site)
 		end

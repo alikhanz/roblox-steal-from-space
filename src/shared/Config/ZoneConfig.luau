@@ -22,9 +22,11 @@ export type Zone = {
 	read ringMin: number,
 	read ringMax: number,
 	read heightSpread: number,
-	read nestCount: number,
-	-- Guardian posts of the zone; nests are shared out among them, nearest first.
+	-- Guardian posts of the zone, each on its own narrow ring within the zone's, the first
+	-- innermost (Domain/NestLayout), with this many nests each.
 	read postCount: number,
+	read nestsPerPost: number,
+	read nestCount: number,
 	read rarityLoot: { Loot.Entry<EggConfig.RarityId> },
 	read sizeLoot: { Loot.Entry<EggConfig.SizeId> },
 }
@@ -42,9 +44,9 @@ end
 local function zone(
 	id: ZoneId,
 	nameKey: keyof<typeof(Strings)>,
-	-- Where its nests lie (see Zone) and how many there are: the far rings are much longer, so
-	-- they get more nests, about 2.2 s of flight apart at the zone's own speed everywhere.
-	ring: { min: number, max: number, height: number, nests: number },
+	-- Where its nests lie (see Zone) and how many each guardian post has: the far rings are much
+	-- longer, so they get more (decision 057).
+	ring: { min: number, max: number, height: number, nestsPerPost: number },
 	rarityLoot: { Loot.Entry<EggConfig.RarityId> },
 	sizeLoot: { Loot.Entry<EggConfig.SizeId> }
 ): Zone
@@ -54,8 +56,9 @@ local function zone(
 		ringMin = ring.min,
 		ringMax = ring.max,
 		heightSpread = ring.height,
-		nestCount = ring.nests,
 		postCount = POSTS_PER_ZONE,
+		nestsPerPost = ring.nestsPerPost,
+		nestCount = ring.nestsPerPost * POSTS_PER_ZONE,
 		rarityLoot = table.freeze(rarityLoot),
 		sizeLoot = table.freeze(sizeLoot),
 	})
@@ -66,7 +69,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		min = pastBorder(135),
 		max = pastBorder(330),
 		height = 90,
-		nests = 14,
+		nestsPerPost = 4,
 	}, {
 		{ id = "Common", weight = 70 },
 		{ id = "Uncommon", weight = 25 },
@@ -80,7 +83,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		min = pastBorder(625),
 		max = pastBorder(965),
 		height = 160,
-		nests = 20,
+		nestsPerPost = 5,
 	}, {
 		{ id = "Common", weight = 50 },
 		{ id = "Uncommon", weight = 32 },
@@ -95,7 +98,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		min = pastBorder(1295),
 		max = pastBorder(1790),
 		height = 230,
-		nests = 25,
+		nestsPerPost = 6,
 	}, {
 		{ id = "Common", weight = 35 },
 		{ id = "Uncommon", weight = 35 },
@@ -110,7 +113,7 @@ local ZONES: { [ZoneId]: Zone } = {
 	EventHorizon = zone(
 		"EventHorizon",
 		"zone.eventHorizon.title",
-		{ min = pastBorder(2150), max = pastBorder(2750), height = 300, nests = 32 },
+		{ min = pastBorder(2150), max = pastBorder(2750), height = 300, nestsPerPost = 7 },
 		{
 			{ id = "Common", weight = 25 },
 			{ id = "Uncommon", weight = 30 },
