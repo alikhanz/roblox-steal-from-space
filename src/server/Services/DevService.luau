@@ -23,6 +23,7 @@
 --   game.ServerStorage.DevCommands.HoldSerpent:Invoke(true, 30)
 
 local CollectionService = game:GetService("CollectionService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -48,6 +49,9 @@ local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local FOLDER_NAME = "DevCommands"
+-- The MCP's way in: a command as JSON into this value, its outcome back in the other one.
+local REQUEST_NAME = "Request"
+local RESULT_NAME = "Result"
 -- Spawned eggs float this far in front of the player, studs.
 local SPAWN_DISTANCE = 5
 -- The dummy thief stands this far ahead: inside the strike's corridor.
@@ -499,6 +503,34 @@ function DevService.new(dependencies: Dependencies): DevService
 			bindable.OnInvoke = command
 			bindable.Parent = folder
 		end
+
+		-- The same commands for the Studio MCP, whose code may not invoke a BindableFunction but
+		-- may write a value: JSON {"id": "...", "command": "GiveEgg", "args": [...]} into
+		-- REQUEST_NAME runs the command here and puts {"id", "ok", "result"} into RESULT_NAME.
+		local request = Instance.new("StringValue")
+		request.Name = REQUEST_NAME
+		request.Parent = folder
+		local result = Instance.new("StringValue")
+		result.Name = RESULT_NAME
+		result.Parent = folder
+		request.Changed:Connect(function(raw)
+			if raw == "" then
+				return
+			end
+			local decoded, message = pcall(HttpService.JSONDecode, HttpService, raw)
+			local call = if decoded then message else nil
+			local id = if type(call) == "table" then call.id else nil
+			local command = if type(call) == "table" then commands[call.command] else nil
+			local ok, output
+			if not command then
+				ok, output = false, `unknown request {raw}`
+			else
+				local args = if type(call.args) == "table" then call.args else {}
+				ok, output = pcall(command, table.unpack(args))
+			end
+			result.Value = HttpService:JSONEncode({ id = id, ok = ok, result = tostring(output) })
+		end)
+
 		folder.Parent = ServerStorage
 	end
 
