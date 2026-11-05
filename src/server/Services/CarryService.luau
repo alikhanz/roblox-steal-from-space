@@ -1,9 +1,10 @@
 --!strict
 -- Owns eggs out of their nests: confirms grabs requested by the simulation, holds the egg in the
 -- thief's arms, hands it to the bay at the station, drops the egg when its carrier is caught or
--- dies, and returns floating eggs to their nests after a while. Every egg belongs to the nest it
--- was taken from (a meteor egg, to its crater): that nest's guardian guards it, its grade is the
--- egg's, and the egg goes back there when it leaves play.
+-- dies, and returns floating eggs to their nests after a while. Every egg belongs to a home
+-- (Domain/EggHomes): the nest it was taken from (a meteor egg, to its crater), or the star
+-- serpent for the star egg. The home's guardian guards it, its grade is the egg's, and the egg
+-- goes back there when it leaves play.
 -- Runs after each simulation step (PostSimulation): it creates and destroys instances.
 
 local CollectionService = game:GetService("CollectionService")
@@ -33,7 +34,8 @@ local CARRY_OFFSET = CFrame.new(0, -0.2, -1.4)
 export type Egg = {
 	rarity: EggConfig.RarityId,
 	size: EggConfig.SizeId,
-	-- The nest it belongs to: its guardian guards the egg, and its grade is the egg's.
+	-- Its home (a nest, or another keeper's: Domain/EggHomes): its guardian guards the egg, and
+	-- its grade is the egg's.
 	nestId: string,
 	-- The alien variant it hatches into.
 	variant: AlienConfig.VariantId,
@@ -42,17 +44,19 @@ export type Egg = {
 }
 
 export type Dependencies = {
+	-- Grabbing from a nest.
 	takeNestEgg: (nestId: string) -> (EggConfig.RarityId?, EggConfig.SizeId?, AlienConfig.VariantId?),
-	returnNestEgg: (
-		nestId: string,
+	getNestEggCFrame: (nestId: string) -> CFrame?,
+	-- The egg's home (EggHomes): takes back an egg that left play, hears of one that reached a
+	-- bay (a nest then grows a new one), gives the grade.
+	returnHomeEgg: (
+		homeId: string,
 		rarity: EggConfig.RarityId,
 		size: EggConfig.SizeId,
 		variant: AlienConfig.VariantId
 	) -> (),
-	-- The egg of `nestId` reached a bay: its nest may grow a new one.
-	nestEggDelivered: (nestId: string) -> (),
-	getNestEggCFrame: (nestId: string) -> CFrame?,
-	getNestGrade: (nestId: string) -> number?,
+	homeEggDelivered: (homeId: string) -> (),
+	getHomeGrade: (homeId: string) -> number?,
 	-- Takes a delivered egg into the player's bay. False when the bay cannot take it yet (no
 	-- active profile): the egg then stays in the thief's arms.
 	deliverEgg: (
@@ -88,9 +92,11 @@ export type CarryService = {
 	-- Where the eggs of `nestId` lie knocked out (usually one; empty while the egg is in the
 	-- nest or carried).
 	findLooseEggs: (nestId: string) -> { Vector3 },
-	-- Puts a floating egg at `position` (drifting off at `launch`) that returns to its nest when
+	-- Puts a floating egg at `position` (drifting off at `launch`) that returns to its home when
 	-- it expires.
 	spawnLooseEgg: (egg: Egg, position: Vector3, launch: Vector3?) -> (),
+	-- Takes the floating eggs of `homeId` away at once, without returning them anywhere.
+	removeLooseEggs: (homeId: string) -> (),
 	-- The egg's journey, for analytics: taken, carried inside the station border (safe from
 	-- guardians), delivered to the bay, or lost on the way.
 	grabbed: Signal.Signal<Player, Carried, GrabSource>,
@@ -136,13 +142,13 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			nestId = egg.nestId,
 			variant = egg.variant,
 			luck = egg.luck,
-			grade = dependencies.getNestGrade(egg.nestId),
+			grade = dependencies.getHomeGrade(egg.nestId),
 		}
 	end
 
-	-- The egg leaves play without being delivered: back to its nest.
+	-- The egg leaves play without being delivered: back to its home.
 	local function leavePlay(egg: Egg)
-		dependencies.returnNestEgg(egg.nestId, egg.rarity, egg.size, egg.variant)
+		dependencies.returnHomeEgg(egg.nestId, egg.rarity, egg.size, egg.variant)
 	end
 
 	local function clearGrab(character: Model)
@@ -301,7 +307,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return
 		end
 		local egg = entry.egg
-		local grade = dependencies.getNestGrade(egg.nestId)
+		local grade = dependencies.getHomeGrade(egg.nestId)
 		if not grade then
 			warn(`[CarryService] {egg.nestId} has no grade; egg out of play`)
 			releaseCarried(player)
@@ -310,7 +316,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 		if dependencies.deliverEgg(player, egg.rarity, egg.size, grade, egg.variant, egg.luck) then
 			releaseCarried(player)
-			dependencies.nestEggDelivered(egg.nestId)
+			dependencies.homeEggDelivered(egg.nestId)
 			delivered.fire(player, publicOf(egg))
 		end
 	end
@@ -414,6 +420,14 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return positions
 		end,
 		spawnLooseEgg = spawnLoose,
+		removeLooseEggs = function(homeId: string)
+			for id, entry in loose do
+				if entry.egg.nestId == homeId then
+					loose[id] = nil
+					entry.part:Destroy()
+				end
+			end
+		end,
 		grabbed = grabbed,
 		reachedStation = reachedStation,
 		delivered = delivered,

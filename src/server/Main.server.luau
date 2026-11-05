@@ -10,6 +10,7 @@ local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
 local EconomyService = require(script.Parent.Services.EconomyService)
+local EggHomes = require(ReplicatedStorage.Shared.Domain.EggHomes)
 local EventService = require(script.Parent.Services.EventService)
 local GuardianService = require(script.Parent.Services.GuardianService)
 local IndexService = require(script.Parent.Services.IndexService)
@@ -39,6 +40,12 @@ RunService.Heartbeat:Connect(scheduler.step)
 local dataService = DataService.new()
 local worldService = WorldService.new()
 local nestService = NestService.new({ getNestSites = worldService.getNestSites, scheduler = scheduler })
+-- Where every egg out of play belongs: the nests, and the star serpent for its egg.
+local eggHomes = EggHomes.new({
+	grade = nestService.getGrade,
+	returnEgg = nestService.returnEgg,
+	delivered = nestService.eggDelivered,
+})
 local profile = {
 	activated = dataService.activated,
 	getData = dataService.getData,
@@ -125,10 +132,10 @@ local spaceService = SpaceService.new({
 })
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,
-	returnNestEgg = nestService.returnEgg,
-	nestEggDelivered = nestService.eggDelivered,
 	getNestEggCFrame = nestService.getEggCFrame,
-	getNestGrade = nestService.getGrade,
+	returnHomeEgg = eggHomes.returnEgg,
+	homeEggDelivered = eggHomes.delivered,
+	getHomeGrade = eggHomes.grade,
 	deliverEgg = bayService.addEgg,
 })
 
