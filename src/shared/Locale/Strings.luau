@@ -921,6 +921,22 @@ local Strings = {
 		ru = "Антиматерия",
 		en = "Antimatter",
 	},
+	["jetpack.level8.title"] = {
+		ru = "Сингулярность",
+		en = "Singularity",
+	},
+	["jetpack.level9.title"] = {
+		ru = "Гиперпривод",
+		en = "Hyperdrive",
+	},
+	["jetpack.level10.title"] = {
+		ru = "Червоточина",
+		en = "Wormhole",
+	},
+	["jetpack.level11.title"] = {
+		ru = "Бесконечность",
+		en = "Infinity",
+	},
 	["alien.pickUp.button"] = {
 		ru = "Подобрать",
 		en = "Pick up",

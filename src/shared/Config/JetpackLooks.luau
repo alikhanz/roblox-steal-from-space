@@ -102,6 +102,46 @@ local LEVELS: { Looks } = {
 		flameScale = 2.3,
 		sizeScale = 1.65,
 	},
+	-- Singularity: dark grey, a deep blue flame pulled thin.
+	{
+		bodyColor = rgb(60, 64, 80),
+		accentColor = rgb(80, 120, 255),
+		flameStart = rgb(200, 220, 255),
+		flameEnd = rgb(30, 40, 200),
+		lightColor = rgb(70, 100, 255),
+		flameScale = 2.55,
+		sizeScale = 1.78,
+	},
+	-- Hyperdrive: bright cyan streaks.
+	{
+		bodyColor = rgb(210, 235, 245),
+		accentColor = rgb(0, 255, 255),
+		flameStart = rgb(240, 255, 255),
+		flameEnd = rgb(0, 200, 255),
+		lightColor = rgb(80, 255, 255),
+		flameScale = 2.8,
+		sizeScale = 1.9,
+	},
+	-- Wormhole: green and violet swirling.
+	{
+		bodyColor = rgb(50, 30, 70),
+		accentColor = rgb(120, 255, 140),
+		flameStart = rgb(200, 255, 210),
+		flameEnd = rgb(150, 40, 255),
+		lightColor = rgb(120, 255, 160),
+		flameScale = 3.1,
+		sizeScale = 2.05,
+	},
+	-- Infinity: white-gold, the brightest of all.
+	{
+		bodyColor = rgb(255, 245, 220),
+		accentColor = rgb(255, 215, 80),
+		flameStart = rgb(255, 255, 255),
+		flameEnd = rgb(255, 190, 40),
+		lightColor = rgb(255, 230, 140),
+		flameScale = 3.5,
+		sizeScale = 2.2,
+	},
 }
 assert(#LEVELS == #UpgradeConfig.JETPACK_NAME_KEYS, "JetpackLooks.LEVELS and UpgradeConfig.JETPACK_NAME_KEYS differ")
 for _, level in LEVELS do

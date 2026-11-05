@@ -481,12 +481,13 @@ describe("PlayerData migration v11 -> v12", function()
 		expect(migrated(1)).toBe(1)
 		expect(migrated(2)).toBe(3)
 		expect(migrated(3)).toBe(5)
-		-- x128 was 7, now the top, 13.
+		-- x128 was 7, now 13; x2048 was 11, now the top, 21.
 		expect(migrated(7)).toBe(13)
+		expect(migrated(11)).toBe(21)
 	end)
 
-	it("brings a jetpack past the old names down to the top", function()
-		expect(migrated(11)).toBe(13)
+	it("brings a jetpack past x2048 down to the top", function()
+		expect(migrated(15)).toBe(21)
 	end)
 end)
 

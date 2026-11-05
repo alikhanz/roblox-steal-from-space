@@ -15,11 +15,11 @@ local TUNING: Upgrades.Tuning = {
 	trainerCostGrowth = BigNum.fromNumber(6),
 
 	-- Jetpacks in two marks each: I doubles the previous jetpack's I, II is x1.5 on top, so the
-	-- multipliers read x2, x3, x4, x6, x8, x12... up to the last jetpack, Antimatter (7), which
-	-- has its first mark only: x128 is the top (decision 056).
+	-- multipliers read x2, x3, x4, x6, x8, x12... up to the last jetpack, Infinity (11), which
+	-- has its first mark only: x2048 is the top (decision 056).
 	jetpackGrowth = 2,
 	jetpackMarks = table.freeze({ 1, 1.5 }),
-	jetpackLast = 7,
+	jetpackLast = 11,
 	-- The first level (x2) costs 2000 coins; every doubling of the multiplier costs 10 times
 	-- more (x4 20K, x8 200K), the marks between in proportion (x3 7.7K).
 	jetpackCostBase = BigNum.fromNumber(2000),
@@ -43,6 +43,10 @@ return table.freeze({
 		"jetpack.level5.title",
 		"jetpack.level6.title",
 		"jetpack.level7.title",
+		"jetpack.level8.title",
+		"jetpack.level9.title",
+		"jetpack.level10.title",
+		"jetpack.level11.title",
 	}),
 	-- Player attribute: the jetpack level, so every client can draw the right flames.
 	JETPACK_LEVEL_ATTRIBUTE = "JetpackLevel",
