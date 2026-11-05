@@ -72,25 +72,30 @@ local function addFlightConstraints(root: BasePart)
 	align.Parent = root
 end
 
--- A character that dies out in space keeps drifting, whole, instead of falling: its joints stay
--- (Humanoid.BreakJointsOnDeath is off, see `equip`), and as the flight simulation no longer
--- holds it up, its root gets a force that cancels the station's gravity for the whole body
--- (there is none in space). The station's floor needs gravity, so it stays on.
+-- A character that dies out in space keeps drifting, whole, instead of falling. Its joints stay
+-- (Humanoid.BreakJointsOnDeath is off, see `equip`): dead, the animated joints let go and the
+-- body hangs on its ball sockets, a ragdoll of separate assemblies. As the flight simulation no
+-- longer holds it up, every part that has weight gets a force cancelling the station's gravity
+-- (there is none in space); massless ones (accessories, the jetpack) weigh nothing. The
+-- station's floor needs gravity, so it stays on.
 local function floatWhenDead(character: Model)
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true or not root or not root:IsA("BasePart") then
+	if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true then
 		return
 	end
-	local attachment = Instance.new("Attachment")
-	attachment.Name = "Weightless"
-	attachment.Parent = root
-	local force = Instance.new("VectorForce")
-	force.Name = "Weightless"
-	force.Attachment0 = attachment
-	force.RelativeTo = Enum.ActuatorRelativeTo.World
-	force.ApplyAtCenterOfMass = true
-	force.Force = Vector3.yAxis * root.AssemblyMass * workspace.Gravity
-	force.Parent = root
+	for _, part in character:GetDescendants() do
+		if part:IsA("BasePart") and not part.Massless and not part.Anchored then
+			local attachment = Instance.new("Attachment")
+			attachment.Name = "Weightless"
+			attachment.Parent = part
+			local force = Instance.new("VectorForce")
+			force.Name = "Weightless"
+			force.Attachment0 = attachment
+			force.RelativeTo = Enum.ActuatorRelativeTo.World
+			force.ApplyAtCenterOfMass = true
+			force.Force = Vector3.yAxis * part:GetMass() * workspace.Gravity
+			force.Parent = part
+		end
+	end
 end
 
 -- Out of oxygen: the character dies and respawns at the station.
