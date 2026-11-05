@@ -4,10 +4,37 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
+local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
+local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
+
+-- The egg a prey carries, as far as its weight goes.
+export type Load = {
+	read rarity: EggConfig.RarityId,
+	read size: EggConfig.SizeId,
+}
 
 local Prey = {}
+
+-- Share of the speed stat the carried egg takes away; 0 empty-handed.
+function Prey.eggWeight(load: Load?): number
+	if not load then
+		return 0
+	end
+	return Speed.eggWeight(EggConfig.RARITIES[load.rarity].weight, EggConfig.SIZES[load.size].weightFactor)
+end
+
+-- How fast a hunter with speed stat `power` flies after this prey right now, studs per second
+-- (Speed.chaseSpeed): the prey's stat `stat` and its egg against the hunter's. Taken from the
+-- prey's actual top speed (slow mode included), so the chase feels the same either way.
+function Prey.chaseSpeed(character: Model, stat: BigNum.BigNum, load: Load?, power: BigNum.BigNum): number
+	local weight = Prey.eggWeight(load)
+	local flightSpeed = TopSpeed.of(character) * Speed.carryMultiplier(weight)
+	return Speed.chaseSpeed(flightSpeed, power, Speed.withEgg(stat, weight), SpeedConfig.CHASE)
+end
 
 -- The player's living character and its root, or nil if there is nothing to chase.
 function Prey.root(player: Player): (Model?, BasePart?)

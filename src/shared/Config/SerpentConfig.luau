@@ -1,15 +1,29 @@
 --!strict
 -- The star serpent (EventConfig.EVENTS.Serpent has its clock). For the 3 minutes of its hunt it
--- comes out of the Event Horizon and goes after everyone past the first zone, a little slower
--- than its prey flies empty-handed: flying light gets away, an egg (which slows the thief down)
--- gets caught. A catch is a guardian's: the prey is thrown and the egg knocked out. Eggs
--- delivered during the hunt hatch luckier. Pure Luau: the balance calculator and tests load it.
--- Looks live in SerpentLooks.
+-- comes out of the Event Horizon and goes after everyone past the first zone. It chases the way
+-- a guardian does (Speed.chaseSpeed), with the speed stat of the middle guardian of the zone
+-- its prey is in: a player strong enough for the middle of their zone gets away even with a
+-- light egg, a weaker one loses it. A catch is a guardian's: the prey is thrown and the egg
+-- knocked out. Eggs delivered during the hunt hatch luckier. Pure Luau: the balance calculator
+-- and tests load it. Looks live in SerpentLooks.
 
+local BigNum = require("../Domain/BigNum")
+local GuardianConfig = require("./GuardianConfig")
 local ZoneConfig = require("./ZoneConfig")
 
 local DEBRIS_BELT = ZoneConfig.ZONES.DebrisBelt
 local EVENT_HORIZON = ZoneConfig.ZONES.EventHorizon
+
+-- In each zone the serpent is as strong as the zone's guardian at this post (of the six, from
+-- the station outwards).
+local POWER_POST = 3
+
+-- The serpent's speed stat when it chases a player `distance` studs from the station: that of
+-- the POWER_POST guardian of the zone there (the nearest zone between rings).
+local function powerAt(distance: number): BigNum.BigNum
+	local zone = ZoneConfig.zoneAtDistance(distance) or ZoneConfig.ZONE_ORDER[1]
+	return GuardianConfig.POSTS[ZoneConfig.postIndex(zone, POWER_POST)].speed
+end
 
 return table.freeze({
 	-- Hunts players farther than this from the station: everyone past the Debris Belt. The
@@ -17,9 +31,8 @@ return table.freeze({
 	HUNT_RADIUS = DEBRIS_BELT.ringMax,
 	-- Comes out in the middle of the Event Horizon's ring.
 	SPAWN_RADIUS = (EVENT_HORIZON.ringMin + EVENT_HORIZON.ringMax) / 2,
-	-- Chases at this share of its prey's top flight speed (TopSpeed: without an egg's slowdown),
-	-- so the outcome is the same at any speed stat.
-	SPEED_SHARE = 0.95,
+	POWER_POST = POWER_POST,
+	powerAt = powerAt,
 	-- With nobody to hunt it roams its grounds at this speed, studs per second.
 	ROAM_SPEED = 60,
 	-- Aims this far ahead of its prey at most, seconds (Pursuit.interceptPoint).

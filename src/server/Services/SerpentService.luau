@@ -2,8 +2,8 @@
 -- The star serpent's hunt, on its event's clock (EventService, SerpentConfig). As the hunt is
 -- announced, a spot in the Event Horizon is picked; when it starts the serpent comes out there
 -- and goes after everyone out in space past the first zone: the same one until it is caught or
--- gets away (Domain/GuardianBrain.pickTarget), a little slower than that player flies
--- empty-handed. A catch is a guardian's: the player is thrown and the egg knocked out; then the
+-- gets away (Domain/GuardianBrain.pickTarget), as fast as a guardian with the speed stat of the
+-- middle guardian of that player's zone would be (SerpentConfig.powerAt, Prey.chaseSpeed). A catch is a guardian's: the player is thrown and the egg knocked out; then the
 -- serpent leaves them alone for a while. With nobody to hunt it roams. Its pin follows it
 -- (EventService.movePlace). Eggs delivered while it hunts hatch luckier (`deliveryLuck`).
 --
@@ -14,6 +14,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local CarryService = require(script.Parent.CarryService)
 local EventClock = require(ReplicatedStorage.Shared.Domain.EventClock)
@@ -28,7 +29,6 @@ local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SerpentModel = require(script.Parent.Parent.World.SerpentModel)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
-local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local CENTER = StationConfig.PLATFORM_CENTER
@@ -44,7 +44,9 @@ export type Dependencies = {
 	placeOf: (id: EventConfig.EventId) -> EventService.Place?,
 	setPlacer: (id: EventConfig.EventId, placer: EventService.Placer) -> (),
 	movePlace: (id: EventConfig.EventId, position: Vector3) -> (),
+	getCarried: (player: Player) -> CarryService.Carried?,
 	dropEgg: (player: Player, launch: Vector3?, reason: CarryService.LossReason?) -> boolean,
+	getSpeed: (player: Player) -> BigNum.BigNum,
 	scheduler: Scheduler.Scheduler,
 }
 
@@ -163,8 +165,9 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			character, root = Prey.root(prey)
 		end
 		if prey and character and root then
-			local speed = TopSpeed.of(character) * SerpentConfig.SPEED_SHARE
 			local position = current.head.Position
+			local power = SerpentConfig.powerAt((root.Position - CENTER).Magnitude)
+			local speed = Prey.chaseSpeed(character, dependencies.getSpeed(prey), dependencies.getCarried(prey), power)
 			local goal = Pursuit.interceptPoint(
 				position,
 				root.Position,

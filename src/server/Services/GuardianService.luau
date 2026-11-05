@@ -11,7 +11,6 @@ local RunService = game:GetService("RunService")
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local CarryService = require(script.Parent.CarryService)
-local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
@@ -24,7 +23,6 @@ local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
-local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
 local WorldService = require(script.Parent.WorldService)
 
 local FOLDER_NAME = "Guardians"
@@ -75,22 +73,14 @@ local GuardianService = {}
 function GuardianService.new(dependencies: Dependencies): GuardianService
 	local guardians: { Guardian } = {}
 
-	local function carriedWeight(player: Player): number
-		local carried = dependencies.getCarried(player)
-		if not carried then
-			return 0
-		end
-		return Speed.eggWeight(EggConfig.RARITIES[carried.rarity].weight, EggConfig.SIZES[carried.size].weightFactor)
-	end
-
-	-- How fast this guardian flies after this thief right now (see Speed.chaseSpeed).
+	-- How fast this guardian flies after this thief right now (see Prey.chaseSpeed).
 	local function chaseSpeedFor(guardian: Guardian, player: Player, character: Model): number
-		-- The thief's actual top speed (slow mode included), so the chase feels the same either way.
-		local flightSpeed = TopSpeed.of(character)
-		local weight = carriedWeight(player)
-		local thiefFlightSpeed = flightSpeed * Speed.carryMultiplier(weight)
-		local thiefSpeedWithEgg = Speed.withEgg(dependencies.getSpeed(player), weight)
-		return Speed.chaseSpeed(thiefFlightSpeed, guardian.post.speed, thiefSpeedWithEgg, SpeedConfig.CHASE)
+		return Prey.chaseSpeed(
+			character,
+			dependencies.getSpeed(player),
+			dependencies.getCarried(player),
+			guardian.post.speed
+		)
 	end
 
 	local function move(guardian: Guardian, velocity: Vector3)

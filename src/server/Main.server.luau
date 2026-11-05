@@ -184,7 +184,9 @@ serpentService = SerpentService.new({
 	placeOf = eventService.placeOf,
 	setPlacer = eventService.setPlacer,
 	movePlace = eventService.movePlace,
+	getCarried = carryService.getCarried,
 	dropEgg = carryService.dropEgg,
+	getSpeed = speedService.getSpeed,
 	scheduler = scheduler,
 })
 

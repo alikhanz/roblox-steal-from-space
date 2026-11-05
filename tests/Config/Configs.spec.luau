@@ -281,10 +281,35 @@ describe("MeteorConfig", function()
 end)
 
 describe("SerpentConfig", function()
-	it("comes out where it hunts and lets a player flying light get away", function()
+	it("comes out where it hunts", function()
 		expect(SerpentConfig.SPAWN_RADIUS > SerpentConfig.HUNT_RADIUS).toBe(true)
 		expect(SerpentConfig.HUNT_RADIUS > StationSize.BORDER_RADIUS).toBe(true)
-		expect(SerpentConfig.SPEED_SHARE < 1).toBe(true)
+	end)
+
+	it("is as strong as the middle guardian of its prey's zone", function()
+		for _, zone in ZoneConfig.ZONE_ORDER do
+			local ring = ZoneConfig.ZONES[zone]
+			local post = GuardianConfig.POSTS[ZoneConfig.postIndex(zone, SerpentConfig.POWER_POST)]
+			local power = SerpentConfig.powerAt((ring.ringMin + ring.ringMax) / 2)
+			expect(BigNum.equals(power, post.speed)).toBe(true)
+		end
+		-- Between rings: the nearer zone's.
+		local belt, rings = ZoneConfig.ZONES.DebrisBelt, ZoneConfig.ZONES.IceRings
+		local nearRings = rings.ringMin - (rings.ringMin - belt.ringMax) / 4
+		local ringsPost = GuardianConfig.POSTS[ZoneConfig.postIndex("IceRings", SerpentConfig.POWER_POST)]
+		expect(BigNum.equals(SerpentConfig.powerAt(nearRings), ringsPost.speed)).toBe(true)
+	end)
+
+	it("keeps pace with a thief who has its guardian's recommended speed and a typical egg", function()
+		local ring = ZoneConfig.ZONES.RedNebula
+		local post = GuardianConfig.POSTS[ZoneConfig.postIndex("RedNebula", SerpentConfig.POWER_POST)]
+		local weight = GuardianConfig.TYPICAL_WEIGHT
+		local loaded = Speed.withEgg(post.recommended, weight)
+		local power = SerpentConfig.powerAt((ring.ringMin + ring.ringMax) / 2)
+		expect(Speed.chaseSpeed(100, power, loaded, SpeedConfig.CHASE)).toBeCloseTo(100)
+		-- Weaker than that, the serpent is faster.
+		local weaker = Speed.withEgg(BigNum.div(post.recommended, BigNum.fromNumber(10)), weight)
+		expect(Speed.chaseSpeed(100, power, weaker, SpeedConfig.CHASE) > 100).toBe(true)
 	end)
 
 	it("adds its luck on top of an egg's own", function()
