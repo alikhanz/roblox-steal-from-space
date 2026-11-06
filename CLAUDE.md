@@ -8,6 +8,7 @@ Roblox-игра (рабочее название «Укради у Космос�
 - [docs/DECISIONS.md](docs/DECISIONS.md) — что уже решено и почему. Не переигрывай решения без обсуждения.
 - [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) — геймдизайн и этапы.
 - [docs/STYLE_TEXT.md](docs/STYLE_TEXT.md), [docs/GLOSSARY.md](docs/GLOSSARY.md) — тексты для игроков.
+- [docs/design/DESIGN.md](docs/design/DESIGN.md) — стиль интерфейса; экран меняется только по брифу из `docs/design/screens/` со статусом `approved` (решение 066).
 
 ## Команды
 

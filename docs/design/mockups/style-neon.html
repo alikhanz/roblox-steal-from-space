@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Три направления интерфейса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jura:wght@600;700&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice; the phone screens carry their own styles. */
+:root {
+  --bg: #0a0d1c;
+  --surface: #121733;
+  --ink: #e9ecf7;
+  --muted: #9aa3c2;
+  --rule: #262d52;
+  --accent: #6fe8ff;
+  --font-display: "Nunito", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-weight: 600; line-height: 1.5; }
+.page { max-width: 1240px; margin: 0 auto; padding: 40px 20px 64px; display: flex; flex-direction: column; gap: 48px; }
+.intro h1 { font-family: var(--font-display); font-weight: 900; font-size: clamp(28px, 4vw, 40px); line-height: 1.15; margin: 0 0 12px; text-wrap: balance; }
+.intro p { margin: 0 0 8px; max-width: 70ch; color: var(--muted); font-size: 17px; }
+.intro p b { color: var(--ink); }
+.dir { display: flex; flex-direction: column; gap: 18px; }
+.dir-top { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; align-items: baseline; }
+.letter { grid-row: span 2; font-family: var(--font-display); font-weight: 900; font-size: 52px; line-height: 1; color: var(--accent); min-width: 1.6em; }
+.dir h2 { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 26px; }
+.dir-top p { margin: 0; color: var(--muted); max-width: 74ch; }
+.traits { display: flex; flex-wrap: wrap; gap: 8px; }
+.trait { font-size: 14px; padding: 4px 12px; border-radius: 99px; border: 1px solid var(--rule); background: var(--surface); }
+.trait.plus { border-color: #2f6b4a; color: #9ef0bf; }
+.trait.minus { border-color: #6b3a3a; color: #ffb3b3; }
+.frames { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 1060px) { .frames { grid-template-columns: 1fr; } }
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+figcaption { color: var(--muted); font-size: 14px; }
+.device { background: #000; padding: 10px; border-radius: 30px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+.notes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; border-top: 1px solid var(--rule); padding-top: 32px; }
+@media (max-width: 860px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-family: var(--font-display); font-weight: 900; font-size: 22px; }
+.notes ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.notes p { margin: 0 0 10px; color: var(--muted); }
+.notes p b { color: var(--ink); }
+
+/* ───────────── Phone screen: shared layout, everything in cqw so it scales with the frame ───────────── */
+.screen { position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 22px; font-family: var(--font); font-weight: var(--fw); color: var(--text); line-height: 1.15; }
+.screen button { font: inherit; color: inherit; cursor: pointer; }
+.screen button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.ico { width: 1em; height: 1em; flex: none; overflow: visible; }
+
+/* Scene behind the HUD (identical everywhere): a nest with an egg sits behind the menu tiles on purpose */
+.scene { position: absolute; inset: 0; background:
+  radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130, 70, 210, .42), transparent 70%),
+  radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40, 130, 230, .34), transparent 70%),
+  #060919; }
+.stars { position: absolute; inset: 0; opacity: .85; background-image:
+  radial-gradient(circle at 20% 30%, #fff .12cqw, transparent .22cqw),
+  radial-gradient(circle at 70% 80%, #cfe3ff .1cqw, transparent .2cqw),
+  radial-gradient(circle at 45% 55%, #fff .08cqw, transparent .16cqw);
+  background-size: 13cqw 11cqw, 17cqw 13cqw, 9cqw 7cqw; }
+.rock { position: absolute; border-radius: 46% 54% 50% 50% / 52% 48% 52% 48%; background: radial-gradient(circle at 35% 30%, #6b7192, #3a3f5c 55%, #23263a); }
+.r1 { left: 30%; top: 4cqw; width: 8cqw; height: 6.5cqw; }
+.r2 { left: 84%; top: 13cqw; width: 6cqw; height: 5cqw; }
+.r3 { left: 60%; top: 12.5cqw; width: 9cqw; height: 6cqw; }
+.r4 { left: 8cqw; top: 24.2cqw; width: 11cqw; height: 7cqw; }
+.egg { position: absolute; width: 4cqw; height: 4.4cqw; --ic-line: #10183a; --ic-w: 1.4; }
+.egg-a { left: 62.6%; top: 9.2cqw; --c-egg: #6fc3ff; --c-egg-d: #2f7fd8; --c-shine: #e6f6ff; filter: drop-shadow(0 0 1.2cqw rgba(111, 195, 255, .8)); }
+.egg-b { left: 11.2cqw; top: 20.6cqw; width: 4.4cqw; height: 4.8cqw; --c-egg: #c58bff; --c-egg-d: #7a3fd6; --c-shine: #f4e8ff; filter: drop-shadow(0 0 1.4cqw rgba(197, 139, 255, .9)); }
+.platform { position: absolute; left: -15cqw; right: -15cqw; bottom: -30cqw; height: 52cqw; border-radius: 50%; background: radial-gradient(ellipse at 50% 18%, #4a5680, #2a3256 58%, #1b2140); box-shadow: 0 -.3cqw 0 #64e0ff, 0 -1.2cqw 3cqw rgba(100, 224, 255, .25); }
+.hud .platform { left: 20cqw; right: -30cqw; }
+.astro { position: absolute; left: 47%; top: 21.5cqw; width: 4.6cqw; }
+.veil { position: absolute; inset: 0; background: var(--veil); }
+
+/* Zones Roblox itself draws on a phone: the top bar (menu, chat) and the movement stick */
+.rbx { position: absolute; top: 1.4cqw; width: 4.4cqw; height: 4.4cqw; border-radius: 1cqw; background: rgba(0, 0, 0, .4); border: .15cqw solid rgba(255, 255, 255, .35); }
+.rbx.one { left: 1.8cqw; } .rbx.two { left: 7cqw; }
+.stick { position: absolute; left: 5cqw; bottom: 3cqw; width: 14cqw; height: 14cqw; border-radius: 50%; border: .25cqw dashed rgba(255, 255, 255, .4); display: grid; place-items: center; }
+.stick::before { content: ""; width: 5.6cqw; height: 5.6cqw; border-radius: 50%; background: rgba(255, 255, 255, .2); border: .2cqw solid rgba(255, 255, 255, .45); }
+.zone-note { position: absolute; font-family: "Nunito", sans-serif; font-weight: 800; font-size: 1.05cqw; color: rgba(255, 255, 255, .6); text-shadow: 0 .1cqw .3cqw #000; white-space: nowrap; }
+.zone-note.stick-note { left: 5cqw; bottom: .8cqw; width: 14cqw; text-align: center; }
+.zone-note.rbx-note { left: 12.2cqw; top: 2.8cqw; }
+
+/* HUD: stats on the left, under Roblox's top bar */
+.tl { position: absolute; left: 2.2cqw; top: 7cqw; width: 25cqw; display: flex; flex-direction: column; gap: 1.1cqw; }
+.pills { display: flex; gap: 1.6cqw; padding-left: 1.4cqw; }
+.pill { display: flex; align-items: center; gap: .5cqw; padding: .45cqw 1.3cqw .45cqw .4cqw; background: var(--pill-bg); border: var(--bw) solid var(--line); border-radius: 99px; font-size: 2.3cqw; box-shadow: var(--pill-shadow); color: var(--pill-text); text-shadow: var(--ol); }
+.pill .ico { font-size: 3.6cqw; margin: -1cqw 0 -1cqw -1.8cqw; }
+.goal { background: var(--panel-bg); border: var(--bw) solid var(--line); border-radius: var(--r-sm); padding: .9cqw 1.1cqw 1cqw; display: flex; flex-direction: column; gap: .6cqw; box-shadow: var(--panel-shadow); text-shadow: var(--ol); }
+.goal-title { font-size: 1.6cqw; }
+.goal-row { display: flex; justify-content: space-between; align-items: center; gap: .6cqw; font-size: 1.45cqw; }
+.goal-row span { display: flex; align-items: center; gap: .3cqw; }
+.bar { height: 1.3cqw; background: var(--bar-bg); border-radius: 99px; overflow: hidden; border: var(--bw-thin) solid var(--line); }
+.bar i { display: block; height: 100%; border-radius: 99px; box-shadow: inset 0 .3cqw 0 rgba(255, 255, 255, .35); }
+.bar.speed i { width: 43%; background: var(--fill-speed); }
+.bar.o2 i { width: 72%; background: var(--fill-o2); }
+
+/* HUD: events at the top */
+.events { position: absolute; top: 1.8cqw; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: .6cqw; }
+.chip { font-size: 1.5cqw; padding: .45cqw 1.3cqw; border-radius: 99px; border: var(--bw-thin) solid var(--line); white-space: nowrap; }
+.chip.storm { --chip: #ffad33; }
+.chip.serpent { --chip: #b48aff; }
+
+/* HUD: world pin over the nest */
+.pin { position: absolute; left: 64.7%; top: 2.6cqw; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.pin-box { font-size: 1.4cqw; padding: .35cqw 1cqw; border: var(--bw-thin) solid var(--line); border-radius: var(--r-sm); white-space: nowrap; display: flex; gap: .6cqw; }
+.pin-arrow { width: 1.3cqw; height: 1.3cqw; margin-top: -.75cqw; transform: rotate(45deg); border-right: var(--bw-thin) solid var(--line); border-bottom: var(--bw-thin) solid var(--line); }
+
+/* HUD: icon-only menu tiles in a row under the stats, above the stick zone */
+.menu { position: absolute; left: 2.2cqw; top: 22.4cqw; display: grid; grid-template-columns: repeat(5, 5.4cqw); gap: .8cqw; }
+.mbtn { position: relative; height: 5.4cqw; display: grid; place-items: center; border: var(--bw) solid var(--line); border-radius: var(--r-sm); padding: 0; }
+.mbtn .ico { font-size: 3.7cqw; }
+.mb-bay { --mc: #3ea6ff; } .mb-shop { --mc: #41c95a; } .mb-quest { --mc: #ff9a2e; } .mb-gift { --mc: #ff5a9e; } .mb-index { --mc: #a06bff; }
+.badge { position: absolute; top: -1cqw; right: -1cqw; min-width: 2.7cqw; height: 2.7cqw; padding: 0 .5cqw; border-radius: 99px; background: #ff4d5e; color: #fff; font-size: 1.45cqw; display: grid; place-items: center; border: .3cqw solid var(--badge-ring); text-shadow: none; }
+
+/* HUD: bottom centre (tutorial line + oxygen) */
+.bc { position: absolute; left: 50%; bottom: 2.2cqw; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1.2cqw; }
+.tutor { font-size: 1.9cqw; padding: .8cqw 1.8cqw .8cqw 1.1cqw; background: var(--tutor-bg); color: var(--tutor-text); border: var(--bw) solid var(--line); border-radius: var(--r-sm); display: flex; align-items: center; gap: .9cqw; white-space: nowrap; box-shadow: var(--panel-shadow); text-shadow: var(--ol); }
+.tutor .ico { font-size: 3cqw; }
+.oxygen { display: flex; align-items: center; gap: .8cqw; width: 30cqw; font-size: 1.5cqw; text-shadow: var(--ol); }
+.oxygen .ico { font-size: 2.8cqw; }
+.oxygen .bar { flex: 1; height: 1.7cqw; }
+
+/* HUD: icon-only flight buttons, an arc under the right thumb */
+.fbtn { position: absolute; border-radius: 50%; display: grid; place-items: center; border: var(--bw) solid var(--line); padding: 0; }
+.fbtn .ico { font-size: 3.8cqw; }
+.f-hit { right: 2.4cqw; bottom: 2.6cqw; width: 10.5cqw; height: 10.5cqw; --mc: #ff7a3d; } .f-hit .ico { font-size: 6cqw; }
+.f-harpoon { right: 14.2cqw; bottom: 2.6cqw; width: 6.8cqw; height: 6.8cqw; --mc: #3fd9ff; }
+.f-bomb { right: 13.4cqw; bottom: 10.8cqw; width: 6.8cqw; height: 6.8cqw; --mc: #b57bff; }
+.f-down { right: 3.4cqw; bottom: 14.6cqw; width: 6.4cqw; height: 6.4cqw; --mc: #8ff4ff; }
+.f-up { right: 3.4cqw; bottom: 22.2cqw; width: 6.4cqw; height: 6.4cqw; --mc: #8ff4ff; }
+.f-slow { right: 11.8cqw; bottom: 19cqw; width: 5.2cqw; height: 5.2cqw; --mc: #5bdb6e; } .f-slow .ico { font-size: 3.2cqw; }
+.cd::after { content: attr(data-cd); position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; font-size: 2.3cqw; color: #fff; text-shadow: 0 .12cqw 0 #000, 0 0 .5cqw #000; background: conic-gradient(rgba(0, 0, 0, .6) 0 72%, transparent 0); }
+
+/* Bay window */
+.win { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 80cqw; height: 42.5cqw; background: var(--win-bg); border: var(--bw-win) solid var(--line); border-radius: var(--r); box-shadow: var(--win-shadow); display: flex; flex-direction: column; overflow: hidden; text-shadow: var(--ol); }
+.win-head { display: flex; align-items: center; gap: 1.2cqw; padding: 0 1.2cqw 0 1.8cqw; height: 5.6cqw; flex: none; background: var(--head-bg); border-bottom: var(--bw) solid var(--head-line); }
+.win-head h3 { margin: 0; font-size: 2.7cqw; flex: 1; color: var(--head-text); font-weight: var(--fw); }
+.win-head .pill { font-size: 1.8cqw; }
+.win-head .pill .ico { font-size: 2.8cqw; margin: -.6cqw 0 -.6cqw -.4cqw; }
+.close { width: 4.2cqw; height: 4.2cqw; border-radius: var(--close-r); border: var(--bw) solid var(--line); font-size: 2.6cqw; display: grid; place-items: center; padding: 0; line-height: 1; }
+.win-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.3fr 1fr; gap: 1.6cqw; padding: 1.1cqw 1.6cqw .9cqw; }
+.col { display: flex; flex-direction: column; gap: .8cqw; min-height: 0; }
+.sec-head { display: flex; align-items: center; gap: .8cqw; flex: none; }
+.sec-head h4 { margin: 0; flex: 1; font-size: 1.75cqw; font-weight: var(--fw); }
+.sec-head h4 em { font-style: normal; color: var(--muted); margin-left: .4cqw; }
+.grid3 { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap: .8cqw; }
+.acard { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25cqw; padding: .6cqw .4cqw; background: var(--card-bg); border: var(--bw-thin) solid var(--card-line); border-radius: var(--r-sm); box-shadow: var(--card-shadow); text-align: center; }
+.acard b { font-size: 1.4cqw; font-weight: var(--fw); }
+.acard small { font-size: 1.2cqw; display: flex; align-items: center; gap: .3cqw; color: var(--muted); }
+.acard .tier { font-size: 1.1cqw; color: var(--tier-text); }
+.acard.selected { outline: .38cqw solid var(--sel); outline-offset: .12cqw; }
+.acard.empty, .slot, .islot { background: var(--empty-bg); border: var(--bw-thin) dashed var(--empty-line); box-shadow: none; color: var(--muted); font-size: 1.3cqw; }
+.alien { position: relative; width: 4.4cqw; height: 3.9cqw; border-radius: 50% 50% 46% 46% / 62% 62% 38% 38%; border: var(--bw-thin) solid var(--alien-line); background: radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--t) 35%, white), var(--t) 58%, color-mix(in srgb, var(--t) 65%, black)); flex: none; }
+.alien::before, .alien::after { content: ""; position: absolute; top: 30%; width: 26%; height: 30%; border-radius: 50%; background: radial-gradient(circle at 55% 60%, #111 0 32%, #fff 36%); }
+.alien::before { left: 20%; } .alien::after { right: 20%; }
+.alien.sm { width: 3cqw; height: 2.7cqw; }
+.t-common { --t: #b8c0d4; } .t-uncommon { --t: #5bd66b; } .t-rare { --t: #46a6ff; } .t-epic { --t: #b36bff; } .t-legend { --t: #ffc23d; }
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7cqw; flex: none; }
+.slot { position: relative; height: 5.4cqw; border-radius: var(--r-sm); display: grid; place-items: center; }
+.slot.filled { background: var(--card-bg); border-style: solid; border-color: var(--card-line); }
+.slot .ico { font-size: 3.6cqw; }
+.ready { position: absolute; bottom: -.9cqw; left: 50%; transform: translateX(-50%); font-size: 1.05cqw; padding: .1cqw .7cqw; border-radius: 99px; background: #43cc5f; color: #fff; border: var(--bw-thin) solid var(--line); white-space: nowrap; }
+.buyrow { display: flex; gap: .8cqw; flex: none; padding-top: .4cqw; }
+.inv { display: grid; grid-template-columns: repeat(5, 1fr); gap: .6cqw; flex: 1; min-height: 0; grid-auto-rows: 1fr; }
+.islot { border-radius: var(--r-sm); display: grid; place-items: center; }
+.islot.filled { background: var(--card-bg); border-style: solid; border-color: var(--card-line); }
+.win-foot { flex: none; display: flex; align-items: center; gap: 1cqw; padding: .9cqw 1.6cqw 1.3cqw; border-top: var(--bw-thin) solid var(--foot-line); background: var(--foot-bg); }
+.sel { flex: 1; display: flex; align-items: center; gap: .9cqw; min-width: 0; }
+.sel div { display: flex; flex-direction: column; gap: .15cqw; }
+.sel b { font-size: 1.6cqw; font-weight: var(--fw); }
+.sel small { font-size: 1.25cqw; color: var(--muted); display: flex; align-items: center; gap: .3cqw; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: .4cqw; white-space: nowrap; font-size: 1.5cqw; padding: .7cqw 1.4cqw; border-radius: var(--btn-r); border: var(--bw) solid var(--line); }
+.btn.sm { font-size: 1.25cqw; padding: .45cqw 1cqw; }
+.btn .ico { font-size: 1.9cqw; }
+.b-green { --b: #43cc5f; --b-edge: #23863a; }
+.b-blue { --b: #3ea6ff; --b-edge: #1f68b5; }
+.b-red { --b: #ff5a64; --b-edge: #b32834; }
+.b-gold { --b: #ffbb2e; --b-edge: #c27f00; }
+.b-purple { --b: #a46bff; --b-edge: #6834c2; }
+.b-robux { --b: #2bd69a; --b-edge: #13885e; }
+
+/* ───────────── Б · as it was (for comparison) ───────────── */
+.dir-b {
+  --font: "Jura", system-ui, sans-serif; --fw: 700;
+  --line: rgba(110, 230, 255, .6); --bw: .14cqw; --bw-thin: .12cqw; --bw-win: .16cqw;
+  --text: #e6f7ff; --muted: #8aa6c4;
+  --r: 1cqw; --r-sm: .7cqw; --btn-r: .55cqw; --close-r: .55cqw; --depth: 0;
+  --ol: 0 0 .7cqw rgba(111, 232, 255, .45);
+  --panel-bg: rgba(8, 14, 36, .72); --panel-shadow: 0 0 1.4cqw rgba(60, 200, 255, .22);
+  --pill-bg: rgba(8, 14, 36, .72); --pill-shadow: 0 0 1.2cqw rgba(60, 200, 255, .22); --pill-text: #ffd34a;
+  --bar-bg: rgba(255, 255, 255, .07); --badge-ring: #0a1028;
+  --fill-speed: linear-gradient(90deg, #ffb52e, #ffe36b); --fill-o2: linear-gradient(90deg, #1fb6ff, #7ff0ff);
+  --tutor-bg: rgba(8, 14, 36, .78); --tutor-text: #6fe8ff;
+  --fb-bg: rgba(8, 14, 36, .66); --fb-text: #6fe8ff; --fb-shadow: 0 0 1.4cqw rgba(60, 200, 255, .35), inset 0 0 1.2cqw rgba(60, 200, 255, .2);
+  --veil: rgba(2, 4, 14, .55);
+  --win-bg: linear-gradient(180deg, rgba(16, 28, 66, .94), rgba(6, 10, 28, .94)); --win-shadow: 0 0 2.4cqw rgba(60, 200, 255, .3);
+  --head-bg: linear-gradient(90deg, rgba(111, 232, 255, .16), transparent 70%); --head-line: rgba(110, 230, 255, .45); --head-text: #6fe8ff;
+  --card-bg: rgba(111, 232, 255, .05); --card-line: rgba(110, 230, 255, .32); --card-shadow: none;
+  --empty-bg: rgba(255, 255, 255, .02); --empty-line: rgba(110, 230, 255, .2); --sel: #ff4fd8; --alien-line: rgba(255, 255, 255, .55);
+  --foot-bg: rgba(111, 232, 255, .04); --foot-line: rgba(110, 230, 255, .25);
+  --c-coin: transparent; --c-coin-d: currentColor; --c-shine: transparent; --c-bolt: transparent; --c-o2: transparent; --c-bay: transparent; --c-metal: transparent;
+  --c-shop: transparent; --c-book: transparent; --c-quest: transparent; --c-gift: transparent; --c-ribbon: currentColor; --c-white: currentColor; --c-egg: transparent; --c-egg-d: currentColor;
+  --c-arrow: transparent; --c-strike: transparent; --c-harpoon: transparent; --c-bomb: transparent; --c-slow: transparent; --c-robux: transparent; --ic-line: currentColor; --ic-w: 1.7;
+}
+.dir-b .ico { filter: drop-shadow(0 0 .45cqw currentColor); }
+.dir-b .scene .ico { filter: drop-shadow(0 0 1.3cqw rgba(160, 160, 255, .9)); }
+.dir-b .acard { --tier-text: var(--t); }
+.dir-b .pill .ico, .dir-b .goal-row .ico, .dir-b .acard small .ico, .dir-b .sel small .ico { color: #ffd34a; }
+.dir-b .chip { background: rgba(8, 14, 36, .72); border-color: var(--chip); color: var(--chip); text-shadow: 0 0 .7cqw var(--chip); box-shadow: 0 0 1cqw color-mix(in srgb, var(--chip) 35%, transparent); }
+.dir-b .pin-box, .dir-b .pin-arrow { background: rgba(8, 14, 36, .82); color: #6fe8ff; }
+.dir-b .mbtn, .dir-b .fbtn { background: rgba(8, 14, 36, .6); border-color: var(--mc); color: var(--mc); box-shadow: 0 0 1.2cqw color-mix(in srgb, var(--mc) 45%, transparent), inset 0 0 1.2cqw color-mix(in srgb, var(--mc) 22%, transparent); }
+.dir-b .btn { background: color-mix(in srgb, var(--b) 15%, transparent); border-color: var(--b); color: var(--b); box-shadow: 0 0 1cqw color-mix(in srgb, var(--b) 40%, transparent); text-shadow: 0 0 .6cqw color-mix(in srgb, var(--b) 70%, transparent); }
+.dir-b .close { background: rgba(255, 90, 100, .15); border-color: #ff5a64; color: #ff5a64; box-shadow: 0 0 1cqw rgba(255, 90, 100, .4); }
+.dir-b .win-head h3 { letter-spacing: .05em; text-transform: uppercase; }
+.dir-b .ready { background: rgba(67, 204, 95, .2); color: #6dff8c; border-color: #43cc5f; }
+.dir-b .slot .ico { color: #b8c0d4; }
+.dir-b .tutor .ico { color: #6fc3ff; }
+.dir-b .oxygen .ico { color: #3fe0ff; }
+
+/* ───────────── Б+ · Б with Б1's chunky rounded font ───────────── */
+.dir-bf { --font: "Nunito", system-ui, sans-serif; --fw: 900; }
+.dir-bf .win-head h3 { letter-spacing: .02em; }
+
+/* ───────────── Б1 · Bright neon: glass + chunky font + two-tone glowing icons ───────────── */
+.dir-b1 {
+  --font: "Nunito", system-ui, sans-serif; --fw: 900;
+  --line: rgba(130, 236, 255, .8); --bw: .22cqw; --bw-thin: .16cqw; --bw-win: .24cqw;
+  --text: #fff; --muted: #a9c6e6;
+  --r: 1.8cqw; --r-sm: 1.3cqw; --btn-r: 99px; --close-r: 50%; --depth: 0;
+  --ol: 0 .12cqw 0 rgba(0, 0, 0, .55), 0 0 .6cqw rgba(0, 0, 0, .55);
+  --panel-bg: rgba(10, 14, 40, .45); --panel-shadow: 0 0 1.4cqw rgba(80, 220, 255, .4), inset 0 0 1.2cqw rgba(80, 220, 255, .18);
+  --pill-bg: rgba(10, 14, 40, .45); --pill-shadow: 0 0 1.2cqw rgba(80, 220, 255, .4), inset 0 0 1cqw rgba(80, 220, 255, .18); --pill-text: #fff;
+  --bar-bg: rgba(255, 255, 255, .1); --badge-ring: #fff;
+  --fill-speed: linear-gradient(90deg, #ff9d1f, #ffe36b); --fill-o2: linear-gradient(90deg, #1fb6ff, #8ff4ff);
+  --tutor-bg: rgba(10, 14, 40, .5); --tutor-text: #fff;
+  --fb-bg: radial-gradient(circle at 50% 30%, rgba(111, 232, 255, .3), rgba(10, 14, 40, .35) 70%); --fb-text: #8ff4ff; --fb-shadow: 0 0 1.6cqw rgba(80, 220, 255, .55), inset 0 0 1.2cqw rgba(80, 220, 255, .3);
+  --veil: rgba(2, 4, 14, .5);
+  --win-bg: linear-gradient(180deg, rgba(24, 32, 86, .9), rgba(10, 12, 40, .92)); --win-shadow: 0 0 2.4cqw rgba(80, 220, 255, .4), 0 0 6cqw rgba(255, 80, 200, .18);
+  --head-bg: linear-gradient(90deg, rgba(80, 220, 255, .38), rgba(255, 80, 200, .32)); --head-line: rgba(255, 255, 255, .35); --head-text: #fff;
+  --card-bg: rgba(255, 255, 255, .05); --card-line: rgba(255, 255, 255, .25); --card-shadow: none;
+  --empty-bg: rgba(255, 255, 255, .03); --empty-line: rgba(255, 255, 255, .2); --sel: #ff5ad8; --alien-line: rgba(255, 255, 255, .75);
+  --foot-bg: rgba(255, 255, 255, .04); --foot-line: rgba(255, 255, 255, .15);
+  --c-coin: rgba(255, 200, 61, .5); --c-coin-d: #ffe58a; --c-shine: rgba(255, 255, 255, .85); --c-bolt: rgba(255, 210, 63, .55); --c-o2: rgba(95, 212, 255, .45);
+  --c-bay: rgba(125, 226, 255, .4); --c-metal: rgba(255, 255, 255, .3); --c-shop: rgba(91, 219, 110, .4); --c-book: rgba(181, 123, 255, .4); --c-quest: rgba(255, 159, 46, .4); --c-gift: rgba(255, 95, 162, .4);
+  --c-ribbon: #ffd23f; --c-white: #fff; --c-egg: rgba(255, 241, 214, .35); --c-egg-d: #ffe0a8;
+  --c-arrow: rgba(143, 244, 255, .35); --c-strike: rgba(255, 122, 61, .45); --c-harpoon: rgba(63, 217, 255, .4); --c-bomb: rgba(181, 123, 255, .45); --c-slow: rgba(91, 219, 110, .4); --c-robux: rgba(43, 214, 154, .5); --ic-line: currentColor; --ic-w: 1.5;
+}
+.dir-b1 .ico { color: #fff; filter: drop-shadow(0 0 .5cqw currentColor); }
+.dir-b1 .scene .ico { filter: drop-shadow(0 0 1.3cqw rgba(160, 160, 255, .9)); }
+.dir-b1 .pill .ico, .dir-b1 .goal-row .ico, .dir-b1 .acard small .ico, .dir-b1 .sel small .ico, .dir-b1 .b-gold .ico { color: #ffd34a; }
+.dir-b1 .oxygen .ico { color: #5fd4ff; }
+.dir-b1 .tutor .ico, .dir-b1 .slot .ico { color: #ffe0a8; }
+.dir-b1 .b-robux .ico { color: #6fffc6; }
+.dir-b1 .bar.speed i { box-shadow: inset 0 .3cqw 0 rgba(255, 255, 255, .45), 0 0 .9cqw #ffc93c; }
+.dir-b1 .bar.o2 i { box-shadow: inset 0 .3cqw 0 rgba(255, 255, 255, .45), 0 0 .9cqw #5fd4ff; }
+.dir-b1 .acard:not(.empty) { --tier-text: color-mix(in srgb, var(--t) 60%, white); border-color: color-mix(in srgb, var(--t) 80%, white); box-shadow: 0 0 1cqw color-mix(in srgb, var(--t) 45%, transparent), inset 0 0 1.4cqw color-mix(in srgb, var(--t) 22%, transparent); }
+.dir-b1 .islot.filled { border-color: color-mix(in srgb, var(--t) 80%, white); box-shadow: inset 0 0 1cqw color-mix(in srgb, var(--t) 25%, transparent); }
+.dir-b1 .chip { background: color-mix(in srgb, var(--chip) 28%, rgba(10, 14, 40, .3)); border-color: var(--chip); color: #fff; box-shadow: 0 0 1.1cqw color-mix(in srgb, var(--chip) 55%, transparent); }
+.dir-b1 .pin-box, .dir-b1 .pin-arrow { background: rgba(255, 143, 28, .35); border-color: #ffc27a; color: #fff; }
+.dir-b1 .pin-box { box-shadow: 0 0 1.1cqw rgba(255, 160, 60, .6); text-shadow: var(--ol); }
+.dir-b1 .mbtn, .dir-b1 .fbtn { background: linear-gradient(180deg, color-mix(in srgb, var(--mc) 32%, transparent), color-mix(in srgb, var(--mc) 10%, transparent)); border-color: color-mix(in srgb, var(--mc) 70%, white); box-shadow: 0 0 1.3cqw color-mix(in srgb, var(--mc) 60%, transparent), inset 0 .3cqw 0 rgba(255, 255, 255, .22); }
+.dir-b1 .mbtn .ico, .dir-b1 .fbtn .ico { color: color-mix(in srgb, var(--mc) 45%, white); }
+.dir-b1 .btn { background: linear-gradient(180deg, color-mix(in srgb, var(--b) 55%, transparent), color-mix(in srgb, var(--b) 28%, transparent)); border-color: color-mix(in srgb, var(--b) 65%, white); color: #fff; box-shadow: 0 0 1cqw color-mix(in srgb, var(--b) 55%, transparent), inset 0 .3cqw 0 rgba(255, 255, 255, .25); }
+.dir-b1 .close { background: rgba(255, 90, 100, .4); border-color: #ff9aa0; color: #fff; box-shadow: 0 0 1cqw rgba(255, 90, 100, .55); }
+.dir-b1 .win-head h3 { text-shadow: 0 0 1cqw rgba(143, 244, 255, .8), var(--ol); }
+.dir-b1 .ready { background: rgba(67, 204, 95, .55); border-color: #9dffb0; box-shadow: 0 0 .8cqw rgba(67, 204, 95, .7); }
+
+/* ───────────── Б1 calmer: same shapes and colours, glow and saturation turned down ───────────── */
+.dir-b1s {
+  --text: #eaf2ff; --muted: #9db6d2;
+  --line: rgba(130, 236, 255, .5);
+  --panel-bg: rgba(10, 14, 40, .5); --panel-shadow: 0 0 .8cqw rgba(80, 220, 255, .18), inset 0 0 .8cqw rgba(80, 220, 255, .07);
+  --pill-bg: rgba(10, 14, 40, .5); --pill-shadow: 0 0 .7cqw rgba(80, 220, 255, .18), inset 0 0 .6cqw rgba(80, 220, 255, .07);
+  --tutor-bg: rgba(10, 14, 40, .55);
+  --fill-speed: linear-gradient(90deg, #e3901f, #f0d06a); --fill-o2: linear-gradient(90deg, #1f9ad8, #78d6e8);
+  --win-shadow: 0 0 1.4cqw rgba(80, 220, 255, .2);
+  --head-bg: linear-gradient(90deg, rgba(80, 220, 255, .2), rgba(255, 80, 200, .14)); --head-line: rgba(255, 255, 255, .2);
+  --sel: #e070c6;
+}
+.dir-b1s .ico { filter: drop-shadow(0 0 .22cqw currentColor); }
+.dir-b1s .scene .ico { filter: drop-shadow(0 0 1.3cqw rgba(160, 160, 255, .9)); }
+.dir-b1s .bar.speed i { box-shadow: inset 0 .3cqw 0 rgba(255, 255, 255, .3), 0 0 .4cqw rgba(255, 201, 60, .6); }
+.dir-b1s .bar.o2 i { box-shadow: inset 0 .3cqw 0 rgba(255, 255, 255, .3), 0 0 .4cqw rgba(95, 212, 255, .6); }
+.dir-b1s .acard:not(.empty) { --tier-text: color-mix(in srgb, var(--t) 70%, white); border-color: color-mix(in srgb, var(--t) 75%, #0a0e28); box-shadow: 0 0 .5cqw color-mix(in srgb, var(--t) 25%, transparent), inset 0 0 .9cqw color-mix(in srgb, var(--t) 13%, transparent); }
+.dir-b1s .islot.filled { border-color: color-mix(in srgb, var(--t) 75%, #0a0e28); box-shadow: inset 0 0 .7cqw color-mix(in srgb, var(--t) 15%, transparent); }
+.dir-b1s .chip { background: color-mix(in srgb, var(--chip) 18%, rgba(10, 14, 40, .45)); border-color: color-mix(in srgb, var(--chip) 80%, #0a0e28); color: #f3f0ea; box-shadow: 0 0 .5cqw color-mix(in srgb, var(--chip) 28%, transparent); }
+.dir-b1s .pin-box, .dir-b1s .pin-arrow { background: rgba(255, 143, 28, .24); border-color: rgba(255, 194, 122, .75); }
+.dir-b1s .pin-box { box-shadow: 0 0 .5cqw rgba(255, 160, 60, .3); }
+.dir-b1s .mbtn, .dir-b1s .fbtn { background: linear-gradient(180deg, color-mix(in srgb, var(--mc) 20%, transparent), color-mix(in srgb, var(--mc) 6%, transparent)); border-color: color-mix(in srgb, var(--mc) 78%, #0a0e28); box-shadow: 0 0 .6cqw color-mix(in srgb, var(--mc) 30%, transparent), inset 0 .22cqw 0 rgba(255, 255, 255, .12); }
+.dir-b1s .mbtn .ico, .dir-b1s .fbtn .ico { color: color-mix(in srgb, var(--mc) 70%, white); }
+.dir-b1s .btn { background: linear-gradient(180deg, color-mix(in srgb, var(--b) 36%, transparent), color-mix(in srgb, var(--b) 16%, transparent)); border-color: color-mix(in srgb, var(--b) 80%, #0a0e28); color: #f3f6ff; box-shadow: 0 0 .5cqw color-mix(in srgb, var(--b) 30%, transparent), inset 0 .22cqw 0 rgba(255, 255, 255, .14); }
+.dir-b1s .close { background: rgba(255, 90, 100, .28); border-color: rgba(255, 154, 160, .8); box-shadow: 0 0 .5cqw rgba(255, 90, 100, .3); }
+.dir-b1s .win-head h3 { text-shadow: 0 0 .5cqw rgba(143, 244, 255, .4), var(--ol); }
+.dir-b1s .ready { background: rgba(67, 204, 95, .4); border-color: rgba(157, 255, 176, .75); box-shadow: 0 0 .4cqw rgba(67, 204, 95, .4); }
+
+/* ───────────── Б2 · Tinted glass: candy colours, but see-through ───────────── */
+.dir-b2 {
+  --font: "Nunito", system-ui, sans-serif; --fw: 900;
+  --line: rgba(255, 255, 255, .6); --bw: .24cqw; --bw-thin: .18cqw; --bw-win: .3cqw;
+  --text: #fff; --muted: #d6d1ff;
+  --r: 2.2cqw; --r-sm: 1.4cqw; --btn-r: 1.2cqw; --close-r: 50%; --depth: .32cqw;
+  --ol: .13cqw 0 0 #1a1240, -.13cqw 0 0 #1a1240, 0 .13cqw 0 #1a1240, 0 -.13cqw 0 #1a1240, .1cqw .1cqw 0 #1a1240, -.1cqw .1cqw 0 #1a1240, .1cqw -.1cqw 0 #1a1240, -.1cqw -.1cqw 0 #1a1240, 0 .25cqw 0 #1a1240;
+  --panel-bg: linear-gradient(180deg, rgba(130, 100, 255, .42), rgba(50, 36, 160, .4)); --panel-shadow: inset 0 .3cqw 0 rgba(255, 255, 255, .3), 0 .35cqw 0 rgba(10, 6, 40, .35);
+  --pill-bg: linear-gradient(180deg, rgba(130, 100, 255, .42), rgba(50, 36, 160, .4)); --pill-shadow: inset 0 .3cqw 0 rgba(255, 255, 255, .3), 0 .35cqw 0 rgba(10, 6, 40, .35); --pill-text: #fff;
+  --bar-bg: rgba(10, 6, 40, .45); --badge-ring: #fff;
+  --fill-speed: linear-gradient(180deg, #ffe36b, #ffae1f); --fill-o2: linear-gradient(180deg, #9be9ff, #2fb4f0);
+  --tutor-bg: linear-gradient(180deg, rgba(130, 100, 255, .5), rgba(50, 36, 160, .48)); --tutor-text: #fff;
+  --fb-bg: linear-gradient(180deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .1)); --fb-text: #fff; --fb-shadow: inset 0 .35cqw 0 rgba(255, 255, 255, .35), 0 .35cqw 0 rgba(10, 6, 40, .35);
+  --veil: rgba(10, 6, 40, .45);
+  --win-bg: linear-gradient(180deg, rgba(96, 74, 230, .9), rgba(38, 28, 124, .92)); --win-shadow: 0 .6cqw 0 rgba(10, 6, 40, .5), inset 0 .35cqw 0 rgba(255, 255, 255, .25);
+  --head-bg: linear-gradient(180deg, rgba(255, 206, 90, .9), rgba(255, 140, 40, .9)); --head-line: rgba(255, 255, 255, .55); --head-text: #fff;
+  --card-bg: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .07)); --card-line: rgba(255, 255, 255, .5); --card-shadow: inset 0 .25cqw 0 rgba(255, 255, 255, .25);
+  --empty-bg: rgba(10, 6, 40, .25); --empty-line: rgba(255, 255, 255, .3); --sel: #3cf0b4; --alien-line: #1a1240;
+  --foot-bg: rgba(10, 6, 40, .25); --foot-line: rgba(255, 255, 255, .22);
+  --c-coin: #ffc83d; --c-coin-d: #d88a00; --c-shine: #fff6c9; --c-bolt: #ffd23f; --c-o2: #5fd4ff; --c-bay: #7de2ff; --c-metal: #c9d0ee;
+  --c-shop: #5bdb6e; --c-book: #b57bff; --c-quest: #ff9f2e; --c-gift: #ff5fa2; --c-ribbon: #ffd23f; --c-white: #fff; --c-egg: #fff1d6; --c-egg-d: #e0a74a;
+  --c-arrow: #fff; --c-strike: #ff7a3d; --c-harpoon: #6fe8ff; --c-bomb: #b57bff; --c-slow: #5bdb6e; --c-robux: #2bd69a; --ic-line: #1a1240; --ic-w: 1.6;
+}
+.dir-b2 .acard { --tier-text: color-mix(in srgb, var(--t) 55%, white); }
+.dir-b2 .chip { background: color-mix(in srgb, var(--chip) 70%, transparent); color: #fff; text-shadow: var(--ol); }
+.dir-b2 .pin-box, .dir-b2 .pin-arrow { background: rgba(255, 143, 28, .75); color: #fff; }
+.dir-b2 .pin-box { text-shadow: var(--ol); }
+.dir-b2 .mbtn, .dir-b2 .fbtn { background: linear-gradient(180deg, color-mix(in srgb, var(--mc) 62%, transparent), color-mix(in srgb, var(--mc) 30%, transparent)); box-shadow: inset 0 .35cqw 0 rgba(255, 255, 255, .35), 0 .35cqw 0 rgba(10, 6, 40, .35); }
+.dir-b2 .mbtn .ico, .dir-b2 .fbtn .ico { --c-bay: #fff; --c-shop: #fff; --c-book: #fff; --c-quest: #fff; --c-gift: #fff; --c-metal: #fff; --c-white: var(--mc); --c-arrow: #fff; --c-strike: #fff; --c-harpoon: #fff; --c-bomb: #fff; --c-slow: #fff; }
+.dir-b2 .btn { background: linear-gradient(180deg, color-mix(in srgb, var(--b) 88%, transparent), color-mix(in srgb, var(--b) 62%, transparent)); box-shadow: 0 var(--depth) 0 color-mix(in srgb, var(--b-edge) 75%, transparent), inset 0 .3cqw 0 rgba(255, 255, 255, .35); color: #fff; }
+.dir-b2 .close { background: linear-gradient(180deg, rgba(255, 138, 144, .9), rgba(255, 77, 88, .85)); color: #fff; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .scene .egg { animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { translate: 0 -.4cqw; } }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-coin" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9.5" style="fill:var(--c-coin);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <circle cx="12" cy="12" r="5.8" style="fill:none;stroke:var(--c-coin-d);stroke-width:1.6"/>
+      <path d="M8.6 9.2a4.6 4.6 0 0 1 3.4-2.6" style="fill:none;stroke:var(--c-shine);stroke-width:1.5;stroke-linecap:round"/>
+    </symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24">
+      <path d="M13.6 1.8 4.4 13.7h6.2l-1.3 8.5 10.3-12.4h-6.4z" style="fill:var(--c-bolt);stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linejoin:round"/>
+    </symbol>
+    <symbol id="i-o2" viewBox="0 0 24 24">
+      <circle cx="11" cy="13" r="8.5" style="fill:var(--c-o2);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <circle cx="19" cy="4.8" r="2.3" style="fill:var(--c-o2);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="M7 11a4.5 4.5 0 0 1 3.5-3.4" style="fill:none;stroke:var(--c-shine);stroke-width:1.6;stroke-linecap:round"/>
+    </symbol>
+    <symbol id="i-pod" viewBox="0 0 24 24">
+      <path d="M5 20V11a7 7 0 0 1 14 0v9z" style="fill:var(--c-bay);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="M8.6 11.6A3.6 3.6 0 0 1 12 8" style="fill:none;stroke:var(--c-white);stroke-width:1.6;stroke-linecap:round"/>
+      <rect x="3" y="18.6" width="18" height="3.4" rx="1.2" style="fill:var(--c-metal);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+    </symbol>
+    <symbol id="i-shop" viewBox="0 0 24 24">
+      <path d="M8.5 8.5V6.6a3.5 3.5 0 0 1 7 0v1.9" style="fill:none;stroke:var(--ic-line);stroke-width:calc(var(--ic-w) + .4);stroke-linecap:round"/>
+      <path d="M4.4 8.3h15.2l-1.1 12.3a1.6 1.6 0 0 1-1.6 1.4H7.1a1.6 1.6 0 0 1-1.6-1.4z" style="fill:var(--c-shop);stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linejoin:round"/>
+      <circle cx="12" cy="14.6" r="2.6" style="fill:var(--c-coin);stroke:var(--ic-line);stroke-width:1.2"/>
+    </symbol>
+    <symbol id="i-book" viewBox="0 0 24 24">
+      <rect x="4.5" y="2.8" width="15" height="18.6" rx="2.2" style="fill:var(--c-book);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="M12 6.4c-2.6 0-4 2-4 3.6 0 1.4 1 2.4 2 2.4h4c1 0 2-1 2-2.4 0-1.6-1.4-3.6-4-3.6z" style="fill:var(--c-white)"/>
+      <path d="M8 16h8M8 18.6h5" style="fill:none;stroke:var(--c-white);stroke-width:1.6;stroke-linecap:round"/>
+    </symbol>
+    <symbol id="i-quest" viewBox="0 0 24 24">
+      <rect x="4.5" y="4" width="15" height="18" rx="2.2" style="fill:var(--c-quest);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <rect x="8.5" y="2.2" width="7" height="3.8" rx="1.2" style="fill:var(--c-metal);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="m8 13.6 2.8 2.8 5.7-6.1" style="fill:none;stroke:var(--c-white);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round"/>
+    </symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24">
+      <rect x="4" y="10.6" width="16" height="11" rx="1.6" style="fill:var(--c-gift);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <rect x="2.8" y="7" width="18.4" height="4.8" rx="1.4" style="fill:var(--c-gift);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="M12 7.2v14.2" style="fill:none;stroke:var(--c-ribbon);stroke-width:2.8"/>
+      <path d="M12 7c-2-4-5.6-3.6-4.6-1 .5 1 2.6 1 4.6 1 2 0 4.1 0 4.6-1 1-2.6-2.6-3-4.6 1z" style="fill:var(--c-ribbon);stroke:var(--ic-line);stroke-width:1.3;stroke-linejoin:round"/>
+    </symbol>
+    <symbol id="i-egg" viewBox="0 0 24 24">
+      <path d="M12 2.4C7.6 2.4 4.8 9.4 4.8 14a7.2 7.2 0 0 0 14.4 0c0-4.6-2.8-11.6-7.2-11.6z" style="fill:var(--c-egg);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="m5.4 12.6 3-1.8 2.6 1.8 2.6-1.8 2.6 1.8 2.6-1.6" style="fill:none;stroke:var(--c-egg-d);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"/>
+      <ellipse cx="9" cy="7.6" rx="1.3" ry="2.1" style="fill:var(--c-shine)"/>
+    </symbol>
+    <symbol id="i-up" viewBox="0 0 24 24">
+      <path d="M12 3.5 20.5 13.6H15.4V20.5H8.6V13.6H3.5z" style="fill:var(--c-arrow);stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linejoin:round"/>
+    </symbol>
+    <symbol id="i-down" viewBox="0 0 24 24">
+      <path d="M12 20.5 3.5 10.4H8.6V3.5h6.8v6.9h5.1z" style="fill:var(--c-arrow);stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linejoin:round"/>
+    </symbol>
+    <symbol id="i-strike" viewBox="0 0 24 24">
+      <path d="M1.2 9.5h2.6M.6 13h3M1.2 16.5h2.6" style="fill:none;stroke:var(--ic-line);stroke-width:1.5;stroke-linecap:round"/>
+      <path d="M6 8.4a2.2 2.2 0 0 1 2.2-2.2h8.6a3.6 3.6 0 0 1 3.6 3.6v4.6a5.4 5.4 0 0 1-5.4 5.4h-4.6A4.4 4.4 0 0 1 6 15.4z" style="fill:var(--c-strike);stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linejoin:round"/>
+      <path d="M10 6.4v4M13.4 6.4v4M16.8 6.6v4M6 12.2h5.2a1.8 1.8 0 0 0 0-3.6H8.6" style="fill:none;stroke:var(--ic-line);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round"/>
+    </symbol>
+    <symbol id="i-harpoon" viewBox="0 0 24 24">
+      <path d="M3 21 15.4 8.6" style="fill:none;stroke:var(--ic-line);stroke-width:calc(var(--ic-w) + 1);stroke-linecap:round"/>
+      <path d="M21.4 2.6 12.6 5.4l2 2-1.6 1.6 2 2 1.6-1.6 2 2z" style="fill:var(--c-harpoon);stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linejoin:round"/>
+      <path d="M3 21c-1.5-2.5.5-4 2-3.5" style="fill:none;stroke:var(--ic-line);stroke-width:1.2;stroke-linecap:round"/>
+    </symbol>
+    <symbol id="i-bomb" viewBox="0 0 24 24">
+      <circle cx="10.5" cy="14" r="7.6" style="fill:var(--c-bomb);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="M7.4 14.4a3.2 3.2 0 1 1 3.4 3" style="fill:none;stroke:var(--c-white);stroke-width:1.5;stroke-linecap:round"/>
+      <path d="M15.6 8.4c1-2.4 3-3.4 4.6-3" style="fill:none;stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linecap:round"/>
+      <path d="m21 2.2.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" style="fill:var(--c-ribbon);stroke:var(--ic-line);stroke-width:.8"/>
+    </symbol>
+    <symbol id="i-slow" viewBox="0 0 24 24">
+      <path d="M2.5 19.5h14.6a3.6 3.6 0 0 0 3.6-3.6v-4.4" style="fill:none;stroke:var(--ic-line);stroke-width:calc(var(--ic-w) + .6);stroke-linecap:round;stroke-linejoin:round"/>
+      <path d="M19.6 11.4 18.8 7.6M21.4 11.4l1-3.6" style="fill:none;stroke:var(--ic-line);stroke-width:1.3;stroke-linecap:round"/>
+      <circle cx="10.6" cy="12.6" r="6.6" style="fill:var(--c-slow);stroke:var(--ic-line);stroke-width:var(--ic-w)"/>
+      <path d="M10.6 12.6a1.6 1.6 0 1 1 1.6 1.6 3 3 0 0 1-3.2-3 4.4 4.4 0 0 1 4.6-4" style="fill:none;stroke:var(--c-white);stroke-width:1.4;stroke-linecap:round"/>
+    </symbol>
+    <symbol id="i-robux" viewBox="0 0 24 24">
+      <path d="M12 2.4 20.4 7.2v9.6L12 21.6 3.6 16.8V7.2z" style="fill:var(--c-robux);stroke:var(--ic-line);stroke-width:var(--ic-w);stroke-linejoin:round"/>
+      <rect x="9.2" y="9.2" width="5.6" height="5.6" rx=".8" style="fill:none;stroke:var(--c-white);stroke-width:1.9"/>
+    </symbol>
+    <symbol id="astro" viewBox="0 0 40 56">
+      <rect x="4" y="22" width="9" height="18" rx="3" fill="#9aa6c8" stroke="#1c2147" stroke-width="1.6"/>
+      <rect x="9" y="20" width="22" height="24" rx="8" fill="#f2f4fb" stroke="#1c2147" stroke-width="1.8"/>
+      <rect x="11" y="42" width="7" height="12" rx="3" fill="#e2e7f6" stroke="#1c2147" stroke-width="1.6"/>
+      <rect x="22" y="42" width="7" height="12" rx="3" fill="#e2e7f6" stroke="#1c2147" stroke-width="1.6"/>
+      <circle cx="20" cy="13" r="11" fill="#f2f4fb" stroke="#1c2147" stroke-width="1.8"/>
+      <rect x="12" y="8" width="16" height="10" rx="5" fill="#2a3f8f" stroke="#1c2147" stroke-width="1.4"/>
+      <rect x="15" y="10" width="4" height="3" rx="1.5" fill="#9fd8ff"/>
+    </symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <header class="intro">
+    <h1>Интерфейс: неоновое направление, круг 2</h1>
+    <p>Подписи с иконок убраны. На HUD теперь всё управление телефона, как в игре: слева внизу джойстик Roblox, справа под большим пальцем удар, гарпун, гравибомба, вверх, вниз и медленный режим. Пунктиром отмечено то, что рисует сам Roblox. За плитками меню специально лежит гнездо с яйцом, чтобы было видно, насколько они просвечивают.</p>
+    <p>Сверху для сравнения <b>Б, как было</b>. Под ним два способа оживить неон, сохранив полупрозрачность: <b>Б1</b> и <b>Б2</b>.</p>
+  </header>
+
+  <section class="dir dir-b" aria-labelledby="h-b">
+    <div class="dir-top">
+      <span class="letter">Б</span>
+      <h2 id="h-b">Неон, как было</h2>
+      <p>Тёмное стекло, тонкие светящиеся рамки, контурные иконки, строгий шрифт.</p>
+    </div>
+    <div class="traits">
+      <span class="trait plus">меньше всех закрывает обзор</span>
+      <span class="trait minus">скучновато: всё одного голубого цвета и тонкое</span>
+    </div>
+    <div class="frames" data-screens></div>
+  </section>
+
+  <section class="dir dir-b dir-bf" aria-labelledby="h-bf">
+    <div class="dir-top">
+      <span class="letter">Б+</span>
+      <h2 id="h-bf">Неон Б со шрифтом Б1</h2>
+      <p>Всё как в Б (тёмное стекло, тонкие светящиеся рамки, контурные иконки), только шрифт круглый и толстый, как в Б1.</p>
+    </div>
+    <div class="traits">
+      <span class="trait plus">так же мало закрывает обзор</span>
+      <span class="trait plus">мягче и дружелюбнее, цифры читаются лучше</span>
+    </div>
+    <div class="frames" data-screens></div>
+  </section>
+
+  <section class="dir dir-b1" aria-labelledby="h-b1">
+    <div class="dir-top">
+      <span class="letter">Б1</span>
+      <h2 id="h-b1">Яркий неон</h2>
+      <p>Стекло осталось таким же прозрачным, но каждая кнопка светится своим цветом, иконки двухцветные: полупрозрачная заливка и яркий контур. Шрифт круглый и толстый. Карточки пришельцев светятся цветом редкости, кнопки — округлые «таблетки».</p>
+    </div>
+    <div class="traits">
+      <span class="trait plus">прозрачно, как Б, но весело и цветно</span>
+      <span class="trait plus">редкость видна по свечению карточки</span>
+      <span class="trait minus">много свечения: на телефоне надо держать его умеренным</span>
+    </div>
+    <div class="frames" data-screens></div>
+  </section>
+
+  <section class="dir dir-b1 dir-b1s" aria-labelledby="h-b1s">
+    <div class="dir-top">
+      <span class="letter">Б1·</span>
+      <h2 id="h-b1s">Яркий неон, спокойнее</h2>
+      <p>Всё от Б1: цвета кнопок, двухцветные иконки, шрифт, подсветка редкости. Свечение примерно вдвое слабее и короче, заливки прозрачнее, рамки без белого оттенка, белый текст чуть мягче.</p>
+    </div>
+    <div class="traits">
+      <span class="trait plus">глаза не устают, но цвета остались</span>
+      <span class="trait plus">редкость пришельцев всё ещё видна</span>
+    </div>
+    <div class="frames" data-screens></div>
+  </section>
+
+  <section class="dir dir-b2" aria-labelledby="h-b2">
+    <div class="dir-top">
+      <span class="letter">Б2</span>
+      <h2 id="h-b2">Цветное стекло</h2>
+      <p>Конфетные цвета и объём, но из полупрозрачного стекла: плитки окрашены, сквозь них видно сцену. Иконки белые и цветные с тёмной обводкой, текст с обводкой, поэтому читается на любом фоне, в том числе во время бури.</p>
+    </div>
+    <div class="traits">
+      <span class="trait plus">самый игрушечный из прозрачных</span>
+      <span class="trait plus">текст читается даже на ярком фоне</span>
+      <span class="trait minus">плитки плотнее, чем в Б1, и закрывают чуть больше</span>
+    </div>
+    <div class="frames" data-screens></div>
+  </section>
+
+  <section class="notes">
+    <div>
+      <h2>Что изменилось с первого круга</h2>
+      <ul>
+        <li>На плитках меню и кнопках полёта больше нет подписей, только иконки.</li>
+        <li>Плитки меню переехали в ряд под целью: в первом круге они стояли там, где у телефона джойстик.</li>
+        <li>Порядок плиток: отсек, магазин, задания, индекс, подарок. Подарок последний, потому что у новичка его нет до первой доставки: ряд просто короче, без дырки.</li>
+        <li>Все шесть кнопок полёта собраны дугой под правым большим пальцем. Сейчас в игре это столбик из шести кнопок, на телефоне он не помещается по высоте.</li>
+        <li>Удар — самая частая атака, поэтому его кнопка самая большая. У гарпуна и бомбы перезарядка видна прямо на кнопке.</li>
+        <li>А и В убраны: выбрано направление Б.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Что учесть</h2>
+      <p><b>Кнопка прыжка Roblox</b> стоит в правом нижнем углу. В макете в полёте её место занимает удар: прыжок в космосе не нужен, вверх летят своей кнопкой. На станции кнопка прыжка вернётся. Что Roblox даёт её так спрятать, проверю до начала работы.</p>
+      <p><b>Размытия под стеклом не будет.</b> Roblox не умеет размывать сцену под отдельной панелью, поэтому в макете стекло просто полупрозрачное, как и будет в игре.</p>
+      <p><b>Иконки и пришельцы</b> пока плоские. В игре на их месте будут рендеры из Blender в выбранном стиле.</p>
+      <p><b>Как ответить:</b> Б1 или Б2 и правки, например «Б1, но иконки как в Б2».</p>
+    </div>
+  </section>
+</main>
+
+<script>
+// Both screens are identical markup in every direction; only the section's CSS differs.
+const coin = '<svg class="ico"><use href="#i-coin"/></svg>';
+const bolt = '<svg class="ico"><use href="#i-bolt"/></svg>';
+const scene = (hud) => `<div class="scene"><div class="stars"></div><i class="rock r1"></i><i class="rock r2"></i>${hud ? '<i class="rock r3"></i><svg class="ico egg egg-a"><use href="#i-egg"/></svg>' : ''}<i class="rock r4"></i><svg class="ico egg egg-b"><use href="#i-egg"/></svg><div class="platform"></div>${hud ? '<svg class="astro" viewBox="0 0 40 56"><use href="#astro"/></svg>' : ''}</div>`;
+const hud = `<figure><div class="device"><div class="screen hud">${scene(true)}
+  <div class="pin"><div class="pin-box">Краб-дрон <span>320 м</span></div><div class="pin-arrow"></div></div>
+  <div class="tl">
+    <div class="pills"><div class="pill">${bolt}178K</div><div class="pill">${coin}137K</div></div>
+    <div class="goal"><div class="goal-title">Цель: Ледяной червь</div><div class="bar speed"><i></i></div>
+      <div class="goal-row"><span>${bolt}178K / 412K</span><button class="btn sm b-gold">Больше ${bolt}</button></div></div>
+  </div>
+  <div class="events"><div class="chip storm">Солнечная буря через 4:33</div><div class="chip serpent">Звёздный змей через 0:03</div></div>
+  <nav class="menu" aria-label="Меню">
+    <button class="mbtn mb-bay" aria-label="Отсек"><svg class="ico"><use href="#i-pod"/></svg></button>
+    <button class="mbtn mb-shop" aria-label="Магазин"><svg class="ico"><use href="#i-shop"/></svg></button>
+    <button class="mbtn mb-quest" aria-label="Задания"><svg class="ico"><use href="#i-quest"/></svg><b class="badge">3</b></button>
+    <button class="mbtn mb-index" aria-label="Индекс"><svg class="ico"><use href="#i-book"/></svg></button>
+    <button class="mbtn mb-gift" aria-label="Подарок"><svg class="ico"><use href="#i-gift"/></svg></button>
+  </nav>
+  <div class="bc">
+    <div class="tutor"><svg class="ico"><use href="#i-egg"/></svg>Лети к стражу и укради его яйцо</div>
+    <div class="oxygen"><svg class="ico"><use href="#i-o2"/></svg><div class="bar o2"><i></i></div><span>72%</span></div>
+  </div>
+  <i class="rbx one"></i><i class="rbx two"></i><span class="zone-note rbx-note">кнопки Roblox</span>
+  <div class="stick"></div><span class="zone-note stick-note">джойстик Roblox</span>
+  <button class="fbtn f-up" aria-label="Вверх"><svg class="ico"><use href="#i-up"/></svg></button>
+  <button class="fbtn f-down" aria-label="Вниз"><svg class="ico"><use href="#i-down"/></svg></button>
+  <button class="fbtn f-slow" aria-label="Медленный режим"><svg class="ico"><use href="#i-slow"/></svg></button>
+  <button class="fbtn f-bomb" aria-label="Гравибомба"><svg class="ico"><use href="#i-bomb"/></svg></button>
+  <button class="fbtn f-harpoon cd" data-cd="14" aria-label="Гарпун, перезарядка 14 секунд"><svg class="ico"><use href="#i-harpoon"/></svg></button>
+  <button class="fbtn f-hit" aria-label="Удар"><svg class="ico"><use href="#i-strike"/></svg></button>
+</div></div><figcaption>HUD в полёте на телефоне. Слева внизу джойстик Roblox (рисует сам Roblox), справа под большим пальцем: удар, гарпун (перезаряжается), гравибомба, вверх и вниз, медленный режим. За плитками меню — гнездо с фиолетовым яйцом.</figcaption></figure>`;
+const card = (tier, name, tierName, income, extra = '') => `<div class="acard t-${tier} ${extra}"><span class="alien"></span><b>${name}</b><span class="tier">${tierName}</span><small>${coin}${income}/с</small></div>`;
+const bay = `<figure><div class="device"><div class="screen">${scene(false)}<div class="veil"></div>
+  <section class="win" aria-label="Твой отсек">
+    <header class="win-head"><h3>Твой отсек</h3><div class="pill">${coin}137K</div><button class="close" aria-label="Закрыть">×</button></header>
+    <div class="win-body">
+      <div class="col">
+        <div class="sec-head"><h4>Капсулы<em>3/6</em></h4><button class="btn sm b-green">Лучших в капсулы</button><button class="btn sm b-gold">+ Капсула ${coin}2.7K</button></div>
+        <div class="grid3">
+          ${card('rare', 'Краб-дрон', 'Редкий', '8.5', 'selected')}
+          ${card('rare', 'Краб-дрон', 'Редкий', '8.5')}
+          ${card('common', 'Кислотный слизень', 'Обычный', '4.9')}
+          <div class="acard empty">Пусто</div><div class="acard empty">Пусто</div><div class="acard empty">Пусто</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="sec-head"><h4>Инкубатор<em>1/4</em></h4></div>
+        <div class="slots"><div class="slot filled"><svg class="ico"><use href="#i-egg"/></svg><span class="ready">Готово!</span></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>
+        <div class="buyrow"><button class="btn sm b-gold">+1 место ${coin}135K</button><button class="btn sm b-robux"><svg class="ico"><use href="#i-robux"/></svg>19</button></div>
+        <div class="sec-head"><h4>Инвентарь<em>2/10</em></h4></div>
+        <div class="inv">
+          <div class="islot filled t-common"><span class="alien sm"></span></div><div class="islot filled t-uncommon"><span class="alien sm"></span></div>
+          ${'<div class="islot"></div>'.repeat(8)}
+        </div>
+      </div>
+    </div>
+    <footer class="win-foot">
+      <div class="sel t-rare"><span class="alien sm"></span><div><b>Краб-дрон</b><small>Редкий · ${coin}8.5/с</small></div></div>
+      <button class="btn b-blue">В инвентарь</button><button class="btn b-red">Продать ${coin}1.2K</button><button class="btn b-purple">Скрестить 3 → 1</button>
+    </footer>
+  </section>
+</div></div><figcaption>Окно отсека: выбран пришелец, внизу его действия</figcaption></figure>`;
+for (const frames of document.querySelectorAll('[data-screens]')) frames.innerHTML = hud + bay;
+</script>
+</body>
+</html>
