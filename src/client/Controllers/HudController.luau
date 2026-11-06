@@ -299,7 +299,9 @@ function HudController.new(dependencies: Dependencies): HudController
 				}),
 				create("Frame")({
 					Name = "Stats",
-					Position = UDim2.fromOffset(Theme.MARGIN, Theme.MARGIN),
+					-- The middle of the left edge: the top-left corner is under the chat window.
+					AnchorPoint = Vector2.new(0, 0.5),
+					Position = UDim2.new(0, Theme.MARGIN, 0.5, 0),
 					AutomaticSize = Enum.AutomaticSize.XY,
 					BackgroundTransparency = 1,
 					create("UIListLayout")({

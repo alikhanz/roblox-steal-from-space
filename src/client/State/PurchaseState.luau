@@ -18,11 +18,15 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 
 -- A price Roblox did not give is asked for again once after this long, seconds.
 local PRICE_RETRY_SECONDS = 15
+-- Prices are asked for again when shown, but not more often than this, seconds.
+local PRICE_REFRESH_SECONDS = 30
 
 -- What a granted purchase gave (speed as the stat shows it).
 export type Granted = {
 	kind: MonetizationConfig.ProductKind,
 	compensated: boolean,
+	-- "Egg ready now" hatched the chosen egg at once.
+	hatched: boolean,
 	coins: BigNum.BigNum,
 	speed: BigNum.BigNum,
 }
@@ -34,6 +38,8 @@ export type PurchaseState = {
 	available: boolean,
 	-- The game sells this product (kind and tier, or training seconds).
 	sells: (kind: MonetizationConfig.ProductKind, tier: number?, seconds: number?) -> boolean,
+	-- Asks Roblox for the prices again (at most every 30 s): call it when prices come on screen.
+	refreshPrices: () -> (),
 	-- Roblox's price, in Robux (reactive); nil until Roblox answers, or when it does not.
 	productPrice: (kind: MonetizationConfig.ProductKind, tier: number?, seconds: number?) -> number?,
 	passPrice: (pass: Purchases.PassId) -> number?,
@@ -115,6 +121,27 @@ function PurchaseState.new(): PurchaseState
 		end
 	end
 
+	-- Asks Roblox for every price again, at most once in PRICE_REFRESH_SECONDS. Roblox's price
+	-- optimization changes prices while the game runs, so a price read on join may already be
+	-- off when the player looks at it.
+	local lastRefresh = -math.huge
+	local function refreshPrices()
+		if not catalog or os.clock() - lastRefresh < PRICE_REFRESH_SECONDS then
+			return
+		end
+		lastRefresh = os.clock()
+		local products = {}
+		for id in catalog.products do
+			table.insert(products, id)
+		end
+		local passes = {}
+		for _, id in catalog.passes do
+			table.insert(passes, id)
+		end
+		task.spawn(loadPrices, products, Enum.InfoType.Product, productPrices)
+		task.spawn(loadPrices, passes, Enum.InfoType.GamePass, passPrices)
+	end
+
 	local function readPasses(player: Player, announce: boolean)
 		local value = player:GetAttribute(MonetizationConfig.PASSES_ATTRIBUTE)
 		local before = Vide.untrack(ownedPasses)
@@ -160,28 +187,24 @@ function PurchaseState.new(): PurchaseState
 			local coins = BigNum.fromSaved(value.coins)
 			local speed = BigNum.fromSaved(value.speed)
 			if coins and speed then
-				granted.fire({ kind = value.kind, compensated = value.compensated, coins = coins, speed = speed })
+				granted.fire({
+					kind = value.kind,
+					compensated = value.compensated,
+					hatched = value.hatched,
+					coins = coins,
+					speed = speed,
+				})
 			end
 		end)
 
-		if catalog then
-			local products = {}
-			for id in catalog.products do
-				table.insert(products, id)
-			end
-			local passes = {}
-			for _, id in catalog.passes do
-				table.insert(passes, id)
-			end
-			task.spawn(loadPrices, products, Enum.InfoType.Product, productPrices)
-			task.spawn(loadPrices, passes, Enum.InfoType.GamePass, passPrices)
-		end
+		refreshPrices()
 	end
 
 	return {
 		name = "PurchaseState",
 		start = start,
 		available = catalog ~= nil,
+		refreshPrices = refreshPrices,
 		sells = function(kind, tier, seconds)
 			return productId(kind, tier, seconds) ~= nil
 		end,

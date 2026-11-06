@@ -175,12 +175,13 @@ type ShopItem = enum {
 }
 
 -- Where a purchase was offered: the shop window (opened from the menu or from the speed goal),
--- the welcome-back screen, the bay window.
+-- the welcome-back screen, the bay window, the prompt on a warming egg.
 type ShopSource = enum {
 	Store,
 	Goal,
 	Welcome,
 	Bay,
+	Egg,
 }
 
 -- Server -> client: the owner's private data. A snapshot on login, then the section that changed.
@@ -341,6 +342,8 @@ event Purchased = {
 		compensated: boolean,
 		coins: BigNum,
 		speed: BigNum,
+		-- "Egg ready now" hatched the egg at once (the hatch has its own announcement).
+		hatched: boolean,
 	},
 }
 

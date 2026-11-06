@@ -262,6 +262,7 @@ function NetService.new(dependencies: Dependencies): NetService
 			Remotes.Purchased.Fire(player, {
 				kind = granted.kind,
 				compensated = granted.compensated,
+				hatched = granted.hatched,
 				coins = wire(granted.coins),
 				speed = wire(granted.speed),
 			})

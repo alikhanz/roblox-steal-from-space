@@ -49,6 +49,11 @@ export type Granted = {
 	speed: BigNum.BigNum,
 	-- Where the player was last offered a purchase this session ("-": nowhere known).
 	source: string,
+	-- "Egg ready now" for the egg the player chose: it hatched at once (a late receipt, or one
+	-- for another egg, only makes an egg ready).
+	hatched: boolean,
+	-- The egg it hatched.
+	egg: number?,
 }
 
 export type Dependencies = {
@@ -60,6 +65,8 @@ export type Dependencies = {
 	-- Re-publishes the speed stat, and rebuilds the bay (an egg ready, a slot more).
 	publishSpeed: (player: Player) -> (),
 	refreshBay: (player: Player) -> (),
+	-- Hatches a ready egg (an "Egg ready now" bought at that very egg hatches it at once).
+	hatchEgg: (player: Player, uid: number) -> (),
 }
 
 export type PurchaseService = {
@@ -190,6 +197,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			coins = BigNum.ZERO,
 			speed = BigNum.ZERO,
 			source = lastSource[player] or "-",
+			hatched = false,
 		}
 		local multiplier = Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)
 		local current = now()
@@ -200,11 +208,15 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			data.trained = BigNum.add(data.trained, paid.trained)
 			granted.speed = paid.speed
 		elseif product.kind == "ReadyNow" then
-			local made = Purchases.makeReady(data, readyNowChoice[player], product.tier or 1, function(egg)
+			local chosen = readyNowChoice[player]
+			local made = Purchases.makeReady(data, chosen, product.tier or 1, function(egg)
 				return MonetizationConfig.readyNowTierOf(egg.grade, egg.rarity)
 			end, current)
 			readyNowChoice[player] = nil
-			if not made then
+			if made and made == chosen then
+				granted.hatched = true
+				granted.egg = made
+			elseif not made then
 				granted.compensated = true
 				granted.coins = compensate(player, data)
 			end
@@ -274,7 +286,10 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 				)
 			end
 			dependencies.publishSpeed(player)
-			if product.kind == "ReadyNow" or product.kind == "IncubatorSlot" then
+			if given.hatched and given.egg then
+				-- Rebuilds the bay itself.
+				dependencies.hatchEgg(player, given.egg)
+			elseif product.kind == "ReadyNow" or product.kind == "IncubatorSlot" then
 				dependencies.refreshBay(player)
 			end
 			purchased.fire(player, given)

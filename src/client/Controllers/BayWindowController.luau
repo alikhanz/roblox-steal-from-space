@@ -343,6 +343,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		Vide.mount(function()
 			Vide.effect(pruneSelection)
 			Vide.effect(watchIncubator)
+			-- The window shows Robux prices: fresh ones each time it opens.
+			Vide.effect(function()
+				if isOpen() then
+					Vide.untrack(purchases.refreshPrices)
+				end
+			end)
 			return create("ScreenGui")({
 				Name = "BayUi",
 				ResetOnSpawn = false,
@@ -637,6 +643,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			toast(text(key), Theme.TOAST_BAD)
 		end)
 		profile.offlineReward.connect(function(coins, speed, seconds, readyEggs, canDouble)
+			purchases.refreshPrices()
 			reward({ coins = coins, speed = speed, seconds = seconds, readyEggs = readyEggs, canDouble = canDouble })
 		end)
 		-- "Collect x2" bought from the screen: it shows the doubled numbers and offers no more.

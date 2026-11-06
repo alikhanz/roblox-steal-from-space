@@ -81,6 +81,8 @@ function PromptViewController.new(): PromptViewController
 			return
 		end
 		local progress = source(0)
+		-- The words can change while the prompt is up (a price that arrives later).
+		local actionText = source(prompt.ActionText)
 		local view: View
 		local unmount = Mount.instance(function()
 			return GrabPrompt({
@@ -100,7 +102,8 @@ function PromptViewController.new(): PromptViewController
 				end,
 				hint = function()
 					local _ = inputMode()
-					return if prompt.ActionText ~= "" then prompt.ActionText else Text.get(locale, "egg.grab.hint")
+					local words = actionText()
+					return if words ~= "" then words else Text.get(locale, "egg.grab.hint")
 				end,
 				onBadge = function(badge)
 					badge.MouseButton1Down:Connect(function()
@@ -118,6 +121,9 @@ function PromptViewController.new(): PromptViewController
 			prompt = prompt,
 			heldAt = nil :: number?,
 			connections = {
+				prompt:GetPropertyChangedSignal("ActionText"):Connect(function()
+					actionText(prompt.ActionText)
+				end),
 				prompt.PromptButtonHoldBegan:Connect(function()
 					view.heldAt = os.clock()
 				end),

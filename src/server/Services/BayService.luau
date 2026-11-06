@@ -21,6 +21,7 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
+local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
@@ -62,9 +63,11 @@ export type BayService = {
 	) -> boolean,
 	-- Gives the player an alien: into a free pod, else onto the floor. Nil without an active profile.
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
-	-- Makes every egg in the incubator's slots ready now, to hatch with its prompt (playtests;
-	-- later the Robux instant hatch).
+	-- Makes every egg in the incubator's slots ready now, to hatch with its prompt (playtests).
 	hastenHatching: (player: Player) -> boolean,
+	-- Hatches the player's ready egg `uid`, wherever the player stands (an "Egg ready now"
+	-- bought at the egg); nothing if it is not there or not ready.
+	hatch: (player: Player, uid: number) -> (),
 	-- What the player's pods earn per second; zero without an active profile.
 	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
 	-- How fast every incubator on the server runs: 1 normally, more during the solar storm (the
@@ -206,11 +209,20 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	-- A prompt on `body` that only the owner of the bay can use (and only their client draws).
-	local function addOwnerPrompt(player: Player, body: BasePart, actionKey: Text.Key, onTriggered: () -> ())
+	local function addOwnerPrompt(
+		player: Player,
+		body: BasePart,
+		actionText: string,
+		onTriggered: () -> (),
+		attributes: { [string]: number }?
+	)
 		local prompt = Instance.new("ProximityPrompt")
+		for name, value in attributes or {} do
+			prompt:SetAttribute(name, value)
+		end
 		-- Drawn by the client in the same style as the egg prompt (PromptViewController).
 		prompt.Style = Enum.ProximityPromptStyle.Custom
-		prompt.ActionText = Text.get(Text.resolveLocale(player.LocaleId), actionKey)
+		prompt.ActionText = actionText
 		prompt.ObjectText = ""
 		prompt.MaxActivationDistance = PROMPT_DISTANCE
 		prompt.RequiresLineOfSight = false
@@ -228,17 +240,37 @@ function BayService.new(dependencies: Dependencies): BayService
 		if not body then
 			return
 		end
-		addOwnerPrompt(player, body, "alien.pickUp.button", function()
+		local words = Text.get(Text.resolveLocale(player.LocaleId), "alien.pickUp.button")
+		addOwnerPrompt(player, body, words, function()
 			pickUp(player, uid, body)
 		end)
 	end
 
 	local function addHatchPrompt(player: Player, part: BasePart, uid: number)
-		addOwnerPrompt(player, part, "egg.hatch.button", function()
+		local words = Text.get(Text.resolveLocale(player.LocaleId), "egg.hatch.button")
+		addOwnerPrompt(player, part, words, function()
 			if withinReach(player, part) then
 				hatchReady(player, uid)
 			end
 		end)
+	end
+
+	-- A warming egg offers to hatch it now for Robux: the owner's client words the prompt with
+	-- the price of this egg's tier and asks Roblox for the purchase; the receipt does the rest
+	-- (PurchaseService). Only for a tier this game sells.
+	local function addHatchNowPrompt(player: Player, part: BasePart, egg: PlayerData.EggRecord)
+		local catalog = MonetizationConfig.catalogFor(game.GameId)
+		local tier = MonetizationConfig.readyNowTierOf(egg.grade, egg.rarity)
+		if not catalog or not MonetizationConfig.productIdOf(catalog, "ReadyNow", tier) then
+			return
+		end
+		-- The price is the client's: Roblox tells each player their own.
+		local locale = Text.resolveLocale(player.LocaleId)
+		local unknown = Text.get(locale, "store.robux.hint", { price = "…" })
+		local words = Text.get(locale, "egg.hatchNow.button", { price = unknown })
+		addOwnerPrompt(player, part, words, function() end, {
+			[BayConfig.READY_NOW_TIER_ATTRIBUTE] = tier,
+		})
 	end
 
 	function refresh(player: Player)
@@ -267,6 +299,8 @@ function BayService.new(dependencies: Dependencies): BayService
 				if part then
 					addHatchPrompt(player, part, egg.uid)
 				end
+			elseif part then
+				addHatchNowPrompt(player, part, egg)
 			end
 		end
 		for index, egg in data.waiting do
@@ -521,6 +555,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		addEgg = addEgg,
 		addAlien = addAlien,
 		hastenHatching = hastenHatching,
+		hatch = function(player: Player, uid: number)
+			hatchReady(player, uid)
+		end,
 		getIncomePerSecond = getIncomePerSecond,
 		setHatchRate = setHatchRate,
 		hatched = hatched,

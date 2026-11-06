@@ -14,8 +14,8 @@ export type ProductKind = "Training" | "ReadyNow" | "IncubatorSlot" | "CollectDo
 -- Everything on offer, for the analytics of where it was offered.
 export type ShopItem = Purchases.PassId | ProductKind
 -- Where a purchase was offered: the shop window opened from the menu (Store) or from the speed
--- goal (Goal), the welcome-back screen, the bay window.
-export type ShopSource = "Store" | "Goal" | "Welcome" | "Bay"
+-- goal (Goal), the welcome-back screen, the bay window, the prompt on a warming egg (Egg).
+export type ShopSource = "Store" | "Goal" | "Welcome" | "Bay" | "Egg"
 
 export type Product = {
 	read kind: ProductKind,

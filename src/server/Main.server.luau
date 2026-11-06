@@ -73,6 +73,7 @@ local purchaseService = PurchaseService.new({
 	getIncomePerSecond = bayService.getIncomePerSecond,
 	publishSpeed = speedService.publish,
 	refreshBay = bayService.refresh,
+	hatchEgg = bayService.hatch,
 })
 local offlineService = OfflineService.new({
 	activated = profile.activated,

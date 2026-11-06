@@ -92,4 +92,8 @@ return table.freeze({
 	-- On a bay's prompts (hatch an egg, pick up an alien): the owner's UserId. Only the owner can
 	-- use them, so only the owner's client draws them.
 	PROMPT_OWNER_ATTRIBUTE = "OwnerId",
+	-- On the prompt of a warming egg that hatches it for Robux: the "Egg ready now" price tier
+	-- (MonetizationConfig.readyNowTierOf). The owner's client words it with the price and asks
+	-- Roblox for the purchase.
+	READY_NOW_TIER_ATTRIBUTE = "ReadyNowTier",
 })

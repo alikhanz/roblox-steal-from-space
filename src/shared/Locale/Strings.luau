@@ -268,6 +268,11 @@ local Strings = {
 		ru = "Вылупить",
 		en = "Hatch",
 	},
+	-- On a warming egg: hatch this one now for Robux. {price}: "6 R$".
+	["egg.hatchNow.button"] = {
+		ru = "Вылупить за {price}",
+		en = "Hatch for {price}",
+	},
 	["bay.owner.title"] = {
 		ru = "Отсек {name}",
 		en = "{name}'s bay",

@@ -9,6 +9,7 @@ local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
+local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseController)
 local EventController = require(script.Parent.Controllers.EventController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
@@ -75,6 +76,7 @@ Lifecycle.run({
 	}),
 	GrabPromptController.new(),
 	PromptViewController.new(),
+	EggPurchaseController.new({ purchases = purchaseState }),
 	GuardianViewController.new({ speed = speedState.speed }),
 	BayViewController.new({ profile = profileState }),
 	bayWindowController,

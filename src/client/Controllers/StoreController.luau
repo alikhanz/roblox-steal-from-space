@@ -80,6 +80,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 
 	local function open(from: MonetizationConfig.ShopSource)
 		openedFrom = from
+		purchases.refreshPrices()
 		isOpen(true)
 	end
 
@@ -230,6 +231,10 @@ function StoreController.new(dependencies: Dependencies): StoreController
 
 	-- What a granted purchase gave, as a toast.
 	local function announce(granted: PurchaseState.Granted)
+		if granted.hatched then
+			-- The egg hatched at once: the hatch has its own announcement.
+			return
+		end
 		local coins = BigNum.format(granted.coins)
 		local speed = BigNum.format(granted.speed)
 		local message = if granted.compensated

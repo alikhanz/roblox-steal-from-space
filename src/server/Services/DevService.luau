@@ -23,6 +23,7 @@
 --   game.ServerStorage.DevCommands.HoldSerpent:Invoke(true, 30)
 --   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("Training", 3600)
 --   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("ReadyNow", 3, 17)
+--   game.ServerStorage.DevCommands.ReplayLastReceipt:Invoke()
 --   game.ServerStorage.DevCommands.GivePass:Invoke("NightShift")
 
 local CollectionService = game:GetService("CollectionService")
@@ -133,6 +134,8 @@ end
 
 function DevService.new(dependencies: Dependencies): DevService
 	local infiniteOxygen = DevConfig.STUDIO_INFINITE_OXYGEN
+	-- The last fake receipt SimulatePurchase sent, for ReplayLastReceipt.
+	local lastReceipt: { [string]: any }? = nil
 
 	local commands: { [string]: (...any) -> any } = {
 		-- Floats an egg in front of the first player; it returns to `nestId` (default: the first
@@ -488,13 +491,24 @@ function DevService.new(dependencies: Dependencies): DevService
 					return `egg {uid}: {refused}`
 				end
 			end
-			local decision = dependencies.processReceipt({
+			local receipt = {
 				PlayerId = player.UserId,
 				ProductId = productId,
 				PurchaseId = `dev-{HttpService:GenerateGUID(false)}`,
 				CurrencySpent = 0,
-			})
+			}
+			lastReceipt = receipt
+			local decision = dependencies.processReceipt(receipt)
 			return `{kind} {detail or ""}: {decision.Name}`
+		end,
+		-- Sends the last SimulatePurchase receipt again, as Roblox does when it is not sure the
+		-- game got it: the purchase must not be granted a second time.
+		ReplayLastReceipt = function(): string
+			if not lastReceipt then
+				return "no receipt yet: SimulatePurchase first"
+			end
+			local decision = dependencies.processReceipt(lastReceipt)
+			return `{lastReceipt.PurchaseId}: {decision.Name}`
 		end,
 		-- Notes a pass as owned by the first player (DoubleTraining or NightShift).
 		GivePass = function(pass: string): string
