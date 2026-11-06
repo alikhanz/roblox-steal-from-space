@@ -20,6 +20,8 @@ lune run test [фильтр]
 lune run content      # только проверка строк локализации
 lune run net          # после правки net/remotes.zap
 lune run balance      # темп игры по конфигам; после правки экономических конфигов
+lune run icons        # иконки интерфейса: SVG из assets/ui → PNG в build/icons (Chrome)
+lune run icons serve  # раздать PNG на localhost:8790 для загрузки через Studio MCP upload_image
 rojo serve            # синхронизация в Studio
 ```
 
