@@ -7,6 +7,7 @@
 local BigNum = require("./BigNum")
 local PlayReward = require("./PlayReward")
 local PlayerData = require("./PlayerData")
+local Upgrades = require("./Upgrades")
 
 export type PassId = "DoubleTraining" | "NightShift"
 
@@ -75,6 +76,12 @@ function Purchases.passEffects(passes: { string }, tuning: PassTuning): PassEffe
 			then tuning.nightShiftTrainingCapSeconds
 			else tuning.trainingCapSeconds,
 	}
+end
+
+-- The trainer's rate at `level` with the passes' `multiplier` (PassEffects.trainerMultiplier):
+-- what the pad pays per second, at home and away, and what a training pack is measured in.
+function Purchases.trainerRate(level: number, multiplier: number, tuning: Upgrades.Tuning): BigNum.BigNum
+	return BigNum.mul(Upgrades.trainerRate(level, tuning), BigNum.fromNumber(multiplier))
 end
 
 -- A training pack: as many speed points as the trainer gives at `rate` (the player's own, with

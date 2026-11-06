@@ -4,6 +4,8 @@ local BigNum = require("../../src/shared/Domain/BigNum")
 local PlayerData = require("../../src/shared/Domain/PlayerData")
 local Purchases = require("../../src/shared/Domain/Purchases")
 local Test = require("../../lune/lib/Test")
+local UpgradeConfig = require("../../src/shared/Config/UpgradeConfig")
+local Upgrades = require("../../src/shared/Domain/Upgrades")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 local DEFAULTS: PlayerData.Defaults = {
@@ -70,6 +72,15 @@ describe("Purchases passes", function()
 		expect(Purchases.notePass(data, "NightShift")).toBe(true)
 		expect(Purchases.notePass(data, "NightShift")).toBe(false)
 		expect(data.passes).toEqual({ "NightShift" })
+	end)
+end)
+
+describe("Purchases.trainerRate", function()
+	it("multiplies the trainer's rate by the passes' multiplier", function()
+		local tuning = UpgradeConfig.TUNING
+		local base = Upgrades.trainerRate(3, tuning)
+		expect(BigNum.toNumber(Purchases.trainerRate(3, 1, tuning))).toBe(BigNum.toNumber(base))
+		expect(BigNum.toNumber(Purchases.trainerRate(3, 2, tuning))).toBe(BigNum.toNumber(base) * 2)
 	end)
 end)
 

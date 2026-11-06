@@ -18,6 +18,7 @@ local Hatch = require("../src/shared/Domain/Hatch")
 local IndexConfig = require("../src/shared/Config/IndexConfig")
 local LoginGiftConfig = require("../src/shared/Config/LoginGiftConfig")
 local Loot = require("../src/shared/Domain/Loot")
+local MonetizationConfig = require("../src/shared/Config/MonetizationConfig")
 local PlayReward = require("../src/shared/Domain/PlayReward")
 local PlayerData = require("../src/shared/Domain/PlayerData")
 local QuestConfig = require("../src/shared/Config/QuestConfig")
@@ -42,8 +43,9 @@ local ASSUMPTIONS = {
 	theftPerPostSeconds = 5,
 	-- The thief gets away at this share of the recommended speed: the head start covers the rest.
 	escapeRatio = 0.9,
-	-- The training gamepass and the big Robux package (a day's worth of trainer rate).
-	trainingPass = 2,
+	-- The Double training pass (MonetizationConfig) and the big Robux package (hours of trainer
+	-- rate a day).
+	trainingPass = MonetizationConfig.PASS_TUNING.doubleTrainingMultiplier,
 	packageHours = 8,
 	-- Meteor eggs a player brings home from a shower: from a crater in the farthest zone they
 	-- can handle, at a guardian they can beat (the strip runs through every zone).

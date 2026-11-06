@@ -9,7 +9,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
+local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Trainer = require(ReplicatedStorage.Shared.Domain.Trainer)
@@ -87,7 +89,9 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 			end
 			local gain: BigNum.BigNum? = nil
 			dependencies.update(player, function(data)
-				local rate = Upgrades.trainerRate(data.trainerLevel, UpgradeConfig.TUNING)
+				-- Double training doubles it (decision 061).
+				local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
+				local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
 				gain = Upgrades.trainingGain(rate, deltaTime, 1)
 				data.trained = BigNum.add(data.trained, gain :: BigNum.BigNum)
 			end)

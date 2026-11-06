@@ -103,6 +103,17 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		return Purchases.passEffects(if data then data.passes else {}, MonetizationConfig.PASS_TUNING)
 	end
 
+	-- The passes on the player, for every client (the shop, the trainer sign over their bay).
+	local function publish(player: Player)
+		local data = dependencies.getData(player)
+		if not data then
+			return
+		end
+		local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
+		player:SetAttribute(MonetizationConfig.PASSES_ATTRIBUTE, table.concat(data.passes, ","))
+		player:SetAttribute(MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE, effects.trainerMultiplier)
+	end
+
 	local function notePass(player: Player, pass: Purchases.PassId): boolean
 		local noted = false
 		dependencies.update(player, function(data)
@@ -112,6 +123,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			if LOG then
 				print(`[PurchaseService] {player.Name} owns {pass}`)
 			end
+			publish(player)
 			passesChanged.fire(player)
 		end
 		return noted
@@ -156,10 +168,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		local current = now()
 		if product.kind == "Training" then
 			local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
-			local rate = BigNum.mul(
-				Upgrades.trainerRate(data.trainerLevel, UpgradeConfig.TUNING),
-				BigNum.fromNumber(effects.trainerMultiplier)
-			)
+			local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
 			local paid = Purchases.trainingPack(rate, product.seconds or 0, multiplier)
 			data.trained = BigNum.add(data.trained, paid.trained)
 			granted.speed = paid.speed
@@ -279,6 +288,8 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 	local function start()
 		MarketplaceService.ProcessReceipt = processReceipt
 		dependencies.activated.connect(function(player)
+			-- The copy in the profile counts at once; Roblox's answer may add to it.
+			publish(player)
 			task.spawn(checkPasses, player)
 		end)
 		MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)

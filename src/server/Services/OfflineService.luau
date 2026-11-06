@@ -9,10 +9,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
-local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Offline = require(ReplicatedStorage.Shared.Domain.Offline)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
+local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
@@ -65,15 +66,20 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 		local reward: Reward? = nil
 		dependencies.update(player, function(data)
 			local current = now()
-			local incomeSeconds = Offline.seconds(data.lastSeenAt, current, BayConfig.OFFLINE_INCOME_CAP_SECONDS)
-			local trainingSeconds =
-				Offline.seconds(data.lastSeenAt, current, UpgradeConfig.OFFLINE_TRAINING_CAP_SECONDS)
+			-- Night shift lengthens both caps, Double training doubles the rate (decision 061).
+			local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
+			local incomeSeconds = Offline.seconds(data.lastSeenAt, current, effects.offlineIncomeCapSeconds)
+			local trainingSeconds = Offline.seconds(data.lastSeenAt, current, effects.offlineTrainingCapSeconds)
 			local earned = Offline.income(dependencies.getIncomePerSecond(player), incomeSeconds)
-			local rate = Upgrades.trainerRate(data.trainerLevel, UpgradeConfig.TUNING)
+			local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
 			local gained = Upgrades.trainingGain(rate, trainingSeconds, UpgradeConfig.OFFLINE_TRAINING_FACTOR)
 
 			Wallet.earn(data, earned)
 			data.trained = BigNum.add(data.trained, gained)
+			-- "Collect x2" pays this time away once more; a new time away replaces the last one.
+			if not BigNum.isZero(earned) or not BigNum.isZero(gained) then
+				Purchases.setPendingDouble(data, earned, gained)
+			end
 			-- Whole seconds: the screen says "1 hour", not "1.1 hours", for an hour and a moment.
 			local awaySeconds = if data.lastSeenAt > 0 then math.max(math.floor(current - data.lastSeenAt), 0) else 0
 			data.lastSeenAt = current

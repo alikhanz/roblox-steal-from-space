@@ -16,9 +16,11 @@ local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
+local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -164,22 +166,32 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					return Upgrades.trainerPrice(level(), UpgradeConfig.TUNING)
 				end
 				local own = isOwn(instance)
-				-- The rate the stat really grows at: the trainer's speed points times the owner's
-				-- jetpack (the owner's own copy for them, the owner's player attribute for others).
+				-- The rate the stat really grows at: the trainer's speed points with the owner's
+				-- passes, times the owner's jetpack (the owner's own copy for them, the owner's
+				-- player attributes for others).
+				local ownerId = instance:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE)
+				local owner = if own
+					then Players.LocalPlayer
+					elseif type(ownerId) == "number" then Players:GetPlayerByUserId(ownerId)
+					else nil
 				local jetpackLevel: () -> number
 				if own then
 					jetpackLevel = function()
 						return profile.upgrades().jetpackLevel
 					end
 				else
-					local ownerId = instance:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE)
-					local owner = if type(ownerId) == "number" then Players:GetPlayerByUserId(ownerId) else nil
 					jetpackLevel = if owner
 						then attributeSource(owner, UpgradeConfig.JETPACK_LEVEL_ATTRIBUTE)
 						else function()
 							return 0
 						end
 				end
+				-- 0 until the server writes it: no passes known yet.
+				local passMultiplier = if owner
+					then attributeSource(owner, MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE)
+					else function()
+						return 0
+					end
 				return WorldLabel({
 					adornee = part,
 					title = function()
@@ -187,7 +199,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					end,
 					value = function()
 						local rate = BigNum.mul(
-							Upgrades.trainerRate(level(), UpgradeConfig.TUNING),
+							Purchases.trainerRate(level(), math.max(passMultiplier(), 1), UpgradeConfig.TUNING),
 							Upgrades.jetpackMultiplier(jetpackLevel(), UpgradeConfig.TUNING)
 						)
 						return Text.get(locale, "trainer.stand.hint", { rate = BigNum.format(rate) })

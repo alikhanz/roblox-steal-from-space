@@ -76,6 +76,10 @@ MonetizationConfig.RECEIPTS_KEPT = 100
 -- not lost: it pays this many minutes of the player's income instead.
 MonetizationConfig.COMPENSATION_MINUTES = 30
 MonetizationConfig.COMPENSATION_MIN_COINS = 100
+-- Player attributes, for every client: the passes owned (comma-separated Purchases.PassId) and
+-- the trainer's multiplier from them (the trainer sign over any bay shows the owner's rate).
+MonetizationConfig.PASSES_ATTRIBUTE = "Passes"
+MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE = "TrainerMultiplier"
 
 -- The catalog of the game with `gameId`, or nil: purchases are off in a game not listed here
 -- (an unpublished place in Studio has game id 0).
