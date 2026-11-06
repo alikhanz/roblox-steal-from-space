@@ -280,16 +280,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return `{Names.eggWithGuardian(locale, egg)} — {text("egg.waiting.hint")}`
 	end
 
-	-- Still warming: "Egg ready now" can apply to it.
-	local function isWarming(egg: ProfileState.Egg): boolean
-		local _ = clock()
-		return egg.hatchAt > workspace:GetServerTimeNow()
-	end
-
-	local function readyNowTier(egg: ProfileState.Egg): number
-		return MonetizationConfig.readyNowTierOf(egg.grade, egg.rarity)
-	end
-
 	-- The Robux tier of the incubator's next slot.
 	local function slotTier(): number
 		return Purchases.slotTier(profile.bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
@@ -449,18 +439,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					end,
 					eggLine = eggLine,
 					waitingLine = waitingLine,
-					canReadyNow = function(egg)
-						return isWarming(egg) and purchases.sells("ReadyNow", readyNowTier(egg))
-					end,
-					readyNowText = function(egg)
-						return text(
-							"bay.readyNow.button",
-							{ price = robux(purchases.productPrice("ReadyNow", readyNowTier(egg))) }
-						)
-					end,
-					onReadyNow = function(egg)
-						purchases.promptProduct("Bay", "ReadyNow", readyNowTier(egg), nil, egg.uid)
-					end,
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
 					end,

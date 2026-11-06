@@ -7,14 +7,12 @@
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Button = require(script.Parent.Parent.UI.Button)
 local Layout = require(script.Parent.Parent.UI.Layout)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
-local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local PurchaseState = require(script.Parent.Parent.State.PurchaseState)
 local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
@@ -28,11 +26,8 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
 
 local create = Vide.create
-local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
--- The "Egg ready now" row follows the eggs' countdowns: once a second is enough.
-local CLOCK_INTERVAL = 1
 local HOUR = 60 * 60
 
 local PASS_TEXTS: { [Purchases.PassId]: { title: Text.Key, hint: Text.Key } } = {
@@ -67,7 +62,6 @@ function StoreController.new(dependencies: Dependencies): StoreController
 	local purchases = dependencies.purchases
 	local isOpen = dependencies.windows.slot("Store")
 	local openedFrom: MonetizationConfig.ShopSource = "Store"
-	local clock = source(0)
 	local locale: Text.Locale = "en"
 
 	local function text(key: Text.Key, args: Text.Args?): string
@@ -90,24 +84,6 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		local rate = Purchases.trainerRate(upgrades.trainerLevel, purchases.trainerMultiplier(), UpgradeConfig.TUNING)
 		local jetpack = Upgrades.jetpackMultiplier(upgrades.jetpackLevel, UpgradeConfig.TUNING)
 		return Purchases.trainingPack(rate, seconds, jetpack).speed
-	end
-
-	-- The warming egg with the longest wait: what "Egg ready now" applies to from the shop (the
-	-- bay window offers it for any egg).
-	local function longestEgg(): ProfileState.Egg?
-		local _ = clock()
-		local now = workspace:GetServerTimeNow()
-		local found: ProfileState.Egg? = nil
-		for _, egg in profile.bay().incubator do
-			if egg.hatchAt > now and (not found or egg.hatchAt > found.hatchAt) then
-				found = egg
-			end
-		end
-		return found
-	end
-
-	local function eggTier(egg: ProfileState.Egg): number
-		return MonetizationConfig.readyNowTierOf(egg.grade, egg.rarity)
 	end
 
 	local function slotTier(): number
@@ -178,32 +154,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 				end,
 			})
 		end
-		table.insert(rows, {
-			title = text("store.readyNow.title"),
-			hint = function()
-				local egg = longestEgg()
-				return if egg
-					then text("store.readyNow.hint", { egg = Names.eggWithGuardian(locale, egg) })
-					else text("store.readyNowNone.hint")
-			end,
-			price = function()
-				local egg = longestEgg()
-				return price(if egg then purchases.productPrice("ReadyNow", eggTier(egg)) else nil)
-			end,
-			offered = function()
-				local egg = longestEgg()
-				return egg ~= nil and purchases.sells("ReadyNow", eggTier(egg))
-			end,
-			status = function()
-				return ""
-			end,
-			onBuy = function()
-				local egg = longestEgg()
-				if egg then
-					purchases.promptProduct(openedFrom, "ReadyNow", eggTier(egg), nil, egg.uid)
-				end
-			end,
-		})
+		-- "Egg ready now" is not here: it is sold on the egg itself (decision 063).
 		table.insert(rows, {
 			title = text("store.slot.title"),
 			hint = function()
@@ -300,14 +251,6 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		purchases.passUnlocked.connect(function(pass)
 			local name = text(PASS_TEXTS[pass].title)
 			dependencies.toasts.push(text("store.unlocked.toast", { name = name }), Theme.TOAST_GOOD)
-		end)
-		local sinceTick = 0
-		RunService.Heartbeat:Connect(function(deltaTime)
-			sinceTick += deltaTime
-			if sinceTick >= CLOCK_INTERVAL and isOpen() then
-				sinceTick = 0
-				clock(clock() + 1)
-			end
 		end)
 	end
 

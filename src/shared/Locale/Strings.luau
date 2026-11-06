@@ -314,10 +314,6 @@ local Strings = {
 		ru = "+1 место {price}",
 		en = "+1 slot {price}",
 	},
-	["bay.readyNow.button"] = {
-		ru = "Готово за {price}",
-		en = "Ready for {price}",
-	},
 	["bay.incubatorWaiting.hint"] = {
 		ru = "Ждут места: {count}",
 		en = "Waiting for a slot: {count}",
@@ -1110,18 +1106,6 @@ local Strings = {
 	["store.slotMax.hint"] = {
 		ru = "Все места в инкубаторе уже твои",
 		en = "Every incubator slot is yours",
-	},
-	["store.readyNow.title"] = {
-		ru = "Яйцо готово сейчас",
-		en = "Egg ready now",
-	},
-	["store.readyNow.hint"] = {
-		ru = "Сразу готово: {egg} — ему ждать дольше всех. Другое яйцо выбери в отсеке",
-		en = "Ready right away: {egg}, the longest wait. Pick another in your bay",
-	},
-	["store.readyNowNone.hint"] = {
-		ru = "Сейчас в инкубаторе ничего не греется",
-		en = "Nothing is warming in your incubator",
 	},
 	-- Next to the speed goal in the HUD: opens the shop.
 	["store.goal.button"] = {
