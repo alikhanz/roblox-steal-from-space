@@ -17,6 +17,12 @@ export type ProfileHandle = {
 	isActive: () -> boolean,
 	endSession: () -> (),
 	onSessionEnd: (listener: () -> ()) -> (),
+	-- The data as it was last saved to the store (a copy, replaced by every save).
+	lastSaved: () -> { [string]: any },
+	-- Asks the store to save now; returns at once.
+	save: () -> (),
+	-- Yields until the next save is done.
+	waitForSave: () -> (),
 }
 
 export type ProfilePort = {
@@ -33,6 +39,8 @@ export type Config = {
 	-- Turns saved data into runtime data without modifying `saved`.
 	loadData: (saved: { [string]: any }) -> LoadOutcome,
 	clock: () -> number,
+	-- Yields for `seconds` (task.wait); used between save retries.
+	sleep: (seconds: number) -> (),
 	loadTimeout: number,
 	onStateChanged: (userId: number, state: SessionState, reason: EndReason?) -> (),
 }
@@ -43,7 +51,14 @@ export type SessionManager = {
 	getState: (userId: number) -> SessionState?,
 	getData: (userId: number) -> { [string]: any }?,
 	update: (userId: number, mutator: (data: { [string]: any }) -> ()) -> boolean,
+	-- Yields until the store holds a save that `isSaved` accepts (true), or the session is no
+	-- longer active (false). Robux purchases are confirmed only after this (CONVENTIONS 7).
+	waitUntilSaved: (userId: number, isSaved: (saved: { [string]: any }) -> boolean) -> boolean,
 }
+
+-- Seconds between save attempts while waiting for a save to land (as ProfileStore's own
+-- example for developer products does).
+local SAVE_RETRY_SECONDS = 10
 
 type Session = {
 	state: SessionState,
@@ -183,12 +198,36 @@ function SessionManager.new(config: Config): SessionManager
 		return true
 	end
 
+	local function waitUntilSaved(userId: number, isSaved: (saved: { [string]: any }) -> boolean): boolean
+		while true do
+			local handle = activeHandle(userId)
+			if not handle then
+				return false
+			end
+			if isSaved(handle.lastSaved()) then
+				return true
+			end
+			local before = handle.lastSaved()
+			handle.save()
+			if handle.lastSaved() == before then
+				handle.waitForSave()
+			end
+			if isSaved(handle.lastSaved()) then
+				return true
+			end
+			if activeHandle(userId) then
+				config.sleep(SAVE_RETRY_SECONDS)
+			end
+		end
+	end
+
 	return {
 		load = load,
 		release = release,
 		getState = getState,
 		getData = getData,
 		update = update,
+		waitUntilSaved = waitUntilSaved,
 	}
 end
 

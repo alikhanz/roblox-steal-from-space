@@ -23,6 +23,7 @@ local MetricsService = require(script.Parent.Services.MetricsService)
 local NestService = require(script.Parent.Services.NestService)
 local NetService = require(script.Parent.Services.NetService)
 local OfflineService = require(script.Parent.Services.OfflineService)
+local PurchaseService = require(script.Parent.Services.PurchaseService)
 local PvpService = require(script.Parent.Services.PvpService)
 local QuestService = require(script.Parent.Services.QuestService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
@@ -62,6 +63,16 @@ local economyService = EconomyService.new({
 	getData = profile.getData,
 	update = profile.update,
 	refresh = bayService.refresh,
+})
+-- Robux purchases: the receipts and the passes.
+local purchaseService = PurchaseService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	update = profile.update,
+	waitUntilSaved = dataService.waitUntilSaved,
+	getIncomePerSecond = bayService.getIncomePerSecond,
+	publishSpeed = speedService.publish,
+	refreshBay = bayService.refresh,
 })
 local offlineService = OfflineService.new({
 	activated = profile.activated,
@@ -111,6 +122,7 @@ local netService = NetService.new({
 	quests = questService,
 	loginGift = loginGiftService,
 	index = indexService,
+	purchased = purchaseService.purchased,
 	markActive = activityService.touch,
 })
 trainingDependencies.getData = profile.getData
@@ -274,6 +286,11 @@ end)
 indexService.rewarded.connect(function(player, coins, what)
 	metricsService.earned(player, "Coins", if what == "Set" then "IndexSet" else "IndexAlien", coins)
 end)
+purchaseService.purchased.connect(function(player, granted)
+	metricsService.count(player, "Purchase", { granted.kind, tostring(granted.tier or "-") })
+	metricsService.earned(player, "Coins", "Robux", granted.coins)
+	metricsService.earned(player, "Speed", "Robux", granted.speed)
+end)
 loginGiftService.rewarded.connect(function(player, reward)
 	metricsService.earned(player, "Coins", "LoginGift", reward.paid.coins)
 	metricsService.earned(player, "Speed", "LoginGift", reward.paid.speed)
@@ -303,6 +320,9 @@ local devService = DevService.new({
 	stopEvent = eventService.stop,
 	hitSerpent = serpentService.hit,
 	holdSerpent = serpentService.hold,
+	processReceipt = purchaseService.processReceipt,
+	chooseReadyNowEgg = purchaseService.chooseReadyNowEgg,
+	notePass = purchaseService.notePass,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
@@ -328,6 +348,7 @@ Lifecycle.run({
 	questService,
 	loginGiftService,
 	indexService,
+	purchaseService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,

@@ -10,13 +10,25 @@ local LOAD_TIMEOUT = 30
 
 type FakeHandle = SessionManager.ProfileHandle & {
 	endCount: number,
+	saveCount: number,
+	-- False makes every save fail to land (the store is down).
+	savesWork: boolean,
 	-- Simulates another server taking the session over.
 	loseSession: () -> (),
 	setActive: (active: boolean) -> (),
 }
 
+local function copy(value: { [string]: any }): { [string]: any }
+	local result = {}
+	for key, item in value do
+		result[key] = if type(item) == "table" then copy(item) else item
+	end
+	return result
+end
+
 local function fakeHandle(data: { [string]: any }): FakeHandle
 	local active = true
+	local saved = copy(data)
 	local listeners: { () -> () } = {}
 	local function notifyEnded()
 		for _, listener in listeners do
@@ -49,9 +61,22 @@ local function fakeHandle(data: { [string]: any }): FakeHandle
 	handle = {
 		data = data,
 		endCount = 0,
+		saveCount = 0,
+		savesWork = true,
 		isActive = isActive,
 		endSession = endSession,
 		onSessionEnd = onSessionEnd,
+		-- A save lands right away when saves work: the copy then holds the data as it is now.
+		lastSaved = function()
+			return saved
+		end,
+		save = function()
+			handle.saveCount += 1
+			if handle.savesWork then
+				saved = copy(handle.data)
+			end
+		end,
+		waitForSave = function() end,
 		loseSession = loseSession,
 		setActive = setActive,
 	}
@@ -70,6 +95,8 @@ type Harness = {
 	shuttingDown: boolean,
 	now: number,
 	loadOutcome: SessionManager.LoadOutcome?,
+	-- Runs on each sleep between save retries.
+	onSleep: (() -> ())?,
 }
 
 local function harness(): Harness
@@ -102,6 +129,12 @@ local function harness(): Harness
 		end,
 		clock = function()
 			return h.now
+		end,
+		sleep = function(seconds)
+			h.now += seconds
+			if h.onSleep then
+				h.onSleep()
+			end
 		end,
 		loadTimeout = LOAD_TIMEOUT,
 		onStateChanged = function(_, state, reason)
@@ -295,6 +328,56 @@ describe("SessionManager while active", function()
 		h.handle.loseSession()
 
 		expect(lastEvent(h)).toEqual({ state = "Closed", reason = "ServerShutdown" })
+	end)
+end)
+
+describe("SessionManager.waitUntilSaved", function()
+	local function hasReceipt(saved: { [string]: any }): boolean
+		return saved.receipt == "r1"
+	end
+
+	it("saves and confirms once the store holds the change", function()
+		local h = harness()
+		load(h)
+		h.manager.update(USER_ID, function(data)
+			data.receipt = "r1"
+		end)
+		expect(h.manager.waitUntilSaved(USER_ID, hasReceipt)).toBe(true)
+		expect(h.handle.saveCount).toBe(1)
+	end)
+
+	it("confirms at once when the change is already saved", function()
+		local h = harness()
+		load(h)
+		h.manager.update(USER_ID, function(data)
+			data.receipt = "r1"
+		end)
+		h.handle.save()
+		expect(h.manager.waitUntilSaved(USER_ID, hasReceipt)).toBe(true)
+		expect(h.handle.saveCount).toBe(1)
+	end)
+
+	it("keeps trying while the store is down, and gives up when the session ends", function()
+		local h = harness()
+		load(h)
+		h.manager.update(USER_ID, function(data)
+			data.receipt = "r1"
+		end)
+		h.handle.savesWork = false
+		local sleeps = 0
+		h.onSleep = function()
+			sleeps += 1
+			if sleeps == 3 then
+				h.handle.loseSession()
+			end
+		end
+		expect(h.manager.waitUntilSaved(USER_ID, hasReceipt)).toBe(false)
+		expect(h.handle.saveCount).toBe(3)
+	end)
+
+	it("does not confirm for a player with no session", function()
+		local h = harness()
+		expect(h.manager.waitUntilSaved(USER_ID, hasReceipt)).toBe(false)
 	end)
 end)
 

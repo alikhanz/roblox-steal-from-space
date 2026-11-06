@@ -16,6 +16,7 @@ local NetConfig = require(ReplicatedStorage.Shared.Config.NetConfig)
 local OfflineService = require(script.Parent.OfflineService)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
+local PurchaseService = require(script.Parent.PurchaseService)
 local PvpService = require(script.Parent.PvpService)
 local QuestService = require(script.Parent.QuestService)
 local RateLimit = require(ReplicatedStorage.Shared.Domain.RateLimit)
@@ -49,6 +50,8 @@ export type Dependencies = {
 	quests: QuestService.QuestService,
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
+	-- Granted Robux purchases: their coins go to the client.
+	purchased: Signal.Signal<Player, PurchaseService.Granted>,
 	-- Every command a player sends counts as them playing (ActivityService).
 	markActive: (player: Player) -> (),
 }
@@ -240,6 +243,12 @@ function NetService.new(dependencies: Dependencies): NetService
 				speed = wire(reward.paid.speed),
 				egg = reward.egg,
 			})
+			local data = dependencies.getData(player)
+			if data then
+				Remotes.CoinsChanged.Fire(player, wire(data.coins))
+			end
+		end)
+		dependencies.purchased.connect(function(player)
 			local data = dependencies.getData(player)
 			if data then
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))

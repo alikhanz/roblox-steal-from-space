@@ -43,6 +43,8 @@ export type DataService = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	-- Applies a change to an active profile. See SessionManager.update for the mutator rules.
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
+	-- Yields until a save the store confirmed passes `isSaved` (true) or the session ends (false).
+	waitUntilSaved: (player: Player, isSaved: (saved: { [string]: any }) -> boolean) -> boolean,
 }
 
 local DataService = {}
@@ -104,6 +106,9 @@ function DataService.new(): DataService
 				return PlayerData.load(saved, DEFAULTS)
 			end,
 			clock = os.clock,
+			sleep = function(seconds)
+				task.wait(seconds)
+			end,
 			loadTimeout = LOAD_TIMEOUT_SECONDS,
 			onStateChanged = onStateChanged,
 		})
@@ -128,6 +133,10 @@ function DataService.new(): DataService
 		return getManager().update(player.UserId, mutator :: any)
 	end
 
+	local function waitUntilSaved(player: Player, isSaved: (saved: { [string]: any }) -> boolean): boolean
+		return getManager().waitUntilSaved(player.UserId, isSaved)
+	end
+
 	return {
 		name = "DataService",
 		init = init,
@@ -135,6 +144,7 @@ function DataService.new(): DataService
 		activated = activated,
 		getData = getData,
 		update = update,
+		waitUntilSaved = waitUntilSaved,
 	}
 end
 

@@ -21,6 +21,9 @@
 --   game.ServerStorage.DevCommands.HitSerpent:Invoke(3)
 --   game.ServerStorage.DevCommands.SetIncubatorSlots:Invoke(6)
 --   game.ServerStorage.DevCommands.HoldSerpent:Invoke(true, 30)
+--   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("Training", 3600)
+--   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("ReadyNow", 3, 17)
+--   game.ServerStorage.DevCommands.GivePass:Invoke("NightShift")
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -40,8 +43,10 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
+local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
+local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpService = require(script.Parent.PvpService)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
@@ -95,6 +100,11 @@ export type Dependencies = {
 	holdSerpent: (position: Vector3?, facing: Vector3?) -> boolean,
 	-- How long a player has done nothing, seconds (ActivityService).
 	idleSeconds: (player: Player) -> number,
+	-- Robux purchases: the receipt handler (fake receipts go through it), the egg to make ready
+	-- now, and noting a pass as owned.
+	processReceipt: (receipt: { [string]: any }) -> Enum.ProductPurchaseDecision,
+	chooseReadyNowEgg: (player: Player, uid: number) -> string?,
+	notePass: (player: Player, pass: Purchases.PassId) -> boolean,
 }
 
 export type DevService = {
@@ -451,6 +461,52 @@ function DevService.new(dependencies: Dependencies): DevService
 			dependencies.settleOffline(player)
 			return `settled {away}s away`
 		end,
+		-- A Robux purchase without Robux: a fake receipt for the first player through the real
+		-- receipt handler (so it is granted once and saved before it counts). `kind` is
+		-- MonetizationConfig.ProductKind; `detail` the tier (ReadyNow, IncubatorSlot) or the
+		-- seconds (Training); `uid` the egg to make ready now.
+		SimulatePurchase = function(kind: string, detail: number?, uid: number?): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local catalog = MonetizationConfig.catalogFor(game.GameId)
+			if not catalog then
+				return `no catalog for game {game.GameId}: publish the place first`
+			end
+			local productKind = kind :: MonetizationConfig.ProductKind
+			local productId = if productKind == "Training"
+				then MonetizationConfig.productIdOf(catalog, productKind, nil, detail)
+				elseif productKind == "CollectDouble" then MonetizationConfig.productIdOf(catalog, productKind)
+				else MonetizationConfig.productIdOf(catalog, productKind, detail)
+			if not productId then
+				return `no product {kind} {detail}`
+			end
+			if uid then
+				local refused = dependencies.chooseReadyNowEgg(player, uid)
+				if refused then
+					return `egg {uid}: {refused}`
+				end
+			end
+			local decision = dependencies.processReceipt({
+				PlayerId = player.UserId,
+				ProductId = productId,
+				PurchaseId = `dev-{HttpService:GenerateGUID(false)}`,
+				CurrencySpent = 0,
+			})
+			return `{kind} {detail or ""}: {decision.Name}`
+		end,
+		-- Notes a pass as owned by the first player (DoubleTraining or NightShift).
+		GivePass = function(pass: string): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(pass == "DoubleTraining" or pass == "NightShift", `Unknown pass {pass}`)
+			return if dependencies.notePass(player, pass :: Purchases.PassId)
+				then `{pass} noted`
+				else `{pass} already noted or no profile`
+		end,
 		-- A readable summary of the first player's profile.
 		DumpProfile = function(): string
 			local player = firstPlayerRoot()
@@ -474,6 +530,8 @@ function DevService.new(dependencies: Dependencies): DevService
 				.. ` | trainer {data.trainerLevel} | jetpack {data.jetpackLevel}`
 				.. ` | played {math.floor(data.playSeconds)}s | pods [{podList}]`
 				.. ` | inventory [{ids(data.inventory)}] | floor [{ids(data.floor)}] | eggs {#data.incubator}`
+				.. ` | slots {data.incubatorSlots}, waiting {#data.waiting}`
+				.. ` | passes [{table.concat(data.passes, ", ")}] | receipts {#data.purchaseIds}`
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).
 		SetInfiniteOxygen = function(enabled: boolean): string
