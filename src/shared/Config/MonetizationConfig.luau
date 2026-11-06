@@ -32,8 +32,9 @@ export type GameCatalog = {
 
 local PASS_TUNING: Purchases.PassTuning = {
 	doubleTrainingMultiplier = 2,
-	nightShiftIncomeCapSeconds = 12 * 60 * 60,
-	nightShiftTrainingCapSeconds = 24 * 60 * 60,
+	-- Twice the free caps: with this alone the game goes about as fast as with Double training.
+	nightShiftIncomeCapSeconds = 8 * 60 * 60,
+	nightShiftTrainingCapSeconds = 16 * 60 * 60,
 	incomeCapSeconds = BayConfig.OFFLINE_INCOME_CAP_SECONDS,
 	trainingCapSeconds = UpgradeConfig.OFFLINE_TRAINING_CAP_SECONDS,
 }

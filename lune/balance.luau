@@ -1,6 +1,6 @@
 --!strict
 -- `lune run balance [days]`: when does a player first beat each guardian, and what does their
--- bay look like along the way? Simulates a day-by-day player for three spending profiles,
+-- bay look like along the way? Simulates a day-by-day player for several spending profiles,
 -- driven by the real configs and domain code. Numbers that are not configs (how a player
 -- spends their time) are the ASSUMPTIONS below. Run it after touching any economy config.
 
@@ -21,6 +21,7 @@ local Loot = require("../src/shared/Domain/Loot")
 local MonetizationConfig = require("../src/shared/Config/MonetizationConfig")
 local PlayReward = require("../src/shared/Domain/PlayReward")
 local PlayerData = require("../src/shared/Domain/PlayerData")
+local Purchases = require("../src/shared/Domain/Purchases")
 local QuestConfig = require("../src/shared/Config/QuestConfig")
 local SerpentConfig = require("../src/shared/Config/SerpentConfig")
 local SpeedConfig = require("../src/shared/Config/SpeedConfig")
@@ -43,10 +44,9 @@ local ASSUMPTIONS = {
 	theftPerPostSeconds = 5,
 	-- The thief gets away at this share of the recommended speed: the head start covers the rest.
 	escapeRatio = 0.9,
-	-- The Double training pass (MonetizationConfig) and the big Robux package (hours of trainer
-	-- rate a day).
-	trainingPass = MonetizationConfig.PASS_TUNING.doubleTrainingMultiplier,
-	packageHours = 8,
+	-- The paying profiles: what the passes do comes from MonetizationConfig, as in the game; the
+	-- big Robux package is hours of trainer rate a day (MonetizationConfig.TRAINING_PACK_SECONDS).
+	packageHours = MonetizationConfig.TRAINING_PACK_SECONDS[2] / (60 * 60),
 	-- Meteor eggs a player brings home from a shower: from a crater in the farthest zone they
 	-- can handle, at a guardian they can beat (the strip runs through every zone).
 	meteorEggsPerShower = 1,
@@ -60,7 +60,9 @@ local ASSUMPTIONS = {
 
 type Profile = {
 	name: string,
-	pass: number,
+	-- The passes owned (Purchases.passEffects turns them into the trainer rate and the caps away).
+	-- Plain strings, as in the profile (Purchases.PassId values).
+	passes: { string },
 	packageHours: number,
 	-- Takes every reward that comes with playing every day: the login gift at the start of each
 	-- session, all of the day's quests at its end, the index as aliens are found.
@@ -68,12 +70,14 @@ type Profile = {
 }
 
 local PROFILES: { Profile } = {
-	{ name = "free", pass = 1, packageHours = 0, daily = false },
-	{ name = "free + daily", pass = 1, packageHours = 0, daily = true },
-	{ name = "pass x2", pass = ASSUMPTIONS.trainingPass, packageHours = 0, daily = false },
+	{ name = "free", passes = {}, packageHours = 0, daily = false },
+	{ name = "free + daily", passes = {}, packageHours = 0, daily = true },
+	{ name = "pass x2", passes = { "DoubleTraining" }, packageHours = 0, daily = false },
+	{ name = "night shift", passes = { "NightShift" }, packageHours = 0, daily = false },
+	{ name = "both passes", passes = { "DoubleTraining", "NightShift" }, packageHours = 0, daily = false },
 	{
-		name = "pass + pack",
-		pass = ASSUMPTIONS.trainingPass,
+		name = "passes + pack",
+		passes = { "DoubleTraining", "NightShift" },
 		packageHours = ASSUMPTIONS.packageHours,
 		daily = false,
 	},
@@ -165,12 +169,13 @@ local function simulate(profile: Profile, seed: number): Run
 	local bestPost = 0
 	local nextTheftAt = 0
 	local run: Run = { firstBeat = {}, slotBought = {}, snapshots = {} }
+	local passEffects = Purchases.passEffects(profile.passes, MonetizationConfig.PASS_TUNING)
 
 	local function speed(): number
 		return trained * toNumber(Upgrades.jetpackMultiplier(jetpackLevel, UpgradeConfig.TUNING))
 	end
 	local function trainRate(): number
-		return toNumber(Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING)) * profile.pass
+		return toNumber(Purchases.trainerRate(trainerLevel, passEffects.trainerMultiplier, UpgradeConfig.TUNING))
 	end
 	local function canBeat(post: number): boolean
 		return speed() >= recommendedFor(post) * ASSUMPTIONS.escapeRatio
@@ -402,10 +407,10 @@ local function simulate(profile: Profile, seed: number): Run
 			end
 		else
 			local away = inDay - sessionSeconds
-			if away < UpgradeConfig.OFFLINE_TRAINING_CAP_SECONDS then
+			if away < passEffects.offlineTrainingCapSeconds then
 				trained += trainRate() * UpgradeConfig.OFFLINE_TRAINING_FACTOR * dt
 			end
-			if away < BayConfig.OFFLINE_INCOME_CAP_SECONDS then
+			if away < passEffects.offlineIncomeCapSeconds then
 				coins += incomeRate * dt
 			end
 		end
