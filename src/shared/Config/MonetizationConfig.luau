@@ -4,6 +4,7 @@
 -- the game shows the price Roblox returns. Pure Luau: tests load it in Lune.
 
 local BayConfig = require("./BayConfig")
+local BigNum = require("../Domain/BigNum")
 local EggConfig = require("./EggConfig")
 local Purchases = require("../Domain/Purchases")
 local UpgradeConfig = require("./UpgradeConfig")
@@ -19,7 +20,8 @@ export type ShopSource = "Store" | "Goal" | "Welcome" | "Bay" | "Egg"
 
 export type Product = {
 	read kind: ProductKind,
-	-- Training: seconds of the trainer's rate. ReadyNow and IncubatorSlot: the price tier.
+	-- Training: seconds of the trainer's rate. ReadyNow, IncubatorSlot, CollectDouble: the price
+	-- tier.
 	read seconds: number?,
 	read tier: number?,
 }
@@ -66,7 +68,14 @@ local GAMES: { [number]: GameCatalog } = {
 			[3728654116] = { kind = "IncubatorSlot", tier = 1 },
 			[3728654221] = { kind = "IncubatorSlot", tier = 2 },
 			[3728654379] = { kind = "IncubatorSlot", tier = 3 },
-			[3728654444] = { kind = "CollectDouble" },
+			[3728983039] = { kind = "CollectDouble", tier = 1 },
+			[3728983222] = { kind = "CollectDouble", tier = 2 },
+			[3728983343] = { kind = "CollectDouble", tier = 3 },
+			[3728983452] = { kind = "CollectDouble", tier = 4 },
+			[3728983549] = { kind = "CollectDouble", tier = 5 },
+			[3728983641] = { kind = "CollectDouble", tier = 6 },
+			[3728983708] = { kind = "CollectDouble", tier = 7 },
+			[3728654444] = { kind = "CollectDouble", tier = 8 },
 		},
 	},
 }
@@ -81,6 +90,10 @@ MonetizationConfig.TRAINING_PACK_SECONDS = table.freeze(TRAINING_PACK_SECONDS)
 MonetizationConfig.READY_NOW_TIERS = 8
 -- The last slot of each "Incubator slot" tier: 3rd-6th, 7th-9th, 10th-12th.
 MonetizationConfig.SLOT_TIER_LAST = table.freeze({ 6, 9, BayConfig.MAX_INCUBATOR_SLOTS })
+-- "Collect x2" tiers by the coins the time away paid (decision 064): below 1M is tier 1, below
+-- 10M tier 2 and so on; 1T and more is tier 8. Each step is ten times the reward: about the
+-- first hours, day 1, days 2-3, week 1 (4 h away), weeks 2-3, a month and later (balance).
+MonetizationConfig.DOUBLE_TIER_LIMITS = table.freeze({ 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12 })
 -- Receipts kept in the profile so none is granted twice (Roblox asks again about recent ones).
 MonetizationConfig.RECEIPTS_KEPT = 100
 -- A purchase that finds nothing to apply to (its egg hatched, every slot bought meanwhile) is
@@ -104,6 +117,17 @@ function MonetizationConfig.readyNowTierOf(grade: number, rarity: string): numbe
 	local zoneIndex = assert(table.find(ZoneConfig.ZONE_ORDER, zone), `no zone for grade {grade}`) - 1
 	local rarityIndex = (table.find(EggConfig.RARITY_ORDER, rarity :: EggConfig.RarityId) or 1) - 1
 	return Purchases.readyNowTier(zoneIndex, rarityIndex, MonetizationConfig.READY_NOW_TIERS)
+end
+
+-- The "Collect x2" tier of a time away that paid `coins`.
+function MonetizationConfig.doubleTierOf(coins: BigNum.BigNum): number
+	return Purchases.doubleTier(coins, MonetizationConfig.DOUBLE_TIER_LIMITS)
+end
+
+-- The most coins a "Collect x2" of `tier` pays: nil for the top tier, which pays any reward.
+function MonetizationConfig.doubleLimitOf(tier: number): BigNum.BigNum?
+	local limit = MonetizationConfig.DOUBLE_TIER_LIMITS[tier]
+	return if limit then BigNum.fromNumber(limit) else nil
 end
 
 -- The product id of a kind (and tier, or training seconds) in `catalog`, or nil: for the client

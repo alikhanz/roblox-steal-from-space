@@ -343,7 +343,9 @@ describe("MonetizationConfig", function()
 		for _, hours in { 1, 8, 24 } do
 			expect(MonetizationConfig.productIdOf(catalog, "Training", nil, hours * 3600)).toBeTruthy()
 		end
-		expect(MonetizationConfig.productIdOf(catalog, "CollectDouble")).toBeTruthy()
+		for tier = 1, #MonetizationConfig.DOUBLE_TIER_LIMITS + 1 do
+			expect(MonetizationConfig.productIdOf(catalog, "CollectDouble", tier)).toBeTruthy()
+		end
 		expect(catalog.passes.DoubleTraining).toBeTruthy()
 		expect(catalog.passes.NightShift).toBeTruthy()
 	end)
@@ -374,6 +376,20 @@ describe("MonetizationConfig", function()
 			MonetizationConfig.READY_NOW_TIERS
 		)
 		expect(MonetizationConfig.readyNowTierOf(ZoneConfig.POSTS_PER_ZONE + 1, "Rare")).toBe(4)
+	end)
+
+	it("prices collect x2 from a small time away to the biggest one", function()
+		expect(MonetizationConfig.doubleTierOf(BigNum.fromNumber(500))).toBe(1)
+		expect(MonetizationConfig.doubleTierOf(BigNum.fromNumber(2.5e7))).toBe(3)
+		expect(MonetizationConfig.doubleTierOf(BigNum.fromNumber(5e12))).toBe(
+			#MonetizationConfig.DOUBLE_TIER_LIMITS + 1
+		)
+		expect(BigNum.toNumber(assert(MonetizationConfig.doubleLimitOf(1)))).toBe(1e6)
+		expect(MonetizationConfig.doubleLimitOf(#MonetizationConfig.DOUBLE_TIER_LIMITS + 1)).toBeNil()
+		local limits = MonetizationConfig.DOUBLE_TIER_LIMITS
+		for tier = 2, #limits do
+			expect(limits[tier] > limits[tier - 1]).toBe(true)
+		end
 	end)
 
 	it("covers every bought slot with a tier", function()

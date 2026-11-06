@@ -208,7 +208,7 @@ function NetService.new(dependencies: Dependencies): NetService
 				speed = wire(reward.speed),
 				seconds = reward.seconds,
 				readyEggs = reward.readyEggs,
-				canDouble = reward.canDouble,
+				doubleTier = reward.doubleTier,
 			})
 			local data = dependencies.getData(player)
 			if data then

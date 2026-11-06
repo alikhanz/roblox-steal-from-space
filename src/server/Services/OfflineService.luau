@@ -41,8 +41,8 @@ export type Reward = {
 	speed: BigNum.BigNum,
 	seconds: number,
 	readyEggs: number,
-	-- "Collect x2" can pay this time away once more.
-	canDouble: boolean,
+	-- The "Collect x2" tier that pays this time away once more; 0 when there is nothing to pay.
+	doubleTier: number,
 }
 
 export type OfflineService = {
@@ -92,7 +92,9 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 					speed = BigNum.mul(gained, Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)),
 					seconds = awaySeconds,
 					readyEggs = readyEggs,
-					canDouble = Purchases.hasPendingDouble(data),
+					doubleTier = if Purchases.hasPendingDouble(data)
+						then MonetizationConfig.doubleTierOf(data.pendingDouble.coins)
+						else 0,
 				}
 			end
 		end)

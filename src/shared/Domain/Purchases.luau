@@ -148,12 +148,29 @@ function Purchases.hasPendingDouble(data: Data): boolean
 	return not BigNum.isZero(pending.coins) or not BigNum.isZero(pending.trained)
 end
 
+-- The price tier of "Collect x2" for a time away that paid `coins`: the first tier whose limit
+-- (`limits`, ascending, in coins) is above them; past the last limit, the top tier
+-- (#limits + 1). The bigger the reward, the higher the price (decision 064).
+function Purchases.doubleTier(coins: BigNum.BigNum, limits: { number }): number
+	for tier, limit in limits do
+		if BigNum.lessThan(coins, BigNum.fromNumber(limit)) then
+			return tier
+		end
+	end
+	return #limits + 1
+end
+
 -- Takes the time away to collect again (nothing when there is none) and clears it, so it is
--- collected twice at most.
-function Purchases.takePendingDouble(data: Data): (BigNum.BigNum, BigNum.BigNum)
+-- collected twice at most. With `maxCoins` (a cheaper tier than the reward needs) it pays only
+-- that many coins and the same share of the speed points.
+function Purchases.takePendingDouble(data: Data, maxCoins: BigNum.BigNum?): (BigNum.BigNum, BigNum.BigNum)
 	local pending = data.pendingDouble
 	data.pendingDouble = { coins = BigNum.ZERO, trained = BigNum.ZERO }
-	return pending.coins, pending.trained
+	if not maxCoins or not BigNum.lessThan(maxCoins, pending.coins) then
+		return pending.coins, pending.trained
+	end
+	local share = BigNum.div(maxCoins, pending.coins)
+	return maxCoins, BigNum.floor(BigNum.mul(pending.trained, share))
 end
 
 return table.freeze(Purchases)

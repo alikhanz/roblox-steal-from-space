@@ -89,13 +89,13 @@ export type BayWindowController = {
 	welcomeOpen: () -> boolean,
 }
 
--- What the welcome-back screen shows; canDouble: "Collect x2" is still on offer.
+-- What the welcome-back screen shows; doubleTier: the "Collect x2" tier on offer, 0 for none.
 type Reward = {
 	coins: BigNum.BigNum,
 	speed: BigNum.BigNum,
 	seconds: number,
 	readyEggs: number,
-	canDouble: boolean,
+	doubleTier: number,
 }
 
 local BayWindowController = {}
@@ -571,14 +571,24 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						reward(nil)
 					end,
 					double = function()
-						return text("welcome.double.button", { price = robux(purchases.productPrice("CollectDouble")) })
+						local current = readReward()
+						local tier = if current then current.doubleTier else 0
+						return text(
+							"welcome.double.button",
+							{ price = robux(purchases.productPrice("CollectDouble", tier)) }
+						)
 					end,
 					canDouble = function()
 						local current = readReward()
-						return current ~= nil and current.canDouble and purchases.sells("CollectDouble")
+						return current ~= nil
+							and current.doubleTier > 0
+							and purchases.sells("CollectDouble", current.doubleTier)
 					end,
 					onDouble = function()
-						purchases.promptProduct("Welcome", "CollectDouble")
+						local current = readReward()
+						if current and current.doubleTier > 0 then
+							purchases.promptProduct("Welcome", "CollectDouble", current.doubleTier)
+						end
 					end,
 				}),
 			})
@@ -620,9 +630,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			local key: Text.Key = (NOTICE_KEYS :: any)[notice] or "notice.unknownAlien.toast"
 			toast(text(key), Theme.TOAST_BAD)
 		end)
-		profile.offlineReward.connect(function(coins, speed, seconds, readyEggs, canDouble)
+		profile.offlineReward.connect(function(coins, speed, seconds, readyEggs, doubleTier)
 			purchases.refreshPrices()
-			reward({ coins = coins, speed = speed, seconds = seconds, readyEggs = readyEggs, canDouble = canDouble })
+			reward({ coins = coins, speed = speed, seconds = seconds, readyEggs = readyEggs, doubleTier = doubleTier })
 		end)
 		-- "Collect x2" bought from the screen: it shows the doubled numbers and offers no more.
 		purchases.granted.connect(function(granted)
@@ -633,7 +643,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					speed = BigNum.add(current.speed, granted.speed),
 					seconds = current.seconds,
 					readyEggs = current.readyEggs,
-					canDouble = false,
+					doubleTier = 0,
 				})
 			end
 		end)

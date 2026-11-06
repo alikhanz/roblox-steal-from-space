@@ -230,7 +230,10 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			end
 		elseif product.kind == "CollectDouble" then
 			if Purchases.hasPendingDouble(data) then
-				local coins, trained = Purchases.takePendingDouble(data)
+				-- A cheaper tier than the reward needs (a prompt from an older reward, or not from
+				-- the screen at all) pays only up to that tier's limit (decision 064).
+				local coins, trained =
+					Purchases.takePendingDouble(data, MonetizationConfig.doubleLimitOf(product.tier or 1))
 				Wallet.earn(data, coins)
 				data.trained = BigNum.add(data.trained, trained)
 				granted.coins = coins

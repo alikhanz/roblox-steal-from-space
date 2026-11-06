@@ -293,8 +293,9 @@ event OfflineReward = {
 		speed: BigNum,
 		seconds: f64,
 		readyEggs: u8,
-		-- "Collect x2" can pay this time away once more.
-		canDouble: boolean,
+		-- The "Collect x2" tier that pays this time away once more (its price grows with the
+		-- reward, decision 064); 0 when there is nothing to pay.
+		doubleTier: u8,
 	},
 }
 

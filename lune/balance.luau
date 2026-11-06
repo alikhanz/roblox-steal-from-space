@@ -535,7 +535,16 @@ for slots = BayConfig.STARTING_INCUBATOR_SLOTS + 1, BayConfig.MAX_INCUBATOR_SLOT
 end
 
 print("")
-print("Snapshots (first run): day, speed, income/s, pods, trainer level, jetpack level, best post")
+-- The "Collect x2" tier of the free cap away at this income (decision 064): the price a player
+-- of that day sees after a long time away.
+local function doubleTierAway(income: number): number
+	return MonetizationConfig.doubleTierOf(BigNum.fromNumber(income * BayConfig.OFFLINE_INCOME_CAP_SECONDS))
+end
+
+print(
+	"Snapshots (first run): day, speed, income/s, pods, trainer level, jetpack level, best post, "
+		.. "Collect x2 tier after the free cap away"
+)
 for _, profile in PROFILES do
 	print(profile.name)
 	local run = runsByProfile[profile.name][1]
@@ -549,7 +558,9 @@ for _, profile in PROFILES do
 						tostring(snapshot.waiting),
 						3
 					)} `
-					.. `{pad(levels, 22)} post {snapshot.bestPost}`
+					.. `{pad(levels, 22)} post {pad(tostring(snapshot.bestPost), 3)} x2 tier {doubleTierAway(
+						snapshot.income
+					)}`
 			)
 		end
 	end

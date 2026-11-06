@@ -466,7 +466,7 @@ function DevService.new(dependencies: Dependencies): DevService
 		end,
 		-- A Robux purchase without Robux: a fake receipt for the first player through the real
 		-- receipt handler (so it is granted once and saved before it counts). `kind` is
-		-- MonetizationConfig.ProductKind; `detail` the tier (ReadyNow, IncubatorSlot) or the
+		-- MonetizationConfig.ProductKind; `detail` the tier (ReadyNow, IncubatorSlot, CollectDouble) or the
 		-- seconds (Training); `uid` the egg to make ready now.
 		SimulatePurchase = function(kind: string, detail: number?, uid: number?): string
 			local player = firstPlayerRoot()
@@ -480,7 +480,6 @@ function DevService.new(dependencies: Dependencies): DevService
 			local productKind = kind :: MonetizationConfig.ProductKind
 			local productId = if productKind == "Training"
 				then MonetizationConfig.productIdOf(catalog, productKind, nil, detail)
-				elseif productKind == "CollectDouble" then MonetizationConfig.productIdOf(catalog, productKind)
 				else MonetizationConfig.productIdOf(catalog, productKind, detail)
 			if not productId then
 				return `no product {kind} {detail}`
