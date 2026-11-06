@@ -12,6 +12,7 @@ local IndexConfig = require("../../src/shared/Config/IndexConfig")
 local Loot = require("../../src/shared/Domain/Loot")
 local MeteorConfig = require("../../src/shared/Config/MeteorConfig")
 local MeteorShower = require("../../src/shared/Domain/MeteorShower")
+local MonetizationConfig = require("../../src/shared/Config/MonetizationConfig")
 local SerpentConfig = require("../../src/shared/Config/SerpentConfig")
 local Speed = require("../../src/shared/Domain/Speed")
 local SpeedConfig = require("../../src/shared/Config/SpeedConfig")
@@ -327,5 +328,41 @@ describe("SerpentConfig", function()
 		local own = EggConfig.luckOf("Rare", "Large")
 		expect(own).toBe(EggConfig.RARITIES.Rare.luck + EggConfig.SIZES.Large.luck)
 		expect(EggConfig.luckOf("Rare", "Large", SerpentConfig.STAR_EGG_LUCK)).toBe(own + SerpentConfig.STAR_EGG_LUCK)
+	end)
+end)
+
+describe("MonetizationConfig", function()
+	it("has every tier of every product in the Dev game", function()
+		local catalog = assert(MonetizationConfig.catalogFor(10774871729))
+		for tier = 1, MonetizationConfig.READY_NOW_TIERS do
+			expect(MonetizationConfig.productIdOf(catalog, "ReadyNow", tier)).toBeTruthy()
+		end
+		for tier = 1, #MonetizationConfig.SLOT_TIER_LAST do
+			expect(MonetizationConfig.productIdOf(catalog, "IncubatorSlot", tier)).toBeTruthy()
+		end
+		for _, hours in { 1, 8, 24 } do
+			expect(MonetizationConfig.productIdOf(catalog, "Training", nil, hours * 3600)).toBeTruthy()
+		end
+		expect(MonetizationConfig.productIdOf(catalog, "CollectDouble")).toBeTruthy()
+		expect(catalog.passes.DoubleTraining).toBeTruthy()
+		expect(catalog.passes.NightShift).toBeTruthy()
+	end)
+
+	it("turns purchases off in an unknown game", function()
+		expect(MonetizationConfig.catalogFor(0)).toBeNil()
+	end)
+
+	it("prices ready now from the first zone's common egg to the last zone's legendary", function()
+		expect(MonetizationConfig.readyNowTierOf(1, "Common")).toBe(1)
+		expect(MonetizationConfig.readyNowTierOf(ZoneConfig.POST_COUNT, "Legendary")).toBe(
+			MonetizationConfig.READY_NOW_TIERS
+		)
+		expect(MonetizationConfig.readyNowTierOf(ZoneConfig.POSTS_PER_ZONE + 1, "Rare")).toBe(4)
+	end)
+
+	it("covers every bought slot with a tier", function()
+		expect(MonetizationConfig.SLOT_TIER_LAST[#MonetizationConfig.SLOT_TIER_LAST]).toBe(
+			BayConfig.MAX_INCUBATOR_SLOTS
+		)
 	end)
 end)

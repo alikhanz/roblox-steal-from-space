@@ -86,6 +86,18 @@ export type PlayerData = {
 	loginGift: LoginGift.State,
 	-- Every alien the player has ever had, and which rewards are taken (Domain/AlienIndex).
 	index: AlienIndex.State,
+	-- The last Robux receipts granted (their PurchaseId), so none is granted twice
+	-- (Domain/Purchases, CONVENTIONS section 7).
+	purchaseIds: { string },
+	-- Passes the player owns (Purchases.PassId): a copy for when Roblox's check fails.
+	passes: { string },
+	-- What the last time away paid, for "Collect x2"; zeros: nothing to collect again.
+	pendingDouble: PendingDouble,
+}
+
+export type PendingDouble = {
+	coins: BigNum.BigNum,
+	trained: BigNum.BigNum,
 }
 
 -- Starting values that come from configs; the domain never reads configs itself.
@@ -101,7 +113,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 13
+PlayerData.SCHEMA_VERSION = 14
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -177,6 +189,9 @@ PlayerData.MIGRATIONS = {
 		data.incubatorSlots = 2
 		data.waiting = {}
 	end,
+	-- v14 adds Robux purchases (decision 061): receipts, passes and the time away to collect
+	-- again, all empty, filled from the template.
+	[13] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -206,6 +221,9 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		quests = Quests.empty(),
 		loginGift = LoginGift.empty(),
 		index = AlienIndex.empty(),
+		purchaseIds = {},
+		passes = {},
+		pendingDouble = { coins = BigNum.ZERO, trained = BigNum.ZERO },
 	}
 end
 
@@ -364,6 +382,40 @@ local function validateIndex(index: any): string?
 	return nil
 end
 
+-- A proper array of non-empty strings.
+local function validateStrings(list: any, name: string): string?
+	if type(list) ~= "table" then
+		return `{name} is not a list`
+	end
+	local count = 0
+	for key, value in list do
+		if not isInteger(key) or key < 1 or key > #list or type(value) ~= "string" or value == "" then
+			return `{name} is invalid`
+		end
+		count += 1
+	end
+	return if count == #list then nil else `{name} is invalid`
+end
+
+local function validatePurchases(data: { [string]: any }): string?
+	local problem = validateStrings(data.purchaseIds, "purchaseIds") or validateStrings(data.passes, "passes")
+	if problem then
+		return problem
+	end
+	local pending = data.pendingDouble
+	if type(pending) ~= "table" then
+		return "pendingDouble is not a table"
+	end
+	for _, field in { "coins", "trained" } do
+		local value = BigNum.fromSaved(pending[field])
+		if not value or BigNum.isNegative(value) then
+			return `pendingDouble {field} is invalid`
+		end
+		pending[field] = value
+	end
+	return nil
+end
+
 -- Checks a migrated, reconciled copy and converts saved values into their runtime form in place.
 local function validate(data: { [string]: any }): string?
 	for _, field in { "coins", "coinsEarned", "trained" } do
@@ -431,7 +483,11 @@ local function validate(data: { [string]: any }): string?
 			return `loginGift {field} is invalid`
 		end
 	end
-	return validateIndex(data.index)
+	local indexProblem = validateIndex(data.index)
+	if indexProblem then
+		return indexProblem
+	end
+	return validatePurchases(data)
 end
 
 -- Loads saved data without touching it: all work happens on a copy, which is returned on success.

@@ -669,3 +669,42 @@ describe("PlayerData migration v12 -> v13", function()
 		expectCorrupted(noSlots, "incubatorSlots is invalid")
 	end)
 end)
+
+describe("PlayerData migration v13 -> v14", function()
+	it("gives a profile from before no receipts, no passes and nothing to collect again", function()
+		local saved = savedTemplate()
+		saved.schemaVersion = 13
+		saved.purchaseIds = nil
+		saved.passes = nil
+		saved.pendingDouble = nil
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.purchaseIds).toEqual({})
+			expect(outcome.data.passes).toEqual({})
+			expect(BigNum.isZero(outcome.data.pendingDouble.coins)).toBe(true)
+			expect(BigNum.isZero(outcome.data.pendingDouble.trained)).toBe(true)
+		end
+	end)
+
+	it("keeps saved purchases and rejects broken ones", function()
+		local saved = savedTemplate()
+		saved.purchaseIds = { "receipt-1", "receipt-2" }
+		saved.passes = { "NightShift" }
+		saved.pendingDouble =
+			{ coins = { mantissa = 1500000, exponent = 0 }, trained = { mantissa = 2000, exponent = 0 } }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.purchaseIds).toEqual({ "receipt-1", "receipt-2" })
+			expect(outcome.data.passes).toEqual({ "NightShift" })
+			expect(BigNum.toNumber(outcome.data.pendingDouble.coins)).toBe(1.5e6)
+		end
+		local badReceipts = savedTemplate()
+		badReceipts.purchaseIds = { "receipt-1", 7 }
+		expectCorrupted(badReceipts, "purchaseIds is invalid")
+		local badPending = savedTemplate()
+		badPending.pendingDouble = { coins = "lots", trained = { mantissa = 0, exponent = 0 } }
+		expectCorrupted(badPending, "pendingDouble coins is invalid")
+	end)
+end)
