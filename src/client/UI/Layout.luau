@@ -63,4 +63,71 @@ function Layout.stroke(color: Color3, thickness: number, visible: () -> boolean)
 	return instance
 end
 
+-- Scales a ScreenGui's contents from the reference phone screen to the current one: by screen
+-- height, never below 1 and never above NEON.MAX_SCALE (docs/design/DESIGN.md, "Масштаб").
+-- Call inside a Vide scope: it stops following the camera when the scope ends.
+function Layout.screenScale(): UIScale
+	local instance = Instance.new("UIScale")
+	local function update()
+		local camera = workspace.CurrentCamera
+		local height = if camera then camera.ViewportSize.Y else Theme.NEON.REFERENCE_HEIGHT
+		instance.Scale = math.clamp(height / Theme.NEON.REFERENCE_HEIGHT, 1, Theme.NEON.MAX_SCALE)
+	end
+	update()
+	local cameraConnection: RBXScriptConnection? = nil
+	local function watchCamera()
+		if cameraConnection then
+			cameraConnection:Disconnect()
+		end
+		local camera = workspace.CurrentCamera
+		cameraConnection = if camera then camera:GetPropertyChangedSignal("ViewportSize"):Connect(update) else nil
+		update()
+	end
+	watchCamera()
+	local workspaceConnection = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
+	Vide.cleanup(function()
+		workspaceConnection:Disconnect()
+		if cameraConnection then
+			cameraConnection:Disconnect()
+		end
+	end)
+	return instance
+end
+
+-- The dark outline under text on glass, so it reads over any scene.
+function Layout.textStroke(): UIStroke
+	local instance = Instance.new("UIStroke")
+	instance.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	instance.Color = Color3.new(0, 0, 0)
+	instance.Transparency = Theme.NEON.TEXT_STROKE_TRANSPARENCY
+	instance.Thickness = 1
+	return instance
+end
+
+-- The outline colour of a coloured glass element: its colour, mixed towards the glass.
+function Layout.lineColor(color: Color3): Color3
+	return color:Lerp(Theme.NEON.GLASS, Theme.NEON.LINE_DARKEN)
+end
+
+-- An icon's colour on a coloured element: its colour, lifted towards white.
+function Layout.iconColor(color: Color3): Color3
+	return color:Lerp(Color3.new(1, 1, 1), Theme.NEON.ICON_LIGHTEN)
+end
+
+-- Coloured glass for an element whose BackgroundColor3 is `color` and BackgroundTransparency
+-- is 0: a fill fading downwards and an outline (DESIGN.md, "Как цвет ложится на кнопку").
+-- `dense` is the thicker fill of action buttons. Returns the instances to put among children.
+function Layout.glass(color: Color3, dense: boolean?): { Instance }
+	local top = if dense then Theme.NEON.DENSE_FILL_TOP else Theme.NEON.FILL_TOP
+	local bottom = if dense then Theme.NEON.DENSE_FILL_BOTTOM else Theme.NEON.FILL_BOTTOM
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Transparency = NumberSequence.new(top, bottom)
+	local outline = Instance.new("UIStroke")
+	outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	outline.Color = Layout.lineColor(color)
+	outline.Thickness = Theme.NEON.LINE_THICKNESS
+	return { gradient, outline }
+end
+
 return table.freeze(Layout)
