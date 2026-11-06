@@ -452,9 +452,6 @@ figcaption { color: var(--muted); font-size: 14px; }
 .f-harpoon { right: 11.6cqw; bottom: 11.6cqw; width: 6.4cqw; height: 6.4cqw; }
 .f-bomb { right: 20cqw; bottom: 7.4cqw; width: 6.4cqw; height: 6.4cqw; }
 .f-slow { right: 28.6cqw; bottom: 2.6cqw; width: 5cqw; height: 5cqw; } .f-slow .ico { font-size: 3cqw; }
-/* Slow mode is a quiet switch: no colour fill, no glow, dim outline */
-.dir-b1s .fbtn.f-slow { background: rgba(10, 14, 40, .3); border-color: rgba(234, 242, 255, .22); box-shadow: none; }
-.dir-b1s .fbtn.f-slow .ico { color: rgba(234, 242, 255, .55); filter: none; }
 .hud .bc { left: 41%; }
 .tl { width: 36cqw; }
 .goal { width: 25cqw; }
@@ -518,7 +515,7 @@ figcaption { color: var(--muted); font-size: 14px; }
   </header>
 
   <div class="changes">
-    <div class="change"><h3>1. Кнопки полёта</h3><p>Вверх и вниз одинаковые, столбиком в углу, где у Roblox прыжок. Удар, гарпун и бомба — тесной группой сразу слева от стрелок. Медленный режим — левее всех, маленький и тусклый. Все кнопки полёта видны только в космосе.</p></div>
+    <div class="change"><h3>1. Кнопки полёта</h3><p>Вверх и вниз одинаковые, столбиком в углу, где у Roblox прыжок. Удар, гарпун и бомба — тесной группой сразу слева от стрелок. Медленный режим — левее всех, поменьше, в своём зелёном цвете, как остальные кнопки. Все кнопки полёта видны только в космосе.</p></div>
     <div class="change"><h3>2. Плашки</h3><p>«Защита новичка» — третья плашка рядом с ⚡ и монетами (телефон). «Несёшь яйцо» — над подсказкой внизу по центру (ПК: игрок несёт яйцо, удар выключен).</p></div>
     <div class="change"><h3>3. Буквы на ПК</h3><p>На иконках — клавиша в уголке: B и J уже есть, M, N и L для магазина, индекса и подарка — новые, они с пунктиром. Атаки: ЛКМ, F, G, Q; вверх и вниз — пробел и Ctrl.</p></div>
   </div>
@@ -581,7 +578,7 @@ const phone = `<figure><div class="device"><div class="screen hud">${scene}${pin
   <button class="fbtn f-slow" aria-label="Медленный режим">${icon('i-slow')}</button>
   <button class="fbtn f-down" aria-label="Вниз">${icon('i-down')}</button>
   <button class="fbtn f-up" aria-label="Вверх">${icon('i-up')}</button>
-</div></div><figcaption>Телефон в космосе. Вверх и вниз — в углу вместо прыжка Roblox, атаки — рядом с ними, медленный режим — тусклый слева. Рядом с ⚡ и монетами — защита новичка.</figcaption></figure>`;
+</div></div><figcaption>Телефон в космосе. Вверх и вниз — в углу вместо прыжка Roblox, атаки — рядом с ними, медленный режим — слева. Рядом с ⚡ и монетами — защита новичка.</figcaption></figure>`;
 
 const row = (tier, name, income, extra = '', variant = false) => `<div class="row t-${tier} ${extra}">${variant ? `<svg class="ico var"><use href="#i-meteor"/></svg>` : ''}<span class="name">${name}</span><span class="inc">${coin}${income}/с</span></div>`;
 const bay = `<figure><div class="device"><div class="screen">
