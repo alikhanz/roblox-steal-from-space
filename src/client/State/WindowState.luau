@@ -1,6 +1,6 @@
 --!strict
 -- Which window is open: one at a time. Opening a window (the bay, the quests, the index, the
--- daily gift, the shop) closes the one that was open, so they never pile up on screen. Each
+-- daily gift, the jetpack shop, the Robux shop) closes the one that was open, so they never pile up on screen. Each
 -- window controller holds a slot that reads and writes like a Vide source of its open flag.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

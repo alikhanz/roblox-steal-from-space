@@ -60,6 +60,18 @@ function Names.egg(locale: Text.Locale, rarity: string, variant: string?): strin
 	return withVariant(locale, Text.get(locale, key), variantConfig.eggNameKey)
 end
 
+-- An egg with its guardian, as the bay window and the shop list it: "Rare egg · Crab Drone",
+-- and " · ★ star" for the extra luck only the star egg carries.
+function Names.eggWithGuardian(
+	locale: Text.Locale,
+	egg: { read rarity: string, read variant: string?, read grade: number, read luck: number? }
+): string
+	local name = Names.egg(locale, egg.rarity, egg.variant) or "?"
+	local guardian = Names.guardian(locale, egg.grade) or "?"
+	local luck = if egg.luck and egg.luck > 0 then ` · {Text.get(locale, "egg.starEgg.hint")}` else ""
+	return `{name} · {guardian}{luck}`
+end
+
 -- The jetpack of `level` (0-based). Levels past the named ones are the last name "+n".
 -- Marks of a jetpack model, as they follow its name.
 local MARKS = { "I", "II", "III", "IV" }

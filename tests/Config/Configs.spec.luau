@@ -348,6 +348,22 @@ describe("MonetizationConfig", function()
 		expect(catalog.passes.NightShift).toBeTruthy()
 	end)
 
+	it("lists in the shop every pass and training pack the game sells", function()
+		local catalog = assert(MonetizationConfig.catalogFor(10774871729))
+		for pass in catalog.passes do
+			expect(table.find(MonetizationConfig.PASS_ORDER, pass)).toBeTruthy()
+		end
+		for _, product in catalog.products do
+			if product.kind == "Training" then
+				expect(table.find(MonetizationConfig.TRAINING_PACK_SECONDS, product.seconds :: number)).toBeTruthy()
+			end
+		end
+		-- The shop names them: 1 hour, 8 hours, a day (StoreController.TRAINING_TITLES).
+		expect(MonetizationConfig.TRAINING_PACK_SECONDS[1]).toBe(3600)
+		expect(MonetizationConfig.TRAINING_PACK_SECONDS[2]).toBe(8 * 3600)
+		expect(MonetizationConfig.TRAINING_PACK_SECONDS[3]).toBe(24 * 3600)
+	end)
+
 	it("turns purchases off in an unknown game", function()
 		expect(MonetizationConfig.catalogFor(0)).toBeNil()
 	end)

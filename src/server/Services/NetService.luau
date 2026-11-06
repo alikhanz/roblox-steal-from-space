@@ -12,6 +12,7 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EconomyService = require(script.Parent.EconomyService)
 local IndexService = require(script.Parent.IndexService)
 local LoginGiftService = require(script.Parent.LoginGiftService)
+local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local NetConfig = require(ReplicatedStorage.Shared.Config.NetConfig)
 local OfflineService = require(script.Parent.OfflineService)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
@@ -50,8 +51,15 @@ export type Dependencies = {
 	quests: QuestService.QuestService,
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
-	-- Granted Robux purchases: their coins go to the client.
+	-- Granted Robux purchases: what they gave goes to the client.
 	purchased: Signal.Signal<Player, PurchaseService.Granted>,
+	-- A purchase prompt the client is about to show (PurchaseService.notePrompt).
+	notePrompt: (
+		player: Player,
+		item: MonetizationConfig.ShopItem,
+		source: MonetizationConfig.ShopSource,
+		egg: number?
+	) -> PurchaseService.Notice?,
 	-- Every command a player sends counts as them playing (ActivityService).
 	markActive: (player: Player) -> (),
 }
@@ -63,6 +71,7 @@ export type Notice =
 	| LoginGiftService.Notice
 	| IndexService.Notice
 	| StormService.Notice
+	| PurchaseService.Notice
 
 export type NetService = {
 	name: string,
@@ -199,6 +208,7 @@ function NetService.new(dependencies: Dependencies): NetService
 				speed = wire(reward.speed),
 				seconds = reward.seconds,
 				readyEggs = reward.readyEggs,
+				canDouble = reward.canDouble,
 			})
 			local data = dependencies.getData(player)
 			if data then
@@ -248,7 +258,13 @@ function NetService.new(dependencies: Dependencies): NetService
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))
 			end
 		end)
-		dependencies.purchased.connect(function(player)
+		dependencies.purchased.connect(function(player, granted)
+			Remotes.Purchased.Fire(player, {
+				kind = granted.kind,
+				compensated = granted.compensated,
+				coins = wire(granted.coins),
+				speed = wire(granted.speed),
+			})
 			local data = dependencies.getData(player)
 			if data then
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))
@@ -311,6 +327,11 @@ function NetService.new(dependencies: Dependencies): NetService
 		Remotes.ClaimIndexAll.SetCallback(guarded(function(player)
 			return alienIndex.claimAll(player)
 		end))
+		Remotes.PurchasePrompted.SetCallback(
+			guarded(function(player, value: { item: Remotes.ShopItem, source: Remotes.ShopSource, egg: number? })
+				return dependencies.notePrompt(player, value.item, value.source, value.egg)
+			end)
+		)
 
 		PlayerEvents.observe(function() end, function(player)
 			limiter.forget(tostring(player.UserId))

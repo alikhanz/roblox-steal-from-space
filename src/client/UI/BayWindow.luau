@@ -40,6 +40,8 @@ export type Texts = {
 	incubatorEmpty: string,
 	-- "+1 slot 450 ●".
 	buySlot: () -> string,
+	-- "+1 slot 19 R$".
+	buySlotRobux: () -> string,
 	inventory: () -> string,
 	floor: () -> string,
 	-- How to pick them up, or why not right now.
@@ -67,6 +69,10 @@ export type Props = {
 	eggLine: (egg: ProfileState.Egg) -> string,
 	-- A queued egg's line: "<name> — waiting for a slot".
 	waitingLine: (egg: ProfileState.WaitingEgg) -> string,
+	-- "Egg ready now" next to an egg warming in a slot: offered or not, and the button's text.
+	canReadyNow: (egg: ProfileState.Egg) -> boolean,
+	readyNowText: (egg: ProfileState.Egg) -> string,
+	onReadyNow: (egg: ProfileState.Egg) -> (),
 	isSelected: (uid: number) -> boolean,
 	-- True for an alien that cannot join the current crossbreed selection.
 	isDimmed: (alienId: string) -> boolean,
@@ -79,6 +85,8 @@ export type Props = {
 	-- Shown while the incubator can take another slot; enabled when it is affordable.
 	canBuySlot: () -> boolean,
 	slotForSale: () -> boolean,
+	-- The next slot is sold for Robux too.
+	slotForRobux: () -> boolean,
 	onClose: () -> (),
 	onAutoPlace: () -> (),
 	onCrossbreed: () -> (),
@@ -87,6 +95,7 @@ export type Props = {
 	onMoveToInventory: () -> (),
 	onBuyPod: () -> (),
 	onBuySlot: () -> (),
+	onBuySlotRobux: () -> (),
 }
 
 local function sectionTitle(text: string | () -> string, order: number, visible: (() -> boolean)?): TextLabel
@@ -194,9 +203,50 @@ local function BayWindow(props: Props): Frame
 	local eggs = indexes(function()
 		return props.bay().incubator
 	end, function(egg, index)
-		return hint(function()
-			return props.eggLine(egg())
-		end, index)
+		return create("Frame")({
+			Name = "Egg",
+			LayoutOrder = index,
+			Size = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Padding = UDim.new(0, GAP),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			create("TextLabel")({
+				Name = "Line",
+				LayoutOrder = 1,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				FontFace = Theme.FONT,
+				TextSize = HINT_TEXT_SIZE,
+				TextColor3 = Theme.MUTED,
+				Text = function()
+					return props.eggLine(egg())
+				end,
+			}),
+			create("Frame")({
+				Name = "ReadyNowSlot",
+				LayoutOrder = 2,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Visible = function()
+					return props.canReadyNow(egg())
+				end,
+				Button({
+					name = "ReadyNow",
+					text = function()
+						return props.readyNowText(egg())
+					end,
+					color = Theme.TOAST_GOOD,
+					onClick = function()
+						props.onReadyNow(egg())
+					end,
+				}),
+			}),
+		}) :: Frame
 	end)
 	-- The queue after the eggs warming: ordered after any number of them.
 	local waitingEggs = indexes(function()
@@ -373,6 +423,20 @@ local function BayWindow(props: Props): Frame
 					enabled = props.canBuySlot,
 					color = Theme.COINS_DARK,
 					onClick = props.onBuySlot,
+				}),
+			}),
+			create("Frame")({
+				Name = "BuySlotRobuxSlot",
+				LayoutOrder = 8,
+				Size = UDim2.fromScale(0, 0),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Visible = props.slotForRobux,
+				Button({
+					name = "BuySlotRobux",
+					text = texts.buySlotRobux,
+					color = Theme.TOAST_GOOD,
+					onClick = props.onBuySlotRobux,
 				}),
 			}),
 		}),

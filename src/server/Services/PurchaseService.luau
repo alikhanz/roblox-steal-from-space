@@ -47,6 +47,8 @@ export type Granted = {
 	coins: BigNum.BigNum,
 	-- The speed stat added (trained points times the jetpack).
 	speed: BigNum.BigNum,
+	-- Where the player was last offered a purchase this session ("-": nowhere known).
+	source: string,
 }
 
 export type Dependencies = {
@@ -67,6 +69,14 @@ export type PurchaseService = {
 	passEffects: (player: Player) -> Purchases.PassEffects,
 	-- The egg the player is about to make ready now: the receipt applies to it when it comes.
 	chooseReadyNowEgg: (player: Player, uid: number) -> Notice?,
+	-- The client is about to show a purchase prompt: where (for the analytics) and, for
+	-- "Egg ready now", which egg.
+	notePrompt: (
+		player: Player,
+		item: MonetizationConfig.ShopItem,
+		source: MonetizationConfig.ShopSource,
+		egg: number?
+	) -> Notice?,
 	-- The receipt handler itself (dev commands run fake receipts through it).
 	processReceipt: (receipt: { [string]: any }) -> Enum.ProductPurchaseDecision,
 	-- Notes a pass as owned (on purchase; dev commands).
@@ -75,6 +85,8 @@ export type PurchaseService = {
 	purchased: Signal.Signal<Player, Granted>,
 	-- Fires when a pass was noted as owned.
 	passesChanged: Signal.Signal<Player>,
+	-- Fires for every purchase prompt a client reports.
+	prompted: Signal.Signal<Player, MonetizationConfig.ShopItem, MonetizationConfig.ShopSource>,
 }
 
 local PurchaseService = {}
@@ -95,8 +107,11 @@ end
 function PurchaseService.new(dependencies: Dependencies): PurchaseService
 	local purchased = Signal.new() :: Signal.Signal<Player, Granted>
 	local passesChanged = Signal.new() :: Signal.Signal<Player>
+	local prompted = Signal.new() :: Signal.Signal<Player, MonetizationConfig.ShopItem, MonetizationConfig.ShopSource>
 	-- The egg each player chose to make ready now (session only: a late receipt picks one itself).
 	local readyNowChoice: { [Player]: number } = {}
+	-- Where each player was last offered a purchase (session only), for the analytics.
+	local lastSource: { [Player]: MonetizationConfig.ShopSource } = {}
 
 	local function passEffects(player: Player): Purchases.PassEffects
 		local data = dependencies.getData(player)
@@ -143,6 +158,17 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		return "NoSuchEgg"
 	end
 
+	local function notePrompt(
+		player: Player,
+		item: MonetizationConfig.ShopItem,
+		source: MonetizationConfig.ShopSource,
+		egg: number?
+	): Notice?
+		lastSource[player] = source
+		prompted.fire(player, item, source)
+		return if item == "ReadyNow" and egg then chooseReadyNowEgg(player, egg) else nil
+	end
+
 	-- Coins worth some minutes of the player's income, for a purchase with nothing to apply to.
 	local function compensate(player: Player, data: PlayerData.PlayerData): BigNum.BigNum
 		local coins = PlayReward.worth(
@@ -163,6 +189,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			compensated = false,
 			coins = BigNum.ZERO,
 			speed = BigNum.ZERO,
+			source = lastSource[player] or "-",
 		}
 		local multiplier = Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)
 		local current = now()
@@ -301,6 +328,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		end)
 		PlayerEvents.observe(function() end, function(player)
 			readyNowChoice[player] = nil
+			lastSource[player] = nil
 		end)
 	end
 
@@ -309,10 +337,12 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		start = start,
 		passEffects = passEffects,
 		chooseReadyNowEgg = chooseReadyNowEgg,
+		notePrompt = notePrompt,
 		processReceipt = processReceipt,
 		notePass = notePass,
 		purchased = purchased,
 		passesChanged = passesChanged,
+		prompted = prompted,
 	}
 end
 

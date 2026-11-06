@@ -123,6 +123,7 @@ local netService = NetService.new({
 	loginGift = loginGiftService,
 	index = indexService,
 	purchased = purchaseService.purchased,
+	notePrompt = purchaseService.notePrompt,
 	markActive = activityService.touch,
 })
 trainingDependencies.getData = profile.getData
@@ -287,9 +288,12 @@ indexService.rewarded.connect(function(player, coins, what)
 	metricsService.earned(player, "Coins", if what == "Set" then "IndexSet" else "IndexAlien", coins)
 end)
 purchaseService.purchased.connect(function(player, granted)
-	metricsService.count(player, "Purchase", { granted.kind, tostring(granted.tier or "-") })
+	metricsService.count(player, "Purchase", { granted.kind, tostring(granted.tier or "-"), granted.source })
 	metricsService.earned(player, "Coins", "Robux", granted.coins)
 	metricsService.earned(player, "Speed", "Robux", granted.speed)
+end)
+purchaseService.prompted.connect(function(player, item, source)
+	metricsService.count(player, "PurchasePrompt", { item, source })
 end)
 loginGiftService.rewarded.connect(function(player, reward)
 	metricsService.earned(player, "Coins", "LoginGift", reward.paid.coins)

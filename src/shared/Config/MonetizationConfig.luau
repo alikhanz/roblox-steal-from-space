@@ -11,6 +11,11 @@ local ZoneConfig = require("./ZoneConfig")
 
 -- What a developer product does.
 export type ProductKind = "Training" | "ReadyNow" | "IncubatorSlot" | "CollectDouble"
+-- Everything on offer, for the analytics of where it was offered.
+export type ShopItem = Purchases.PassId | ProductKind
+-- Where a purchase was offered: the shop window opened from the menu (Store) or from the speed
+-- goal (Goal), the welcome-back screen, the bay window.
+export type ShopSource = "Store" | "Goal" | "Welcome" | "Bay"
 
 export type Product = {
 	read kind: ProductKind,
@@ -34,6 +39,8 @@ local PASS_TUNING: Purchases.PassTuning = {
 }
 
 local HOUR = 60 * 60
+-- The training packs, shortest first: seconds of the trainer's rate each one gives.
+local TRAINING_PACK_SECONDS = { HOUR, 8 * HOUR, 24 * HOUR }
 
 -- Each game has its own passes and products (decision 011: Dev and Prod are separate games).
 local GAMES: { [number]: GameCatalog } = {
@@ -44,9 +51,9 @@ local GAMES: { [number]: GameCatalog } = {
 			NightShift = 2070559216,
 		},
 		products = {
-			[3728652464] = { kind = "Training", seconds = HOUR },
-			[3728652573] = { kind = "Training", seconds = 8 * HOUR },
-			[3728652763] = { kind = "Training", seconds = 24 * HOUR },
+			[3728652464] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[1] },
+			[3728652573] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[2] },
+			[3728652763] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[3] },
 			[3728652908] = { kind = "ReadyNow", tier = 1 },
 			[3728653127] = { kind = "ReadyNow", tier = 2 },
 			[3728653284] = { kind = "ReadyNow", tier = 3 },
@@ -66,6 +73,9 @@ local GAMES: { [number]: GameCatalog } = {
 local MonetizationConfig = {}
 
 MonetizationConfig.PASS_TUNING = table.freeze(PASS_TUNING)
+-- The passes in the order the shop lists them.
+MonetizationConfig.PASS_ORDER = table.freeze({ "DoubleTraining", "NightShift" } :: { Purchases.PassId })
+MonetizationConfig.TRAINING_PACK_SECONDS = table.freeze(TRAINING_PACK_SECONDS)
 -- "Egg ready now" tiers: zone of the egg's guardian plus its rarity (Purchases.readyNowTier).
 MonetizationConfig.READY_NOW_TIERS = 8
 -- The last slot of each "Incubator slot" tier: 3rd-6th, 7th-9th, 10th-12th.

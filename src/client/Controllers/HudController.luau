@@ -15,6 +15,7 @@ local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
 local AbilityChips = require(script.Parent.Parent.UI.AbilityChips)
 local AbilityState = require(script.Parent.Parent.State.AbilityState)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local Button = require(script.Parent.Parent.UI.Button)
 local Crosshair = require(script.Parent.Parent.UI.Crosshair)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
@@ -58,6 +59,8 @@ export type Dependencies = {
 	abilities: AbilityState.AbilityState,
 	-- The player's speed stat.
 	speed: () -> BigNum.BigNum,
+	-- Opens the shop from the speed goal; nil where nothing is sold (an unpublished place).
+	openStore: (() -> ())?,
 }
 
 export type HudController = {
@@ -314,29 +317,56 @@ function HudController.new(dependencies: Dependencies): HudController
 						end,
 						layoutOrder = 1,
 					}),
-					-- The next guardian to grow towards, and how far the stat is from it.
-					GoalBadge({
-						name = "GoalBadge",
-						title = function()
-							local current = goal()
-							local key: any = if current then GuardianConfig.POSTS[current.post].nameKey else nil
-							return if key
-								then Text.get(locale, "speed.goal.title", { name = Text.get(locale, key) })
-								else ""
-						end,
-						value = function()
-							local current = goal()
-							return if current then `{BigNum.format(speed())} / {BigNum.format(current.target)}` else ""
-						end,
-						progress = function()
-							local current = goal()
-							return if current then current.progress else 1
-						end,
-						color = Theme.SPEED,
-						visible = function()
+					-- The next guardian to grow towards, how far the stat is from it, and the way to
+					-- the training packs in the shop.
+					create("Frame")({
+						Name = "Goal",
+						LayoutOrder = 2,
+						AutomaticSize = Enum.AutomaticSize.XY,
+						BackgroundTransparency = 1,
+						Visible = function()
 							return goal() ~= nil
 						end,
-						layoutOrder = 2,
+						create("UIListLayout")({
+							FillDirection = Enum.FillDirection.Horizontal,
+							VerticalAlignment = Enum.VerticalAlignment.Center,
+							Padding = UDim.new(0, STAT_GAP),
+							SortOrder = Enum.SortOrder.LayoutOrder,
+						}),
+						GoalBadge({
+							name = "GoalBadge",
+							title = function()
+								local current = goal()
+								local key: any = if current then GuardianConfig.POSTS[current.post].nameKey else nil
+								return if key
+									then Text.get(locale, "speed.goal.title", { name = Text.get(locale, key) })
+									else ""
+							end,
+							value = function()
+								local current = goal()
+								return if current
+									then `{BigNum.format(speed())} / {BigNum.format(current.target)}`
+									else ""
+							end,
+							progress = function()
+								local current = goal()
+								return if current then current.progress else 1
+							end,
+							color = Theme.SPEED,
+							visible = function()
+								return goal() ~= nil
+							end,
+							layoutOrder = 1,
+						}),
+						if dependencies.openStore
+							then Button({
+								name = "MoreSpeed",
+								layoutOrder = 2,
+								text = Text.get(locale, "store.goal.button"),
+								color = Theme.TOAST_GOOD,
+								onClick = dependencies.openStore,
+							})
+							else nil,
 					}),
 					StatBadge({
 						name = "CoinsBadge",

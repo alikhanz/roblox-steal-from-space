@@ -103,6 +103,8 @@ type Notice = enum {
 	JetpackTop,
 	-- The incubator has every slot there can be.
 	MaxIncubatorSlots,
+	-- "Egg ready now": that egg is not warming in the incubator (ready, hatched or gone).
+	NoSuchEgg,
 }
 
 -- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the
@@ -152,6 +154,33 @@ type AbilityKind = enum {
 	Strike,
 	Harpoon,
 	Bomb,
+}
+
+-- Robux purchases (decision 061, MonetizationConfig): what a developer product does.
+type ProductKind = enum {
+	Training,
+	ReadyNow,
+	IncubatorSlot,
+	CollectDouble,
+}
+
+-- Everything the game offers for Robux: the passes and the product kinds.
+type ShopItem = enum {
+	DoubleTraining,
+	NightShift,
+	Training,
+	ReadyNow,
+	IncubatorSlot,
+	CollectDouble,
+}
+
+-- Where a purchase was offered: the shop window (opened from the menu or from the speed goal),
+-- the welcome-back screen, the bay window.
+type ShopSource = enum {
+	Store,
+	Goal,
+	Welcome,
+	Bay,
 }
 
 -- Server -> client: the owner's private data. A snapshot on login, then the section that changed.
@@ -263,6 +292,8 @@ event OfflineReward = {
 		speed: BigNum,
 		seconds: f64,
 		readyEggs: u8,
+		-- "Collect x2" can pay this time away once more.
+		canDouble: boolean,
 	},
 }
 
@@ -296,6 +327,20 @@ event AbilityResult = {
 		kind: AbilityKind,
 		hit: boolean,
 		droppedEgg: boolean,
+	},
+}
+
+-- A Robux purchase was granted: what it was, and the coins and speed stat it gave. Compensated:
+-- it found nothing to apply to (the egg hatched, every slot bought) and paid coins instead.
+event Purchased = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		kind: ProductKind,
+		compensated: boolean,
+		coins: BigNum,
+		speed: BigNum,
 	},
 }
 
@@ -417,6 +462,19 @@ event RerollQuest = {
 	type: Reliable,
 	call: SingleSync,
 	data: u8,
+}
+
+-- The client is about to show Roblox's purchase prompt: where it was offered (analytics) and, for
+-- "Egg ready now", the egg it is for. The purchase itself is granted only by its receipt.
+event PurchasePrompted = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		item: ShopItem,
+		source: ShopSource,
+		egg: u32?,
+	},
 }
 
 -- The client asks for its snapshot once its controllers are ready, in case the profile

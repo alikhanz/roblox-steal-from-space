@@ -36,8 +36,8 @@ end
 
 -- The column of window buttons in the bottom-left corner, from the bottom up. Every button in
 -- it takes its place here, so they never overlap.
-export type MenuSlot = "Bay" | "Quests" | "Gift" | "Index"
-local MENU_SLOTS: { MenuSlot } = { "Bay", "Quests", "Gift", "Index" }
+export type MenuSlot = "Bay" | "Quests" | "Gift" | "Index" | "Store"
+local MENU_SLOTS: { MenuSlot } = { "Bay", "Quests", "Gift", "Index", "Store" }
 -- From one button's bottom edge to the next one's, pixels: a button and a gap.
 local MENU_STEP = 48
 

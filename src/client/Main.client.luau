@@ -21,6 +21,7 @@ local LoginGiftController = require(script.Parent.Controllers.LoginGiftControlle
 local NewbieViewController = require(script.Parent.Controllers.NewbieViewController)
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
+local PurchaseState = require(script.Parent.State.PurchaseState)
 local PvpViewController = require(script.Parent.Controllers.PvpViewController)
 local QuestController = require(script.Parent.Controllers.QuestController)
 local SerpentController = require(script.Parent.Controllers.SerpentController)
@@ -29,6 +30,7 @@ local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulat
 local SpeedState = require(script.Parent.State.SpeedState)
 local StationBeaconController = require(script.Parent.Controllers.StationBeaconController)
 local StationBorderController = require(script.Parent.Controllers.StationBorderController)
+local StoreController = require(script.Parent.Controllers.StoreController)
 local ToastState = require(script.Parent.State.ToastState)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
 local WindowState = require(script.Parent.State.WindowState)
@@ -39,12 +41,24 @@ local abilityState = AbilityState.new(profileState)
 local speedState = SpeedState.new()
 -- One window open at a time: opening one closes the other.
 local windowState = WindowState.new()
-local bayWindowController =
-	BayWindowController.new({ profile = profileState, toasts = toastState, windows = windowState })
+local purchaseState = PurchaseState.new()
+local bayWindowController = BayWindowController.new({
+	profile = profileState,
+	purchases = purchaseState,
+	toasts = toastState,
+	windows = windowState,
+})
+local storeController = StoreController.new({
+	profile = profileState,
+	purchases = purchaseState,
+	toasts = toastState,
+	windows = windowState,
+})
 local eventController = EventController.new()
 
 Lifecycle.run({
 	profileState,
+	purchaseState,
 	abilityState,
 	speedState,
 	AimController.new(),
@@ -53,6 +67,11 @@ Lifecycle.run({
 		toast = toastState.push,
 		abilities = abilityState,
 		speed = speedState.speed,
+		openStore = if purchaseState.available
+			then function()
+				storeController.open("Goal")
+			end
+			else nil,
 	}),
 	GrabPromptController.new(),
 	PromptViewController.new(),
@@ -61,6 +80,7 @@ Lifecycle.run({
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({ profile = profileState, windows = windowState }),
+	storeController,
 	CoinBoardController.new(),
 	QuestController.new({ profile = profileState, toasts = toastState, windows = windowState }),
 	LoginGiftController.new({

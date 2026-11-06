@@ -30,6 +30,10 @@ export type Props = {
 	eggs: () -> string,
 	claim: string,
 	onClaim: () -> (),
+	-- "Collect x2 29 R$": shown while the time away can be collected once more for Robux.
+	double: () -> string,
+	canDouble: () -> boolean,
+	onDouble: () -> (),
 }
 
 local function WelcomeBack(props: Props): Frame
@@ -110,12 +114,36 @@ local function WelcomeBack(props: Props): Frame
 				return props.eggs() ~= ""
 			end,
 		}),
-		Button({
-			name = "Claim",
-			layoutOrder = 6,
-			text = props.claim,
-			color = Theme.COINS_DARK,
-			onClick = props.onClaim,
+		create("Frame")({
+			Name = "Buttons",
+			LayoutOrder = 6,
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				Padding = UDim.new(0, GAP),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			Button({
+				name = "Claim",
+				layoutOrder = 1,
+				text = props.claim,
+				color = Theme.COINS_DARK,
+				onClick = props.onClaim,
+			}),
+			create("Frame")({
+				Name = "DoubleSlot",
+				LayoutOrder = 2,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Visible = props.canDouble,
+				Button({
+					name = "Double",
+					text = props.double,
+					color = Theme.TOAST_GOOD,
+					onClick = props.onDouble,
+				}),
+			}),
 		}),
 	}) :: Frame
 end

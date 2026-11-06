@@ -41,6 +41,8 @@ export type Reward = {
 	speed: BigNum.BigNum,
 	seconds: number,
 	readyEggs: number,
+	-- "Collect x2" can pay this time away once more.
+	canDouble: boolean,
 }
 
 export type OfflineService = {
@@ -90,6 +92,7 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 					speed = BigNum.mul(gained, Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)),
 					seconds = awaySeconds,
 					readyEggs = readyEggs,
+					canDouble = Purchases.hasPendingDouble(data),
 				}
 			end
 		end)

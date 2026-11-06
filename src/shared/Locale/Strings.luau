@@ -304,6 +304,15 @@ local Strings = {
 		ru = "+1 место {price} ●",
 		en = "+1 slot {price} ●",
 	},
+	-- {price} is store.robux.hint ("19 R$").
+	["bay.buySlotRobux.button"] = {
+		ru = "+1 место {price}",
+		en = "+1 slot {price}",
+	},
+	["bay.readyNow.button"] = {
+		ru = "Готово за {price}",
+		en = "Ready for {price}",
+	},
 	["bay.incubatorWaiting.hint"] = {
 		ru = "Ждут места: {count}",
 		en = "Waiting for a slot: {count}",
@@ -468,6 +477,10 @@ local Strings = {
 		ru = "В инкубаторе больше нет мест",
 		en = "The incubator is fully upgraded",
 	},
+	["notice.noSuchEgg.toast"] = {
+		ru = "Это яйцо уже готово",
+		en = "That egg's done already",
+	},
 	["notice.jetpackTop.toast"] = {
 		ru = "Это лучший джетпак",
 		en = "That's the best jetpack",
@@ -503,6 +516,11 @@ local Strings = {
 	["welcome.claim.button"] = {
 		ru = "Забрать",
 		en = "Collect",
+	},
+	-- "Collect x2", next to the plain "Collect"; {price} is store.robux.hint ("29 R$").
+	["welcome.double.button"] = {
+		ru = "×2 за {price}",
+		en = "×2 for {price}",
 	},
 	["trainer.level.hint"] = {
 		ru = "Тренажёр · уровень {level}",
@@ -1021,6 +1039,114 @@ local Strings = {
 	["data.corrupted.message"] = {
 		ru = "Не получилось прочитать твой прогресс. Мы ничего в нём не меняли. Зайди снова через пару минут.",
 		en = "We couldn't read your progress. Nothing in it was changed. Rejoin in a few minutes.",
+	},
+	-- The shop: Robux purchases (decision 061).
+	["store.open.button"] = {
+		ru = "Магазин",
+		en = "Shop",
+	},
+	["store.window.title"] = {
+		ru = "Магазин",
+		en = "Shop",
+	},
+	["store.window.hint"] = {
+		ru = "Робуксы вместо ожидания",
+		en = "Robux instead of waiting",
+	},
+	-- A price in Robux, as buttons show it.
+	["store.robux.hint"] = {
+		ru = "{price} R$",
+		en = "{price} R$",
+	},
+	["store.owned.hint"] = {
+		ru = "Куплено",
+		en = "Owned",
+	},
+	["store.doubleTraining.title"] = {
+		ru = "Двойная тренировка",
+		en = "Double training",
+	},
+	["store.doubleTraining.hint"] = {
+		ru = "Тренажёр даёт ×{factor} ⚡, даже когда тебя нет в игре. Навсегда",
+		en = "Your trainer gives ×{factor} ⚡, even while you're away. Forever",
+	},
+	["store.nightShift.title"] = {
+		ru = "Ночная смена",
+		en = "Night shift",
+	},
+	["store.nightShift.hint"] = {
+		ru = "Без тебя капсулы приносят монеты {income} ч вместо {incomeBase}, тренажёр качает {training} ч вместо {trainingBase}",
+		en = "Offline, pods earn for {income} h, not {incomeBase}, and the trainer works {training} h, not {trainingBase}",
+	},
+	["store.trainingHour.title"] = {
+		ru = "Час тренировки",
+		en = "1 hour of training",
+	},
+	["store.trainingEight.title"] = {
+		ru = "8 часов тренировки",
+		en = "8 hours of training",
+	},
+	["store.trainingDay.title"] = {
+		ru = "Сутки тренировки",
+		en = "A day of training",
+	},
+	["store.training.hint"] = {
+		ru = "Сразу +{speed} ⚡: столько тренажёр даёт за это время",
+		en = "+{speed} ⚡ right away: what your trainer gives in that time",
+	},
+	["store.slot.title"] = {
+		ru = "Место в инкубаторе",
+		en = "Incubator slot",
+	},
+	["store.slot.hint"] = {
+		ru = "Ещё одно место сразу, без монет. Сейчас мест: {count}",
+		en = "One more slot right away, no coins. Slots now: {count}",
+	},
+	["store.slotMax.hint"] = {
+		ru = "Все места в инкубаторе уже твои",
+		en = "Every incubator slot is yours",
+	},
+	["store.readyNow.title"] = {
+		ru = "Яйцо готово сейчас",
+		en = "Egg ready now",
+	},
+	["store.readyNow.hint"] = {
+		ru = "Сразу готово: {egg} — ему ждать дольше всех. Другое яйцо выбери в отсеке",
+		en = "Ready right away: {egg}, the longest wait. Pick another in your bay",
+	},
+	["store.readyNowNone.hint"] = {
+		ru = "Сейчас в инкубаторе ничего не греется",
+		en = "Nothing is warming in your incubator",
+	},
+	-- Next to the speed goal in the HUD: opens the shop.
+	["store.goal.button"] = {
+		ru = "Больше ⚡",
+		en = "More ⚡",
+	},
+	["store.unlocked.toast"] = {
+		ru = "Куплено: {name}",
+		en = "Unlocked: {name}",
+	},
+	["store.training.toast"] = {
+		ru = "Готово: +{speed} ⚡",
+		en = "Done: +{speed} ⚡",
+	},
+	["store.readyNow.toast"] = {
+		ru = "Яйцо готово! Вылупи его в отсеке",
+		en = "Egg ready! Hatch it in your bay",
+	},
+	["store.slot.toast"] = {
+		ru = "+1 место в инкубаторе",
+		en = "+1 incubator slot",
+	},
+	["store.double.toast"] = {
+		ru = "Ещё +{coins} ● и +{speed} ⚡",
+		en = "Another +{coins} ● and +{speed} ⚡",
+	},
+	-- The purchase found nothing to apply to (the egg hatched, every slot bought).
+	["store.compensated.toast"] = {
+		ru = "Не к чему применить. Держи +{coins} ●",
+		en = "Nothing to use it on. Here's +{coins} ●",
 	},
 }
 

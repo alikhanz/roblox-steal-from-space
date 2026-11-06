@@ -20,8 +20,11 @@ local Button = require(script.Parent.Parent.UI.Button)
 local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local Layout = require(script.Parent.Parent.UI.Layout)
+local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
+local PurchaseState = require(script.Parent.Parent.State.PurchaseState)
+local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -69,10 +72,12 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	IndexNothing = "notice.indexNothing.toast",
 	IndexClaimed = "notice.questClaimed.toast",
 	StormTeleport = "notice.stormTeleport.toast",
+	NoSuchEgg = "notice.noSuchEgg.toast",
 }
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
+	purchases: PurchaseState.PurchaseState,
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
 }
@@ -84,13 +89,20 @@ export type BayWindowController = {
 	welcomeOpen: () -> boolean,
 }
 
--- What the welcome-back screen shows.
-type Reward = { coins: BigNum.BigNum, speed: BigNum.BigNum, seconds: number, readyEggs: number }
+-- What the welcome-back screen shows; canDouble: "Collect x2" is still on offer.
+type Reward = {
+	coins: BigNum.BigNum,
+	speed: BigNum.BigNum,
+	seconds: number,
+	readyEggs: number,
+	canDouble: boolean,
+}
 
 local BayWindowController = {}
 
 function BayWindowController.new(dependencies: Dependencies): BayWindowController
 	local profile = dependencies.profile
+	local purchases = dependencies.purchases
 	local isOpen = dependencies.windows.slot("Bay")
 	-- Selected uids, in the order they were tapped; a fresh table each change so Vide sees it.
 	local selection = source({} :: { number })
@@ -255,28 +267,36 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		)
 	end
 
-	-- "<egg> · <guardian>[ · ★ star]", the start of every egg's line.
-	local function eggName(
-		egg: { read rarity: string, read variant: string?, read grade: number, read luck: number? }
-	): string
-		local name = Names.egg(locale, egg.rarity, egg.variant) or "?"
-		local guardian = Names.guardian(locale, egg.grade) or "?"
-		-- Extra luck comes only with the star egg: it hatches luckier.
-		local luck = if egg.luck and egg.luck > 0 then ` · {text("egg.starEgg.hint")}` else ""
-		return `{name} · {guardian}{luck}`
-	end
-
 	local function eggLine(egg: ProfileState.Egg): string
 		local _ = clock()
 		local left = egg.hatchAt - workspace:GetServerTimeNow()
 		local when = if left > 0
 			then text("egg.hatchIn.hint", { time = Duration.clock(left) })
 			else text("egg.ready.hint")
-		return `{eggName(egg)} — {when}`
+		return `{Names.eggWithGuardian(locale, egg)} — {when}`
 	end
 
 	local function waitingLine(egg: ProfileState.WaitingEgg): string
-		return `{eggName(egg)} — {text("egg.waiting.hint")}`
+		return `{Names.eggWithGuardian(locale, egg)} — {text("egg.waiting.hint")}`
+	end
+
+	-- Still warming: "Egg ready now" can apply to it.
+	local function isWarming(egg: ProfileState.Egg): boolean
+		local _ = clock()
+		return egg.hatchAt > workspace:GetServerTimeNow()
+	end
+
+	local function readyNowTier(egg: ProfileState.Egg): number
+		return MonetizationConfig.readyNowTierOf(egg.grade, egg.rarity)
+	end
+
+	-- The Robux tier of the incubator's next slot.
+	local function slotTier(): number
+		return Purchases.slotTier(profile.bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
+	end
+
+	local function robux(price: number?): string
+		return PurchaseState.priceText(locale, price)
 	end
 
 	-- Drops selections of aliens that are gone (sold, crossbred, hatched into their place).
@@ -364,6 +384,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						buySlot = function()
 							return text("bay.buySlot.button", { price = BigNum.format(slotPrice()) })
 						end,
+						buySlotRobux = function()
+							return text(
+								"bay.buySlotRobux.button",
+								{ price = robux(purchases.productPrice("IncubatorSlot", slotTier())) }
+							)
+						end,
 						inventory = function()
 							return text(
 								"bay.inventory.title",
@@ -417,6 +443,18 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					end,
 					eggLine = eggLine,
 					waitingLine = waitingLine,
+					canReadyNow = function(egg)
+						return isWarming(egg) and purchases.sells("ReadyNow", readyNowTier(egg))
+					end,
+					readyNowText = function(egg)
+						return text(
+							"bay.readyNow.button",
+							{ price = robux(purchases.productPrice("ReadyNow", readyNowTier(egg))) }
+						)
+					end,
+					onReadyNow = function(egg)
+						purchases.promptProduct("Bay", "ReadyNow", readyNowTier(egg), nil, egg.uid)
+					end,
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
 					end,
@@ -452,6 +490,10 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					canBuySlot = function()
 						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
 							and not BigNum.lessThan(profile.coins(), slotPrice())
+					end,
+					slotForRobux = function()
+						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+							and purchases.sells("IncubatorSlot", slotTier())
 					end,
 					onClose = function()
 						isOpen(false)
@@ -503,6 +545,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					onBuySlot = function()
 						Remotes.BuyIncubatorSlot.Fire()
 					end,
+					onBuySlotRobux = function()
+						purchases.promptProduct("Bay", "IncubatorSlot", slotTier())
+					end,
 				}),
 
 				Toasts({ toasts = dependencies.toasts.toasts }),
@@ -540,6 +585,16 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					claim = text("welcome.claim.button"),
 					onClaim = function()
 						reward(nil)
+					end,
+					double = function()
+						return text("welcome.double.button", { price = robux(purchases.productPrice("CollectDouble")) })
+					end,
+					canDouble = function()
+						local current = readReward()
+						return current ~= nil and current.canDouble and purchases.sells("CollectDouble")
+					end,
+					onDouble = function()
+						purchases.promptProduct("Welcome", "CollectDouble")
 					end,
 				}),
 			})
@@ -581,8 +636,21 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			local key: Text.Key = (NOTICE_KEYS :: any)[notice] or "notice.unknownAlien.toast"
 			toast(text(key), Theme.TOAST_BAD)
 		end)
-		profile.offlineReward.connect(function(coins, speed, seconds, readyEggs)
-			reward({ coins = coins, speed = speed, seconds = seconds, readyEggs = readyEggs })
+		profile.offlineReward.connect(function(coins, speed, seconds, readyEggs, canDouble)
+			reward({ coins = coins, speed = speed, seconds = seconds, readyEggs = readyEggs, canDouble = canDouble })
+		end)
+		-- "Collect x2" bought from the screen: it shows the doubled numbers and offers no more.
+		purchases.granted.connect(function(granted)
+			local current = readReward()
+			if current and granted.kind == "CollectDouble" and not granted.compensated then
+				reward({
+					coins = BigNum.add(current.coins, granted.coins),
+					speed = BigNum.add(current.speed, granted.speed),
+					seconds = current.seconds,
+					readyEggs = current.readyEggs,
+					canDouble = false,
+				})
+			end
 		end)
 
 		UserInputService.InputBegan:Connect(function(input, gameProcessed)
