@@ -10,6 +10,7 @@ local LoginGift = require("./LoginGift")
 local Migrations = require("./Migrations")
 local Quests = require("./Quests")
 local Tables = require("../Runtime/Tables")
+local Tutorial = require("./Tutorial")
 
 -- An alien the player owns. `uid` is unique within the profile and never reused: it is how
 -- commands and the client refer to one alien.
@@ -80,6 +81,8 @@ export type PlayerData = {
 	onboardingSteps: number,
 	-- The highest guardian post an egg was delivered from; 0: none yet (analytics progression).
 	bestPost: number,
+	-- Tutorial milestones passed (Domain/Tutorial: 0 not started ... Tutorial.DONE).
+	tutorialStep: number,
 	-- Today's daily quests (Domain/Quests).
 	quests: Quests.State,
 	-- The login gift streak (Domain/LoginGift).
@@ -113,7 +116,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 14
+PlayerData.SCHEMA_VERSION = 15
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -192,6 +195,12 @@ PlayerData.MIGRATIONS = {
 	-- v14 adds Robux purchases (decision 061): receipts, passes and the time away to collect
 	-- again, all empty, filled from the template.
 	[13] = function(_data: { [string]: any }) end,
+	-- v15 adds the tutorial (decision 065): a player who has delivered from guardian 2 or farther
+	-- has done what it teaches. Fixed number: the stronger guardian when v15 came.
+	[14] = function(data: { [string]: any })
+		local bestPost = if type(data.bestPost) == "number" then data.bestPost else 0
+		data.tutorialStep = Tutorial.fromBestPost(bestPost, 2)
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -218,6 +227,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		playSeconds = 0,
 		onboardingSteps = 0,
 		bestPost = 0,
+		tutorialStep = Tutorial.NOT_STARTED,
 		quests = Quests.empty(),
 		loginGift = LoginGift.empty(),
 		index = AlienIndex.empty(),
@@ -469,6 +479,9 @@ local function validate(data: { [string]: any }): string?
 		if not isInteger(data[field]) or data[field] < 0 then
 			return `{field} is invalid`
 		end
+	end
+	if not isInteger(data.tutorialStep) or data.tutorialStep < 0 or data.tutorialStep > Tutorial.DONE then
+		return "tutorialStep is invalid"
 	end
 	local questProblem = validateQuests(data.quests)
 	if questProblem then

@@ -129,6 +129,8 @@ return table.freeze({
 	NEST_RARITY_ATTRIBUTE = "Rarity",
 	NEST_SIZE_ATTRIBUTE = "Size",
 	NEST_EGG_POSITION_ATTRIBUTE = "EggPosition",
+	-- The grade of the nest's guardian (the tutorial points at a guardian's nests).
+	NEST_GRADE_ATTRIBUTE = "Grade",
 	-- Name of the egg part inside a nest model.
 	NEST_EGG_NAME = "Egg",
 	-- Loose eggs floating in space after a drop, and eggs welded to a thief; both carry the

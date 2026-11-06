@@ -32,6 +32,7 @@ local SpaceService = require(script.Parent.Services.SpaceService)
 local SpeedService = require(script.Parent.Services.SpeedService)
 local StormService = require(script.Parent.Services.StormService)
 local TrainingService = require(script.Parent.Services.TrainingService)
+local TutorialService = require(script.Parent.Services.TutorialService)
 local WorldService = require(script.Parent.Services.WorldService)
 
 -- One Heartbeat drives every periodic server job (see CONVENTIONS, performance).
@@ -110,6 +111,9 @@ local loginGiftService = LoginGiftService.new({
 -- Quests hear from services made after the net service (carrying), so they are bound later too.
 local questDependencies = {} :: QuestService.Dependencies
 local questService = QuestService.new(questDependencies)
+-- So does the tutorial (decision 065).
+local tutorialDependencies = {} :: TutorialService.Dependencies
+local tutorialService = TutorialService.new(tutorialDependencies)
 local netService = NetService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -123,6 +127,7 @@ local netService = NetService.new({
 	quests = questService,
 	loginGift = loginGiftService,
 	index = indexService,
+	tutorial = tutorialService,
 	purchased = purchaseService.purchased,
 	notePrompt = purchaseService.notePrompt,
 	markActive = activityService.touch,
@@ -179,6 +184,17 @@ questDependencies.hatched = bayService.hatched
 questDependencies.trained = trainingService.trained
 questDependencies.crossbred = economyService.crossbred
 questDependencies.abilityUsed = pvpService.abilityUsed
+
+tutorialDependencies.activated = profile.activated
+tutorialDependencies.getData = profile.getData
+tutorialDependencies.update = profile.update
+tutorialDependencies.scheduler = scheduler
+tutorialDependencies.getSpeed = speedService.getSpeed
+tutorialDependencies.isCarrying = pvpDependencies.isCarrying
+tutorialDependencies.eggGrabbed = carryService.grabbed
+tutorialDependencies.eggDelivered = carryService.delivered
+tutorialDependencies.eggLost = carryService.lost
+tutorialDependencies.hatched = bayService.hatched
 
 local stormService = StormService.new({
 	eventChanged = eventService.changed,
@@ -261,6 +277,7 @@ local metricsService = MetricsService.new({
 	suffocated = spaceService.suffocated,
 	abilityUsed = pvpService.abilityUsed,
 })
+tutorialService.advanced.connect(metricsService.tutorialStep)
 questService.rewarded.connect(function(player, paid)
 	metricsService.earned(player, "Coins", "Quest", paid.coins)
 	metricsService.earned(player, "Speed", "Quest", paid.speed)
@@ -328,6 +345,7 @@ local devService = DevService.new({
 	processReceipt = purchaseService.processReceipt,
 	chooseReadyNowEgg = purchaseService.chooseReadyNowEgg,
 	notePass = purchaseService.notePass,
+	setTutorialProgress = tutorialService.setProgress,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.
@@ -354,6 +372,7 @@ Lifecycle.run({
 	loginGiftService,
 	indexService,
 	purchaseService,
+	tutorialService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,

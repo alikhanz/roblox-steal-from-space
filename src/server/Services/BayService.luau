@@ -26,6 +26,8 @@ local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local Tutorial = require(ReplicatedStorage.Shared.Domain.Tutorial)
+local TutorialConfig = require(ReplicatedStorage.Shared.Config.TutorialConfig)
 local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 
 local FOLDER_NAME = "Bays"
@@ -392,8 +394,10 @@ function BayService.new(dependencies: Dependencies): BayService
 		assert(luck == nil or luck >= 0, `Negative luck {luck}`)
 		local duration = Hatch.duration(rarityConfig.hatchSeconds, random:NextNumber())
 		local added = dependencies.update(player, function(data)
+			-- The tutorial's first egg is quick, so its hatch step is not a wait (decision 065).
+			local seconds = Tutorial.hatchSeconds(data.tutorialStep, duration, TutorialConfig.FIRST_EGG_SECONDS)
 			-- Into a free slot, or the queue (decision 058).
-			Bay.addEgg(data, rarity, size, grade, duration, now(), variant, luck)
+			Bay.addEgg(data, rarity, size, grade, seconds, now(), variant, luck)
 		end)
 		if added then
 			refresh(player)

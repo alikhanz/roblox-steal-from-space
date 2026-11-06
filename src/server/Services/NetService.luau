@@ -24,6 +24,7 @@ local RateLimit = require(ReplicatedStorage.Shared.Domain.RateLimit)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StormService = require(script.Parent.StormService)
+local TutorialService = require(script.Parent.TutorialService)
 
 -- The quest kinds the wire knows; a saved quest of another kind is not sent.
 local QUEST_KINDS: { [string]: Remotes.QuestKind } = {
@@ -51,6 +52,7 @@ export type Dependencies = {
 	quests: QuestService.QuestService,
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
+	tutorial: TutorialService.TutorialService,
 	-- Granted Robux purchases: what they gave goes to the client.
 	purchased: Signal.Signal<Player, PurchaseService.Granted>,
 	-- A purchase prompt the client is about to show (PurchaseService.notePrompt).
@@ -144,6 +146,10 @@ function NetService.new(dependencies: Dependencies): NetService
 				loginGift = giftOf(player),
 				index = indexOf(data),
 			})
+		end
+		local hint = dependencies.tutorial.getHint(player)
+		if hint then
+			Remotes.TutorialChanged.Fire(player, hint)
 		end
 	end
 
@@ -245,6 +251,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		local loginGift = dependencies.loginGift
 		loginGift.changed.connect(function(player)
 			Remotes.LoginGiftChanged.Fire(player, giftOf(player))
+		end)
+		dependencies.tutorial.changed.connect(function(player, hint)
+			Remotes.TutorialChanged.Fire(player, hint)
 		end)
 		loginGift.rewarded.connect(function(player, reward)
 			Remotes.LoginGiftRewarded.Fire(player, {

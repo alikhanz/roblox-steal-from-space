@@ -1,0 +1,78 @@
+--!strict
+
+local Test = require("../../lune/lib/Test")
+local Tutorial = require("../../src/shared/Domain/Tutorial")
+local describe, it, expect = Test.describe, Test.it, Test.expect
+
+local STRONGER = 2
+
+describe("Tutorial.hint", function()
+	it("goes steal, carry home, hatch, train, steal stronger, done", function()
+		expect(Tutorial.hint(Tutorial.NOT_STARTED, false)).toBe("Steal")
+		expect(Tutorial.hint(Tutorial.NOT_STARTED, true)).toBe("CarryHome")
+		expect(Tutorial.hint(Tutorial.DELIVERED, false)).toBe("Hatch")
+		expect(Tutorial.hint(Tutorial.HATCHED, false)).toBe("Train")
+		expect(Tutorial.hint(Tutorial.TRAINED, false)).toBe("StealStronger")
+		expect(Tutorial.hint(Tutorial.TRAINED, true)).toBe("CarryHomeStronger")
+		expect(Tutorial.hint(Tutorial.DONE, false)).toBe("Done")
+	end)
+
+	it("brings back steal when the egg is lost on the way", function()
+		expect(Tutorial.hint(Tutorial.NOT_STARTED, true)).toBe("CarryHome")
+		expect(Tutorial.hint(Tutorial.NOT_STARTED, false)).toBe("Steal")
+	end)
+
+	it("does not ask to carry an egg on the steps that are not about stealing", function()
+		expect(Tutorial.hint(Tutorial.DELIVERED, true)).toBe("Hatch")
+		expect(Tutorial.hint(Tutorial.HATCHED, true)).toBe("Train")
+		expect(Tutorial.hint(Tutorial.DONE, true)).toBe("Done")
+	end)
+end)
+
+describe("Tutorial progress", function()
+	it("goes through every milestone in order", function()
+		local progress = Tutorial.NOT_STARTED
+		progress = Tutorial.afterDelivery(progress, 1, STRONGER)
+		expect(progress).toBe(Tutorial.DELIVERED)
+		progress = Tutorial.afterHatch(progress)
+		expect(progress).toBe(Tutorial.HATCHED)
+		progress = Tutorial.afterSpeed(progress, true)
+		expect(progress).toBe(Tutorial.TRAINED)
+		progress = Tutorial.afterDelivery(progress, STRONGER, STRONGER)
+		expect(progress).toBe(Tutorial.DONE)
+	end)
+
+	it("counts any guardian's egg for the first delivery", function()
+		expect(Tutorial.afterDelivery(Tutorial.NOT_STARTED, 5, STRONGER)).toBe(Tutorial.DELIVERED)
+	end)
+
+	it("wants an egg of the stronger guardian or farther at the end", function()
+		expect(Tutorial.afterDelivery(Tutorial.TRAINED, 1, STRONGER)).toBe(Tutorial.TRAINED)
+		expect(Tutorial.afterDelivery(Tutorial.TRAINED, 4, STRONGER)).toBe(Tutorial.DONE)
+	end)
+
+	it("ignores what happens out of turn", function()
+		expect(Tutorial.afterHatch(Tutorial.NOT_STARTED)).toBe(Tutorial.NOT_STARTED)
+		expect(Tutorial.afterSpeed(Tutorial.DELIVERED, true)).toBe(Tutorial.DELIVERED)
+		expect(Tutorial.afterSpeed(Tutorial.HATCHED, false)).toBe(Tutorial.HATCHED)
+		expect(Tutorial.afterDelivery(Tutorial.HATCHED, STRONGER, STRONGER)).toBe(Tutorial.HATCHED)
+		expect(Tutorial.afterDelivery(Tutorial.DONE, 1, STRONGER)).toBe(Tutorial.DONE)
+	end)
+end)
+
+describe("Tutorial.hatchSeconds", function()
+	it("makes only the first egg quick", function()
+		expect(Tutorial.hatchSeconds(Tutorial.NOT_STARTED, 95, 10)).toBe(10)
+		expect(Tutorial.hatchSeconds(Tutorial.NOT_STARTED, 6, 10)).toBe(6)
+		expect(Tutorial.hatchSeconds(Tutorial.DELIVERED, 95, 10)).toBe(95)
+	end)
+end)
+
+describe("Tutorial.fromBestPost", function()
+	it("counts a player who stole from the stronger guardian as done", function()
+		expect(Tutorial.fromBestPost(0, STRONGER)).toBe(Tutorial.NOT_STARTED)
+		expect(Tutorial.fromBestPost(1, STRONGER)).toBe(Tutorial.NOT_STARTED)
+		expect(Tutorial.fromBestPost(2, STRONGER)).toBe(Tutorial.DONE)
+		expect(Tutorial.fromBestPost(9, STRONGER)).toBe(Tutorial.DONE)
+	end)
+end)

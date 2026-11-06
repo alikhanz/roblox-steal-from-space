@@ -25,6 +25,7 @@
 --   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("ReadyNow", 3, 17)
 --   game.ServerStorage.DevCommands.ReplayLastReceipt:Invoke()
 --   game.ServerStorage.DevCommands.GivePass:Invoke("NightShift")
+--   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -106,6 +107,8 @@ export type Dependencies = {
 	processReceipt: (receipt: { [string]: any }) -> Enum.ProductPurchaseDecision,
 	chooseReadyNowEgg: (player: Player, uid: number) -> string?,
 	notePass: (player: Player, pass: Purchases.PassId) -> boolean,
+	-- Sets the tutorial's progress (TutorialService.setProgress).
+	setTutorialProgress: (player: Player, progress: number) -> boolean,
 }
 
 export type DevService = {
@@ -545,6 +548,18 @@ function DevService.new(dependencies: Dependencies): DevService
 				.. ` | inventory [{ids(data.inventory)}] | floor [{ids(data.floor)}] | eggs {#data.incubator}`
 				.. ` | slots {data.incubatorSlots}, waiting {#data.waiting}`
 				.. ` | passes [{table.concat(data.passes, ", ")}] | receipts {#data.purchaseIds}`
+				.. ` | tutorial {data.tutorialStep}`
+		end,
+		-- The first player's tutorial progress (Domain/Tutorial: 0 starts over, 4 is done).
+		SetTutorialStep = function(progress: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(type(progress) == "number", "SetTutorialStep expects a number")
+			return if dependencies.setTutorialProgress(player, progress)
+				then `tutorial at {progress}`
+				else "profile not active yet"
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).
 		SetInfiniteOxygen = function(enabled: boolean): string

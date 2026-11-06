@@ -118,6 +118,7 @@ function NestService.new(dependencies: Dependencies): NestService
 		local site = nest.site
 		nests[site.id] = nest
 		site.model:SetAttribute(EggConfig.NEST_EGG_POSITION_ATTRIBUTE, site.eggCFrame.Position)
+		site.model:SetAttribute(EggConfig.NEST_GRADE_ATTRIBUTE, nest.grade)
 		CollectionService:AddTag(site.model, EggConfig.NEST_TAG)
 	end
 

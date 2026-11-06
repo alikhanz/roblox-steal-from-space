@@ -34,6 +34,7 @@ local StationBorderController = require(script.Parent.Controllers.StationBorderC
 local StoreController = require(script.Parent.Controllers.StoreController)
 local ToastState = require(script.Parent.State.ToastState)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
+local TutorialController = require(script.Parent.Controllers.TutorialController)
 local WindowState = require(script.Parent.State.WindowState)
 
 local profileState = ProfileState.new()
@@ -95,6 +96,7 @@ Lifecycle.run({
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),
+	TutorialController.new(),
 	StationBorderController.new(),
 	eventController,
 	SerpentController.new({ events = eventController }),

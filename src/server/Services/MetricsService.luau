@@ -42,6 +42,10 @@ local SPEED = "Speed"
 local GUARDIAN_PATH = "Guardians"
 local THEFT_FUNNEL = "Theft"
 local THEFT_STEPS = { Grabbed = 1, ReachedStation = 2, Delivered = 3 }
+-- The tutorial (decision 065): one funnel session per account; step n + 1 is progress n
+-- (Domain/Tutorial), so a step is never logged twice.
+local TUTORIAL_FUNNEL = "Tutorial"
+local TUTORIAL_STEPS = { "Started", "Delivered", "Hatched", "Trained", "Done" }
 
 local FIELD_KEYS = {
 	Enum.AnalyticsCustomFieldKeys.CustomField01.Name,
@@ -85,6 +89,8 @@ export type MetricsService = {
 	-- A server event began: counted for every player on the server (events are per server, and
 	-- analytics events belong to a player).
 	serverEvent: (eventId: string) -> (),
+	-- The player reached tutorial progress `progress` (0: it started).
+	tutorialStep: (player: Player, progress: number) -> (),
 }
 
 -- Summed facts of one player, waiting to be sent.
@@ -407,6 +413,19 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 			for _, player in Players:GetPlayers() do
 				count(player, "EventSeen", { eventId })
 			end
+		end,
+		tutorialStep = function(player: Player, reached: number)
+			local step = reached + 1
+			local stepName = TUTORIAL_STEPS[step]
+			if not stepName then
+				return
+			end
+			if IS_STUDIO then
+				print(`[Metrics] {player.Name} tutorial {step} {stepName}`)
+				return
+			end
+			local session = `{TUTORIAL_FUNNEL}-{player.UserId}`
+			AnalyticsService:LogFunnelStepEvent(player, TUTORIAL_FUNNEL, session, step, stepName)
 		end,
 	}
 end

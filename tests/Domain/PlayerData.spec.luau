@@ -4,6 +4,7 @@ local BigNum = require("../../src/shared/Domain/BigNum")
 local PlayerData = require("../../src/shared/Domain/PlayerData")
 local Tables = require("../../src/shared/Runtime/Tables")
 local Test = require("../../lune/lib/Test")
+local Tutorial = require("../../src/shared/Domain/Tutorial")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 local DEFAULTS: PlayerData.Defaults = {
@@ -706,5 +707,33 @@ describe("PlayerData migration v13 -> v14", function()
 		local badPending = savedTemplate()
 		badPending.pendingDouble = { coins = "lots", trained = { mantissa = 0, exponent = 0 } }
 		expectCorrupted(badPending, "pendingDouble coins is invalid")
+	end)
+end)
+
+describe("PlayerData migration v14 -> v15", function()
+	it("starts the tutorial for a new player and skips it for one past guardian 2", function()
+		local fresh = savedTemplate()
+		fresh.schemaVersion = 14
+		fresh.tutorialStep = nil
+		local outcome = load(fresh)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.tutorialStep).toBe(Tutorial.NOT_STARTED)
+		end
+		local veteran = savedTemplate()
+		veteran.schemaVersion = 14
+		veteran.tutorialStep = nil
+		veteran.bestPost = 3
+		local done = load(veteran)
+		expect(done.ok).toBe(true)
+		if done.ok then
+			expect(done.data.tutorialStep).toBe(Tutorial.DONE)
+		end
+	end)
+
+	it("rejects a broken tutorial step", function()
+		local broken = savedTemplate()
+		broken.tutorialStep = Tutorial.DONE + 1
+		expectCorrupted(broken, "tutorialStep is invalid")
 	end)
 end)

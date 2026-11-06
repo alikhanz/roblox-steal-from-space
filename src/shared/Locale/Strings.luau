@@ -1033,6 +1033,41 @@ local Strings = {
 		ru = "Станция",
 		en = "Station",
 	},
+	-- The tutorial (decision 065): one line at a time, what to do now.
+	["tutorial.steal.hint"] = {
+		ru = "Лети к стражу и укради яйцо из гнезда",
+		en = "Fly to a guardian and steal its egg",
+	},
+	["tutorial.carryHome.hint"] = {
+		ru = "Неси яйцо на станцию. За границей станции страж отстанет",
+		en = "Fly the egg home. The guardian stops at the station border",
+	},
+	["tutorial.hatch.hint"] = {
+		ru = "Яйцо греется в инкубаторе. Когда будет готово, вылупи его",
+		en = "Your egg is warming in the incubator. Hatch it when it's ready",
+	},
+	-- {speed}: the next guardian's recommended speed ("42").
+	["tutorial.train.hint"] = {
+		ru = "Встань на тренажёр и накачай {speed} ⚡",
+		en = "Stand on the trainer and reach {speed} ⚡",
+	},
+	["tutorial.stealStronger.hint"] = {
+		ru = "Ты стал быстрее! Укради яйцо у следующего стража",
+		en = "You're faster now! Steal from the next guardian",
+	},
+	["tutorial.done.hint"] = {
+		ru = "Так держать! Цель слева покажет, сколько ⚡ нужно дальше",
+		en = "Nice! The goal on the left shows the ⚡ you need next",
+	},
+	-- Pins over what the tutorial points at.
+	["tutorial.egg.title"] = {
+		ru = "Твоё яйцо",
+		en = "Your egg",
+	},
+	["tutorial.trainer.title"] = {
+		ru = "Тренажёр",
+		en = "Trainer",
+	},
 	["marker.distance.hint"] = {
 		ru = "{distance} м",
 		en = "{distance} m",

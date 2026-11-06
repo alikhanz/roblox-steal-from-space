@@ -184,6 +184,17 @@ type ShopSource = enum {
 	Egg,
 }
 
+-- What the tutorial asks of the player now (Domain/Tutorial.Hint).
+type TutorialHint = enum {
+	Steal,
+	CarryHome,
+	Hatch,
+	Train,
+	StealStronger,
+	CarryHomeStronger,
+	Done,
+}
+
 -- Server -> client: the owner's private data. A snapshot on login, then the section that changed.
 
 event ProfileSnapshot = {
@@ -198,6 +209,15 @@ event ProfileSnapshot = {
 		loginGift: LoginGift,
 		index: Index,
 	},
+}
+
+-- The tutorial hint changed; also sent on login and with a requested snapshot. Done right after
+-- another hint means the player has just finished it.
+event TutorialChanged = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: TutorialHint,
 }
 
 event IndexChanged = {
