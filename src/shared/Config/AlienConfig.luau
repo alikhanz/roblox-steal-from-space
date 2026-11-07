@@ -23,6 +23,8 @@ export type Tier = {
 	read incomeFactor: number,
 	-- Base odds of hatching into this tier, before the egg's luck (see Hatch.shiftedWeights).
 	read hatchWeight: number,
+	-- How much bigger this tier stands than the grade's common one (decision 068).
+	read sizeFactor: number,
 }
 
 export type Variant = {
@@ -39,8 +41,11 @@ export type Alien = {
 	read grade: number,
 	read tier: TierId,
 	read variant: VariantId,
-	-- Coins per second while in a pod.
+	-- Coins per second while in a place.
 	read income: BigNum.BigNum,
+	-- How big it stands against the first guardian's common alien (decision 068): grows with
+	-- every guardian and with the tier.
+	read scale: number,
 }
 
 export type Grade = {
@@ -60,30 +65,35 @@ local TIERS: { [TierId]: Tier } = {
 		shortKey = "tier.commonShort.title",
 		incomeFactor = 1,
 		hatchWeight = 55,
+		sizeFactor = 1,
 	},
 	Uncommon = {
 		nameKey = "tier.uncommon.title",
 		shortKey = "tier.uncommonShort.title",
 		incomeFactor = 2,
 		hatchWeight = 28,
+		sizeFactor = 1.15,
 	},
 	Rare = {
 		nameKey = "tier.rare.title",
 		shortKey = "tier.rareShort.title",
 		incomeFactor = 5,
 		hatchWeight = 12,
+		sizeFactor = 1.3,
 	},
 	Epic = {
 		nameKey = "tier.epic.title",
 		shortKey = "tier.epicShort.title",
 		incomeFactor = 15,
 		hatchWeight = 4,
+		sizeFactor = 1.5,
 	},
 	Legendary = {
 		nameKey = "tier.legendary.title",
 		shortKey = "tier.legendaryShort.title",
 		incomeFactor = 50,
 		hatchWeight = 1,
+		sizeFactor = 1.8,
 	},
 }
 
@@ -91,6 +101,9 @@ local TIERS: { [TierId]: Tier } = {
 -- grows slower than guardian speed (x1.8 against x3), so money matters more with every zone.
 local INCOME_BASE = BigNum.fromNumber(1)
 local INCOME_GROWTH = BigNum.fromNumber(1.7)
+-- Each guardian's aliens stand this many times bigger than the previous one's (decision 068):
+-- the last guardian's legendary is about eight times a player's height.
+local SIZE_GROWTH = 1.108
 
 local TIER_POSITIONS: { [TierId]: number } = {}
 local HATCH_ENTRIES: { Loot.Entry<TierId> } = {}
@@ -134,6 +147,7 @@ for index = 1, ZoneConfig.POST_COUNT do
 				tier = tier,
 				variant = variant,
 				income = BigNum.mul(baseIncome, BigNum.fromNumber(factor)),
+				scale = SIZE_GROWTH ^ (index - 1) * TIERS[tier].sizeFactor,
 			})
 		end
 		variants[variant] = table.freeze(aliens)

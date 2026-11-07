@@ -25,6 +25,30 @@ local ZoneConfig = require("../../src/shared/Config/ZoneConfig")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 describe("AlienConfig", function()
+	it("grows aliens to about eight players tall at the last guardian's legendary (decision 068)", function()
+		local first = AlienConfig.ALIENS[AlienConfig.GRADES[1].aliens.Common]
+		local last = AlienConfig.GRADES[#AlienConfig.GRADES]
+		expect(first.scale).toBe(1)
+		-- A body of 2.1 studs: the legendary one about 40, the common one about 22.
+		expect(AlienConfig.ALIENS[last.aliens.Legendary].scale * 2.1).toBeCloseTo(40, 2)
+		expect(AlienConfig.ALIENS[last.aliens.Common].scale * 2.1).toBeCloseTo(22, 1.5)
+		-- Bigger with every guardian and every tier; a variant stands as big as the usual one.
+		for index = 2, #AlienConfig.GRADES do
+			local here = AlienConfig.ALIENS[AlienConfig.GRADES[index].aliens.Common].scale
+			local before = AlienConfig.ALIENS[AlienConfig.GRADES[index - 1].aliens.Common].scale
+			expect(here > before).toBe(true)
+		end
+		local grade = AlienConfig.GRADES[5]
+		for position = 2, #AlienConfig.TIER_ORDER do
+			local tier = AlienConfig.TIER_ORDER[position]
+			local lower = AlienConfig.TIER_ORDER[position - 1]
+			expect(AlienConfig.ALIENS[grade.aliens[tier]].scale > AlienConfig.ALIENS[grade.aliens[lower]].scale).toBe(
+				true
+			)
+		end
+		expect(AlienConfig.ALIENS[grade.variants.Meteor.Rare].scale).toBe(AlienConfig.ALIENS[grade.aliens.Rare].scale)
+	end)
+
 	it("has one grade per guardian post with an alien per tier", function()
 		expect(#AlienConfig.GRADES).toBe(#GuardianConfig.POSTS)
 		expect(#AlienConfig.GRADES).toBe(ZoneConfig.POST_COUNT)

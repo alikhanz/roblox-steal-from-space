@@ -22,14 +22,14 @@ local function ghost(part: BasePart)
 	part.CastShadow = false
 end
 
-local function addEye(body: BasePart, side: number, model: Model)
+local function addEye(body: BasePart, side: number, scale: number, model: Model)
 	local eye = Instance.new("Part")
 	eye.Name = "Eye"
-	eye.Size = AlienLooks.EYE_SIZE
+	eye.Size = AlienLooks.EYE_SIZE * scale
 	eye.Color = AlienLooks.EYE_COLOR
 	eye.Material = Enum.Material.SmoothPlastic
 	ghost(eye)
-	eye.CFrame = body.CFrame * CFrame.new(side * body.Size.X * 0.22, body.Size.Y * 0.15, -body.Size.Z / 2 + 0.1)
+	eye.CFrame = body.CFrame * CFrame.new(side * body.Size.X * 0.22, body.Size.Y * 0.15, -body.Size.Z / 2 + 0.1 * scale)
 	eye.Parent = model
 end
 
@@ -37,31 +37,35 @@ end
 function AlienModel.build(alienId: AlienConfig.AlienId, uid: number, cframe: CFrame): Model
 	local alien = assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
 	local look = AlienLooks.TIERS[alien.tier]
+	-- Bigger with every guardian and tier (decision 068).
+	local scale = alien.scale
+	local size = AlienLooks.BODY_SIZE * scale
 
 	local model = Instance.new("Model")
 	model.Name = `Alien{uid}`
 
 	local body = Instance.new("Part")
 	body.Name = "Body"
-	body.Size = AlienLooks.BODY_SIZE
+	body.Size = size
 	body.Color = look.color
 	body.Material = if look.glow > 0 then Enum.Material.Neon else Enum.Material.SmoothPlastic
 	ghost(body)
-	body.CFrame = cframe * CFrame.new(0, AlienLooks.BODY_SIZE.Y / 2, 0)
+	body.CFrame = cframe * CFrame.new(0, size.Y / 2, 0)
 	local mesh = Instance.new("SpecialMesh")
 	mesh.MeshType = Enum.MeshType.Sphere
 	mesh.Parent = body
 	if look.glow > 0 then
 		local light = Instance.new("PointLight")
 		light.Color = look.color
+		-- Not grown with the alien: a giant's light would flood the whole station.
 		light.Range = GLOW_RANGE * look.glow
 		light.Brightness = GLOW_BRIGHTNESS * look.glow
 		light.Parent = body
 	end
 	body.Parent = model
 
-	addEye(body, -1, model)
-	addEye(body, 1, model)
+	addEye(body, -1, scale, model)
+	addEye(body, 1, scale, model)
 
 	model.PrimaryPart = body
 	model:SetAttribute(BayConfig.ALIEN_ID_ATTRIBUTE, alienId)

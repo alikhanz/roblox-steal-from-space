@@ -39,7 +39,8 @@ local SIGN_STUDS_ABOVE = 1.2
 -- Over the head of whoever stands on the pad.
 local TRAINER_STUDS_ABOVE = 5
 local PODS_SIGN_STUDS_ABOVE = 0.5
-local ALIEN_STUDS_ABOVE = 2
+-- Over the top of the alien's head.
+local ALIEN_STUDS_ABOVE = 1
 local INCUBATOR_STUDS_ABOVE = 4
 -- Each egg's countdown, just over it.
 local EGG_STUDS_ABOVE = 1.6
@@ -305,7 +306,8 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				adornee = part,
 				dot = AlienLooks.TIERS[alien.tier].color,
 				text = Text.get(locale, "alien.income.hint", { income = income }),
-				studsAbove = ALIEN_STUDS_ABOVE,
+				-- Over the head: aliens grow with every guardian (decision 068).
+				studsAbove = part.Size.Y / 2 + ALIEN_STUDS_ABOVE,
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),
 				nil
