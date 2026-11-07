@@ -33,12 +33,13 @@ local function addEye(body: BasePart, side: number, scale: number, model: Model)
 	eye.Parent = model
 end
 
--- `cframe` is where the alien stands: its feet are at the frame's origin.
-function AlienModel.build(alienId: AlienConfig.AlienId, uid: number, cframe: CFrame): Model
+-- `cframe` is where the alien stands: its feet are at the frame's origin. `scale` overrides its
+-- own size (aliens with no place stand small on the island's floor).
+function AlienModel.build(alienId: AlienConfig.AlienId, uid: number, cframe: CFrame, scaleOverride: number?): Model
 	local alien = assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
 	local look = AlienLooks.TIERS[alien.tier]
 	-- Bigger with every guardian and tier (decision 068).
-	local scale = alien.scale
+	local scale = scaleOverride or alien.scale
 	local size = AlienLooks.BODY_SIZE * scale
 
 	local model = Instance.new("Model")

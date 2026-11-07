@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Остров изнутри</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark;
+  --floor: #2c3248; --dome: rgba(140, 220, 255, .35); --places: #3EA6FF; --inc: #FFAA3C; --trainer: #FFD34A; --pile: #9aa3c2;
+  --sign: #5ac8ff; --player: #ffffff; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 32px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 74ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.panel { background: #0d1130; border: 1px solid #2a3156; border-radius: 22px; padding: 14px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tabs button { font: inherit; font-weight: 800; font-size: 15px; color: var(--ink); background: #151a3c; border: 1px solid #2a3156; border-radius: 99px; padding: 6px 16px; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: #1f3a6e; border-color: var(--places); }
+.stat { font-size: 15px; color: var(--muted-page); }
+.stat b { color: var(--ink); }
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: "Nunito", sans-serif; font-weight: 900; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted-page); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="intro">
+    <h1>Остров изнутри</h1>
+    <p>План сверху и вид сбоку <b>в масштабе</b> (1 клетка — 10 studs). Остров радиусом <b>95</b>, вход — снизу, со стороны центра станции. Раскладку мест считает тот же алгоритм, что пойдёт в <code>Domain/PlaceLayout</code>: мелкие внутри, гиганты у края, в ряду самый крупный посередине.</p>
+    <p>Пришельцы — кружки ширины модели в цвете ступени; белая точка у входа — игрок (ширина 2, рост 5).</p>
+  </section>
+
+  <figure>
+    <div class="tabs" role="group" aria-label="Этап игры">
+      <button type="button" data-stage="start">Начало: 3 места</button>
+      <button type="button" data-stage="mid">Страж 12: 15 мест</button>
+      <button type="button" data-stage="end" aria-pressed="true">Страж 24: 30 мест</button>
+    </div>
+    <div class="panel"><svg id="plan" viewBox="-104 -104 208 208" role="img" aria-label="План острова сверху"></svg></div>
+    <figcaption id="planCaption"></figcaption>
+    <div class="legend">
+      <span><i style="background:var(--places)"></i>места</span>
+      <span><i style="background:var(--inc)"></i>инкубатор и капсулы</span>
+      <span><i style="background:var(--trainer)"></i>тренажёр</span>
+      <span><i style="background:var(--pile)"></i>пол (без места, маленькие)</span>
+      <span><i style="background:var(--sign)"></i>табличка хозяина</span>
+    </div>
+  </figure>
+
+  <figure>
+    <div class="panel"><svg id="side" viewBox="-100 -54 200 61" role="img" aria-label="Вид сбоку по оси входа"></svg></div>
+    <figcaption><b>Вид сбоку</b> по линии вход — центр — край (этап выбирается сверху): игрок у спавна, инкубатор, по одному пришельцу из середины каждого ряда. Купол над краем острова — на высоте 210, над центром — 247: гиганты в 40 studs до него далеко.</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Что видно</h2>
+      <ul>
+        <li>От спавна прямо — инкубатор, за ним подкова мест; слева тренажёр, справа пол.</li>
+        <li>Подкова мест очерчена на полу с самого начала: видно, сколько ещё можно вырастить.</li>
+        <li>Капсулы инкубатора — по кругу, сначала со стороны входа; ждущие яйца — кольцом снаружи.</li>
+        <li>Пришельцы на полу — все маленькие, вырастают на месте.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Цифры</h2>
+      <ul>
+        <li>Остров 95, купол 142,5, граница станции 581 (было 364).</li>
+        <li>Спавн — 57 от центра острова, до инкубатора ~3,5 с пешком.</li>
+        <li>Места: подкова 300°, вход — клин 60°, ряды от радиуса 20 до 92, зазор 1,5.</li>
+        <li>Не помещается — расстояния уменьшаются шагом 0,02, не меньше ×0,5.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+// Numbers as in the brief (docs/design/screens/island.md) and AlienConfig.
+const R = 95, INNER = 20, EDGE = 3, GAP = 1.5, ROW_SPREAD = 2, ARC = 300 * Math.PI / 180, MIN_SQUEEZE = 0.5, SQUEEZE_STEP = 0.02;
+const BODY_W = 1.8, BODY_H = 2.1, GROWTH = 1.108;
+const TIERS = { Common: [1, 1, "#bec4d2"], Uncommon: [1.15, 2, "#6ee182"], Rare: [1.3, 5, "#50a0ff"], Epic: [1.5, 15, "#be5aff"], Legendary: [1.8, 50, "#ffbe3c"] };
+const EMPTY_W = 2.6; // an empty place's pad
+const SPAWN = [0, -57], TRAINER = [-17, -55, 3], PILE = [17, -55, 10, 14], SIGN = [0, -91, 14];
+const CAPSULE_RING = 8.5, CAPSULE_R = 1.6, WAITING_RING = 12.5;
+
+function alien(grade, tier) {
+  const [size, , color] = TIERS[tier];
+  const scale = Math.pow(GROWTH, grade - 1) * size;
+  return { w: BODY_W * scale, h: BODY_H * scale, color };
+}
+
+// The 30 best by income among all aliens (both variants): the end of the game.
+function best(count, maxGrade) {
+  const all = [];
+  for (let g = 1; g <= maxGrade; g++) for (const t in TIERS) for (const v of [1, 2])
+    all.push({ g, t, income: (g - 1) * Math.log(1.7) + Math.log(TIERS[t][1] * v) });
+  all.sort((a, b) => b.income - a.income);
+  return all.slice(0, count).map(a => alien(a.g, a.t));
+}
+
+const STAGES = {
+  start: { places: [alien(1, "Common"), alien(1, "Common"), alien(1, "Uncommon")], capsules: 2, eggs: 1, ready: 0, waiting: 0, pile: 0 },
+  mid: { places: [
+      ...[1, 2, 3].map(() => alien(12, "Common")), alien(12, "Uncommon"), alien(12, "Uncommon"), alien(12, "Rare"),
+      alien(11, "Common"), alien(11, "Common"), alien(11, "Uncommon"), alien(11, "Uncommon"), alien(11, "Epic"),
+      alien(10, "Rare"), alien(10, "Common"), null, null],
+    capsules: 6, eggs: 5, ready: 1, waiting: 0, pile: 4 },
+  end: { places: best(30, 24), capsules: 12, eggs: 12, ready: 2, waiting: 3, pile: 9 },
+};
+
+// Domain/PlaceLayout: where each place stands, in the island's frame (x right, z toward the back).
+function layout(widths) {
+  const order = widths.map((_, i) => i).sort((a, b) => widths[a] - widths[b] || a - b);
+  const limit = R - EDGE;
+  function attempt(c) {
+    const rows = [];
+    let k = 0, base = INNER, outer = 0;
+    while (k < order.length) {
+      const row = []; let used = 0, widest = 0;
+      const narrowest = widths[order[k]];
+      while (k < order.length) {
+        const width = widths[order[k]], length = width * c + GAP;
+        const r = base + Math.max(widest, width) * c / 2;
+        if (row.length > 0 && (used + length > r * ARC || width > narrowest * ROW_SPREAD)) break;
+        row.push(order[k]); used += length; widest = Math.max(widest, width); k++;
+      }
+      const r = base + widest * c / 2;
+      rows.push({ r, row });
+      outer = r + widest / 2;
+      base = r + widest * c / 2 + GAP;
+    }
+    return { rows, outer };
+  }
+  let c = 1, result = attempt(1);
+  while (result.outer > limit && c - SQUEEZE_STEP >= MIN_SQUEEZE - 1e-9) { c -= SQUEEZE_STEP; result = attempt(c); }
+  const at = [];
+  for (const { r, row } of result.rows) {
+    // Biggest in the middle, the rest to either side, getting smaller.
+    const byDesc = [...row].sort((a, b) => widths[b] - widths[a] || a - b);
+    const line = [];
+    byDesc.forEach((i, n) => (n % 2 === 1 ? line.push(i) : line.unshift(i)));
+    const total = line.reduce((s, i) => s + widths[i] * c + GAP, 0) - GAP;
+    let s = -total / 2;
+    for (const i of line) {
+      const mid = s + widths[i] * c / 2; s += widths[i] * c + GAP;
+      const a = mid / r;
+      at[i] = { x: r * Math.sin(a), z: r * Math.cos(a), r };
+    }
+  }
+  return { at, squeeze: c, rows: result.rows.length, outer: result.outer };
+}
+
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs, parent) {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+function label(parent, x, y, text, color, size = 4.2) {
+  const t = el("text", { x, y, fill: color, "font-size": size, "text-anchor": "middle", "paint-order": "stroke", stroke: "#0d1130", "stroke-width": 1 }, parent);
+  t.textContent = text; return t;
+}
+// Plan: svg y = -z (back of the island at the top).
+function sector(inner, outer) {
+  const p = (r, a) => `${r * Math.sin(a)} ${-r * Math.cos(a)}`;
+  const h = ARC / 2;
+  return `M${p(inner, -h)} A${inner} ${inner} 0 1 1 ${p(inner, h)} L${p(outer, h)} A${outer} ${outer} 0 1 0 ${p(outer, -h)} Z`;
+}
+function capsuleAngle(i) { // the first capsules face the entrance, then alternate
+  const step = (Math.PI * 2) / 12, n = Math.ceil(i / 2) * (i % 2 ? 1 : -1);
+  return Math.PI + (i === 0 ? 0 : n * step);
+}
+
+function drawPlan(stage) {
+  const svg = document.getElementById("plan"); svg.replaceChildren();
+  const g = el("g", {}, svg);
+  for (let v = -100; v <= 100; v += 10) {
+    el("line", { x1: v, y1: -100, x2: v, y2: 100, stroke: "#151a3a", "stroke-width": .3 }, g);
+    el("line", { x1: -100, y1: v, x2: 100, y2: v, stroke: "#151a3a", "stroke-width": .3 }, g);
+  }
+  el("circle", { cx: 0, cy: 0, r: R + 2, fill: "none", stroke: "var(--dome)", "stroke-width": .8, "stroke-dasharray": "3 2" }, g);
+  el("circle", { cx: 0, cy: 0, r: R, fill: "var(--floor)", stroke: "#4a5478", "stroke-width": .6 }, g);
+  // Zones on the floor.
+  el("path", { d: sector(INNER - 2, R - 1), fill: "rgba(62,166,255,.07)", stroke: "var(--places)", "stroke-width": .7 }, g);
+  el("circle", { cx: 0, cy: 0, r: WAITING_RING + 2.5, fill: "rgba(255,170,60,.07)", stroke: "var(--inc)", "stroke-width": .7 }, g);
+  el("circle", { cx: TRAINER[0], cy: -TRAINER[1], r: TRAINER[2] + 2, fill: "rgba(255,211,74,.06)", stroke: "var(--trainer)", "stroke-width": .5 }, g);
+  el("circle", { cx: TRAINER[0], cy: -TRAINER[1], r: TRAINER[2], fill: "#1b2140", stroke: "var(--trainer)", "stroke-width": .7 }, g);
+  el("rect", { x: PILE[0] - PILE[2] / 2, y: -PILE[1] - PILE[3] / 2, width: PILE[2], height: PILE[3], rx: 1.5, fill: "rgba(154,163,194,.08)", stroke: "var(--pile)", "stroke-width": .6 }, g);
+  label(g, TRAINER[0] - 2, -TRAINER[1] + 9.5, "тренажёр", "var(--trainer)");
+  label(g, PILE[0], -PILE[1] + 11, "пол", "var(--pile)");
+  // Owner's sign and spawn.
+  el("rect", { x: SIGN[0] - SIGN[2] / 2, y: -SIGN[1] - .8, width: SIGN[2], height: 1.6, rx: .6, fill: "var(--sign)" }, g);
+  label(g, 0, -SIGN[1] + 7, "табличка хозяина", "var(--sign)", 3.6);
+  el("circle", { cx: SPAWN[0], cy: -SPAWN[1], r: 3, fill: "none", stroke: "#fff", "stroke-width": .4, "stroke-dasharray": "1 1" }, g);
+  el("circle", { cx: SPAWN[0], cy: -SPAWN[1], r: 1, fill: "var(--player)" }, g);
+  label(g, SPAWN[0], -SPAWN[1] - 5, "спавн", "#fff", 3.6);
+  label(g, 0, 101.5, "↓ к центру станции", "var(--muted-page)", 3.6);
+
+  const s = STAGES[stage];
+  // Incubator: core, capsules, waiting eggs.
+  el("circle", { cx: 0, cy: 0, r: CAPSULE_RING + CAPSULE_R + .8, fill: "#3a2a1a", stroke: "var(--inc)", "stroke-width": .5 }, g);
+  for (let i = 0; i < s.capsules; i++) {
+    const a = capsuleAngle(i), x = CAPSULE_RING * Math.sin(a), y = -CAPSULE_RING * Math.cos(a);
+    el("circle", { cx: x, cy: y, r: CAPSULE_R, fill: "rgba(140,220,255,.25)", stroke: "#8cdcff", "stroke-width": .35 }, g);
+    if (i < s.eggs) el("ellipse", { cx: x, cy: y, rx: .9, ry: 1.1, fill: i < s.ready ? "#fff09a" : "#ffd9a0" }, g);
+  }
+  for (let i = 0; i < s.waiting; i++) {
+    const a = Math.PI + (i - (s.waiting - 1) / 2) * .28;
+    el("ellipse", { cx: WAITING_RING * Math.sin(a), cy: -WAITING_RING * Math.cos(a), rx: .9, ry: 1.1, fill: "#ffd9a0", opacity: .75 }, g);
+  }
+  // Floor aliens: small, a 4 x 6 grid filled from the entrance's side.
+  for (let i = 0; i < s.pile; i++) {
+    const col = i % 4, row = Math.floor(i / 4);
+    el("circle", { cx: PILE[0] - 3.45 + col * 2.3, cy: -PILE[1] + 5.75 - row * 2.3, r: BODY_W / 2, fill: Object.values(TIERS)[i % 5][2] }, g);
+  }
+  // Places.
+  const widths = s.places.map(a => (a ? a.w : EMPTY_W));
+  const L = layout(widths);
+  s.places.forEach((a, i) => {
+    const p = L.at[i];
+    if (!a) {
+      el("circle", { cx: p.x, cy: -p.z, r: EMPTY_W / 2, fill: "none", stroke: "var(--places)", "stroke-width": .4, "stroke-dasharray": "1 .8" }, g);
+      return;
+    }
+    el("circle", { cx: p.x, cy: -p.z, r: a.w / 2 + .4, fill: "none", stroke: "var(--places)", "stroke-width": .5, opacity: .9 }, g);
+    el("circle", { cx: p.x, cy: -p.z, r: a.w / 2, fill: a.color, "fill-opacity": .78, stroke: "#0d1130", "stroke-width": .3 }, g);
+  });
+  label(g, 0, -(INNER - 5), "табличка мест", "var(--places)", 3.4);
+
+  const free = L.squeeze >= 1 ? "все стоят свободно" : `расстояния ×${L.squeeze.toFixed(2).replace(".", ",")}`;
+  document.getElementById("planCaption").innerHTML =
+    `<b>${s.places.length} мест</b>, рядов: ${L.rows}, крайний ряд до радиуса ${Math.round(L.outer)}; ${free}. ` +
+    `Инкубатор: ${s.capsules} капсул, яиц ${s.eggs}${s.waiting ? `, ждут ${s.waiting}` : ""}. На полу: ${s.pile}.`;
+  drawSide(s, L);
+}
+
+// Side view along the entrance line: z left to right (entrance on the left), y up. svg y = -height.
+function drawSide(s, L) {
+  const svg = document.getElementById("side"); svg.replaceChildren();
+  const g = el("g", {}, svg);
+  for (let y = 0; y <= 50; y += 10) {
+    el("line", { x1: -100, y1: -y, x2: 100, y2: -y, stroke: "#151a3a", "stroke-width": .3 }, g);
+    if (y) label(g, -97, -y + 1.2, String(y), "var(--muted-page)", 3);
+  }
+  el("rect", { x: -R, y: 0, width: R * 2, height: 2, fill: "#4a5478" }, g);
+  // Player at the spawn: 5 studs.
+  el("rect", { x: SPAWN[1] - 1, y: -5, width: 2, height: 5, rx: .8, fill: "var(--player)" }, g);
+  label(g, SPAWN[1], -7, "игрок", "#fff", 3.2);
+  // Incubator with its front and back capsules.
+  el("rect", { x: -(CAPSULE_RING + CAPSULE_R + .8), y: -.8, width: (CAPSULE_RING + CAPSULE_R + .8) * 2, height: .8, fill: "var(--inc)" }, g);
+  for (const z of [-CAPSULE_RING, CAPSULE_RING])
+    el("rect", { x: z - CAPSULE_R, y: -4.4, width: CAPSULE_R * 2, height: 3.6, rx: .6, fill: "rgba(140,220,255,.3)", stroke: "#8cdcff", "stroke-width": .3 }, g);
+  el("rect", { x: TRAINER[1] - TRAINER[2], y: -.3, width: TRAINER[2] * 2, height: .3, fill: "var(--trainer)", opacity: .5 }, g);
+  // One alien per row: the biggest, standing in the row's middle (behind the incubator).
+  const seen = new Set();
+  const placed = s.places.map((a, i) => ({ a, p: L.at[i] })).filter(o => o.a);
+  placed.sort((x, y) => y.a.w - x.a.w);
+  for (const { a, p } of placed) {
+    const key = Math.round(p.r);
+    if (seen.has(key)) continue; seen.add(key);
+    el("ellipse", { cx: p.r, cy: -a.h / 2, rx: a.w / 2, ry: a.h / 2, fill: a.color, "fill-opacity": .78, stroke: "#0d1130", "stroke-width": .3 }, g);
+  }
+  label(g, -R + 6, 5.5, "вход", "var(--muted-page)", 3.2);
+  label(g, R - 6, 5.5, "край", "var(--muted-page)", 3.2);
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+  drawPlan(b.dataset.stage);
+}));
+drawPlan("end");
+</script>
+</body>
+</html>

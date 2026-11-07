@@ -1,17 +1,27 @@
 --!strict
--- Builds the greybox bay (base plate, sign post, incubator disc) and knows where everything in
--- it stands: pods, eggs on the incubator, aliens waiting on the floor. The contents themselves
--- are added and replaced by BayService as the profile changes.
+-- Builds the greybox bay on a player's island (decision 068, docs/design/screens/island.md): the
+-- zone lines on the floor, the owner's sign, the incubator stand and the trainer pad, and knows
+-- where everything on the island stands: places (by Domain/PlaceLayout), capsules and their eggs,
+-- waiting eggs, aliens on the floor. The contents themselves are added and replaced by BayService
+-- as the profile changes. The island's floor and dome are WorldService's.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
+local PlaceLayout = require(ReplicatedStorage.Shared.Domain.PlaceLayout)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 
 local BayModel = {}
 
-local EDGE_HEIGHT = 0.1
+-- Fewer pieces than this would show a circle as a polygon.
+local MIN_ARC_PIECES = 24
+-- An arc is drawn of straight pieces at most this long, studs.
+local ARC_PIECE_LENGTH = 6
+-- A ready egg lies this far above its capsule's stand, studs: room for the largest egg.
+local EGG_LIFT = 1.4
+-- How far above the floor a waiting egg lies, studs.
+local WAITING_EGG_LIFT = 1
 
 -- Static scenery: anchored, never touched or queried.
 local function scenery(part: BasePart)
@@ -31,110 +41,184 @@ local function disc(name: string, cframe: CFrame, radius: number, thickness: num
 	return part
 end
 
+-- A glowing line on the floor from `a` to `b` (island frame, on the floor).
+local function floorLine(origin: CFrame, a: Vector3, b: Vector3, color: Color3, parent: Instance)
+	local length = (b - a).Magnitude
+	if length < 1e-3 then
+		return
+	end
+	local middle = (a + b) / 2 + Vector3.yAxis * BayLooks.ZONE_LINE_HEIGHT / 2
+	local part = Instance.new("Part")
+	part.Name = "ZoneLine"
+	part.Size = Vector3.new(BayLooks.ZONE_LINE_WIDTH, BayLooks.ZONE_LINE_HEIGHT, length + BayLooks.ZONE_LINE_WIDTH)
+	part.CFrame = origin * CFrame.lookAt(middle, middle + (b - a))
+	part.Material = Enum.Material.Neon
+	part.Color = color
+	part.CanCollide = false
+	scenery(part)
+	part.Parent = parent
+end
+
+-- A point on the floor `radius` from `center` at `angle` (0: toward the island's back, +Z).
+local function around(center: Vector3, radius: number, angle: number): Vector3
+	return center + Vector3.new(math.sin(angle) * radius, 0, math.cos(angle) * radius)
+end
+
+-- An arc of glowing line on the floor around `center`, from angle `from` to `to`.
+local function floorArc(
+	origin: CFrame,
+	center: Vector3,
+	radius: number,
+	from: number,
+	to: number,
+	color: Color3,
+	parent: Instance
+)
+	local pieces = math.max(MIN_ARC_PIECES, math.ceil(radius * math.abs(to - from) / ARC_PIECE_LENGTH))
+	for piece = 1, pieces do
+		local a = from + (to - from) * (piece - 1) / pieces
+		local b = from + (to - from) * piece / pieces
+		floorLine(origin, around(center, radius, a), around(center, radius, b), color, parent)
+	end
+end
+
 -- The frame of bay `slot` (1-based): the middle of its island's floor, facing the station center
 -- (decision 068).
 function BayModel.origin(slot: number): CFrame
 	return StationConfig.ISLAND_FRAMES[slot]
 end
 
-local PODS_PER_TIER = BayLooks.POD_ROWS * BayLooks.PODS_PER_ROW
-assert(
-	BayConfig.MAX_PODS <= PODS_PER_TIER * BayLooks.POD_TIERS,
-	`BayLooks has room for {PODS_PER_TIER * BayLooks.POD_TIERS} pods, BayConfig.MAX_PODS is {BayConfig.MAX_PODS}`
-)
-
--- The tier (1: on the floor) of pod `index`.
-local function tierOf(index: number): number
-	return (index - 1) // PODS_PER_TIER + 1
+-- Where each place stands, given the width of what stands on it (an alien's, or an empty place's
+-- BayLooks.EMPTY_PLACE_WIDTH), in place order. Each frame is on the floor, facing the island's
+-- center.
+function BayModel.placeFrames(origin: CFrame, widths: { number }): { CFrame }
+	local layout = PlaceLayout.arrange(widths, BayLooks.PLACES)
+	local frames: { CFrame } = {}
+	for index, spot in layout.spots do
+		local at = Vector3.new(spot.x, 0, spot.z)
+		frames[index] = origin * CFrame.lookAt(at, Vector3.zero)
+	end
+	return frames
 end
 
--- Where pod `index` (1-based) stands: the lower tier fills first, front row first.
-function BayModel.podCFrame(origin: CFrame, index: number): CFrame
-	local inTier = (index - 1) % PODS_PER_TIER
-	local row = inTier // BayLooks.PODS_PER_ROW + 1
-	local column = inTier % BayLooks.PODS_PER_ROW
-	local x = (column - (BayLooks.PODS_PER_ROW - 1) / 2) * BayLooks.POD_SPACING
-	local y = BayLooks.BASE_SIZE.Y + (tierOf(index) - 1) * BayLooks.POD_TIER_HEIGHT
-	local z = BayLooks.POD_ROW_Z[math.clamp(row, 1, #BayLooks.POD_ROW_Z)]
-	return origin * CFrame.new(x, y, z)
+-- A place's pad under an alien `width` wide (or an empty place's), at `frame` on the floor.
+function BayModel.buildPlace(frame: CFrame, width: number, index: number): Model
+	local model = Instance.new("Model")
+	model.Name = `Place{index}`
+	local radius = width / 2 + BayLooks.PLACE_PAD_MARGIN
+
+	local ring = disc(
+		"Ring",
+		frame * CFrame.new(0, BayLooks.PLACE_PAD_HEIGHT / 2, 0),
+		radius + BayLooks.PLACE_RING_WIDTH,
+		BayLooks.PLACE_PAD_HEIGHT * 0.6
+	)
+	ring.Material = Enum.Material.Neon
+	ring.Color = BayLooks.PLACES_COLOR
+	ring.CanCollide = false
+	scenery(ring)
+	ring.Parent = model
+
+	local pad = disc("Pad", frame * CFrame.new(0, BayLooks.PLACE_PAD_HEIGHT / 2, 0), radius, BayLooks.PLACE_PAD_HEIGHT)
+	pad.Material = Enum.Material.Metal
+	pad.Color = BayLooks.PLACE_PAD_COLOR
+	scenery(pad)
+	pad.Parent = model
+
+	model.PrimaryPart = pad
+	return model
 end
 
--- Where egg `index` (1-based) lies on the incubator: round the ring, then a level higher.
-function BayModel.eggCFrame(origin: CFrame, index: number): CFrame
-	local slot = (index - 1) % BayLooks.EGG_RING_SLOTS
-	local level = (index - 1) // BayLooks.EGG_RING_SLOTS
-	local angle = slot / BayLooks.EGG_RING_SLOTS * math.pi * 2
-	local lift = BayLooks.INCUBATOR_THICKNESS + 1 + level * BayLooks.EGG_STACK_HEIGHT
-	return origin
-		* CFrame.new(BayLooks.INCUBATOR_POSITION)
-		* CFrame.new(math.cos(angle) * BayLooks.EGG_RING_RADIUS, lift, math.sin(angle) * BayLooks.EGG_RING_RADIUS)
+-- Where an alien on a place at `frame` stands: on its pad.
+function BayModel.placeAlienCFrame(frame: CFrame): CFrame
+	return frame * CFrame.new(0, BayLooks.PLACE_PAD_HEIGHT, 0)
 end
 
--- Where queued egg `index` (1-based) lies: on the platform around the incubator, then on a
--- wider ring around it.
-function BayModel.waitingEggCFrame(origin: CFrame, index: number): CFrame
-	local slot = (index - 1) % BayLooks.WAITING_RING_SLOTS
-	local ring = (index - 1) // BayLooks.WAITING_RING_SLOTS
-	-- The second ring sits half a step round, between the first ring's eggs.
-	local angle = (slot + ring * 0.5) / BayLooks.WAITING_RING_SLOTS * math.pi * 2
-	local radius = BayLooks.WAITING_RING_RADIUS + ring * BayLooks.WAITING_RING_STEP
-	return origin
-		* CFrame.new(BayLooks.INCUBATOR_POSITION)
-		* CFrame.new(math.cos(angle) * radius, 1, math.sin(angle) * radius)
+-- The angle of capsule `index` (1-based) around the incubator: the first faces the entrance
+-- (-Z), the next ones alternate to its right and left.
+local function capsuleAngle(index: number): number
+	local step = math.pi * 2 / BayLooks.CAPSULE_POSITIONS
+	local offset = math.ceil((index - 1) / 2) * (if index % 2 == 0 then 1 else -1)
+	return math.pi + offset * step
 end
 
--- Where floor alien `index` (1-based) waits: down the right side, then the left, then again.
-function BayModel.floorCFrame(origin: CFrame, index: number): CFrame
-	local perRound = BayLooks.FLOOR_SPOTS_PER_SIDE * 2
-	local spot = (index - 1) % perRound
-	local round = (index - 1) // perRound
-	local side = if spot < BayLooks.FLOOR_SPOTS_PER_SIDE then 1 else -1
-	local along = spot % BayLooks.FLOOR_SPOTS_PER_SIDE
-	local x = side * (BayLooks.FLOOR_SPOT_X - round * BayLooks.FLOOR_SPOT_SPACING)
-	local z = BayLooks.FLOOR_SPOT_Z_START + along * BayLooks.FLOOR_SPOT_SPACING
-	return origin * CFrame.new(x, BayLooks.BASE_SIZE.Y, z)
+-- Where capsule `index` (1-based) stands: on the incubator's stand, facing out.
+function BayModel.capsuleCFrame(origin: CFrame, index: number): CFrame
+	local center = BayLooks.INCUBATOR_POSITION + Vector3.yAxis * BayLooks.INCUBATOR_THICKNESS
+	local at = around(center, BayLooks.CAPSULE_RING_RADIUS, capsuleAngle(index))
+	return origin * CFrame.lookAt(at, at + (at - center) * Vector3.new(1, 0, 1))
 end
 
-function BayModel.buildPod(origin: CFrame, index: number): Model
+function BayModel.buildCapsule(origin: CFrame, index: number): Model
+	local frame = BayModel.capsuleCFrame(origin, index)
 	local stand = disc(
 		"Stand",
-		BayModel.podCFrame(origin, index) * CFrame.new(0, BayLooks.POD_STAND_HEIGHT / 2, 0),
-		BayLooks.POD_STAND_RADIUS,
-		BayLooks.POD_STAND_HEIGHT
+		frame * CFrame.new(0, BayLooks.CAPSULE_STAND_HEIGHT / 2, 0),
+		BayLooks.CAPSULE_RADIUS,
+		BayLooks.CAPSULE_STAND_HEIGHT
 	)
 	stand.Material = Enum.Material.Metal
-	stand.Color = BayLooks.POD_STAND_COLOR
+	stand.Color = BayLooks.CAPSULE_STAND_COLOR
 	scenery(stand)
-	-- Upper-tier stands float at head height: nobody should bump into them.
-	stand.CanCollide = tierOf(index) == 1
 
 	local glass = disc(
 		"Glass",
-		BayModel.podCFrame(origin, index) * CFrame.new(0, BayLooks.POD_STAND_HEIGHT + BayLooks.POD_GLASS_HEIGHT / 2, 0),
-		BayLooks.POD_STAND_RADIUS,
-		BayLooks.POD_GLASS_HEIGHT
+		frame * CFrame.new(0, BayLooks.CAPSULE_STAND_HEIGHT + BayLooks.CAPSULE_GLASS_HEIGHT / 2, 0),
+		BayLooks.CAPSULE_RADIUS,
+		BayLooks.CAPSULE_GLASS_HEIGHT
 	)
 	glass.Material = Enum.Material.Glass
-	glass.Color = BayLooks.POD_GLASS_COLOR
-	glass.Transparency = BayLooks.POD_GLASS_TRANSPARENCY
+	glass.Color = BayLooks.CAPSULE_GLASS_COLOR
+	glass.Transparency = BayLooks.CAPSULE_GLASS_TRANSPARENCY
 	glass.CanCollide = false
 	scenery(glass)
 
 	local model = Instance.new("Model")
-	model.Name = `Pod{index}`
+	model.Name = `Capsule{index}`
 	stand.Parent = model
 	glass.Parent = model
 	model.PrimaryPart = stand
 	return model
 end
 
--- Where an alien inside pod `index` stands.
-function BayModel.podAlienCFrame(origin: CFrame, index: number): CFrame
-	return BayModel.podCFrame(origin, index) * CFrame.new(0, BayLooks.POD_STAND_HEIGHT, 0)
+-- Where the egg in incubator slot `index` (1-based) lies: in its capsule.
+function BayModel.eggCFrame(origin: CFrame, index: number): CFrame
+	return BayModel.capsuleCFrame(origin, index) * CFrame.new(0, BayLooks.CAPSULE_STAND_HEIGHT + EGG_LIFT, 0)
 end
 
--- The trainer zone: an outline on the station floor beside the bay (a dark disc inside a glowing
--- ring), nothing to climb. The prompt and the sign hang on the disc.
+-- Where queued egg `index` (1-based) lies: on the floor round the incubator, from the
+-- entrance's side outward to either side, then on a wider ring.
+function BayModel.waitingEggCFrame(origin: CFrame, index: number): CFrame
+	local slot = (index - 1) % BayLooks.WAITING_RING_SLOTS
+	local ring = (index - 1) // BayLooks.WAITING_RING_SLOTS
+	local step = math.pi * 2 / BayLooks.WAITING_RING_SLOTS
+	local offset = math.ceil(slot / 2) * (if slot % 2 == 1 then 1 else -1)
+	-- The second ring sits half a step round, between the first ring's eggs.
+	local angle = math.pi + (offset + ring * 0.5) * step
+	local radius = BayLooks.WAITING_RING_RADIUS + ring * BayLooks.WAITING_RING_STEP
+	return origin * CFrame.new(around(BayLooks.INCUBATOR_POSITION, radius, angle) + Vector3.yAxis * WAITING_EGG_LIFT)
+end
+
+-- Where floor alien `index` (1-based) waits: in the tray right of the spawn, rows from the
+-- entrance's side, facing the island's center. Past the tray's rows they go round again.
+function BayModel.floorCFrame(origin: CFrame, index: number): CFrame
+	local columns = BayLooks.PILE_COLUMNS
+	local spacing = BayLooks.PILE_SPACING
+	local rows = math.max(1, math.floor(BayLooks.PILE_SIZE.Y / spacing))
+	local spot = (index - 1) % (columns * rows)
+	local column = spot % columns
+	local row = spot // columns
+	local center = BayLooks.PILE_CENTER
+	local at = Vector3.new(
+		center.X + (column - (columns - 1) / 2) * spacing,
+		0,
+		center.Z - (rows - 1) / 2 * spacing + row * spacing
+	)
+	return origin * CFrame.lookAt(at, Vector3.new(0, 0, 0))
+end
+
+-- The trainer zone: an outline on the floor (a dark disc inside a glowing ring), nothing to
+-- climb. The prompt and the sign hang on the disc.
 local function buildTrainer(origin: CFrame, parent: Instance)
 	local pad = BayConfig.TRAINER_PAD
 	local center = origin * CFrame.new(pad.x, 0, pad.z)
@@ -164,38 +248,109 @@ local function buildTrainer(origin: CFrame, parent: Instance)
 	ring.Parent = parent
 end
 
+-- The owner's sign: a board on two posts at the entrance. The name hangs over it (the client's
+-- label on the board).
+local function buildSign(origin: CFrame, parent: Instance)
+	local base = origin * CFrame.new(BayLooks.SIGN_POSITION)
+	local board = BayLooks.SIGN_BOARD_SIZE
+	local postHeight = BayLooks.SIGN_POST_HEIGHT
+
+	local sign = Instance.new("Part")
+	sign.Name = BayConfig.SIGN_NAME
+	sign.Size = board
+	sign.CFrame = base * CFrame.new(0, postHeight + board.Y / 2, 0)
+	sign.Material = Enum.Material.Metal
+	sign.Color = BayLooks.SIGN_COLOR
+	scenery(sign)
+	sign.Parent = parent
+
+	-- A glowing frame line along the board's top and bottom.
+	for _, side in { 1, -1 } do
+		local edge = Instance.new("Part")
+		edge.Name = "SignEdge"
+		edge.Size = Vector3.new(board.X, 0.2, board.Z + 0.1)
+		edge.CFrame = sign.CFrame * CFrame.new(0, side * (board.Y / 2 - 0.1), 0)
+		edge.Material = Enum.Material.Neon
+		edge.Color = BayLooks.EDGE_COLOR
+		edge.CanCollide = false
+		scenery(edge)
+		edge.Parent = parent
+	end
+
+	for _, side in { 1, -1 } do
+		local post = Instance.new("Part")
+		post.Name = "SignPost"
+		post.Size = BayLooks.SIGN_POST_SIZE + Vector3.yAxis * postHeight
+		post.CFrame = base * CFrame.new(side * (board.X / 2 - 1), postHeight / 2, 0)
+		post.Material = Enum.Material.Metal
+		post.Color = BayLooks.SIGN_COLOR
+		scenery(post)
+		post.Parent = parent
+	end
+end
+
+-- The lines on the floor around each zone, in its colour.
+local function buildZoneLines(origin: CFrame, parent: Instance)
+	local places = BayLooks.PLACES
+	local half = places.arc / 2
+	local inner = places.inner - 2
+	local outer = places.outer + 2
+	floorArc(origin, Vector3.zero, inner, -half, half, BayLooks.PLACES_COLOR, parent)
+	floorArc(origin, Vector3.zero, outer, -half, half, BayLooks.PLACES_COLOR, parent)
+	for _, angle in { -half, half } do
+		floorLine(
+			origin,
+			around(Vector3.zero, inner, angle),
+			around(Vector3.zero, outer, angle),
+			BayLooks.PLACES_COLOR,
+			parent
+		)
+	end
+
+	floorArc(
+		origin,
+		BayLooks.INCUBATOR_POSITION,
+		BayLooks.INCUBATOR_ZONE_RADIUS,
+		0,
+		math.pi * 2,
+		BayLooks.INCUBATOR_COLOR,
+		parent
+	)
+
+	local pad = BayConfig.TRAINER_PAD
+	floorArc(
+		origin,
+		Vector3.new(pad.x, 0, pad.z),
+		pad.radius + BayLooks.TRAINER_ZONE_MARGIN,
+		0,
+		math.pi * 2,
+		BayLooks.TRAINER_RING_COLOR,
+		parent
+	)
+
+	local center = BayLooks.PILE_CENTER
+	local halfX, halfZ = BayLooks.PILE_SIZE.X / 2, BayLooks.PILE_SIZE.Y / 2
+	local corners = {
+		center + Vector3.new(-halfX, 0, -halfZ),
+		center + Vector3.new(halfX, 0, -halfZ),
+		center + Vector3.new(halfX, 0, halfZ),
+		center + Vector3.new(-halfX, 0, halfZ),
+	}
+	for index, corner in corners do
+		floorLine(origin, corner, corners[index % #corners + 1], BayLooks.PILE_COLOR, parent)
+	end
+end
+
 function BayModel.build(slot: number, origin: CFrame): Model
 	local model = Instance.new("Model")
 	model.Name = `Bay{slot}`
 
-	local base = Instance.new("Part")
-	base.Name = "Base"
-	base.Size = BayLooks.BASE_SIZE
-	base.CFrame = origin * CFrame.new(0, BayLooks.BASE_SIZE.Y / 2, 0)
-	base.Material = Enum.Material.Metal
-	base.Color = BayLooks.BASE_COLOR
-	scenery(base)
-	base.Parent = model
+	local lines = Instance.new("Folder")
+	lines.Name = "ZoneLines"
+	buildZoneLines(origin, lines)
+	lines.Parent = model
 
-	local edge = Instance.new("Part")
-	edge.Name = "Edge"
-	edge.Size = Vector3.new(BayLooks.BASE_SIZE.X + 0.6, EDGE_HEIGHT, BayLooks.BASE_SIZE.Z + 0.6)
-	edge.CFrame = origin * CFrame.new(0, EDGE_HEIGHT / 2, 0)
-	edge.Material = Enum.Material.Neon
-	edge.Color = BayLooks.EDGE_COLOR
-	edge.CanCollide = false
-	scenery(edge)
-	edge.Parent = model
-
-	local sign = Instance.new("Part")
-	sign.Name = BayConfig.SIGN_NAME
-	sign.Size = BayLooks.SIGN_SIZE
-	sign.CFrame = origin * CFrame.new(BayLooks.SIGN_POSITION)
-	sign.Material = Enum.Material.Neon
-	sign.Color = BayLooks.EDGE_COLOR
-	sign.CanCollide = false
-	scenery(sign)
-	sign.Parent = model
+	buildSign(origin, model)
 
 	local incubator = disc(
 		BayConfig.INCUBATOR_NAME,
@@ -210,21 +365,21 @@ function BayModel.build(slot: number, origin: CFrame): Model
 
 	buildTrainer(origin, model)
 
-	-- Invisible: only carries the pods' sign.
-	local podsSign = Instance.new("Part")
-	podsSign.Name = BayConfig.PODS_SIGN_NAME
-	podsSign.Size = Vector3.one * 0.2
-	podsSign.Transparency = 1
-	podsSign.CFrame = origin * CFrame.new(BayLooks.PODS_SIGN_POSITION)
-	podsSign.CanCollide = false
-	scenery(podsSign)
-	podsSign.Parent = model
+	-- Invisible: only carries the places' sign.
+	local placesSign = Instance.new("Part")
+	placesSign.Name = BayConfig.PODS_SIGN_NAME
+	placesSign.Size = Vector3.one * 0.2
+	placesSign.Transparency = 1
+	placesSign.CFrame = origin * CFrame.new(BayLooks.PLACES_SIGN_POSITION)
+	placesSign.CanCollide = false
+	scenery(placesSign)
+	placesSign.Parent = model
 
 	local contents = Instance.new("Folder")
 	contents.Name = BayConfig.CONTENTS_NAME
 	contents.Parent = model
 
-	model.PrimaryPart = base
+	model.PrimaryPart = incubator
 	return model
 end
 

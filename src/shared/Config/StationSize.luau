@@ -15,8 +15,9 @@ local PLATFORM_RADIUS = 60
 -- A dome over its platform, this many times the platform.
 local DOME_SHARE = 1.5
 local DOME_RADIUS = PLATFORM_RADIUS * DOME_SHARE
--- An island's platform: a player's bay, with room for aliens eight players tall.
-local ISLAND_RADIUS = 55
+-- An island's platform: a player's bay, with room for 30 aliens up to eight players tall
+-- (docs/design/screens/island.md).
+local ISLAND_RADIUS = 95
 local ISLAND_DOME_RADIUS = ISLAND_RADIUS * DOME_SHARE
 -- One island per player, around the center.
 local ISLAND_COUNT = ServerConfig.MAX_PLAYERS
@@ -44,5 +45,5 @@ return table.freeze({
 	-- Bays are the islands: on the island ring, facing the center.
 	BAY_RING_RADIUS = ISLAND_RING_RADIUS,
 	-- A player's spawn on their island: this far from its center, toward the station center.
-	ISLAND_SPAWN_DISTANCE = ISLAND_RADIUS * 0.75,
+	ISLAND_SPAWN_DISTANCE = ISLAND_RADIUS * 0.6,
 })

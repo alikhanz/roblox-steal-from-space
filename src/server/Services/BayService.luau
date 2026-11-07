@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local AlienModel = require(script.Parent.Parent.World.AlienModel)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
@@ -130,13 +131,14 @@ function BayService.new(dependencies: Dependencies): BayService
 		return bay.model:FindFirstChild(BayConfig.CONTENTS_NAME) or bay.model
 	end
 
-	local function placeAlien(alien: PlayerData.AlienRecord, cframe: CFrame, parent: Instance): Model?
+	-- `scale` overrides the alien's own size (the small ones on the floor).
+	local function placeAlien(alien: PlayerData.AlienRecord, cframe: CFrame, parent: Instance, scale: number?): Model?
 		if not AlienConfig.ALIENS[alien.id] then
 			-- A profile may hold an alien this build no longer knows; it stays in the data.
 			warn(`[BayService] Unknown alien {alien.id} (uid {alien.uid}); not shown`)
 			return nil
 		end
-		local model = AlienModel.build(alien.id, alien.uid, cframe)
+		local model = AlienModel.build(alien.id, alien.uid, cframe, scale)
 		CollectionService:AddTag(model, BayConfig.ALIEN_TAG)
 		model.Parent = parent
 		return model
@@ -289,11 +291,21 @@ function BayService.new(dependencies: Dependencies): BayService
 		contents:ClearAllChildren()
 		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
 
+		-- Places make room for their aliens: the layout follows their sizes (decision 068).
+		local widths: { number } = {}
 		for index, pod in data.pods do
-			BayModel.buildPod(bay.origin, index).Parent = contents
+			local alien = if pod.alien then AlienConfig.ALIENS[pod.alien.id] else nil
+			widths[index] = if alien then AlienLooks.widthOf(alien.scale) else BayLooks.EMPTY_PLACE_WIDTH
+		end
+		local placeFrames = BayModel.placeFrames(bay.origin, widths)
+		for index, pod in data.pods do
+			BayModel.buildPlace(placeFrames[index], widths[index], index).Parent = contents
 			if pod.alien then
-				placeAlien(pod.alien, BayModel.podAlienCFrame(bay.origin, index), contents)
+				placeAlien(pod.alien, BayModel.placeAlienCFrame(placeFrames[index]), contents)
 			end
+		end
+		for index = 1, math.min(data.incubatorSlots, BayLooks.CAPSULE_POSITIONS) do
+			BayModel.buildCapsule(bay.origin, index).Parent = contents
 		end
 		local current = now()
 		bay.ready = 0
@@ -327,7 +339,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			if index > BayConfig.FLOOR_SHOWN_MAX then
 				break
 			end
-			local model = placeAlien(alien, BayModel.floorCFrame(bay.origin, index), contents)
+			local model =
+				placeAlien(alien, BayModel.floorCFrame(bay.origin, index), contents, BayLooks.PILE_ALIEN_SCALE)
 			if model and hasRoom then
 				addPickUpPrompt(player, model, alien.uid)
 			end

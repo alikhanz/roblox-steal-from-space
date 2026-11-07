@@ -4,19 +4,20 @@
 local BigNum = require("../Domain/BigNum")
 local Trainer = require("../Domain/Trainer")
 
--- The trainer zone in the bay's frame (X right, -Z toward the platform center, Y up): on the
--- station floor just off the bay's right side, level with the pods.
+-- The trainer zone in the island's frame (X right when facing the station center, -Z toward it,
+-- Y up): in the entrance's wedge, on the left of a player who walks in from the spawn
+-- (docs/design/screens/island.md).
 local TRAINER_PAD: Trainer.Pad = {
-	x = 16.5,
-	z = -3.75,
-	radius = 1.8,
+	x = 17,
+	z = -55,
+	radius = 3,
 	height = 6,
 }
 
 return table.freeze({
 	-- Pods a new player owns; more are bought with coins.
 	STARTING_PODS = 3,
-	-- Room for them is in BayLooks (two tiers of 15).
+	-- Places on the island (BayLooks.PLACES, Domain/PlaceLayout).
 	MAX_PODS = 30,
 	-- Bought pod number n (counting the starting ones) costs
 	-- POD_PRICE_BASE * POD_PRICE_GROWTH^(n - STARTING_PODS - 1). The first ones are cheap: a

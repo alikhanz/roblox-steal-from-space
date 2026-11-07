@@ -41,7 +41,8 @@ local TRAINER_STUDS_ABOVE = 5
 local PODS_SIGN_STUDS_ABOVE = 0.5
 -- Over the top of the alien's head.
 local ALIEN_STUDS_ABOVE = 1
-local INCUBATOR_STUDS_ABOVE = 4
+-- Over the capsules round the incubator.
+local INCUBATOR_STUDS_ABOVE = 6
 -- Each egg's countdown, just over it.
 local EGG_STUDS_ABOVE = 1.6
 -- The owner's name reads from across the platform; the upgrade signs with the camera pulled
@@ -49,6 +50,8 @@ local EGG_STUDS_ABOVE = 1.6
 local SIGN_MAX_DISTANCE = 120
 local UPGRADE_SIGN_MAX_DISTANCE = 80
 local CONTENTS_MAX_DISTANCE = 35
+-- A grown alien's chip reads from farther, this many studs more per stud of its height.
+local CONTENTS_DISTANCE_PER_HEIGHT = 2
 -- Countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
 
@@ -308,7 +311,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				text = Text.get(locale, "alien.income.hint", { income = income }),
 				-- Over the head: aliens grow with every guardian (decision 068).
 				studsAbove = part.Size.Y / 2 + ALIEN_STUDS_ABOVE,
-				maxDistance = CONTENTS_MAX_DISTANCE,
+				maxDistance = CONTENTS_MAX_DISTANCE + part.Size.Y * CONTENTS_DISTANCE_PER_HEIGHT,
 			}),
 				nil
 		end)
