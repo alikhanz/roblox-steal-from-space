@@ -79,6 +79,8 @@ Lifecycle.run({
 		loaded = profileState.loaded,
 		menu = menuState,
 		tutorialLine = tutorialController.line,
+		tutorialStep = tutorialController.step,
+		tutorialIcon = tutorialController.icon,
 		openStore = if purchaseState.available
 			then function()
 				storeController.open("Goal")

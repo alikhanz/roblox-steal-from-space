@@ -24,6 +24,7 @@ local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local GoalCard = require(script.Parent.Parent.UI.GoalCard)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
+local Icons = require(script.Parent.Parent.UI.Icons)
 local Layout = require(script.Parent.Parent.UI.Layout)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local MenuTile = require(script.Parent.Parent.UI.MenuTile)
@@ -38,6 +39,7 @@ local SpeedGoal = require(ReplicatedStorage.Shared.Domain.SpeedGoal)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
+local Tutorial = require(ReplicatedStorage.Shared.Domain.Tutorial)
 local TutorialPanel = require(script.Parent.Parent.UI.TutorialPanel)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -86,8 +88,10 @@ export type Dependencies = {
 	speed: () -> BigNum.BigNum,
 	-- True once the profile arrived; numbers show a dash before that.
 	loaded: () -> boolean,
-	-- The tutorial's line for the bottom stack; empty: none.
+	-- The tutorial's line for the bottom stack; empty: none. Its step (dots) and the step's icon.
 	tutorialLine: () -> string,
+	tutorialStep: () -> number?,
+	tutorialIcon: () -> Icons.Name?,
 	-- The windows' tiles for the menu row.
 	menu: MenuState.MenuState,
 	-- Opens the shop from the speed goal; nil where nothing is sold (an unpublished place).
@@ -524,7 +528,13 @@ function HudController.new(dependencies: Dependencies): HudController
 						end,
 						layoutOrder = 1,
 					}),
-					TutorialPanel({ text = dependencies.tutorialLine, layoutOrder = 2 }),
+					TutorialPanel({
+						text = dependencies.tutorialLine,
+						step = dependencies.tutorialStep,
+						steps = Tutorial.STEP_COUNT,
+						icon = dependencies.tutorialIcon,
+						layoutOrder = 2,
+					}),
 					OxygenBar({
 						fraction = fraction,
 						isLow = isLow,

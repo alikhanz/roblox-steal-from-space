@@ -25,6 +25,7 @@ export type Name =
 	| "Meteor"
 	| "Jetpack"
 	| "Moon"
+	| "Home"
 
 local ICONS: { [Name]: string } = {
 	Bay = "rbxassetid://132068323643628",
@@ -47,6 +48,7 @@ local ICONS: { [Name]: string } = {
 	Meteor = "rbxassetid://92726378354461",
 	Jetpack = "rbxassetid://90247972090746",
 	Moon = "rbxassetid://129273642841872",
+	Home = "rbxassetid://139803282527524",
 }
 
 return table.freeze({
@@ -57,4 +59,6 @@ return table.freeze({
 	GLOW = "rbxassetid://136899120987901",
 	-- Two jetpack flames, drawn over the Jetpack icon at the same size; coloured by a gradient.
 	FLAME = "rbxassetid://123575093225405",
+	-- One chevron pointing along +X, repeated along the tutorial's path (a Beam's texture).
+	CHEVRONS = "rbxassetid://127548510823373",
 })

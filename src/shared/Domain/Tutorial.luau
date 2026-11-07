@@ -66,4 +66,22 @@ function Tutorial.fromBestPost(bestPost: number, strongerGrade: number): number
 	return if bestPost >= strongerGrade then Tutorial.DONE else Tutorial.NOT_STARTED
 end
 
+-- The steps the player sees counted (the dots of the hint panel): steal, carry home, hatch,
+-- train, steal from a stronger guardian (carrying that egg home is still the last step).
+Tutorial.STEP_COUNT = 5
+
+local STEPS: { [Hint]: number } = {
+	Steal = 1,
+	CarryHome = 2,
+	Hatch = 3,
+	Train = 4,
+	StealStronger = 5,
+	CarryHomeStronger = 5,
+}
+
+-- The step `hint` belongs to, 1..STEP_COUNT; nil once the tutorial is done.
+function Tutorial.stepOf(hint: Hint): number?
+	return STEPS[hint]
+end
+
 return table.freeze(Tutorial)

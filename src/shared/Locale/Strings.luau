@@ -1137,6 +1137,11 @@ local Strings = {
 		ru = "Тренажёр",
 		en = "Trainer",
 	},
+	-- The pin over the player's own bay while they carry an egg home.
+	["tutorial.bay.title"] = {
+		ru = "Твой отсек",
+		en = "Your bay",
+	},
 	["marker.distance.hint"] = {
 		ru = "{distance} м",
 		en = "{distance} m",
