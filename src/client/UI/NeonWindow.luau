@@ -102,14 +102,19 @@ local function NeonWindow(props: Props): Frame
 		BackgroundTransparency = 1,
 		Visible = props.visible,
 
-		create("Frame")({
+		-- The dimmed scene: a tap on it closes the window (it also lies over the HUD, so a second
+		-- tap on the window's menu tile closes it too, as the HUD brief wants).
+		create("TextButton")({
 			Name = "Veil",
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = VEIL,
 			BackgroundTransparency = VEIL_TRANSPARENCY,
 			BorderSizePixel = 0,
-			-- Taps on the dimmed scene stay here instead of reaching the world.
-			Active = true,
+			AutoButtonColor = false,
+			Text = "",
+			Activated = function()
+				props.onClose()
+			end,
 		}),
 		create("Frame")({
 			Name = "Window",

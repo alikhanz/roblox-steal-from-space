@@ -79,13 +79,17 @@ local function AlienRow(props: Props): TextButton
 		end,
 		Layout.followPress(pressed),
 		create("UICorner")({ CornerRadius = OUTER_CORNER }),
-		pressScale,
 		selectionLine,
 		Layout.padding(2, 2),
 
+		-- The row inside shrinks on a press; its place in the list stays, so the rows below do
+		-- not move.
 		create("Frame")({
 			Name = "Row",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromScale(1, 1),
+			pressScale,
 			BackgroundColor3 = function()
 				return if props.selected() then NEON.SELECTED else Color3.new(1, 1, 1)
 			end,

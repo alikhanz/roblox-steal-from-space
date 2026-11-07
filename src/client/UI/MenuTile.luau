@@ -54,18 +54,27 @@ local function MenuTile(props: Props): ImageButton
 		end,
 		Layout.followPress(pressed),
 
-		create("UICorner")({ CornerRadius = NEON.CORNER }),
-		pressScale,
-		Layout.glass(props.color, NEON.CORNER),
-		create("ImageLabel")({
-			Name = "Icon",
-			ZIndex = 1,
+		-- What is seen shrinks on a press; the tile's place in the row stays, so the neighbours
+		-- do not move.
+		create("Frame")({
+			Name = "Face",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
-			Image = Icons.ICONS[props.icon],
-			ImageColor3 = Layout.iconColor(props.color),
+			create("UICorner")({ CornerRadius = NEON.CORNER }),
+			pressScale,
+			Layout.glass(props.color, NEON.CORNER),
+			create("ImageLabel")({
+				Name = "Icon",
+				ZIndex = 1,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
+				BackgroundTransparency = 1,
+				Image = Icons.ICONS[props.icon],
+				ImageColor3 = Layout.iconColor(props.color),
+			}),
 		}),
 		create("TextLabel")({
 			Name = "Badge",

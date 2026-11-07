@@ -1,8 +1,12 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- An action button of the neon style (DESIGN.md, "Кнопка действия"): a rounded pill of dense
--- coloured glass with a word on it. Shrinks a little while pressed; a disabled one fades and
--- does nothing.
+-- coloured glass with a word on it. Lights up while pressed; a disabled one fades and does
+-- nothing.
+--
+-- The press lights the glass instead of shrinking the button: the button fits its word, and a
+-- size change would move its neighbours in a row (and a picture sized to the button inside a
+-- button sized by its contents makes the size depend on itself).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -14,7 +18,8 @@ local create = Vide.create
 local source = Vide.source
 
 local NEON = Theme.NEON
-local PRESSED_SCALE = 0.95
+-- How far a pressed button's glass goes towards white.
+local PRESSED_LIGHTEN = 0.3
 -- A disabled button: how see-through its glass and its word get.
 local DISABLED_TRANSPARENCY = 0.5
 local PADDING_X = 10
@@ -55,14 +60,12 @@ local function ActionButton(props: Props): TextButton
 	local fill = glass[1] :: Frame
 	local outline = glass[2] :: UIStroke
 	local textStroke = Layout.textStroke()
-	-- Vide's typed `create` does not list UIScale, so it is made directly.
-	local pressScale = Instance.new("UIScale")
-	Vide.effect(function()
-		pressScale.Scale = if pressed() and isEnabled() then PRESSED_SCALE else 1
-	end)
 	Vide.effect(function()
 		local transparency = faded()
 		fill.BackgroundTransparency = transparency
+		fill.BackgroundColor3 = if pressed() and isEnabled()
+			then props.color:Lerp(Color3.new(1, 1, 1), PRESSED_LIGHTEN)
+			else props.color
 		outline.Transparency = transparency
 		textStroke.Transparency = 1 - (1 - NEON.TEXT_STROKE_TRANSPARENCY) * (1 - transparency)
 	end)
@@ -85,7 +88,6 @@ local function ActionButton(props: Props): TextButton
 		Layout.followPress(pressed),
 
 		create("UICorner")({ CornerRadius = corner }),
-		pressScale,
 		glass,
 		create("TextLabel")({
 			Name = "Label",

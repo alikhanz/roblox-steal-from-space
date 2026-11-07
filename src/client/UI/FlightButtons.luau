@@ -181,50 +181,58 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 		end),
 		if spec.keyText then KeyCap(spec.keyText) else nil,
 
-		create("UICorner")({ CornerRadius = corner }),
-		pressScale,
-		create("ImageLabel")({
-			Name = "Glow",
-			ZIndex = 0,
+		-- What is seen shrinks on a press; the button's place stays, so a row does not move.
+		create("Frame")({
+			Name = "Face",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(GLOW_SHARE, GLOW_SHARE),
-			BackgroundTransparency = 1,
-			Image = Icons.GLOW,
-			ImageColor3 = spec.color,
-			ImageTransparency = GLOW_TRANSPARENCY,
-			Visible = isEnabled,
-		}),
-		glass,
-		create("ImageLabel")({
-			Name = "Icon",
-			ZIndex = 2,
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(ICON_SHARE, ICON_SHARE),
-			BackgroundTransparency = 1,
-			Image = Icons.ICONS[spec.icon],
-			ImageColor3 = function()
-				return if isEnabled() then Layout.iconColor(spec.color) else NEON.MUTED
-			end,
-		}),
-		sectorHalf("Left", fraction),
-		sectorHalf("Right", fraction),
-		create("TextLabel")({
-			Name = "Seconds",
-			ZIndex = 4,
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
-			FontFace = NEON.FONT,
-			TextSize = NEON.TEXT_HINT,
-			TextColor3 = NEON.TEXT,
-			Text = function()
-				return if spec.seconds then tostring(math.ceil(spec.seconds())) else ""
-			end,
-			Visible = function()
-				return fraction() > 0
-			end,
-			Layout.textStroke(),
+			create("UICorner")({ CornerRadius = corner }),
+			pressScale,
+			create("ImageLabel")({
+				Name = "Glow",
+				ZIndex = 0,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(GLOW_SHARE, GLOW_SHARE),
+				BackgroundTransparency = 1,
+				Image = Icons.GLOW,
+				ImageColor3 = spec.color,
+				ImageTransparency = GLOW_TRANSPARENCY,
+				Visible = isEnabled,
+			}),
+			glass,
+			create("ImageLabel")({
+				Name = "Icon",
+				ZIndex = 2,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(ICON_SHARE, ICON_SHARE),
+				BackgroundTransparency = 1,
+				Image = Icons.ICONS[spec.icon],
+				ImageColor3 = function()
+					return if isEnabled() then Layout.iconColor(spec.color) else NEON.MUTED
+				end,
+			}),
+			sectorHalf("Left", fraction),
+			sectorHalf("Right", fraction),
+			create("TextLabel")({
+				Name = "Seconds",
+				ZIndex = 4,
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				FontFace = NEON.FONT,
+				TextSize = NEON.TEXT_HINT,
+				TextColor3 = NEON.TEXT,
+				Text = function()
+					return if spec.seconds then tostring(math.ceil(spec.seconds())) else ""
+				end,
+				Visible = function()
+					return fraction() > 0
+				end,
+				Layout.textStroke(),
+			}),
 		}),
 	}) :: ImageButton
 end
