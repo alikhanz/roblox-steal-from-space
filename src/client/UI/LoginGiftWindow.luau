@@ -282,6 +282,9 @@ local function DayTile(props: Props, index: number): Frame
 	-- the row's own child would change its size in the layout and shake every other tile.
 	local tile = create("Frame")({
 		Name = "Tile",
+		-- Centred, so it breathes and pops around its middle (a scale keeps the anchor point).
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = function()
 			local egg = eggColor()
