@@ -10,6 +10,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local IconText = require(script.Parent.IconText)
 local Layout = require(script.Parent.Layout)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -59,7 +60,6 @@ local function ActionButton(props: Props): TextButton
 	local glass = Layout.glass(props.color, corner, true)
 	local fill = glass[1] :: Frame
 	local outline = glass[2] :: UIStroke
-	local textStroke = Layout.textStroke()
 	Vide.effect(function()
 		local transparency = faded()
 		fill.BackgroundTransparency = transparency
@@ -67,10 +67,9 @@ local function ActionButton(props: Props): TextButton
 			then props.color:Lerp(Color3.new(1, 1, 1), PRESSED_LIGHTEN)
 			else props.color
 		outline.Transparency = transparency
-		textStroke.Transparency = 1 - (1 - NEON.TEXT_STROKE_TRANSPARENCY) * (1 - transparency)
 	end)
-	-- The word sits in its own label above the glass: the glass is a child frame, and children
-	-- draw over their parent's own text.
+	-- The word sits in its own frame above the glass: the glass is a child frame, and children
+	-- draw over their parent's own text. A price's coin mark is drawn as the coin (IconText).
 	return create("TextButton")({
 		Name = props.name,
 		LayoutOrder = props.layoutOrder or 0,
@@ -89,19 +88,27 @@ local function ActionButton(props: Props): TextButton
 
 		create("UICorner")({ CornerRadius = corner }),
 		glass,
-		create("TextLabel")({
+		create("Frame")({
 			Name = "Label",
 			ZIndex = 1,
 			Size = if width then UDim2.fromScale(1, 0) else UDim2.new(),
 			AutomaticSize = if width then Enum.AutomaticSize.Y else Enum.AutomaticSize.XY,
 			BackgroundTransparency = 1,
-			FontFace = NEON.FONT,
-			TextSize = textSize,
-			TextColor3 = NEON.TEXT,
-			TextTransparency = faded,
-			Text = props.text,
 			Layout.padding(PADDING_X, paddingY),
-			textStroke,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			IconText({
+				name = "Text",
+				text = props.text,
+				textSize = textSize,
+				color = NEON.TEXT,
+				transparency = faded,
+				outline = "Neon",
+				zIndex = 1,
+			}),
 		}),
 	}) :: TextButton
 end

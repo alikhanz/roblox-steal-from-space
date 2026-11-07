@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local IconText = require(script.Parent.IconText)
 local Layout = require(script.Parent.Layout)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -40,23 +41,26 @@ local function Toasts(props: Props): Frame
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 		indexes(props.toasts, function(toast: () -> Toast, index: number)
-			return create("TextLabel")({
+			return create("Frame")({
 				Name = "Toast",
 				LayoutOrder = index,
 				AutomaticSize = Enum.AutomaticSize.XY,
 				BackgroundColor3 = function()
 					return toast().color
 				end,
-				FontFace = Theme.FONT,
-				TextSize = Theme.TEXT_SIZE,
-				TextColor3 = Theme.TEXT,
-				TextWrapped = true,
-				Text = function()
-					return toast().text
-				end,
 				create("UICorner")({ CornerRadius = Theme.CORNER }),
-				Layout.maxSize(MAX_WIDTH, math.huge),
 				Layout.padding(PADDING, PADDING / 2),
+				-- Amounts of coins and ⚡ show their icons (Locale/Marks).
+				IconText({
+					name = "Text",
+					text = function()
+						return toast().text
+					end,
+					textSize = Theme.TEXT_SIZE,
+					color = Theme.TEXT,
+					font = Theme.FONT,
+					wrapWidth = MAX_WIDTH - 2 * PADDING,
+				}),
 			})
 		end),
 	}) :: Frame

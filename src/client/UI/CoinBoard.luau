@@ -5,8 +5,10 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local IconText = require(script.Parent.IconText)
 local Layout = require(script.Parent.Layout)
 local LeaderboardLooks = require(ReplicatedStorage.Shared.Config.LeaderboardLooks)
+local Marks = require(ReplicatedStorage.Shared.Locale.Marks)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -124,17 +126,26 @@ local function RowView(props: Props, index: number): Frame
 			color = color,
 			alignment = Enum.TextXAlignment.Left,
 		}),
-		label({
-			name = "Coins",
-			order = 3,
-			size = UDim2.new(0, COINS_WIDTH, 1, 0),
-			text = function()
-				local current = row()
-				return if current then `{current.coins} ●` else ""
-			end,
-			textSize = ROW_TEXT_SIZE,
-			color = Theme.COINS,
-			alignment = Enum.TextXAlignment.Right,
+		create("Frame")({
+			Name = "Coins",
+			LayoutOrder = 3,
+			Size = UDim2.new(0, COINS_WIDTH, 1, 0),
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Right,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+			}),
+			IconText({
+				name = "Value",
+				text = function()
+					local current = row()
+					return if current then `{Marks.COINS}{current.coins}` else ""
+				end,
+				textSize = ROW_TEXT_SIZE,
+				color = Theme.COINS,
+				font = Theme.FONT,
+			}),
 		}),
 	}) :: Frame
 end

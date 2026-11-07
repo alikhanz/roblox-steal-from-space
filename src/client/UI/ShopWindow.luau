@@ -10,6 +10,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ActionButton = require(script.Parent.ActionButton)
+local IconText = require(script.Parent.IconText)
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
 local NeonWindow = require(script.Parent.NeonWindow)
@@ -213,7 +214,14 @@ local function SavingBar(props: Props, order: number): Frame
 			Padding = UDim.new(0, 3),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
-		label("Line", props.saving, 1, { size = NEON.TEXT_SMALL, align = Enum.TextXAlignment.Left }),
+		IconText({
+			name = "Line",
+			layoutOrder = 1,
+			text = props.saving,
+			textSize = NEON.TEXT_SMALL,
+			color = NEON.MUTED,
+			outline = "Neon",
+		}),
 		create("Frame")({
 			Name = "Bar",
 			LayoutOrder = 2,
@@ -276,9 +284,16 @@ local function NextCard(props: Props): Frame
 		label("Name", function()
 			return card().name
 		end, 3, { size = NEON.TEXT_WINDOW_TITLE, color = NEON.TEXT }),
-		label("Upgrade", function()
-			return card().upgrade
-		end, 4, { size = NEON.TEXT_HINT, color = NEON.SPEED }),
+		IconText({
+			name = "Upgrade",
+			layoutOrder = 4,
+			text = function()
+				return card().upgrade
+			end,
+			textSize = NEON.TEXT_HINT,
+			color = NEON.SPEED,
+			outline = "Neon",
+		}),
 		label("Gain", gain, 5, { visible = hasGain }),
 		SavingBar(props, 6),
 		ActionButton({

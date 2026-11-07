@@ -305,16 +305,16 @@ local Strings = {
 		en = "Empty",
 	},
 	["bay.buyPod.button"] = {
-		ru = "Капсула: {price}",
-		en = "Pod: {price}",
+		ru = "Капсула: ●{price}",
+		en = "Pod: ●{price}",
 	},
 	["bay.incubatorSlots.title"] = {
 		ru = "Инкубатор · {count}/{slots}",
 		en = "Incubator · {count}/{slots}",
 	},
 	["bay.buySlot.button"] = {
-		ru = "+1 место {price} ●",
-		en = "+1 slot {price} ●",
+		ru = "+1 место ●{price}",
+		en = "+1 slot ●{price}",
 	},
 	-- {price} is store.robux.hint ("19 R$").
 	["bay.buySlotRobux.button"] = {
@@ -402,8 +402,8 @@ local Strings = {
 		en = "Sell",
 	},
 	["bay.sellConfirm.button"] = {
-		ru = "Точно? +{price}",
-		en = "Sure? +{price}",
+		ru = "Точно? ●+{price}",
+		en = "Sure? ●+{price}",
 	},
 	["bay.toPod.button"] = {
 		ru = "В капсулу",
@@ -438,8 +438,8 @@ local Strings = {
 		en = "to the bay floor",
 	},
 	["alien.tierIncome.hint"] = {
-		ru = "{tier} · {income} ●/с",
-		en = "{tier} · {income} ●/s",
+		ru = "{tier} · ●{income}/с",
+		en = "{tier} · ●{income}/s",
 	},
 	["egg.grabbed.toast"] = {
 		ru = "Схватил! Неси яйцо на станцию",
@@ -514,8 +514,8 @@ local Strings = {
 		en = "Welcome back!",
 	},
 	["welcome.earned.hint"] = {
-		ru = "Тебя не было {time}: капсулы принесли {coins} ●, тренажёр добавил {speed} ⚡",
-		en = "You were away {time}: your pods made {coins} ● and your trainer added {speed} ⚡",
+		ru = "Тебя не было {time}. Капсулы и тренажёр работали без тебя",
+		en = "You were away {time}. Your pods and trainer kept working",
 	},
 	["welcome.eggsReady.hint"] = {
 		ru = "Готово яиц: {count}. Вылупи их в отсеке",
@@ -539,8 +539,8 @@ local Strings = {
 		en = "Stand here: +{rate} ⚡/s",
 	},
 	["trainer.upgrade.button"] = {
-		ru = "Улучшить: {price} ●",
-		en = "Upgrade: {price} ●",
+		ru = "Улучшить: ●{price}",
+		en = "Upgrade: ●{price}",
 	},
 	["trainer.gain.hint"] = {
 		ru = "+{gain} ⚡",
@@ -559,8 +559,8 @@ local Strings = {
 		en = "Every pod is yours",
 	},
 	["bay.buyPodSign.button"] = {
-		ru = "Купить: {price} ●",
-		en = "Buy: {price} ●",
+		ru = "Купить: ●{price}",
+		en = "Buy: ●{price}",
 	},
 	["key.mouseLeft.hint"] = {
 		ru = "ЛКМ",
@@ -688,8 +688,8 @@ local Strings = {
 		en = "Claim all",
 	},
 	["index.setClaim.button"] = {
-		ru = "Набор: +{coins} ●",
-		en = "Set: +{coins} ●",
+		ru = "Набор: ●+{coins}",
+		en = "Set: ●+{coins}",
 	},
 	["index.setDone.hint"] = {
 		ru = "Набор собран",
@@ -708,8 +708,8 @@ local Strings = {
 		en = { one = "{count} new alien in your index!", other = "{count} new aliens in your index!" },
 	},
 	["index.rewarded.toast"] = {
-		ru = "Индекс: +{coins} ●",
-		en = "Index: +{coins} ●",
+		ru = "Индекс: ●+{coins}",
+		en = "Index: ●+{coins}",
 	},
 	["notice.stormTeleport.toast"] = {
 		ru = "Буря! Тебя вернуло на станцию",
@@ -752,8 +752,8 @@ local Strings = {
 		en = "Next gift in {time}",
 	},
 	["gift.rewarded.toast"] = {
-		ru = "Подарок: +{coins} монет и +{speed} ⚡",
-		en = "Gift: +{coins} coins, +{speed} ⚡",
+		ru = "Подарок: ●+{coins} и ⚡+{speed}",
+		en = "Gift: ●+{coins} and ⚡+{speed}",
 	},
 	["notice.giftTaken.toast"] = {
 		ru = "Сегодняшний подарок уже у тебя",
@@ -796,8 +796,8 @@ local Strings = {
 		en = "Quest complete!",
 	},
 	["quests.rewarded.toast"] = {
-		ru = "Награда: +{coins} монет и +{speed} ⚡",
-		en = "Reward: +{coins} coins, +{speed} ⚡",
+		ru = "Награда: ●+{coins} и ⚡+{speed}",
+		en = "Reward: ●+{coins} and ⚡+{speed}",
 	},
 	["quests.confirm.hint"] = {
 		ru = "Точно?",
@@ -902,8 +902,8 @@ local Strings = {
 		en = "Yours",
 	},
 	["shop.buy.button"] = {
-		ru = "Купить: {price}",
-		en = "Buy: {price}",
+		ru = "Купить: ●{price}",
+		en = "Buy: ●{price}",
 	},
 	-- Over the card of the jetpack to buy next.
 	["shop.next.title"] = {
@@ -927,8 +927,8 @@ local Strings = {
 	},
 	-- Over the dim buy button while coins are short.
 	["shop.saving.hint"] = {
-		ru = "Копишь: {coins} / {price}",
-		en = "Saving up: {coins} / {price}",
+		ru = "Копишь: ●{coins} / {price}",
+		en = "Saving up: ●{coins} / {price}",
 	},
 	["shop.ladder.title"] = {
 		ru = "Все джетпаки",
@@ -1001,8 +1001,8 @@ local Strings = {
 		en = "Pick up",
 	},
 	["alien.income.hint"] = {
-		ru = "{income} монет/с",
-		en = "{income} coins/s",
+		ru = "●{income}/с",
+		en = "●{income}/s",
 	},
 	["time.seconds.hint"] = {
 		ru = { one = "{count} секунда", few = "{count} секунды", many = "{count} секунд" },
@@ -1192,13 +1192,13 @@ local Strings = {
 		en = "+1 incubator slot",
 	},
 	["store.double.toast"] = {
-		ru = "Ещё +{coins} ● и +{speed} ⚡",
-		en = "Another +{coins} ● and +{speed} ⚡",
+		ru = "Ещё ●+{coins} и ⚡+{speed}",
+		en = "Another ●+{coins} and ⚡+{speed}",
 	},
 	-- The purchase found nothing to apply to (the egg hatched, every slot bought).
 	["store.compensated.toast"] = {
-		ru = "Не к чему применить. Держи +{coins} ●",
-		en = "Nothing to use it on. Here's +{coins} ●",
+		ru = "Не к чему применить. Держи ●+{coins}",
+		en = "Nothing to use it on. Here's ●+{coins}",
 	},
 }
 

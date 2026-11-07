@@ -6,7 +6,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Button = require(script.Parent.Button)
+local IconText = require(script.Parent.IconText)
 local Layout = require(script.Parent.Layout)
+local Marks = require(ReplicatedStorage.Shared.Locale.Marks)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -63,29 +65,25 @@ local function WelcomeBack(props: Props): Frame
 			TextColor3 = Theme.TEXT,
 			Text = props.title,
 		}),
-		create("TextLabel")({
-			Name = "Coins",
-			LayoutOrder = 2,
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = COINS_TEXT_SIZE,
-			TextColor3 = Theme.COINS,
-			Text = function()
-				return `● {props.coins()}`
+		IconText({
+			name = "Coins",
+			layoutOrder = 2,
+			text = function()
+				return `{Marks.COINS}+{props.coins()}`
 			end,
+			textSize = COINS_TEXT_SIZE,
+			color = Theme.COINS,
+			font = Theme.FONT,
 		}),
-		create("TextLabel")({
-			Name = "Speed",
-			LayoutOrder = 3,
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = COINS_TEXT_SIZE,
-			TextColor3 = Theme.SPEED,
-			Text = function()
-				return `+{props.speed()} ⚡`
+		IconText({
+			name = "Speed",
+			layoutOrder = 3,
+			text = function()
+				return `{Marks.SPEED}+{props.speed()}`
 			end,
+			textSize = COINS_TEXT_SIZE,
+			color = Theme.SPEED,
+			font = Theme.FONT,
 		}),
 		create("TextLabel")({
 			Name = "Details",

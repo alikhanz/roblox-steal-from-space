@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local IconText = require(script.Parent.IconText)
 local Layout = require(script.Parent.Layout)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -78,11 +79,7 @@ local function Button(props: Props): TextButton
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundColor3 = props.color or Theme.ACCENT,
 		BackgroundTransparency = transparency,
-		FontFace = Theme.FONT,
-		TextSize = Theme.TEXT_SIZE,
-		TextColor3 = Theme.TEXT,
-		TextTransparency = transparency,
-		Text = props.text,
+		Text = "",
 		AutoButtonColor = isEnabled,
 		Activated = function()
 			if isEnabled() then
@@ -91,6 +88,22 @@ local function Button(props: Props): TextButton
 		end,
 		create("UICorner")({ CornerRadius = Theme.CORNER }),
 		Layout.padding(PADDING),
+		-- The word in a row of its own, so a price's coin mark is drawn as the coin (IconText).
+		create("Frame")({
+			Name = "Label",
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.fromScale(0, 0.5),
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundTransparency = 1,
+			IconText({
+				name = "Text",
+				text = props.text,
+				textSize = Theme.TEXT_SIZE,
+				color = Theme.TEXT,
+				font = Theme.FONT,
+				transparency = transparency,
+			}),
+		}),
 		if props.badge then Badge(props.badge) else nil,
 	}) :: TextButton
 end

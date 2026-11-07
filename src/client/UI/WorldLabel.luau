@@ -6,6 +6,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Button = require(script.Parent.Button)
+local IconText = require(script.Parent.IconText)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -71,16 +72,15 @@ local function WorldLabel(props: Props): BillboardGui
 			Text = props.title,
 		}),
 
-		create("TextLabel")({
-			Name = "Value",
-			LayoutOrder = 2,
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = VALUE_TEXT_SIZE,
-			TextColor3 = props.valueColor or Theme.TEXT,
-			TextStrokeTransparency = 0.4,
-			Text = props.value,
+		-- Amounts of coins and ⚡ show their icons (Locale/Marks).
+		IconText({
+			name = "Value",
+			layoutOrder = 2,
+			text = props.value,
+			textSize = VALUE_TEXT_SIZE,
+			color = props.valueColor or Theme.TEXT,
+			font = Theme.FONT,
+			outline = "Legacy",
 		}),
 
 		if button
