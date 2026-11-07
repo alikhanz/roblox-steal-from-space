@@ -278,10 +278,11 @@ local function DayTile(props: Props, index: number): Frame
 			outline.Transparency = 1 - (1 - NEON.LINE_TRANSPARENCY) * (1 - dim())
 		end
 	end)
-	return create("Frame")({
-		Name = `Day{index}`,
-		LayoutOrder = index,
-		Size = width,
+	-- The day's place in the row stays still; only the tile inside breathes and pops. A scale on
+	-- the row's own child would change its size in the layout and shake every other tile.
+	local tile = create("Frame")({
+		Name = "Tile",
+		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = function()
 			local egg = eggColor()
 			return if state() == "Today" then TODAY_COLOR elseif egg then egg else Color3.new(1, 1, 1)
@@ -291,9 +292,6 @@ local function DayTile(props: Props, index: number): Frame
 				then TODAY_TRANSPARENCY
 				elseif eggColor() and state() ~= "Taken" then EGG_DAY_TRANSPARENCY
 				else TILE_TRANSPARENCY
-		end,
-		Visible = function()
-			return entry() ~= nil
 		end,
 		create("UICorner")({ CornerRadius = NEON.CORNER }),
 		outline,
@@ -349,6 +347,16 @@ local function DayTile(props: Props, index: number): Frame
 			local current = entry()
 			return if current then current.speed else ""
 		end, dim),
+	}) :: Frame
+	return create("Frame")({
+		Name = `Day{index}`,
+		LayoutOrder = index,
+		Size = width,
+		BackgroundTransparency = 1,
+		Visible = function()
+			return entry() ~= nil
+		end,
+		tile,
 	}) :: Frame
 end
 
@@ -436,7 +444,8 @@ function LoginGiftWindow.burst(window: Instance, layer: ScreenGui, day: number, 
 	if not target or not target:IsA("GuiObject") then
 		return
 	end
-	local scale = target:FindFirstChildOfClass("UIScale")
+	-- The scale is on the tile inside the day's place in the row.
+	local scale = target:FindFirstChildWhichIsA("UIScale", true)
 	if scale then
 		TweenService:Create(scale, POP_TWEEN, { Scale = POP_SCALE }):Play()
 	end
