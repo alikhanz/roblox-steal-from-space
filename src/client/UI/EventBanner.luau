@@ -1,8 +1,10 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- Server events on the screen: a line per event at the top with its countdown, and a big
--- announcement across the middle when one is about to start or starts. Texts come in resolved.
+-- Server events on the screen: a line per event, side by side at the top (in Roblox's button
+-- row), each with its countdown, and a big announcement across the middle when one is about to
+-- start or starts. Texts come in resolved.
 
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Layout = require(script.Parent.Layout)
@@ -56,22 +58,40 @@ local function EventBanner(props: Props): ScreenGui
 		}) :: TextLabel
 	end
 
+	-- The lines sit in the row of Roblox's own buttons, centred on it: that row is free in the
+	-- middle on every device, while just under it the HUD's resources (with the newbie shield)
+	-- reach the middle of a phone, and windows start (docs/design/screens/hud.md).
+	local topbarMiddle = Vide.source(TOP_OFFSET + LINE_HEIGHT / 2)
+	local function readTopbar()
+		local inset = GuiService.TopbarInset
+		topbarMiddle(if inset.Height > 0 then (inset.Min.Y + inset.Max.Y) / 2 else TOP_OFFSET + LINE_HEIGHT / 2)
+	end
+	readTopbar()
+	local topbarConnection = GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(readTopbar)
+	Vide.cleanup(function()
+		topbarConnection:Disconnect()
+	end)
+
 	return create("ScreenGui")({
 		Name = "EventBanner",
 		ResetOnSpawn = false,
 		DisplayOrder = 15,
+		-- Positions count from the very top of the screen, Roblox's button row included.
+		IgnoreGuiInset = true,
 
 		create("Frame")({
 			Name = "Lines",
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, TOP_OFFSET),
-			Size = UDim2.fromScale(1, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
+			Position = function()
+				return UDim2.new(0.5, 0, 0, topbarMiddle() - LINE_HEIGHT / 2)
+			end,
+			Size = UDim2.new(1, 0, 0, LINE_HEIGHT),
 			BackgroundTransparency = 1,
+			-- Side by side, so a second event stays in the button row too.
 			create("UIListLayout")({
-				FillDirection = Enum.FillDirection.Vertical,
+				FillDirection = Enum.FillDirection.Horizontal,
 				HorizontalAlignment = Enum.HorizontalAlignment.Center,
-				Padding = UDim.new(0, 4),
+				Padding = UDim.new(0, 8),
 				SortOrder = Enum.SortOrder.LayoutOrder,
 			}),
 			indexes(props.lines, line),
