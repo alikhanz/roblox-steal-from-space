@@ -181,16 +181,19 @@ function HudController.new(dependencies: Dependencies): HudController
 		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
 		-- Roblox's chat window opens top-left by default, over the HUD's left column, and the
 		-- player list holds the top-right corner. With a keyboard or a gamepad the chat goes to the
-		-- bottom-right corner (the action icons are in the bottom centre); on a touch screen, where
-		-- the flight buttons take the bottom-right and the chat and the player list start closed,
-		-- it opens top-right (docs/design/DESIGN.md, screen zones).
+		-- bottom-left corner, as in most popular games (the action icons are in the bottom centre);
+		-- on a touch screen the movement stick owns the bottom-left and the flight buttons the
+		-- bottom-right, so the chat, closed there by default, opens top-right (docs/design/
+		-- DESIGN.md, screen zones).
 		local chatWindow = TextChatService:FindFirstChildOfClass("ChatWindowConfiguration")
 		local function placeChat()
 			if not chatWindow then
 				return
 			end
 			local touch = UserInputService.PreferredInput == Enum.PreferredInput.Touch
-			chatWindow.HorizontalAlignment = Enum.HorizontalAlignment.Right
+			chatWindow.HorizontalAlignment = if touch
+				then Enum.HorizontalAlignment.Right
+				else Enum.HorizontalAlignment.Left
 			chatWindow.VerticalAlignment = if touch then Enum.VerticalAlignment.Top else Enum.VerticalAlignment.Bottom
 		end
 		placeChat()
