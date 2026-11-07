@@ -5,7 +5,7 @@
 -- action through a UIButton binding (TouchBindings), the same action the keyboard drives; with a
 -- keyboard or a gamepad they make a row with their keys (`row`). A cooling button is
 -- covered by a dark sector with the seconds left; a disabled one turns grey; a switched-on one
--- (slow mode) fills denser.
+-- (slow mode) is lit: solid colour, dark icon.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -28,6 +28,11 @@ local PRESSED_SCALE = 0.92
 local COOLDOWN_TRANSPARENCY = 0.35
 -- A disabled button: how see-through its glass gets.
 local DISABLED_TRANSPARENCY = 0.6
+-- A switched-on button (slow mode) is lit: its glass nearly solid, the icon dark on it, a light
+-- outline and a brighter glow, so "on" reads at a glance next to the see-through buttons.
+local LIT_FILL_TOP = 0.05
+local LIT_FILL_BOTTOM = 0.25
+local LIT_GLOW_TRANSPARENCY = 0.25
 -- The whole group's box, points: big enough for every button's place in it.
 local AREA = Vector2.new(300, 170)
 -- The PC row: space between buttons; the key cap's height and how far it sticks out.
@@ -151,14 +156,20 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 	fill.ZIndex = 1
 	local gradient = fill:FindFirstChildOfClass("UIGradient") :: UIGradient
 	local pressScale = Instance.new("UIScale")
+	local function isLit(): boolean
+		return isActive() and isEnabled()
+	end
 	Vide.effect(function()
 		local enabled = isEnabled()
-		local dense = isActive()
+		local lit = isLit()
 		fill.BackgroundTransparency = if enabled then 0 else DISABLED_TRANSPARENCY
-		outline.Color = if enabled then Layout.lineColor(spec.color) else NEON.MUTED
+		outline.Color = if lit
+			then Layout.iconColor(spec.color)
+			elseif enabled then Layout.lineColor(spec.color)
+			else NEON.MUTED
 		outline.Transparency = if enabled then 0 else DISABLED_TRANSPARENCY
-		gradient.Transparency = if dense
-			then NumberSequence.new(NEON.DENSE_FILL_TOP, NEON.DENSE_FILL_BOTTOM)
+		gradient.Transparency = if lit
+			then NumberSequence.new(LIT_FILL_TOP, LIT_FILL_BOTTOM)
 			else NumberSequence.new(NEON.FILL_TOP, NEON.FILL_BOTTOM)
 		pressScale.Scale = if pressed() and enabled then PRESSED_SCALE else 1
 	end)
@@ -199,7 +210,9 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 				BackgroundTransparency = 1,
 				Image = Icons.GLOW,
 				ImageColor3 = spec.color,
-				ImageTransparency = GLOW_TRANSPARENCY,
+				ImageTransparency = function()
+					return if isLit() then LIT_GLOW_TRANSPARENCY else GLOW_TRANSPARENCY
+				end,
 				Visible = isEnabled,
 			}),
 			glass,
@@ -212,7 +225,10 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 				BackgroundTransparency = 1,
 				Image = Icons.ICONS[spec.icon],
 				ImageColor3 = function()
-					return if isEnabled() then Layout.iconColor(spec.color) else NEON.MUTED
+					return if isLit()
+						then NEON.GLASS
+						elseif isEnabled() then Layout.iconColor(spec.color)
+						else NEON.MUTED
 				end,
 			}),
 			sectorHalf("Left", fraction),
