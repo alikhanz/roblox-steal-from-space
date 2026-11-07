@@ -124,7 +124,7 @@ function EventController.new(): EventController
 
 	-- The big line in the event's color, for a few seconds; the next one replaces it.
 	local function sayFor(id: EventConfig.EventId, message: string)
-		announcement({ text = message, color = EventLooks.COLORS[id] })
+		announcement({ text = message, color = EventLooks.COLORS[id], icon = EventLooks.ICONS[id] })
 		announcedUntil = os.clock() + EventLooks.ANNOUNCE_SECONDS
 	end
 
@@ -170,12 +170,23 @@ function EventController.new(): EventController
 			local phase = phaseOf(entry)
 			local name = nameOf(entry.event)
 			local color = EventLooks.COLORS[entry.event.id]
+			local icon = EventLooks.ICONS[entry.event.id]
 			if phase == "Active" then
 				local left = Duration.clock(endsAtOf(entry) - current)
-				table.insert(result, { text = text("event.active.hint", { name = name, time = left }), color = color })
+				table.insert(result, {
+					text = text("event.active.hint", { name = name, time = left }),
+					color = color,
+					icon = icon,
+					active = true,
+				})
 			elseif phase == "Warning" or (entry.event.alwaysShowTimer and endsAtOf(entry) > 0) then
 				local left = Duration.clock(startsAt(entry) - current)
-				table.insert(result, { text = text("event.soon.hint", { name = name, time = left }), color = color })
+				table.insert(result, {
+					text = text("event.soon.hint", { name = name, time = left }),
+					color = color,
+					icon = icon,
+					active = false,
+				})
 			end
 		end
 		lines(result)

@@ -26,6 +26,8 @@ export type Name =
 	| "Jetpack"
 	| "Moon"
 	| "Home"
+	| "Sun"
+	| "Serpent"
 
 local ICONS: { [Name]: string } = {
 	Bay = "rbxassetid://132068323643628",
@@ -49,6 +51,8 @@ local ICONS: { [Name]: string } = {
 	Jetpack = "rbxassetid://90247972090746",
 	Moon = "rbxassetid://129273642841872",
 	Home = "rbxassetid://139803282527524",
+	Sun = "rbxassetid://73916084106533",
+	Serpent = "rbxassetid://72834121037956",
 }
 
 return table.freeze({

@@ -7,6 +7,7 @@
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -14,9 +15,20 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 local create = Vide.create
 local indexes = Vide.indexes
 
+local NEON = Theme.NEON
 local TOP_OFFSET = 8
 local LINE_HEIGHT = 30
-local LINE_TEXT_SIZE = 18
+local LINE_TEXT_SIZE = 16
+local BADGE_SIZE = 22
+-- A line that is on: its colour fills it from this transparency at the top to that at the
+-- bottom; one coming soon is glass with an outline of its colour.
+local ON_FILL_TOP = 0.45
+local ON_FILL_BOTTOM = 0.75
+local SOON_LINE_DARKEN = 0.3
+-- The words on a line coming soon: the event's colour, lifted towards white.
+local TIME_LIGHTEN = 0.55
+local ANNOUNCE_BADGE_SIZE = 64
+local ANNOUNCE_GLOW_TRANSPARENCY = 0.35
 -- Lines stand side by side, so every event stays in the button row.
 local ROW_GAP = 8
 -- Room between the lines and Roblox's buttons or the screen's edge.
@@ -25,13 +37,19 @@ local ANNOUNCE_TEXT_SIZE = 40
 local ANNOUNCE_WIDTH = 0.9
 
 export type Line = {
+	-- "Solar storm in 4:35", "Meteor shower! 1:20 left".
 	text: string,
 	color: Color3,
+	-- The event's icon (UI/Icons).
+	icon: string,
+	-- The event is on (filled and glowing), not just coming.
+	active: boolean,
 }
 
 export type Announcement = {
 	text: string,
 	color: Color3,
+	icon: string,
 }
 
 export type Props = {
@@ -41,25 +59,171 @@ export type Props = {
 }
 
 local function EventBanner(props: Props): ScreenGui
-	local function line(entry: () -> Line, order: number): TextLabel
-		return create("TextLabel")({
+	-- The event's round badge: its icon on glass of its colour.
+	local function badge(color: () -> Color3, icon: () -> string, size: number, order: number): Frame
+		local corner = UDim.new(0.5, 0)
+		local glass = Layout.glass(NEON.TILE.Bay, corner, true)
+		local fill = glass[1] :: Frame
+		local line = glass[2] :: UIStroke
+		Vide.effect(function()
+			fill.BackgroundColor3 = color()
+			line.Color = color()
+		end)
+		return create("Frame")({
+			Name = "Badge",
+			LayoutOrder = order,
+			Size = UDim2.fromOffset(size, size),
+			BackgroundTransparency = 1,
+			create("UICorner")({ CornerRadius = corner }),
+			glass,
+			create("ImageLabel")({
+				Name = "Icon",
+				ZIndex = 1,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(0.7, 0.7),
+				BackgroundTransparency = 1,
+				Image = function()
+					return (Icons.ICONS :: any)[icon()] or ""
+				end,
+				ImageColor3 = function()
+					return Layout.iconColor(color())
+				end,
+			}),
+		}) :: Frame
+	end
+
+	local function line(entry: () -> Line, order: number): Frame
+		local function color(): Color3
+			return entry().color
+		end
+		local function active(): boolean
+			return entry().active
+		end
+		local outline = Instance.new("UIStroke")
+		outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		outline.Thickness = NEON.LINE_THICKNESS
+		local fill = Instance.new("UIGradient")
+		fill.Rotation = 90
+		Vide.effect(function()
+			local on = active()
+			outline.Color = if on then color() else color():Lerp(NEON.GLASS, SOON_LINE_DARKEN)
+			fill.Transparency = if on
+				then NumberSequence.new(ON_FILL_TOP, ON_FILL_BOTTOM)
+				else NumberSequence.new(NEON.GLASS_TRANSPARENCY)
+		end)
+		local padding = Layout.padding(0, 0)
+		padding.PaddingLeft = UDim.new(0, 4)
+		padding.PaddingRight = UDim.new(0, 12)
+		return create("Frame")({
 			Name = "Line",
 			LayoutOrder = order,
 			Size = UDim2.fromOffset(0, LINE_HEIGHT),
 			AutomaticSize = Enum.AutomaticSize.X,
-			BackgroundColor3 = Theme.PANEL,
-			BackgroundTransparency = Theme.PANEL_TRANSPARENCY,
-			FontFace = Theme.FONT,
-			TextSize = LINE_TEXT_SIZE,
-			TextColor3 = function()
-				return entry().color
+			BackgroundColor3 = function()
+				return if active() then color() else NEON.GLASS
 			end,
-			Text = function()
-				return entry().text
+			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
+			fill,
+			outline,
+			padding,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Padding = UDim.new(0, 6),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			badge(color, function()
+				return entry().icon
+			end, BADGE_SIZE, 1),
+			create("TextLabel")({
+				Name = "Text",
+				LayoutOrder = 2,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				FontFace = NEON.FONT,
+				TextSize = LINE_TEXT_SIZE,
+				-- Coming soon: the event's colour, lifted towards white; on: white over its fill.
+				TextColor3 = function()
+					return if active() then NEON.TEXT else color():Lerp(Color3.new(1, 1, 1), TIME_LIGHTEN)
+				end,
+				Text = function()
+					return entry().text
+				end,
+				Layout.textStroke(),
+			}),
+		}) :: Frame
+	end
+
+	-- The big announcement: the event's badge in a soft light, and the words in its colour with
+	-- a glowing outline of it. It takes no touches: the game goes on under it.
+	local function announcementView(): Frame
+		local function color(): Color3
+			local current = props.announcement()
+			return if current then current.color else NEON.TEXT
+		end
+		local glow = Instance.new("UIStroke")
+		glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		glow.Thickness = 2.5
+		glow.Transparency = 0.35
+		Vide.effect(function()
+			glow.Color = color()
+		end)
+		return create("Frame")({
+			Name = "Announcement",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.3),
+			Size = UDim2.fromScale(ANNOUNCE_WIDTH, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Visible = function()
+				return props.announcement() ~= nil
 			end,
-			create("UICorner")({ CornerRadius = Theme.CORNER }),
-			Layout.padding(12),
-		}) :: TextLabel
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Vertical,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				Padding = UDim.new(0, 6),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			create("Frame")({
+				Name = "Mark",
+				LayoutOrder = 1,
+				Size = UDim2.fromOffset(ANNOUNCE_BADGE_SIZE, ANNOUNCE_BADGE_SIZE),
+				BackgroundTransparency = 1,
+				create("ImageLabel")({
+					Name = "Glow",
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.fromScale(0.5, 0.5),
+					Size = UDim2.fromScale(1.9, 1.9),
+					BackgroundTransparency = 1,
+					Image = Icons.GLOW,
+					ImageColor3 = color,
+					ImageTransparency = ANNOUNCE_GLOW_TRANSPARENCY,
+				}),
+				badge(color, function()
+					local current = props.announcement()
+					return if current then current.icon else ""
+				end, ANNOUNCE_BADGE_SIZE, 1),
+			}),
+			create("TextLabel")({
+				Name = "Text",
+				LayoutOrder = 2,
+				Size = UDim2.fromScale(1, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundTransparency = 1,
+				FontFace = NEON.FONT,
+				TextSize = ANNOUNCE_TEXT_SIZE,
+				TextWrapped = true,
+				TextColor3 = function()
+					return color():Lerp(Color3.new(1, 1, 1), 0.25)
+				end,
+				Text = function()
+					local current = props.announcement()
+					return if current then current.text else ""
+				end,
+				glow,
+			}),
+		}) :: Frame
 	end
 
 	-- The lines sit in the row of Roblox's own buttons, in its free part (between Roblox's
@@ -129,29 +293,7 @@ local function EventBanner(props: Props): ScreenGui
 
 		slot,
 
-		create("TextLabel")({
-			Name = "Announcement",
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.3),
-			Size = UDim2.fromScale(ANNOUNCE_WIDTH, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
-			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = ANNOUNCE_TEXT_SIZE,
-			TextWrapped = true,
-			TextStrokeTransparency = 0.2,
-			Visible = function()
-				return props.announcement() ~= nil
-			end,
-			TextColor3 = function()
-				local current = props.announcement()
-				return if current then current.color else Theme.TEXT
-			end,
-			Text = function()
-				local current = props.announcement()
-				return if current then current.text else ""
-			end,
-		}),
+		announcementView(),
 	}) :: ScreenGui
 end
 

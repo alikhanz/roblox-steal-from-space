@@ -10,6 +10,12 @@ return table.freeze({
 		Meteor = Color3.fromRGB(255, 110, 70),
 		Serpent = Color3.fromRGB(150, 120, 255),
 	} :: { [EventConfig.EventId]: Color3 }),
+	-- Each event's icon on its line and over its announcement (a name in the client's UI/Icons).
+	ICONS = table.freeze({
+		Storm = "Sun",
+		Meteor = "Meteor",
+		Serpent = "Serpent",
+	} :: { [EventConfig.EventId]: string }),
 	-- How long the big announcement stays, seconds.
 	ANNOUNCE_SECONDS = 3.5,
 })
