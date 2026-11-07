@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Магазин джетпаков</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root {
+  --bg: #0a0d1c; --surface: #121733; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; --accent: #6fe8ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 70ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul, .notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ───────── Phone screen 844 × 390: everything in cqw so it scales with the frame ───────── */
+.screen {
+  --text: #EAF2FF; --muted: #9DB6D2; --line: rgba(130, 236, 255, .5); --glass: rgba(10, 14, 40, .5);
+  --speed: #FFD34A; --coin: #FFC83D; --gold: #FFBB2E; --sel: #E070C6;
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+}
+.screen .ol { text-shadow: 0 0 .15cqw rgba(0,0,0,.5), 0 .1cqw .1cqw rgba(0,0,0,.5); }
+.ico { width: 1em; height: 1em; flex: none; overflow: visible; }
+.scene { position: absolute; inset: 0; background:
+  radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130, 70, 210, .42), transparent 70%),
+  radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40, 130, 230, .34), transparent 70%), #060919; }
+.platform { position: absolute; left: -15cqw; right: -15cqw; bottom: -30cqw; height: 52cqw; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 18%, #4a5680, #2a3256 58%, #1b2140); box-shadow: 0 -.3cqw 0 #64e0ff; }
+.veil { position: absolute; inset: 0; background: rgba(2, 4, 14, .5); }
+
+/* Window (NeonWindow): 675 × 363 points of the reference screen */
+.win { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 80cqw; height: 43cqw;
+  background: linear-gradient(#181E56, #0A0C28); opacity: .97; border: .12cqw solid var(--line); border-radius: 1.8cqw;
+  display: flex; flex-direction: column; overflow: hidden; }
+.head { height: 5.2cqw; flex: none; display: flex; align-items: center; gap: 1.4cqw; padding: 0 1.4cqw 0 1.9cqw;
+  background: linear-gradient(90deg, rgba(80, 220, 255, .18), rgba(255, 80, 200, .18)); border-bottom: .12cqw solid rgba(130, 236, 255, .3); }
+.head h3 { margin: 0; flex: 1; font-size: 2.6cqw; font-weight: 900; }
+.pill { display: flex; align-items: center; gap: .5cqw; padding: .35cqw 1.1cqw .35cqw .6cqw; background: var(--glass); border: .12cqw solid var(--line);
+  border-radius: 99px; font-size: 1.8cqw; color: var(--coin); }
+.pill .ico { font-size: 2.4cqw; color: var(--coin); }
+.close { width: 3.8cqw; height: 3.8cqw; border-radius: 50%; display: grid; place-items: center; font-size: 2.6cqw;
+  background: linear-gradient(rgba(255, 90, 100, .36), rgba(255, 90, 100, .16)); border: .24cqw solid #c64a59; }
+.body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1.6cqw; padding: 1.3cqw 1.4cqw 1.1cqw; }
+.foot { height: 5.9cqw; flex: none; display: flex; align-items: center; padding: 0 1.9cqw; border-top: .12cqw solid rgba(130, 236, 255, .2);
+  font-size: 1.45cqw; color: var(--muted); gap: .6cqw; }
+.foot .ico { font-size: 1.9cqw; color: var(--speed); }
+
+/* Left: the next jetpack */
+.hero { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7cqw;
+  border-radius: 1.3cqw; border: .24cqw solid color-mix(in srgb, var(--f2) 55%, #0A0E28);
+  background: radial-gradient(ellipse 70% 60% at 50% 38%, color-mix(in srgb, var(--f2) 30%, transparent), transparent 75%), rgba(255,255,255,.035);
+  padding: 1cqw 1.6cqw 1.4cqw; text-align: center; }
+.kicker { font-size: 1.3cqw; color: var(--muted); }
+.jet { width: 9.5cqw; height: 9.5cqw; filter: drop-shadow(0 0 1.4cqw color-mix(in srgb, var(--f2) 70%, transparent)); }
+.hero h4 { margin: 0; font-size: 2.7cqw; font-weight: 900; }
+.mult { display: flex; align-items: center; gap: .5cqw; font-size: 2.2cqw; color: var(--speed); }
+.mult .ico { font-size: 2.4cqw; }
+.mult s { text-decoration: none; color: var(--muted); }
+.mult .arrow { color: var(--muted); font-size: 1.8cqw; }
+.gain { font-size: 1.4cqw; color: var(--muted); display: flex; align-items: center; gap: .35cqw; }
+.gain b { color: var(--text); font-weight: 900; }
+.gain .ico { color: var(--speed); font-size: 1.7cqw; }
+.buy { margin-top: .4cqw; width: 100%; display: flex; align-items: center; justify-content: center; gap: .6cqw; font-size: 2cqw;
+  padding: 1.05cqw 1cqw; border-radius: 99px; border: .24cqw solid #9b7420; color: var(--text);
+  background: linear-gradient(rgba(255, 187, 46, .36), rgba(255, 187, 46, .16)); }
+.buy .ico { font-size: 2.4cqw; color: var(--coin); }
+.buy.off { opacity: .5; }
+.need { width: 100%; display: flex; flex-direction: column; gap: .4cqw; font-size: 1.3cqw; color: var(--muted); }
+.need .row { display: flex; justify-content: space-between; }
+.need .row b { color: var(--coin); font-weight: 900; }
+.bar { height: 1.2cqw; border-radius: 99px; background: rgba(255,255,255,.07); border: .12cqw solid rgba(130,236,255,.35); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffb52e, #ffe36b); box-shadow: inset 0 .3cqw 0 rgba(255,255,255,.35); }
+.top-note { font-size: 1.5cqw; color: var(--muted); max-width: 26cqw; }
+
+/* Right: the ladder of every jetpack */
+.ladder { display: flex; flex-direction: column; gap: .7cqw; min-height: 0; }
+.ladder h5 { margin: 0; font-size: 1.75cqw; font-weight: 900; display: flex; justify-content: space-between; }
+.ladder h5 em { font-style: normal; color: var(--muted); font-size: 1.4cqw; }
+.list { position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: .55cqw;
+  mask-image: linear-gradient(transparent, #000 8%, #000 90%, transparent); padding: .3cqw .3cqw; }
+.lrow { flex: none; height: 3.7cqw; display: flex; align-items: center; gap: .9cqw; padding: 0 1.1cqw; border-radius: 1.2cqw;
+  background: rgba(255,255,255,.035); border: .2cqw solid rgba(130, 236, 255, .18); font-size: 1.55cqw; }
+.dot { width: 1.9cqw; height: 1.9cqw; border-radius: 50%; flex: none; background: radial-gradient(circle at 40% 35%, var(--f1), var(--f2) 70%);
+  box-shadow: 0 0 .7cqw color-mix(in srgb, var(--f2) 60%, transparent); }
+.lrow .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lrow .x { color: var(--speed); display: flex; align-items: center; gap: .2cqw; font-size: 1.45cqw; }
+.lrow .x .ico { font-size: 1.6cqw; }
+.lrow .tag { font-size: 1.2cqw; padding: .15cqw .8cqw; border-radius: 99px; }
+.lrow .price { color: var(--muted); font-size: 1.35cqw; display: flex; align-items: center; gap: .25cqw; min-width: 6.6cqw; justify-content: flex-end; }
+.lrow .price .ico { font-size: 1.6cqw; color: var(--muted); }
+.lrow .check { color: #5BDB6E; font-size: 1.5cqw; min-width: 6.6cqw; text-align: right; }
+.lrow.past { opacity: .5; }
+.lrow.owned { background: rgba(62, 166, 255, .18); border-color: #3EA6FF; }
+.lrow.owned .tag { background: #3EA6FF; color: #08102a; }
+.lrow.next { border-color: color-mix(in srgb, var(--gold) 70%, #0A0E28); background: rgba(255, 187, 46, .08); }
+.lrow.next .price { color: var(--coin); } .lrow.next .price .ico { color: var(--coin); }
+.lrow.locked { opacity: .62; }
+
+/* Flame colours per jetpack (JetpackLooks: flameStart → flameEnd) */
+.j0 { --f1: #FFECA0; --f2: #FF601E; } .j1 { --f1: #FFFAC8; --f2: #FF8C28; } .j2 { --f1: #DCF5FF; --f2: #50A0FF; }
+.j3 { --f1: #FFDCFF; --f2: #C83CFF; } .j4 { --f1: #E6FFFA; --f2: #00DCB4; } .j10 { --f1: #C8FFD2; --f2: #9628FF; }
+.j11 { --f1: #FFFFFF; --f2: #FFBE28; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="coin" viewBox="-2 -2 28 28"><circle cx="12" cy="12" r="9.5" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="5.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.6 9.2a4.6 4.6 0 0 1 3.4-2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="bolt" viewBox="-2 -2 28 28"><path d="M13.6 1.8 4.4 13.7h6.2l-1.3 8.5 10.3-12.4h-6.4z" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <section class="intro">
+    <h1>Магазин джетпаков</h1>
+    <p>Макет к брифу <b>docs/design/screens/jetpack-shop.md</b>. Телефон 844 × 390, стиль «Б1 спокойный».</p>
+    <p>Слева — <b>следующий джетпак</b> крупно: его пламя, сколько он даст ⚡ и одна большая кнопка «Купить». Справа — <b>лестница</b> всех 22 джетпаков; она сама прокручена к твоему. Старый вертикальный список на телефоне не помещался и показывал всё одинаково.</p>
+  </section>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="scene"></div><div class="platform"></div><div class="veil"></div>
+      <div class="win">
+        <div class="head"><h3 class="ol">Магазин джетпаков</h3>
+          <span class="pill ol"><svg class="ico"><use href="#coin"/></svg>124K</span>
+          <span class="close ol">×</span></div>
+        <div class="body">
+          <div class="hero j2">
+            <span class="kicker ol">Следующий джетпак</span>
+            <svg class="jet" viewBox="0 0 60 60" aria-hidden="true">
+              <defs><linearGradient id="fl2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DCF5FF"/><stop offset="1" stop-color="#50A0FF" stop-opacity=".1"/></linearGradient></defs>
+              <path d="M19 41c-3 6-1 12 2 16 3-4 5-10 2-16zM37 41c-3 6-1 12 2 16 3-4 5-10 2-16z" fill="url(#fl2)"/>
+              <rect x="13" y="6" width="14" height="32" rx="7" fill="#50A0FF" fill-opacity=".45" stroke="#cfe6ff" stroke-width="2.4"/>
+              <rect x="33" y="6" width="14" height="32" rx="7" fill="#50A0FF" fill-opacity=".45" stroke="#cfe6ff" stroke-width="2.4"/>
+              <path d="M27 15h6M27 27h6" stroke="#cfe6ff" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M16 38h8l-1.5 4h-5zM36 38h8l-1.5 4h-5z" fill="#cfe6ff"/>
+            </svg>
+            <h4 class="ol">Комета II</h4>
+            <div class="mult ol"><svg class="ico"><use href="#bolt"/></svg><s>×4</s><span class="arrow">→</span>×6</div>
+            <div class="gain ol">Твоя <svg class="ico"><use href="#bolt"/></svg> станет <b>1.2K → 1.8K</b></div>
+            <div class="buy ol">Купить <svg class="ico"><use href="#coin"/></svg>77K</div>
+          </div>
+          <div class="ladder">
+            <h5 class="ol">Все джетпаки <em>4 из 22</em></h5>
+            <div class="list">
+              <div class="lrow past j1"><span class="dot"></span><span class="name ol">Искра I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×2</span><span class="check">✓</span></div>
+              <div class="lrow past j1"><span class="dot"></span><span class="name ol">Искра II</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×3</span><span class="check">✓</span></div>
+              <div class="lrow owned j2"><span class="dot"></span><span class="name ol">Комета I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×4</span><span class="price"><span class="tag">Твой</span></span></div>
+              <div class="lrow next j2"><span class="dot"></span><span class="name ol">Комета II</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×6</span><span class="price ol"><svg class="ico"><use href="#coin"/></svg>77K</span></div>
+              <div class="lrow locked j3"><span class="dot"></span><span class="name ol">Плазма I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×8</span><span class="price"></span></div>
+              <div class="lrow locked j3"><span class="dot"></span><span class="name ol">Плазма II</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×12</span><span class="price"></span></div>
+              <div class="lrow locked j4"><span class="dot"></span><span class="name ol">Ион I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×16</span><span class="price"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="foot ol"><svg class="ico"><use href="#bolt"/></svg>Новый джетпак — больше ⚡ и пламя другого цвета</div>
+      </div>
+    </div></div>
+    <figcaption><b>1. Обычное.</b> Монет хватает: золотая кнопка горит. В лестнице пройденные — бледные с галочкой, твой — синий с меткой «Твой», следующий — золотая рамка и цена, дальше — бледные, без цены.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="scene"></div><div class="platform"></div><div class="veil"></div>
+      <div class="win">
+        <div class="head"><h3 class="ol">Магазин джетпаков</h3>
+          <span class="pill ol"><svg class="ico"><use href="#coin"/></svg>45K</span>
+          <span class="close ol">×</span></div>
+        <div class="body">
+          <div class="hero j2">
+            <span class="kicker ol">Следующий джетпак</span>
+            <svg class="jet" viewBox="0 0 60 60" aria-hidden="true">
+              <defs><linearGradient id="fl2b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DCF5FF"/><stop offset="1" stop-color="#50A0FF" stop-opacity=".1"/></linearGradient></defs>
+              <path d="M19 41c-3 6-1 12 2 16 3-4 5-10 2-16zM37 41c-3 6-1 12 2 16 3-4 5-10 2-16z" fill="url(#fl2b)"/>
+              <rect x="13" y="6" width="14" height="32" rx="7" fill="#50A0FF" fill-opacity=".45" stroke="#cfe6ff" stroke-width="2.4"/>
+              <rect x="33" y="6" width="14" height="32" rx="7" fill="#50A0FF" fill-opacity=".45" stroke="#cfe6ff" stroke-width="2.4"/>
+              <path d="M27 15h6M27 27h6" stroke="#cfe6ff" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M16 38h8l-1.5 4h-5zM36 38h8l-1.5 4h-5z" fill="#cfe6ff"/>
+            </svg>
+            <h4 class="ol">Комета II</h4>
+            <div class="mult ol"><svg class="ico"><use href="#bolt"/></svg><s>×4</s><span class="arrow">→</span>×6</div>
+            <div class="need ol"><div class="row"><span>Копишь</span><b>45K / 77K</b></div><div class="bar"><i style="width:58%"></i></div></div>
+            <div class="buy off ol">Купить <svg class="ico"><use href="#coin"/></svg>77K</div>
+          </div>
+          <div class="ladder">
+            <h5 class="ol">Все джетпаки <em>4 из 22</em></h5>
+            <div class="list">
+              <div class="lrow past j1"><span class="dot"></span><span class="name ol">Искра I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×2</span><span class="check">✓</span></div>
+              <div class="lrow past j1"><span class="dot"></span><span class="name ol">Искра II</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×3</span><span class="check">✓</span></div>
+              <div class="lrow owned j2"><span class="dot"></span><span class="name ol">Комета I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×4</span><span class="price"><span class="tag">Твой</span></span></div>
+              <div class="lrow next j2"><span class="dot"></span><span class="name ol">Комета II</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×6</span><span class="price ol"><svg class="ico"><use href="#coin"/></svg>77K</span></div>
+              <div class="lrow locked j3"><span class="dot"></span><span class="name ol">Плазма I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×8</span><span class="price"></span></div>
+              <div class="lrow locked j3"><span class="dot"></span><span class="name ol">Плазма II</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×12</span><span class="price"></span></div>
+              <div class="lrow locked j4"><span class="dot"></span><span class="name ol">Ион I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×16</span><span class="price"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="foot ol"><svg class="ico"><use href="#bolt"/></svg>Новый джетпак — больше ⚡ и пламя другого цвета</div>
+      </div>
+    </div></div>
+    <figcaption><b>2. Не хватает монет.</b> Кнопка бледная, но цена видна. Над ней полоса «Копишь 45K / 77K», чтобы было видно, сколько осталось.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="scene"></div><div class="platform"></div><div class="veil"></div>
+      <div class="win">
+        <div class="head"><h3 class="ol">Магазин джетпаков</h3>
+          <span class="pill ol"><svg class="ico"><use href="#coin"/></svg>31T</span>
+          <span class="close ol">×</span></div>
+        <div class="body">
+          <div class="hero j11">
+            <span class="kicker ol">Твой джетпак</span>
+            <svg class="jet" viewBox="0 0 60 60" aria-hidden="true">
+              <defs><linearGradient id="fl11" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFBE28" stop-opacity=".1"/></linearGradient></defs>
+              <path d="M19 41c-3 6-1 12 2 16 3-4 5-10 2-16zM37 41c-3 6-1 12 2 16 3-4 5-10 2-16z" fill="url(#fl11)"/>
+              <rect x="13" y="6" width="14" height="32" rx="7" fill="#FFBE28" fill-opacity=".45" stroke="#fff3cf" stroke-width="2.4"/>
+              <rect x="33" y="6" width="14" height="32" rx="7" fill="#FFBE28" fill-opacity=".45" stroke="#fff3cf" stroke-width="2.4"/>
+              <path d="M27 15h6M27 27h6" stroke="#fff3cf" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M16 38h8l-1.5 4h-5zM36 38h8l-1.5 4h-5z" fill="#fff3cf"/>
+            </svg>
+            <h4 class="ol">Бесконечность</h4>
+            <div class="mult ol"><svg class="ico"><use href="#bolt"/></svg>×2048</div>
+            <div class="top-note ol">Это самый мощный джетпак. Дальше ⚡ растёт на тренажёре.</div>
+          </div>
+          <div class="ladder">
+            <h5 class="ol">Все джетпаки <em>22 из 22</em></h5>
+            <div class="list">
+              <div class="lrow past j10"><span class="dot"></span><span class="name ol">Червоточина I</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×1024</span><span class="check">✓</span></div>
+              <div class="lrow past j10"><span class="dot"></span><span class="name ol">Червоточина II</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×1536</span><span class="check">✓</span></div>
+              <div class="lrow owned j11"><span class="dot"></span><span class="name ol">Бесконечность</span><span class="x ol"><svg class="ico"><use href="#bolt"/></svg>×2048</span><span class="price"><span class="tag">Твой</span></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="foot ol"><svg class="ico"><use href="#bolt"/></svg>Новый джетпак — больше ⚡ и пламя другого цвета</div>
+      </div>
+    </div></div>
+    <figcaption><b>3. Куплен последний.</b> Кнопки нет, вместо неё — «Это самый мощный джетпак».</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Что меняется</h2>
+      <ul>
+        <li>Окно горизонтальное, как отсек, и помещается на телефоне. Старое было вертикальным, 520 × 560.</li>
+        <li>Главное — следующий джетпак и одна кнопка. Остальные 21 — компактная лестница-цель.</li>
+        <li>Цвет точки и пламени — из <code>JetpackLooks</code>: игрок заранее видит, каким пламенем будет гореть.</li>
+        <li>«Твоя ⚡ станет 1.2K → 1.8K» — сразу понятно, что даёт покупка.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Решено</h2>
+      <ol>
+        <li>Картинка джетпака — плоская иконка с цветом пламени; 3D-модель — на проходе по арту.</li>
+        <li>Цена в лестнице — только у следующего джетпака.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+</body>
+</html>
