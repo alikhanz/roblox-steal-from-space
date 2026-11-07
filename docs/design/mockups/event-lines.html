@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Строки ивентов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 72ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul, .notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+.screen {
+  --text: #EAF2FF; --muted: #9DB6D2; --line: rgba(130, 236, 255, .5); --glass: rgba(10, 14, 40, .6);
+  --storm: #FFAA3C; --meteor: #FF6E46; --serpent: #9678FF; --speed: #FFD34A; --coin: #FFC83D;
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+  background: radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130, 70, 210, .42), transparent 70%),
+    radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40, 130, 230, .34), transparent 70%), #060919;
+}
+.screen .ol { text-shadow: 0 0 .15cqw rgba(0,0,0,.6), 0 .1cqw .1cqw rgba(0,0,0,.6); }
+.ico { width: 1em; height: 1em; flex: none; overflow: visible; vertical-align: -.14em; }
+/* Roblox's own top bar: its buttons left and right, the free middle between them */
+.robloxbar { position: absolute; left: 0; right: 0; top: 0; height: 6.9cqw; display: flex; justify-content: space-between; align-items: center; padding: 0 1.4cqw; }
+.rbtn { width: 4.4cqw; height: 4.4cqw; border-radius: 1cqw; background: rgba(20,22,30,.75); }
+.rgroup { display: flex; gap: .8cqw; }
+.lines { position: absolute; left: 50%; top: 3.45cqw; transform: translate(-50%, -50%); display: flex; gap: .9cqw; }
+/* An event line: a chip with the event's icon. Soon: glass, outlined in the event's colour. On: filled with it, glowing */
+.ev { display: flex; align-items: center; gap: .6cqw; padding: .45cqw 1.4cqw .45cqw .55cqw; border-radius: 99px; font-size: 1.65cqw; white-space: nowrap;
+  background: var(--glass); border: .16cqw solid color-mix(in srgb, var(--c) 70%, #0A0E28); }
+.ev .badge { width: 2.7cqw; height: 2.7cqw; border-radius: 50%; display: grid; place-items: center; font-size: 1.8cqw; color: color-mix(in srgb, var(--c) 60%, #fff);
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 45%, transparent), color-mix(in srgb, var(--c) 12%, transparent)); border: .14cqw solid var(--c); }
+.ev .time { color: color-mix(in srgb, var(--c) 45%, #fff); }
+.ev.on { background: linear-gradient(color-mix(in srgb, var(--c) 42%, rgba(10,14,40,.6)), color-mix(in srgb, var(--c) 18%, rgba(10,14,40,.6))); border-color: var(--c); box-shadow: 0 0 1.4cqw color-mix(in srgb, var(--c) 55%, transparent); }
+.ev.on .time { color: var(--text); }
+.hud { position: absolute; left: 2cqw; top: 8.6cqw; display: flex; gap: 1cqw; opacity: .85; }
+.hchip { display: flex; align-items: center; gap: .5cqw; padding: .4cqw 1.2cqw; background: var(--glass); border: .12cqw solid var(--line); border-radius: 99px; font-size: 1.8cqw; }
+/* The big announcement */
+.ann { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: .8cqw; text-align: center; }
+.ann .big { font-size: 4.2cqw; color: var(--c); text-shadow: 0 0 1.6cqw color-mix(in srgb, var(--c) 70%, transparent), 0 .2cqw .2cqw rgba(0,0,0,.7); }
+.ann .badge { width: 7cqw; height: 7cqw; border-radius: 50%; display: grid; place-items: center; font-size: 4.6cqw; color: color-mix(in srgb, var(--c) 55%, #fff);
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 50%, transparent), color-mix(in srgb, var(--c) 10%, transparent)); border: .25cqw solid var(--c); box-shadow: 0 0 2.4cqw color-mix(in srgb, var(--c) 60%, transparent); }
+.ann.old .big { color: #FFAA3C; text-shadow: 0 .15cqw .15cqw #000; font-size: 4cqw; }
+.cap { position: absolute; font-size: 1.3cqw; color: var(--muted); }
+.oldlines { position: absolute; left: 50%; bottom: 5cqw; transform: translateX(-50%); display: flex; gap: .9cqw; }
+.oldlines span { background: rgba(14,18,32,.75); border-radius: .9cqw; padding: .5cqw 1.2cqw; font-size: 1.7cqw; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="sun" viewBox="-2 -2 28 28"><circle cx="12" cy="12" r="5.2" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.8"/><path d="M12 1.8v3M12 19.2v3M1.8 12h3M19.2 12h3M4.8 4.8l2.1 2.1M17.1 17.1l2.1 2.1M4.8 19.2l2.1-2.1M17.1 6.9l2.1-2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="meteor" viewBox="-2 -2 28 28"><path d="M3 3l8 8M7 2.6l6.4 6.4M2.6 7 9 13.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="15" cy="15" r="6" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.8"/><circle cx="13.4" cy="13.6" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="serpent" viewBox="-2 -2 28 28"><path d="M3.5 17c2.4 0 2.6-3.6 5-3.6s2.6 3.6 5 3.6 2.6-6 5.2-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="19.6" cy="8.6" r="3.2" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.8"/><path d="m12 3.4.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z" fill="currentColor"/></symbol>
+    <symbol id="bolt" viewBox="-2 -2 28 28"><path d="M15 1.4 3.8 13.8h7l-1.8 8.8L20.4 9.4h-7z" fill="currentColor" fill-opacity=".5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <section class="intro">
+    <h1>Строки ивентов</h1>
+    <p>Макет к брифу <b>docs/design/screens/event-lines.md</b>. Телефон 844 × 390.</p>
+    <p>Строки уже стоят в ряду кнопок Roblox и ужимаются, когда не влезают (сделано раньше). Здесь — их вид: <b>фишка со значком ивента</b>; скоро — стекло с рамкой цвета ивента, идёт — залита его цветом и светится. <b>Большой анонс</b> по центру — со значком и свечением цвета ивента.</p>
+  </section>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="robloxbar"><span class="rgroup"><span class="rbtn"></span><span class="rbtn"></span><span class="rbtn"></span></span><span class="rgroup"><span class="rbtn"></span></span></div>
+      <div class="lines">
+        <span class="ev ol" style="--c:var(--storm)"><span class="badge"><svg class="ico"><use href="#sun"/></svg></span>Солнечная буря <span class="time">через 4:35</span></span>
+        <span class="ev on ol" style="--c:var(--meteor)"><span class="badge"><svg class="ico"><use href="#meteor"/></svg></span>Метеоритный дождь! <span class="time">Ещё 1:20</span></span>
+        <span class="ev on ol" style="--c:var(--serpent)"><span class="badge"><svg class="ico"><use href="#serpent"/></svg></span>Звёздный змей! <span class="time">Ещё 2:10</span></span>
+      </div>
+      <div class="hud"><span class="hchip ol" style="color:var(--speed)"><svg class="ico"><use href="#bolt"/></svg>3.25K</span></div>
+      <div class="cap" style="left:3%; bottom:22%">Было:</div>
+      <div class="oldlines ol"><span style="color:#FFAA3C">Солнечная буря через 4:35</span><span style="color:#FF6E46">Метеоритный дождь! Ещё 1:20</span></div>
+    </div></div>
+    <figcaption><b>1. Три ивента разом.</b> Буря скоро — стеклянная фишка с рамкой её цвета; дождь и змей идут — залиты своим цветом и светятся. Значок у каждого свой: солнце, метеор (уже есть), змей со звездой. Не влезают — ужимаются вместе, как сейчас.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="robloxbar"><span class="rgroup"><span class="rbtn"></span><span class="rbtn"></span><span class="rbtn"></span></span><span class="rgroup"><span class="rbtn"></span></span></div>
+      <div class="lines"><span class="ev ol" style="--c:var(--storm)"><span class="badge"><svg class="ico"><use href="#sun"/></svg></span>Солнечная буря <span class="time">через 0:10</span></span></div>
+      <div class="ann ol" style="--c:var(--storm)"><span class="badge"><svg class="ico"><use href="#sun"/></svg></span><span class="big">Солнечная буря через 10 секунд!</span></div>
+      <div class="ann old ol" style="top:78%"><span class="big">Солнечная буря через 10 секунд!</span></div>
+      <div class="cap" style="left:3%; bottom:24%">Было:</div>
+    </div></div>
+    <figcaption><b>2. Большой анонс.</b> Над текстом — крупный значок ивента в светящемся круге, текст в цвете ивента со свечением. Держится 3,5 с, как сейчас; следующий заменяет его.</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Что меняется</h2>
+      <ul>
+        <li>Строки — фишки со значком: что идёт, видно по картинке, без чтения.</li>
+        <li>«Скоро» и «идёт» отличаются заливкой и свечением, а не только словами.</li>
+        <li>Две новые иконки: солнце (буря) и змей; метеор уже есть.</li>
+        <li>Анонс — со значком и свечением.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Вопросы</h2>
+      <ol>
+        <li>«Скоро» — стекло с рамкой, «идёт» — заливка и свечение (как здесь)?</li>
+        <li>Анонс — значок над текстом и свечение (как здесь) или только текст, как сейчас?</li>
+      </ol>
+    </div>
+  </section>
+</main>
+</body>
+</html>
