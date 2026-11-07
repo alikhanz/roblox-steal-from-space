@@ -13,7 +13,6 @@ local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
 
 local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
-local AbilityChips = require(script.Parent.Parent.UI.AbilityChips)
 local AbilityState = require(script.Parent.Parent.State.AbilityState)
 local ActionButton = require(script.Parent.Parent.UI.ActionButton)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
@@ -39,6 +38,7 @@ local SpeedGoal = require(ReplicatedStorage.Shared.Domain.SpeedGoal)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
+local TutorialPanel = require(script.Parent.Parent.UI.TutorialPanel)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
@@ -55,6 +55,12 @@ local WIDEST_NUMBER = "88.8Qad"
 local RESOURCE_ICON_ROOM = 14
 local RESOURCE_GAP = 20
 local MENU_GAP = 7
+-- The PC row of actions: button diameters, points (the strike, used most, is the biggest).
+local ROW_BUTTON_SIZE = 52
+local ROW_STRIKE_SIZE = 60
+-- On a touch screen the bottom stack stands a little left of the middle, clear of the flight
+-- buttons: its centre's share of the screen width.
+local TOUCH_STACK_X = 0.41
 
 local function leftPadding(pixels: number): UIPadding
 	local instance = Instance.new("UIPadding")
@@ -80,6 +86,8 @@ export type Dependencies = {
 	speed: () -> BigNum.BigNum,
 	-- True once the profile arrived; numbers show a dash before that.
 	loaded: () -> boolean,
+	-- The tutorial's line for the bottom stack; empty: none.
+	tutorialLine: () -> string,
 	-- The windows' tiles for the menu row.
 	menu: MenuState.MenuState,
 	-- Opens the shop from the speed goal; nil where nothing is sold (an unpublished place).
@@ -215,29 +223,6 @@ function HudController.new(dependencies: Dependencies): HudController
 		local playerGui = player:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[HudController] PlayerGui did not appear")
 
-		-- The attacks: their input action, their word and their cooldown.
-		local abilities = {
-			{
-				kind = "Strike" :: AbilityState.Kind,
-				action = FlightInputs.STRIKE,
-				text = Text.get(locale, "pvp.strike.button"),
-			},
-			{
-				kind = "Harpoon" :: AbilityState.Kind,
-				action = FlightInputs.HARPOON,
-				text = Text.get(locale, "pvp.harpoon.button"),
-			},
-			{
-				kind = "Bomb" :: AbilityState.Kind,
-				action = FlightInputs.BOMB,
-				text = Text.get(locale, "pvp.bomb.button"),
-			},
-		}
-		local function coolingOf(kind: AbilityState.Kind): () -> boolean
-			return function()
-				return dependencies.abilities.isCooling(kind)
-			end
-		end
 		-- The key bound to an action, worded for the current input (reads the same bindings
 		-- the input uses).
 		local KEY_WORDS: { [string]: Text.Key } = {
@@ -250,7 +235,7 @@ function HudController.new(dependencies: Dependencies): HudController
 				local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
 				local key = if context then FlightInputs.boundKey(context, actionName, inputMode()) else nil
 				if not key then
-					return "?"
+					return ""
 				end
 				local word = KEY_WORDS[key.Name]
 				if word then
@@ -260,110 +245,71 @@ function HudController.new(dependencies: Dependencies): HudController
 				return (string.gsub(key.Name, "^Button", ""))
 			end
 		end
-		local function noCooldown(): string
-			return ""
-		end
-		local function never(): boolean
-			return false
-		end
 		local function isSlow(): boolean
 			return slowMode()
 		end
-		local function plainChip(labelKey: Text.Key, actionName: string): AbilityChips.Chip
+		-- The flight buttons (docs/design/screens/hud.md). On a touch screen: up and down in
+		-- Roblox's jump corner, the attacks next to them, slow mode left of the attacks (points of
+		-- the reference screen: diameter, and the outer edges' distance from the screen's right
+		-- and bottom). With a keyboard or a gamepad: the same buttons in a row with their keys.
+		local function button(
+			name: string,
+			inputAction: string,
+			color: Color3,
+			size: number,
+			right: number?,
+			bottom: number?
+		): FlightButtons.ButtonSpec
 			return {
-				label = Text.get(locale, labelKey),
-				key = keyOf(actionName),
-				cooldown = noCooldown,
-				cooling = never,
+				name = name,
+				action = inputAction,
+				icon = name :: any,
+				color = color,
+				size = size,
+				right = right,
+				bottom = bottom,
 			}
 		end
-		local chips: { AbilityChips.Chip } = {
-			plainChip("hud.ascend.hint", FlightInputs.ASCEND),
-			plainChip("hud.descend.hint", FlightInputs.DESCEND),
-			plainChip("hud.grab.hint", FlightInputs.GRAB),
-			{
-				label = Text.get(locale, "hud.slowMode.hint"),
-				key = keyOf(FlightInputs.SLOW_MODE),
-				cooldown = noCooldown,
-				cooling = never,
-				active = isSlow,
-			},
-		}
-		for _, ability in abilities do
-			table.insert(chips, {
-				label = ability.text,
-				key = keyOf(ability.action),
-				cooldown = function()
-					local left = dependencies.abilities.left(ability.kind)
-					return if left > 0
-						then Text.get(locale, "pvp.cooldown.hint", { seconds = string.format("%.1f", left) })
-						else ""
-				end,
-				cooling = coolingOf(ability.kind),
-			})
-		end
-		-- The touch flight buttons (docs/design/screens/hud.md): up and down in Roblox's jump
-		-- corner, the attacks next to them, slow mode left of the attacks. Points of the reference
-		-- screen: diameter, and the outer edges' distance from the right and bottom of the screen.
-		local function attack(name: string, kind: AbilityState.Kind, inputAction: string, size: number)
-			return function(right: number, bottom: number): FlightButtons.ButtonSpec
-				return {
-					name = name,
-					action = inputAction,
-					icon = name :: any,
-					color = Theme.NEON.FLIGHT[name],
-					size = size,
-					right = right,
-					bottom = bottom,
-					cooldown = function()
-						return dependencies.abilities.fraction(kind)
-					end,
-					seconds = function()
-						return dependencies.abilities.left(kind)
-					end,
-				}
+		local function withCooldown(spec: FlightButtons.ButtonSpec, kind: AbilityState.Kind): FlightButtons.ButtonSpec
+			spec.cooldown = function()
+				return dependencies.abilities.fraction(kind)
 			end
+			spec.seconds = function()
+				return dependencies.abilities.left(kind)
+			end
+			if kind == "Strike" then
+				-- Hands full: an egg carrier cannot strike (the simulation refuses it too).
+				spec.enabled = function()
+					return readCarried() == nil
+				end
+			end
+			return spec
 		end
-		local strikeButton = attack("Strike", "Strike", FlightInputs.STRIKE, 64)(93, 22)
-		-- Hands full: an egg carrier cannot strike (the simulation refuses it too).
-		strikeButton.enabled = function()
-			return readCarried() == nil
-		end
-		local flightButtons: { FlightButtons.ButtonSpec } = {
-			{
-				name = "Up",
-				action = FlightInputs.ASCEND,
-				icon = "Up",
-				color = Theme.NEON.FLIGHT.Vertical,
-				size = 59,
-				right = 22,
-				bottom = 93,
-			},
-			{
-				name = "Down",
-				action = FlightInputs.DESCEND,
-				icon = "Down",
-				color = Theme.NEON.FLIGHT.Vertical,
-				size = 59,
-				right = 22,
-				bottom = 22,
-			},
-			strikeButton,
-			attack("Harpoon", "Harpoon", FlightInputs.HARPOON, 54)(98, 98),
-			attack("Bomb", "Bomb", FlightInputs.BOMB, 54)(169, 62),
-			{
-				name = "SlowMode",
-				action = FlightInputs.SLOW_MODE,
-				icon = "SlowMode",
-				color = Theme.NEON.FLIGHT.SlowMode,
-				size = 44,
-				right = 241,
-				bottom = 22,
-				active = isSlow,
-			},
+		local FLIGHT = Theme.NEON.FLIGHT
+		local touchButtons: { FlightButtons.ButtonSpec } = {
+			button("Up", FlightInputs.ASCEND, FLIGHT.Vertical, 59, 22, 93),
+			button("Down", FlightInputs.DESCEND, FLIGHT.Vertical, 59, 22, 22),
+			withCooldown(button("Strike", FlightInputs.STRIKE, FLIGHT.Strike, 64, 93, 22), "Strike"),
+			withCooldown(button("Harpoon", FlightInputs.HARPOON, FLIGHT.Harpoon, 54, 98, 98), "Harpoon"),
+			withCooldown(button("Bomb", FlightInputs.BOMB, FLIGHT.Bomb, 54, 169, 62), "Bomb"),
+			button("SlowMode", FlightInputs.SLOW_MODE, FLIGHT.SlowMode, 44, 241, 22),
 		}
-		local function chipsVisible(): boolean
-			return inSpace() and inputMode() ~= Enum.PreferredInput.Touch
+		touchButtons[6].active = isSlow
+		-- The keyboard and gamepad row, left to right: the attacks, slow mode, down, up.
+		local rowButtons: { FlightButtons.ButtonSpec } = {
+			withCooldown(button("Strike", FlightInputs.STRIKE, FLIGHT.Strike, ROW_STRIKE_SIZE), "Strike"),
+			withCooldown(button("Harpoon", FlightInputs.HARPOON, FLIGHT.Harpoon, ROW_BUTTON_SIZE), "Harpoon"),
+			withCooldown(button("Bomb", FlightInputs.BOMB, FLIGHT.Bomb, ROW_BUTTON_SIZE), "Bomb"),
+			button("SlowMode", FlightInputs.SLOW_MODE, FLIGHT.SlowMode, ROW_BUTTON_SIZE),
+			button("Down", FlightInputs.DESCEND, FLIGHT.Vertical, ROW_BUTTON_SIZE),
+			button("Up", FlightInputs.ASCEND, FLIGHT.Vertical, ROW_BUTTON_SIZE),
+		}
+		rowButtons[4].active = isSlow
+		for _, spec in rowButtons do
+			spec.keyText = keyOf(spec.action)
+		end
+		local function isTouch(): boolean
+			return inputMode() == Enum.PreferredInput.Touch
 		end
 
 		local function goal(): SpeedGoal.Goal?
@@ -427,7 +373,6 @@ function HudController.new(dependencies: Dependencies): HudController
 					locked = harpoonLocked,
 					lockedText = Text.get(locale, "pvp.harpoonLocked.hint"),
 				}),
-				AbilityChips({ visible = chipsVisible, chips = chips }),
 				HitFlash({
 					visible = stunned,
 					text = function()
@@ -542,8 +487,28 @@ function HudController.new(dependencies: Dependencies): HudController
 						}),
 						menuTiles(),
 					}),
-					-- The egg in hand: the thief sees their own back, so the HUD says it. Moves to
-					-- the bottom centre with the oxygen bar (plan step 7).
+				}),
+				-- The bottom stack (docs/design/screens/hud.md), bottom up: on a keyboard or a
+				-- gamepad the row of actions with their keys, then the oxygen, the tutorial's line
+				-- and the egg in hand. A hidden one leaves no gap. On a touch screen it stands a
+				-- little left of the middle, clear of the flight buttons.
+				create("Frame")({
+					Name = "BottomStack",
+					AnchorPoint = Vector2.new(0.5, 1),
+					Position = function()
+						return UDim2.new(if isTouch() then TOUCH_STACK_X else 0.5, 0, 1, -Theme.NEON.EDGE)
+					end,
+					AutomaticSize = Enum.AutomaticSize.XY,
+					BackgroundTransparency = 1,
+					Layout.screenScale(),
+					create("UIListLayout")({
+						FillDirection = Enum.FillDirection.Vertical,
+						HorizontalAlignment = Enum.HorizontalAlignment.Center,
+						VerticalAlignment = Enum.VerticalAlignment.Bottom,
+						Padding = UDim.new(0, Theme.NEON.GAP),
+						SortOrder = Enum.SortOrder.LayoutOrder,
+					}),
+					-- The egg in hand: the thief sees their own back, so the HUD says it.
 					ResourcePill({
 						name = "CarriedEgg",
 						icon = "Egg",
@@ -557,24 +522,33 @@ function HudController.new(dependencies: Dependencies): HudController
 						visible = function()
 							return readCarried() ~= nil
 						end,
+						layoutOrder = 1,
+					}),
+					TutorialPanel({ text = dependencies.tutorialLine, layoutOrder = 2 }),
+					OxygenBar({
+						fraction = fraction,
+						isLow = isLow,
+						visible = isOxygenVisible,
+						warningText = Text.get(locale, "oxygen.low.toast"),
+						layoutOrder = 3,
+					}),
+					FlightButtons.row({
+						visible = function()
+							return inSpace() and not isTouch()
+						end,
+						buttons = rowButtons,
 						layoutOrder = 4,
 					}),
-				}),
-				OxygenBar({
-					fraction = fraction,
-					isLow = isLow,
-					visible = isOxygenVisible,
-					warningText = Text.get(locale, "oxygen.low.toast"),
 				}),
 			}
 			if UserInputService.TouchEnabled then
 				table.insert(
 					children,
-					FlightButtons({
+					FlightButtons.corner({
 						visible = inSpace,
-						buttons = flightButtons,
-						onButton = function(actionName, button)
-							task.spawn(TouchBindings.bind, player, actionName, button)
+						buttons = touchButtons,
+						onButton = function(actionName, instance)
+							task.spawn(TouchBindings.bind, player, actionName, instance)
 						end,
 					})
 				)

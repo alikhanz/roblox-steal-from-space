@@ -1,10 +1,10 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The tutorial on screen (decision 065): the line of what to do now (UI/TutorialPanel) and a
--- pin (UI/ScreenPin) on the thing to fly to: a nest of the guardian to steal from, the player's
--- own egg in the incubator, their trainer. The server decides the hint (TutorialService); the
--- client only finds the place to point at. Carrying an egg home needs no pin of its own: the
--- station beacon shows the way.
+-- The tutorial on screen (decision 065): the line of what to do now (`line`, which the HUD shows
+-- in its bottom stack with UI/TutorialPanel) and a pin (UI/ScreenPin) on the thing to fly to: a
+-- nest of the guardian to steal from, the player's own egg in the incubator, their trainer. The
+-- server decides the hint (TutorialService); the client only finds the place to point at.
+-- Carrying an egg home needs no pin of its own: the station beacon shows the way.
 
 local CollectionService = game:GetService("CollectionService")
 local LocalizationService = game:GetService("LocalizationService")
@@ -21,7 +21,6 @@ local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local TutorialConfig = require(ReplicatedStorage.Shared.Config.TutorialConfig)
-local TutorialPanel = require(script.Parent.Parent.UI.TutorialPanel)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local source = Vide.source
@@ -39,6 +38,8 @@ local STEAL_GRADE: { [Hint]: number } = {
 export type TutorialController = {
 	name: string,
 	start: () -> (),
+	-- The line of what to do now; empty: none (reactive).
+	line: () -> string,
 }
 
 local TutorialController = {}
@@ -177,24 +178,17 @@ function TutorialController.new(): TutorialController
 		Vide.mount(function()
 			return pin.view({ name = "TutorialPin", title = pinTitle, color = Theme.SPEED })
 		end, playerGui)
-		Vide.mount(function()
-			return Vide.create("ScreenGui")({
-				Name = "TutorialUi",
-				ResetOnSpawn = false,
-				TutorialPanel({
-					text = function()
-						local line = lineFor(readHint())
-						return if line ~= "" then line else farewell()
-					end,
-				}),
-			})
-		end, playerGui)
 		RunService.RenderStepped:Connect(update)
 	end
 
 	return {
 		name = "TutorialController",
 		start = start,
+		-- The line the HUD shows in its bottom stack (UI/TutorialPanel); empty: none.
+		line = function(): string
+			local line = lineFor(readHint())
+			return if line ~= "" then line else farewell()
+		end,
 	}
 end
 

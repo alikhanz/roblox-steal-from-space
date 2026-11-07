@@ -25,6 +25,12 @@ function Layout.maxSize(width: number, height: number): UISizeConstraint
 	return instance
 end
 
+function Layout.minSize(width: number, height: number): UISizeConstraint
+	local instance = Instance.new("UISizeConstraint")
+	instance.MinSize = Vector2.new(width, height)
+	return instance
+end
+
 -- The largest size a scaled text may take, following `size`.
 function Layout.maxTextSize(size: () -> number): UITextSizeConstraint
 	local instance = Instance.new("UITextSizeConstraint")

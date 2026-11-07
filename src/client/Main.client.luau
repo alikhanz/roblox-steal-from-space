@@ -62,6 +62,7 @@ local storeController = StoreController.new({
 	menu = menuState,
 })
 local eventController = EventController.new()
+local tutorialController = TutorialController.new()
 
 Lifecycle.run({
 	profileState,
@@ -77,6 +78,7 @@ Lifecycle.run({
 		speed = speedState.speed,
 		loaded = profileState.loaded,
 		menu = menuState,
+		tutorialLine = tutorialController.line,
 		openStore = if purchaseState.available
 			then function()
 				storeController.open("Goal")
@@ -105,7 +107,7 @@ Lifecycle.run({
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),
-	TutorialController.new(),
+	tutorialController,
 	StationBorderController.new(),
 	eventController,
 	SerpentController.new({ events = eventController }),

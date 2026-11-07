@@ -160,18 +160,6 @@ local Strings = {
 		ru = "Попал!",
 		en = "Hit!",
 	},
-	["pvp.strike.button"] = {
-		ru = "Удар",
-		en = "Strike",
-	},
-	["pvp.harpoon.button"] = {
-		ru = "Гарпун",
-		en = "Harpoon",
-	},
-	["pvp.bomb.button"] = {
-		ru = "Бомба",
-		en = "Bomb",
-	},
 	["pvp.newbie.title"] = {
 		ru = "Новичок",
 		en = "Newbie",
@@ -554,26 +542,6 @@ local Strings = {
 	["bay.buyPodSign.button"] = {
 		ru = "Купить: {price} ●",
 		en = "Buy: {price} ●",
-	},
-	["pvp.cooldown.hint"] = {
-		ru = "{seconds} с",
-		en = "{seconds}s",
-	},
-	["hud.ascend.hint"] = {
-		ru = "Вверх",
-		en = "Up",
-	},
-	["hud.descend.hint"] = {
-		ru = "Вниз",
-		en = "Down",
-	},
-	["hud.grab.hint"] = {
-		ru = "Взять яйцо",
-		en = "Grab egg",
-	},
-	["hud.slowMode.hint"] = {
-		ru = "Медленно",
-		en = "Slow",
 	},
 	["key.mouseLeft.hint"] = {
 		ru = "ЛКМ",

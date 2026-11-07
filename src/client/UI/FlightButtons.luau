@@ -1,8 +1,9 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The flight buttons of a touch screen (docs/design/screens/hud.md): round buttons of coloured
--- glass with an icon, laid out under the right thumb. Each drives an input action through a
--- UIButton binding (TouchBindings), the same action the keyboard drives. A cooling button is
+-- The flight buttons (docs/design/screens/hud.md): round buttons of coloured glass with an
+-- icon. On a touch screen they sit under the right thumb (`corner`) and each drives an input
+-- action through a UIButton binding (TouchBindings), the same action the keyboard drives; with a
+-- keyboard or a gamepad they make a row with their keys (`row`). A cooling button is
 -- covered by a dark sector with the seconds left; a disabled one turns grey; a switched-on one
 -- (slow mode) fills denser.
 
@@ -29,6 +30,10 @@ local COOLDOWN_TRANSPARENCY = 0.35
 local DISABLED_TRANSPARENCY = 0.6
 -- The whole group's box, points: big enough for every button's place in it.
 local AREA = Vector2.new(300, 170)
+-- The PC row: space between buttons; the key cap's height and how far it sticks out.
+local ROW_GAP = 12
+local KEY_HEIGHT = 17
+local KEY_OUT = 6
 
 export type ButtonSpec = {
 	name: string,
@@ -36,10 +41,13 @@ export type ButtonSpec = {
 	action: string,
 	icon: Icons.Name,
 	color: Color3,
-	-- Diameter and the distance of its outer edges from the screen's right and bottom, points.
+	-- Diameter, points; on a touch screen also the distance of its outer edges from the screen's
+	-- right and bottom (the PC row lays its buttons out itself).
 	size: number,
-	right: number,
-	bottom: number,
+	right: number?,
+	bottom: number?,
+	-- The key that drives it, on a key cap (the PC and gamepad row); empty: none shown.
+	keyText: (() -> string)?,
 	-- The part of the cooldown still to run (1 just used .. 0 ready) and its seconds.
 	cooldown: (() -> number)?,
 	seconds: (() -> number)?,
@@ -100,7 +108,31 @@ local function sectorHalf(side: "Left" | "Right", fraction: () -> number): Frame
 	}) :: Frame
 end
 
-local function FlightButton(spec: ButtonSpec, onButton: (string, GuiButton) -> ()): ImageButton
+-- The key cap on a button's bottom-right corner (the PC and gamepad row).
+local function KeyCap(keyText: () -> string): TextLabel
+	return create("TextLabel")({
+		Name = "Key",
+		ZIndex = 5,
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, KEY_OUT, 1, KEY_OUT),
+		Size = UDim2.fromOffset(0, KEY_HEIGHT),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundColor3 = NEON.GLASS,
+		FontFace = NEON.FONT,
+		TextSize = NEON.TEXT_SMALL,
+		TextColor3 = NEON.TEXT,
+		Text = keyText,
+		Visible = function()
+			return keyText() ~= ""
+		end,
+		create("UICorner")({ CornerRadius = UDim.new(0, 4) }),
+		Layout.panelLine(),
+		Layout.padding(4, 0),
+		Layout.minSize(KEY_HEIGHT, KEY_HEIGHT),
+	}) :: TextLabel
+end
+
+local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string, GuiButton) -> ())?): ImageButton
 	local pressed = source(false)
 	local function isEnabled(): boolean
 		return if spec.enabled then spec.enabled() else true
@@ -131,17 +163,23 @@ local function FlightButton(spec: ButtonSpec, onButton: (string, GuiButton) -> (
 		pressScale.Scale = if pressed() and enabled then PRESSED_SCALE else 1
 	end)
 
+	local right, bottom = spec.right, spec.bottom
 	return create("ImageButton")({
 		Name = spec.name,
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -spec.right, 1, -spec.bottom),
+		LayoutOrder = order,
+		-- Placed at its spot in the corner, or left to the row's list layout.
+		AnchorPoint = if right then Vector2.new(1, 1) else Vector2.zero,
+		Position = if right and bottom then UDim2.new(1, -right, 1, -bottom) else UDim2.new(),
 		Size = UDim2.fromOffset(spec.size, spec.size),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Layout.followPress(pressed),
 		action(function(instance)
-			onButton(spec.action, instance :: GuiButton)
+			if onButton then
+				onButton(spec.action, instance :: GuiButton)
+			end
 		end),
+		if spec.keyText then KeyCap(spec.keyText) else nil,
 
 		create("UICorner")({ CornerRadius = corner }),
 		pressScale,
@@ -191,10 +229,11 @@ local function FlightButton(spec: ButtonSpec, onButton: (string, GuiButton) -> (
 	}) :: ImageButton
 end
 
-local function FlightButtons(props: Props): Frame
+-- The touch layout: every button at its own spot under the right thumb, bound to its action.
+local function corner(props: Props): Frame
 	local buttons: { Instance } = {}
-	for _, spec in props.buttons do
-		table.insert(buttons, FlightButton(spec, props.onButton))
+	for order, spec in props.buttons do
+		table.insert(buttons, FlightButton(spec, order, props.onButton))
 	end
 	return create("Frame")({
 		Name = "FlightButtons",
@@ -208,4 +247,32 @@ local function FlightButtons(props: Props): Frame
 	}) :: Frame
 end
 
-return FlightButtons
+-- The keyboard and gamepad layout: the same buttons in a row with their keys, a picture of the
+-- controls (the keys drive the actions; the icons are not bound). Sits in a list; scaled by it.
+local function row(props: { visible: () -> boolean, buttons: { ButtonSpec }, layoutOrder: number }): Frame
+	local buttons: { Instance } = {}
+	for order, spec in props.buttons do
+		table.insert(buttons, FlightButton(spec, order, nil))
+	end
+	return create("Frame")({
+		Name = "ActionRow",
+		LayoutOrder = props.layoutOrder,
+		AutomaticSize = Enum.AutomaticSize.XY,
+		BackgroundTransparency = 1,
+		Visible = props.visible,
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Horizontal,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, ROW_GAP),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		-- Room for the key caps that stick out of the last button and below the row.
+		Layout.padding(KEY_OUT, KEY_OUT),
+		buttons,
+	}) :: Frame
+end
+
+return table.freeze({
+	corner = corner,
+	row = row,
+})
