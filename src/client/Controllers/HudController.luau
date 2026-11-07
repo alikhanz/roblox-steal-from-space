@@ -47,6 +47,9 @@ local source = Vide.source
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 -- What a number shows before the profile arrives.
 local NOT_LOADED = "—"
+-- The widest text BigNum.format gives (three digits and the longest suffix): the speed and
+-- coin plaques keep this width, so they do not twitch as the numbers grow.
+local WIDEST_NUMBER = "88.8Qad"
 -- The first resource icon sticks out this far left of its plaque; the next one sticks into the
 -- gap between plaques, so the gap is wider than that.
 local RESOURCE_ICON_ROOM = 14
@@ -464,6 +467,7 @@ function HudController.new(dependencies: Dependencies): HudController
 							value = function()
 								return if loaded() then BigNum.format(speed()) else NOT_LOADED
 							end,
+							widest = WIDEST_NUMBER,
 							layoutOrder = 1,
 						}),
 						ResourcePill({
@@ -473,6 +477,7 @@ function HudController.new(dependencies: Dependencies): HudController
 							value = function()
 								return if loaded() then BigNum.format(dependencies.coins()) else NOT_LOADED
 							end,
+							widest = WIDEST_NUMBER,
 							layoutOrder = 2,
 						}),
 						-- How long nobody can rob this player (and they cannot rob anyone): last in
