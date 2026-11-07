@@ -24,6 +24,8 @@ export type AbilityState = {
 	-- Seconds until the ability is ready again; 0 when ready. Reactive.
 	left: (kind: ProfileState.AbilityKind) -> number,
 	isCooling: (kind: ProfileState.AbilityKind) -> boolean,
+	-- The part of the cooldown still to run, 1 just used .. 0 ready. Reactive.
+	fraction: (kind: ProfileState.AbilityKind) -> number,
 }
 
 local AbilityState = {}
@@ -39,6 +41,8 @@ end
 
 function AbilityState.new(profile: ProfileState.ProfileState): AbilityState
 	local readyAt: { [string]: Vide.Source<number> } = {}
+	-- How long the cooldown running now lasts in all (a harpoon's depends on hit or miss).
+	local durations: { [string]: number } = { Strike = PvpConfig.STRIKE.cooldownSeconds }
 	local clock = source(os.clock())
 
 	local function readyAtOf(kind: ProfileState.AbilityKind): Vide.Source<number>
@@ -58,7 +62,9 @@ function AbilityState.new(profile: ProfileState.ProfileState): AbilityState
 	local function start()
 		profile.abilityResult.connect(function(kind, hit)
 			if kind ~= "Strike" then
-				readyAtOf(kind)(os.clock() + cooldownFor(kind, hit))
+				local seconds = cooldownFor(kind, hit)
+				durations[kind] = seconds
+				readyAtOf(kind)(os.clock() + seconds)
 			end
 		end)
 		local sinceTick = 0
@@ -81,6 +87,10 @@ function AbilityState.new(profile: ProfileState.ProfileState): AbilityState
 		left = left,
 		isCooling = function(kind)
 			return left(kind) > 0
+		end,
+		fraction = function(kind)
+			local total = durations[kind] or PvpConfig.STRIKE.cooldownSeconds
+			return math.clamp(left(kind) / total, 0, 1)
 		end,
 	}
 end

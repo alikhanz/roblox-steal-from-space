@@ -210,6 +210,11 @@ local function fly(
 	end
 
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	if rig.velocity.MaxForce == 0 then
+		-- Just left the station: no jumping in space. Roblox's touch jump button hides when the
+		-- jump state is off, and up and down take its corner (docs/design/screens/hud.md).
+		rig.humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	end
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
 	rig.velocity.VectorVelocity = velocity
 
@@ -266,6 +271,7 @@ local function walk(rig: Rig)
 	end
 	rig.velocity.MaxForce = 0
 	rig.align.MaxTorque = 0
+	rig.humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 end
 

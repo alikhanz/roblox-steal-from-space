@@ -286,7 +286,6 @@ function HudController.new(dependencies: Dependencies): HudController
 				active = isSlow,
 			},
 		}
-		local buttons = {}
 		for _, ability in abilities do
 			table.insert(chips, {
 				label = ability.text,
@@ -299,8 +298,67 @@ function HudController.new(dependencies: Dependencies): HudController
 				end,
 				cooling = coolingOf(ability.kind),
 			})
-			table.insert(buttons, { action = ability.action, text = ability.text, cooling = coolingOf(ability.kind) })
 		end
+		-- The touch flight buttons (docs/design/screens/hud.md): up and down in Roblox's jump
+		-- corner, the attacks next to them, slow mode left of the attacks. Points of the reference
+		-- screen: diameter, and the outer edges' distance from the right and bottom of the screen.
+		local function attack(name: string, kind: AbilityState.Kind, inputAction: string, size: number)
+			return function(right: number, bottom: number): FlightButtons.ButtonSpec
+				return {
+					name = name,
+					action = inputAction,
+					icon = name :: any,
+					color = Theme.NEON.FLIGHT[name],
+					size = size,
+					right = right,
+					bottom = bottom,
+					cooldown = function()
+						return dependencies.abilities.fraction(kind)
+					end,
+					seconds = function()
+						return dependencies.abilities.left(kind)
+					end,
+				}
+			end
+		end
+		local strikeButton = attack("Strike", "Strike", FlightInputs.STRIKE, 64)(93, 22)
+		-- Hands full: an egg carrier cannot strike (the simulation refuses it too).
+		strikeButton.enabled = function()
+			return readCarried() == nil
+		end
+		local flightButtons: { FlightButtons.ButtonSpec } = {
+			{
+				name = "Up",
+				action = FlightInputs.ASCEND,
+				icon = "Up",
+				color = Theme.NEON.FLIGHT.Vertical,
+				size = 59,
+				right = 22,
+				bottom = 93,
+			},
+			{
+				name = "Down",
+				action = FlightInputs.DESCEND,
+				icon = "Down",
+				color = Theme.NEON.FLIGHT.Vertical,
+				size = 59,
+				right = 22,
+				bottom = 22,
+			},
+			strikeButton,
+			attack("Harpoon", "Harpoon", FlightInputs.HARPOON, 54)(98, 98),
+			attack("Bomb", "Bomb", FlightInputs.BOMB, 54)(169, 62),
+			{
+				name = "SlowMode",
+				action = FlightInputs.SLOW_MODE,
+				icon = "SlowMode",
+				color = Theme.NEON.FLIGHT.SlowMode,
+				size = 44,
+				right = 241,
+				bottom = 22,
+				active = isSlow,
+			},
+		}
 		local function chipsVisible(): boolean
 			return inSpace() and inputMode() ~= Enum.PreferredInput.Touch
 		end
@@ -509,14 +567,7 @@ function HudController.new(dependencies: Dependencies): HudController
 					children,
 					FlightButtons({
 						visible = inSpace,
-						ascendAction = FlightInputs.ASCEND,
-						descendAction = FlightInputs.DESCEND,
-						abilities = buttons,
-						slowMode = {
-							action = FlightInputs.SLOW_MODE,
-							text = Text.get(locale, "hud.slowMode.hint"),
-							active = isSlow,
-						},
+						buttons = flightButtons,
 						onButton = function(actionName, button)
 							task.spawn(TouchBindings.bind, player, actionName, button)
 						end,
