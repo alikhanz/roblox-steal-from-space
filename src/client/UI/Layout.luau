@@ -79,6 +79,18 @@ function Layout.screenScale(): UIScale
 	return instance
 end
 
+-- A Vide action that keeps `pressed` true while the button itself is held down. It follows the
+-- button's GuiState, not raw input: a finger that started elsewhere (on the movement stick) and
+-- slides over the button does not press it.
+function Layout.followPress(pressed: Vide.Source<boolean>): any
+	return Vide.action(function(instance)
+		local button = instance :: GuiButton
+		button:GetPropertyChangedSignal("GuiState"):Connect(function()
+			pressed(button.GuiState == Enum.GuiState.Press)
+		end)
+	end)
+end
+
 -- The dark outline under text on glass, so it reads over any scene.
 function Layout.textStroke(): UIStroke
 	local instance = Instance.new("UIStroke")

@@ -72,17 +72,7 @@ local function ActionButton(props: Props): TextButton
 				props.onClick()
 			end
 		end,
-		InputBegan = function(input: InputObject)
-			if
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
-				pressed(true)
-			end
-		end,
-		InputEnded = function()
-			pressed(false)
-		end,
+		Layout.followPress(pressed),
 
 		create("UICorner")({ CornerRadius = corner }),
 		pressScale,

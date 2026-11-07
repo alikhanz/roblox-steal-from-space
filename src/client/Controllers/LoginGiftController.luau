@@ -149,15 +149,15 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[LoginGiftController] PlayerGui did not appear")
 		mountUi(playerGui)
-		-- The tile in the HUD menu row: hidden while a brand-new player's first gift waits for
-		-- their first delivery, so it does not hang there unexplained (last in the row for that).
+		-- The tile in the HUD menu row: only while today's gift waits (none for a brand-new player
+		-- before the first delivery, none once taken); last in the row, so it leaves no gap.
 		dependencies.menu.add({
 			slot = "Gift",
 			badge = function()
 				return if profile.loginGift().available then 1 else 0
 			end,
 			visible = function()
-				return not profile.loginGift().locked
+				return profile.loginGift().available
 			end,
 			onPress = function()
 				isOpen(not isOpen())

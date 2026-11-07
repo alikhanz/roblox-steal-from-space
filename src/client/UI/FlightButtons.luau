@@ -138,14 +138,7 @@ local function FlightButton(spec: ButtonSpec, onButton: (string, GuiButton) -> (
 		Size = UDim2.fromOffset(spec.size, spec.size),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
-		InputBegan = function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.Touch then
-				pressed(true)
-			end
-		end,
-		InputEnded = function()
-			pressed(false)
-		end,
+		Layout.followPress(pressed),
 		action(function(instance)
 			onButton(spec.action, instance :: GuiButton)
 		end),
