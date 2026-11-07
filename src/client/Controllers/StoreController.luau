@@ -1,6 +1,6 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The shop (decision 061): the menu button, the window with everything sold for Robux, and the
+-- The shop (decision 061): the HUD menu tile, the window with everything sold for Robux, and the
 -- toasts for what a purchase gave. Prices and passes come from PurchaseState, the numbers a
 -- purchase would give from the profile copy and the same formulas the server uses.
 
@@ -10,8 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
-local Button = require(script.Parent.Parent.UI.Button)
-local Layout = require(script.Parent.Parent.UI.Layout)
+local MenuState = require(script.Parent.Parent.State.MenuState)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local PurchaseState = require(script.Parent.Parent.State.PurchaseState)
@@ -46,6 +45,7 @@ export type Dependencies = {
 	purchases: PurchaseState.PurchaseState,
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
+	menu: MenuState.MenuState,
 }
 
 export type StoreController = {
@@ -207,21 +207,6 @@ function StoreController.new(dependencies: Dependencies): StoreController
 				Name = "StoreUi",
 				ResetOnSpawn = false,
 				DisplayOrder = 11,
-				Layout.placeInMenu(
-					Button({
-						name = "OpenStore",
-						text = text("store.open.button"),
-						color = Theme.TOAST_GOOD,
-						onClick = function()
-							if isOpen() then
-								isOpen(false)
-							else
-								open("Store")
-							end
-						end,
-					}),
-					"Store"
-				),
 				StoreWindow({
 					visible = function()
 						return isOpen()
@@ -246,6 +231,17 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[StoreController] PlayerGui did not appear")
 		mountUi(playerGui)
+		-- The tile in the HUD menu row; its key is answered by MenuState.
+		dependencies.menu.add({
+			slot = "Store",
+			onPress = function()
+				if isOpen() then
+					isOpen(false)
+				else
+					open("Store")
+				end
+			end,
+		})
 
 		purchases.granted.connect(announce)
 		purchases.passUnlocked.connect(function(pass)

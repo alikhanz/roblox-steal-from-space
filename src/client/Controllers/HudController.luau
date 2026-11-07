@@ -25,6 +25,8 @@ local GoalCard = require(script.Parent.Parent.UI.GoalCard)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Layout = require(script.Parent.Parent.UI.Layout)
+local MenuState = require(script.Parent.Parent.State.MenuState)
+local MenuTile = require(script.Parent.Parent.UI.MenuTile)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
@@ -48,6 +50,7 @@ local NOT_LOADED = "—"
 -- gap between plaques, so the gap is wider than that.
 local RESOURCE_ICON_ROOM = 14
 local RESOURCE_GAP = 20
+local MENU_GAP = 7
 
 local function leftPadding(pixels: number): UIPadding
 	local instance = Instance.new("UIPadding")
@@ -73,6 +76,8 @@ export type Dependencies = {
 	speed: () -> BigNum.BigNum,
 	-- True once the profile arrived; numbers show a dash before that.
 	loaded: () -> boolean,
+	-- The windows' tiles for the menu row.
+	menu: MenuState.MenuState,
 	-- Opens the shop from the speed goal; nil where nothing is sold (an unpublished place).
 	openStore: (() -> ())?,
 }
@@ -284,6 +289,42 @@ function HudController.new(dependencies: Dependencies): HudController
 			return SpeedGoal.next(speed(), RECOMMENDED)
 		end
 
+		-- One tile per menu slot, in the slots' order; a slot no window has added stays hidden.
+		local function menuTiles(): { Instance }
+			local tiles: { Instance } = {}
+			for order, entry in dependencies.menu.slots() do
+				local function added(): MenuState.Tile?
+					return dependencies.menu.tile(entry.slot)
+				end
+				table.insert(
+					tiles,
+					MenuTile({
+						name = entry.slot,
+						icon = entry.slot,
+						color = Theme.NEON.TILE[entry.slot],
+						onPress = function()
+							local tile = added()
+							if tile then
+								tile.onPress()
+							end
+						end,
+						badge = function()
+							local tile = added()
+							return if tile and tile.badge then tile.badge() else 0
+						end,
+						keyText = function()
+							return if inputMode() == Enum.PreferredInput.KeyboardAndMouse then entry.key.Name else ""
+						end,
+						visible = function()
+							return MenuState.isShown(added())
+						end,
+						layoutOrder = order,
+					})
+				)
+			end
+			return tiles
+		end
+
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
 			-- A guardian comes within reach: cheer. The first reading only notes where the player is.
@@ -405,6 +446,19 @@ function HudController.new(dependencies: Dependencies): HudController
 							return loaded() and goal() ~= nil
 						end,
 					}),
+					-- The windows' tiles in a row; a hidden one closes the gap (MenuState).
+					create("Frame")({
+						Name = "Menu",
+						LayoutOrder = 3,
+						AutomaticSize = Enum.AutomaticSize.XY,
+						BackgroundTransparency = 1,
+						create("UIListLayout")({
+							FillDirection = Enum.FillDirection.Horizontal,
+							Padding = UDim.new(0, MENU_GAP),
+							SortOrder = Enum.SortOrder.LayoutOrder,
+						}),
+						menuTiles(),
+					}),
 					-- The egg in hand: the thief sees their own back, so the HUD says it. Moves to
 					-- the bottom centre with the oxygen bar (plan step 7).
 					ResourcePill({
@@ -420,7 +474,7 @@ function HudController.new(dependencies: Dependencies): HudController
 						visible = function()
 							return readCarried() ~= nil
 						end,
-						layoutOrder = 3,
+						layoutOrder = 4,
 					}),
 				}),
 				OxygenBar({

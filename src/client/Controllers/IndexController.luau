@@ -1,6 +1,6 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The alien index on the client: the HUD button with how many rewards wait, the index window
+-- The alien index on the client: the HUD menu tile with how many rewards wait, the index window
 -- and the toasts for a new find and a taken reward. Rows are built from the one alien registry
 -- (AlienConfig through IndexConfig.SETS) and the profile copy; rewards shown use the formula the
 -- server pays with (Pace).
@@ -13,10 +13,9 @@ local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienIndex = require(ReplicatedStorage.Shared.Domain.AlienIndex)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
-local Button = require(script.Parent.Parent.UI.Button)
 local IndexConfig = require(ReplicatedStorage.Shared.Config.IndexConfig)
 local IndexWindow = require(script.Parent.Parent.UI.IndexWindow)
-local Layout = require(script.Parent.Parent.UI.Layout)
+local MenuState = require(script.Parent.Parent.State.MenuState)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
@@ -52,6 +51,7 @@ export type Dependencies = {
 	profile: ProfileState.ProfileState,
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
+	menu: MenuState.MenuState,
 }
 
 export type IndexController = {
@@ -221,18 +221,6 @@ function IndexController.new(dependencies: Dependencies): IndexController
 				ResetOnSpawn = false,
 				DisplayOrder = 10,
 
-				Layout.placeInMenu(
-					Button({
-						name = "OpenIndex",
-						text = text("index.open.button"),
-						badge = waiting,
-						onClick = function()
-							isOpen(not isOpen())
-						end,
-					}),
-					"Index"
-				),
-
 				IndexWindow({
 					visible = function()
 						return isOpen()
@@ -273,6 +261,15 @@ function IndexController.new(dependencies: Dependencies): IndexController
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[IndexController] PlayerGui did not appear")
 		mountUi(playerGui)
+		-- The tile in the HUD menu row, with how many rewards wait; its key is answered by
+		-- MenuState.
+		dependencies.menu.add({
+			slot = "Index",
+			badge = waiting,
+			onPress = function()
+				isOpen(not isOpen())
+			end,
+		})
 
 		profile.indexRewarded.connect(function(coins)
 			toast(text("index.rewarded.toast", { coins = BigNum.format(coins) }), Theme.TOAST_GOOD)

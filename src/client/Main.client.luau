@@ -19,6 +19,7 @@ local IndexController = require(script.Parent.Controllers.IndexController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
+local MenuState = require(script.Parent.State.MenuState)
 local NewbieViewController = require(script.Parent.Controllers.NewbieViewController)
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
@@ -43,18 +44,22 @@ local abilityState = AbilityState.new(profileState)
 local speedState = SpeedState.new()
 -- One window open at a time: opening one closes the other.
 local windowState = WindowState.new()
+-- The windows' tiles in the HUD menu row and their keys.
+local menuState = MenuState.new()
 local purchaseState = PurchaseState.new()
 local bayWindowController = BayWindowController.new({
 	profile = profileState,
 	purchases = purchaseState,
 	toasts = toastState,
 	windows = windowState,
+	menu = menuState,
 })
 local storeController = StoreController.new({
 	profile = profileState,
 	purchases = purchaseState,
 	toasts = toastState,
 	windows = windowState,
+	menu = menuState,
 })
 local eventController = EventController.new()
 
@@ -63,6 +68,7 @@ Lifecycle.run({
 	purchaseState,
 	abilityState,
 	speedState,
+	menuState,
 	AimController.new(),
 	HudController.new({
 		coins = profileState.coins,
@@ -70,6 +76,7 @@ Lifecycle.run({
 		abilities = abilityState,
 		speed = speedState.speed,
 		loaded = profileState.loaded,
+		menu = menuState,
 		openStore = if purchaseState.available
 			then function()
 				storeController.open("Goal")
@@ -86,14 +93,15 @@ Lifecycle.run({
 	ShopController.new({ profile = profileState, windows = windowState }),
 	storeController,
 	CoinBoardController.new(),
-	QuestController.new({ profile = profileState, toasts = toastState, windows = windowState }),
+	QuestController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
 	LoginGiftController.new({
 		profile = profileState,
 		toasts = toastState,
 		welcomeOpen = bayWindowController.welcomeOpen,
 		windows = windowState,
+		menu = menuState,
 	}),
-	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState }),
+	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	StationBeaconController.new(),

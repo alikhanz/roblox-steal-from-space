@@ -1,7 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The login gift on the client: the screen that opens by itself when today's gift waits (after
--- the welcome-back screen), the HUD button with a badge to open it again, and the celebration
+-- the welcome-back screen), the HUD menu tile with a badge to open it again, and the celebration
 -- when it is taken. Tile gifts are shown with the same formula the server pays with
 -- (Domain/PlayReward), from the profile copy.
 
@@ -11,11 +11,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
-local Button = require(script.Parent.Parent.UI.Button)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
-local Layout = require(script.Parent.Parent.UI.Layout)
 local LoginGiftConfig = require(ReplicatedStorage.Shared.Config.LoginGiftConfig)
 local LoginGiftScreen = require(script.Parent.Parent.UI.LoginGiftScreen)
+local MenuState = require(script.Parent.Parent.State.MenuState)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
@@ -46,6 +45,7 @@ export type Dependencies = {
 	-- The welcome-back screen is up; the gift waits for it.
 	welcomeOpen: () -> boolean,
 	windows: WindowState.WindowState,
+	menu: MenuState.MenuState,
 }
 
 export type LoginGiftController = {
@@ -106,25 +106,6 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		return if gift.reset then text("gift.reset.hint") else text("gift.streak.hint")
 	end
 
-	-- The HUD button: hidden while a brand-new player's first gift waits for their first
-	-- delivery, so it does not hang there unexplained.
-	local function giftButton(): TextButton
-		local button = Button({
-			name = "OpenGift",
-			text = text("gift.open.button"),
-			badge = function()
-				return if profile.loginGift().available then 1 else 0
-			end,
-			onClick = function()
-				isOpen(not isOpen())
-			end,
-		})
-		Vide.effect(function()
-			button.Visible = not profile.loginGift().locked
-		end)
-		return button
-	end
-
 	local function mountUi(playerGui: Instance)
 		Vide.mount(function()
 			return create("ScreenGui")({
@@ -135,8 +116,6 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				Vide.action(function(gui)
 					layer = gui :: ScreenGui
 				end),
-
-				Layout.placeInMenu(giftButton(), "Gift"),
 
 				LoginGiftScreen.create({
 					visible = function()
@@ -170,6 +149,20 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[LoginGiftController] PlayerGui did not appear")
 		mountUi(playerGui)
+		-- The tile in the HUD menu row: hidden while a brand-new player's first gift waits for
+		-- their first delivery, so it does not hang there unexplained (last in the row for that).
+		dependencies.menu.add({
+			slot = "Gift",
+			badge = function()
+				return if profile.loginGift().available then 1 else 0
+			end,
+			visible = function()
+				return not profile.loginGift().locked
+			end,
+			onPress = function()
+				isOpen(not isOpen())
+			end,
+		})
 
 		-- Opens by itself whenever a gift starts waiting: on join, at UTC midnight online.
 		local wasAvailable = false

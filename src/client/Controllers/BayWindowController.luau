@@ -1,6 +1,6 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The bay window and what goes with it: the button that opens it, toasts for hatches and
+-- The bay window and what goes with it: its tile in the HUD menu, toasts for hatches and
 -- refused commands, the welcome-back screen. Holds the selection; everything else is read from
 -- ProfileState and every action is sent to the server through Remotes.
 
@@ -8,7 +8,6 @@ local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
@@ -16,10 +15,9 @@ local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayWindow = require(script.Parent.Parent.UI.BayWindow)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
-local Button = require(script.Parent.Parent.UI.Button)
 local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
-local Layout = require(script.Parent.Parent.UI.Layout)
+local MenuState = require(script.Parent.Parent.State.MenuState)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
@@ -38,7 +36,6 @@ local create = Vide.create
 local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
-local TOGGLE_KEY = Enum.KeyCode.B
 -- Egg countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
 
@@ -80,6 +77,7 @@ export type Dependencies = {
 	purchases: PurchaseState.PurchaseState,
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
+	menu: MenuState.MenuState,
 }
 
 export type BayWindowController = {
@@ -343,18 +341,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 				Name = "BayUi",
 				ResetOnSpawn = false,
 				DisplayOrder = 10,
-
-				-- The open button sits at the bottom of the menu column, clear of the flight buttons.
-				Layout.placeInMenu(
-					Button({
-						name = "OpenBay",
-						text = text("bay.open.button"),
-						onClick = function()
-							isOpen(not isOpen())
-						end,
-					}),
-					"Bay"
-				),
 
 				BayWindow({
 					visible = function()
@@ -648,11 +634,13 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			end
 		end)
 
-		UserInputService.InputBegan:Connect(function(input, gameProcessed)
-			if not gameProcessed and input.KeyCode == TOGGLE_KEY then
+		-- The tile in the HUD menu row; its key (B) is answered by MenuState.
+		dependencies.menu.add({
+			slot = "Bay",
+			onPress = function()
 				isOpen(not isOpen())
-			end
-		end)
+			end,
+		})
 		local sinceTick = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
 			sinceTick += deltaTime

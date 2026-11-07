@@ -6,6 +6,22 @@ local function hex(value: string): Color3
 	return Color3.fromHex(value)
 end
 
+-- Menu tiles and flight buttons, looked up by their slot or action name.
+local TILE: { [string]: Color3 } = {
+	Bay = hex("#3EA6FF"),
+	Store = hex("#41C95A"),
+	Quests = hex("#FF9A2E"),
+	Index = hex("#A06BFF"),
+	Gift = hex("#FF5A9E"),
+}
+local FLIGHT: { [string]: Color3 } = {
+	Strike = hex("#FF7A3D"),
+	Harpoon = hex("#3FD9FF"),
+	Bomb = hex("#B57BFF"),
+	Vertical = hex("#8FF4FF"),
+	SlowMode = hex("#5BDB6E"),
+}
+
 -- The neon glass style, token for token as in DESIGN.md ("Цвета", "Размеры и отступы").
 local NEON = table.freeze({
 	-- Glass of plaques, tiles and hints, and how see-through it is.
@@ -24,22 +40,8 @@ local NEON = table.freeze({
 	-- Newbie protection and the egg in hand.
 	SHIELD = hex("#8FF0A0"),
 	EGG = hex("#FFE0A8"),
-	-- Menu tiles.
-	TILE = table.freeze({
-		Bay = hex("#3EA6FF"),
-		Store = hex("#41C95A"),
-		Quests = hex("#FF9A2E"),
-		Index = hex("#A06BFF"),
-		Gift = hex("#FF5A9E"),
-	}),
-	-- Flight buttons.
-	FLIGHT = table.freeze({
-		Strike = hex("#FF7A3D"),
-		Harpoon = hex("#3FD9FF"),
-		Bomb = hex("#B57BFF"),
-		Vertical = hex("#8FF4FF"),
-		SlowMode = hex("#5BDB6E"),
-	}),
+	TILE = table.freeze(TILE),
+	FLIGHT = table.freeze(FLIGHT),
 	-- Action buttons, by what the press does.
 	ACTION = table.freeze({
 		Main = hex("#43CC5F"),

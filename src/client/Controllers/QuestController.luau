@@ -1,6 +1,6 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- Daily quests on the client: the HUD button (with how many rewards wait), the quests window
+-- Daily quests on the client: the HUD menu tile (with how many rewards wait), the quests window
 -- and the toasts for a finished quest and a reward. Rows come from the profile copy; rewards
 -- shown before a claim use the same formula the server pays with (Domain/PlayReward via Pace).
 
@@ -8,12 +8,10 @@ local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
-local Button = require(script.Parent.Parent.UI.Button)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
-local Layout = require(script.Parent.Parent.UI.Layout)
+local MenuState = require(script.Parent.Parent.State.MenuState)
 local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
@@ -32,7 +30,6 @@ local create = Vide.create
 local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
-local TOGGLE_KEY = Enum.KeyCode.J
 -- The countdown to new quests is whole minutes and seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
 
@@ -49,6 +46,7 @@ export type Dependencies = {
 	profile: ProfileState.ProfileState,
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
+	menu: MenuState.MenuState,
 }
 
 export type QuestController = {
@@ -162,19 +160,6 @@ function QuestController.new(dependencies: Dependencies): QuestController
 				ResetOnSpawn = false,
 				DisplayOrder = 10,
 
-				Layout.placeInMenu(
-					Button({
-						name = "OpenQuests",
-						text = text("quests.open.button"),
-						-- How many finished quests wait to be claimed.
-						badge = claimable,
-						onClick = function()
-							isOpen(not isOpen())
-						end,
-					}),
-					"Quests"
-				),
-
 				QuestWindow({
 					visible = function()
 						return isOpen()
@@ -222,11 +207,15 @@ function QuestController.new(dependencies: Dependencies): QuestController
 				Theme.TOAST_GOOD
 			)
 		end)
-		UserInputService.InputBegan:Connect(function(input, gameProcessed)
-			if not gameProcessed and input.KeyCode == TOGGLE_KEY then
+		-- The tile in the HUD menu row, with how many finished quests wait to be claimed; its key
+		-- (J) is answered by MenuState.
+		dependencies.menu.add({
+			slot = "Quests",
+			badge = claimable,
+			onPress = function()
 				isOpen(not isOpen())
-			end
-		end)
+			end,
+		})
 		local sinceTick = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
 			sinceTick += deltaTime
