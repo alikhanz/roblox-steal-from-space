@@ -105,6 +105,19 @@ describe("Upgrades.speed", function()
 	end)
 end)
 
+describe("Upgrades.speedWithJetpack", function()
+	it("swaps the old jetpack's multiplier for the new one's", function()
+		-- Level 3 is x4, level 4 is x6: 1200 on x4 is 1800 on x6.
+		local after = Upgrades.speedWithJetpack(BigNum.fromNumber(1200), 3, 4, TUNING)
+		expect(number(after)).toBeCloseTo(1800, 1e-9)
+	end)
+
+	it("keeps the stat for the same level and works from the starter", function()
+		expect(number(Upgrades.speedWithJetpack(BigNum.fromNumber(50), 5, 5, TUNING))).toBeCloseTo(50, 1e-9)
+		expect(number(Upgrades.speedWithJetpack(BigNum.fromNumber(10), 0, 1, TUNING))).toBeCloseTo(20, 1e-9)
+	end)
+end)
+
 describe("Upgrades.trainingGain", function()
 	it("pays the rate for the time, scaled by the factor", function()
 		local rate = BigNum.fromNumber(0.5)

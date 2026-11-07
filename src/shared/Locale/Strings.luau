@@ -883,29 +883,66 @@ local Strings = {
 		ru = "Магазин джетпаков",
 		en = "Jetpack shop",
 	},
+	-- The shop window's footer and the kiosk sign. The marks of one jetpack (I, II) share a flame.
 	["shop.window.hint"] = {
-		ru = "Каждый джетпак удваивает ⚡ и горит ярче",
-		en = "Every jetpack doubles ⚡ and burns brighter",
+		ru = "Чем мощнее джетпак, тем выше скорость. У каждого своё пламя",
+		en = "A stronger jetpack means more speed. Each has its own flame",
 	},
 	["shop.multiplier.hint"] = {
 		ru = "⚡ ×{factor}",
 		en = "⚡ ×{factor}",
 	},
+	-- The tag on the owned jetpack's row.
 	["shop.owned.hint"] = {
 		ru = "Твой",
 		en = "Yours",
 	},
 	["shop.buy.button"] = {
-		ru = "Купить: {price} ●",
-		en = "Buy: {price} ●",
+		ru = "Купить: {price}",
+		en = "Buy: {price}",
 	},
-	["shop.locked.hint"] = {
-		ru = "Ещё не доступен",
-		en = "Not yet",
+	-- Over the card of the jetpack to buy next.
+	["shop.next.title"] = {
+		ru = "Следующий джетпак",
+		en = "Next jetpack",
 	},
-	["shop.past.hint"] = {
-		ru = "Был твоим",
-		en = "Outgrown",
+	-- Over the card once the top jetpack is owned.
+	["shop.ownedTop.title"] = {
+		ru = "Твой джетпак",
+		en = "Your jetpack",
+	},
+	-- The multiplier now and after buying the next jetpack.
+	["shop.upgrade.hint"] = {
+		ru = "⚡ ×{from} → ×{to}",
+		en = "⚡ ×{from} → ×{to}",
+	},
+	-- The player's speed now and after buying the next jetpack.
+	["shop.gain.hint"] = {
+		ru = "Скорость: {from} → {to}",
+		en = "Speed: {from} → {to}",
+	},
+	-- Over the dim buy button while coins are short.
+	["shop.saving.hint"] = {
+		ru = "Копишь: {coins} / {price}",
+		en = "Saving up: {coins} / {price}",
+	},
+	["shop.ladder.title"] = {
+		ru = "Все джетпаки",
+		en = "All jetpacks",
+	},
+	-- Jetpacks owned (the starter counts) of all of them.
+	["shop.ladderCount.hint"] = {
+		ru = "{owned} из {total}",
+		en = "{owned} of {total}",
+	},
+	-- In place of the buy button once the top jetpack is owned.
+	["shop.top.hint"] = {
+		ru = "Это лучший джетпак. Дальше скорость качает тренажёр",
+		en = "That's the best jetpack. Now the trainer grows your speed",
+	},
+	["shop.bought.toast"] = {
+		ru = "Новый джетпак: {name}!",
+		en = "New jetpack: {name}!",
 	},
 	["jetpack.level0.title"] = {
 		ru = "Стартовый",

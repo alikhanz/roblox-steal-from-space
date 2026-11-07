@@ -23,6 +23,7 @@ export type Name =
 	| "Robux"
 	| "Shield"
 	| "Meteor"
+	| "Jetpack"
 
 local ICONS: { [Name]: string } = {
 	Bay = "rbxassetid://132068323643628",
@@ -43,6 +44,7 @@ local ICONS: { [Name]: string } = {
 	Robux = "rbxassetid://127663785262718",
 	Shield = "rbxassetid://89953779523463",
 	Meteor = "rbxassetid://92726378354461",
+	Jetpack = "rbxassetid://90247972090746",
 }
 
 return table.freeze({
@@ -51,4 +53,6 @@ return table.freeze({
 	DISC = "rbxassetid://103633034854387",
 	-- A soft white ring for the glow around round buttons; drawn larger than the button.
 	GLOW = "rbxassetid://136899120987901",
+	-- Two jetpack flames, drawn over the Jetpack icon at the same size; coloured by a gradient.
+	FLAME = "rbxassetid://123575093225405",
 })

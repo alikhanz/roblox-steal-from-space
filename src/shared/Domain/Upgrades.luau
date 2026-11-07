@@ -108,6 +108,18 @@ function Upgrades.speed(trained: BigNum.BigNum, jetpackLevel: number, tuning: Tu
 	return BigNum.mul(trained, Upgrades.jetpackMultiplier(jetpackLevel, tuning))
 end
 
+-- The speed stat after a jetpack change: the stat with the jetpack at `fromLevel` taken out
+-- and the one at `toLevel` put in (the shop's "speed now → after buying").
+function Upgrades.speedWithJetpack(
+	stat: BigNum.BigNum,
+	fromLevel: number,
+	toLevel: number,
+	tuning: Tuning
+): BigNum.BigNum
+	local trained = BigNum.div(stat, Upgrades.jetpackMultiplier(fromLevel, tuning))
+	return Upgrades.speed(trained, toLevel, tuning)
+end
+
 -- Trained speed gained in `seconds` at `rate`, scaled by `factor` (1 online, less offline).
 function Upgrades.trainingGain(rate: BigNum.BigNum, seconds: number, factor: number): BigNum.BigNum
 	assert(seconds >= 0, "training seconds must not be negative")

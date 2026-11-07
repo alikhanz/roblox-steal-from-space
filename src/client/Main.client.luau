@@ -92,7 +92,12 @@ Lifecycle.run({
 	BayViewController.new({ profile = profileState }),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
-	ShopController.new({ profile = profileState, windows = windowState }),
+	ShopController.new({
+		profile = profileState,
+		windows = windowState,
+		toasts = toastState,
+		speed = speedState.speed,
+	}),
 	storeController,
 	CoinBoardController.new(),
 	QuestController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
