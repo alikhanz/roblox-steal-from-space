@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тосты и таблички</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 72ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul, .notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ───────── Phone screen 844 × 390 ───────── */
+.screen {
+  --text: #EAF2FF; --muted: #9DB6D2; --line: rgba(130, 236, 255, .5); --glass: rgba(10, 14, 40, .62);
+  --speed: #FFD34A; --coin: #FFC83D; --gold: #FFBB2E; --good: #43CC5F; --bad: #FF5A64; --egg: #FFE0A8; --shield: #8FF0A0;
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+  background: radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130, 70, 210, .42), transparent 70%),
+    radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40, 130, 230, .34), transparent 70%), #060919;
+}
+.screen .ol { text-shadow: 0 0 .15cqw rgba(0,0,0,.6), 0 .1cqw .1cqw rgba(0,0,0,.6); }
+.ico { width: 1em; height: 1em; flex: none; overflow: visible; vertical-align: -.12em; }
+svg.world { position: absolute; inset: 0; width: 100%; height: 100%; }
+.abs { position: absolute; transform: translate(-50%, -100%); }
+
+/* A plaque over something in the world: glass, a thin line, title + value, an optional button */
+.plaque { display: flex; flex-direction: column; align-items: center; gap: .35cqw; padding: .6cqw 1.2cqw .7cqw; border-radius: 1.2cqw;
+  background: var(--glass); border: .12cqw solid var(--line); white-space: nowrap; }
+.plaque .t { font-size: 1.55cqw; }
+.plaque .v { font-size: 1.3cqw; color: var(--muted); display: flex; align-items: center; gap: .3cqw; }
+.plaque .v.s { color: var(--speed); }
+.btn { display: inline-flex; align-items: center; gap: .35cqw; border-radius: 99px; font-size: 1.35cqw; padding: .35cqw 1.1cqw; border: .2cqw solid #9b7420; color: var(--text);
+  background: linear-gradient(rgba(255, 187, 46, .45), rgba(255, 187, 46, .2)); margin-top: .2cqw; }
+.btn .ico { color: var(--coin); font-size: 1.6cqw; }
+/* A chip: one line, for small things (an alien's income, an egg's timer, a newbie) */
+.chip { display: inline-flex; align-items: center; gap: .4cqw; padding: .3cqw .9cqw; border-radius: 99px; background: var(--glass); border: .12cqw solid var(--line); font-size: 1.25cqw; white-space: nowrap; }
+.chip .ico { font-size: 1.5cqw; }
+.dot { width: .9cqw; height: .9cqw; border-radius: 50%; display: inline-block; }
+
+/* Guardian labels: name in its standing colour, numbers under it */
+.glabel { text-align: center; font-size: 1.45cqw; }
+.glabel small { display: block; font-size: 1.2cqw; color: var(--speed); }
+
+/* Toasts */
+.toasts { position: absolute; left: 50%; top: 8.5cqw; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: .7cqw; }
+.toast { display: flex; align-items: center; gap: .8cqw; padding: .55cqw 1.6cqw .55cqw .6cqw; border-radius: 99px; font-size: 1.7cqw;
+  background: var(--glass); border: .14cqw solid var(--c); box-shadow: 0 0 1.2cqw color-mix(in srgb, var(--c) 35%, transparent); white-space: nowrap; }
+.toast .badge { width: 2.6cqw; height: 2.6cqw; border-radius: 50%; display: grid; place-items: center; font-size: 1.6cqw;
+  background: linear-gradient(color-mix(in srgb, var(--c) 55%, transparent), color-mix(in srgb, var(--c) 25%, transparent)); border: .14cqw solid var(--c); }
+.toast .ico { font-size: 1.9cqw; }
+.toast.old { border-radius: 1.2cqw; padding: .7cqw 1.6cqw; border: none; box-shadow: none; background: #286650; }
+.toast.old.bad { background: #963232; }
+.hud { position: absolute; left: 2cqw; top: 2.4cqw; display: flex; gap: 1cqw; opacity: .8; }
+.hchip { display: flex; align-items: center; gap: .5cqw; padding: .4cqw 1.2cqw; background: var(--glass); border: .12cqw solid var(--line); border-radius: 99px; font-size: 1.8cqw; }
+.cap { position: absolute; font-size: 1.3cqw; color: var(--muted); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="coin" viewBox="-2 -2 28 28"><circle cx="12" cy="12" r="9.7" fill="currentColor" fill-opacity=".4" stroke="currentColor" stroke-width="2.2"/><path d="M15.6 8.6c-.6-1.5-2-2.3-3.6-2.3-2.1 0-3.6 1.1-3.6 2.8 0 3.7 7.2 1.9 7.2 5.6 0 1.8-1.6 2.9-3.7 2.9-1.8 0-3.2-.9-3.8-2.3M12 4.4v15.2" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="bolt" viewBox="-2 -2 28 28"><path d="M15 1.4 3.8 13.8h7l-1.8 8.8L20.4 9.4h-7z" fill="currentColor" fill-opacity=".5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+    <symbol id="egg" viewBox="-2 -2 28 28"><path d="M12 2.4C7.6 2.4 4.8 9.4 4.8 14a7.2 7.2 0 0 0 14.4 0c0-4.6-2.8-11.6-7.2-11.6z" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m5.4 12.6 3-1.8 2.6 1.8 2.6-1.8 2.6 1.8 2.6-1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="shield" viewBox="-2 -2 28 28"><path d="M12 2.5 20 5.6v6.2c0 4.9-3.4 8.4-8 9.7-4.6-1.3-8-4.8-8-9.7V5.6z" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.4 12 2.6 2.6 4.8-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="check" viewBox="-2 -2 28 28"><path d="m5 12.5 4.6 4.6L19.5 7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="cross" viewBox="-2 -2 28 28"><path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></symbol>
+    <symbol id="clock" viewBox="-2 -2 28 28"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.4 2.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <section class="intro">
+    <h1>Тосты и таблички</h1>
+    <p>Макет к брифу <b>docs/design/screens/toasts-and-signs.md</b>. Телефон 844 × 390; сцены — схема, не настоящая графика игры.</p>
+    <p>Сейчас таблички над отсеком, тренажёром, пришельцами и киоском — белый текст с обводкой и старые жёлтые кнопки, тосты — сплошные зелёные и красные плашки. Предложение: <b>таблички на тёмном стекле</b> с неоновой кнопкой, мелкое — <b>«фишками»</b> в одну строку, тосты — <b>стеклянные пилюли со значком</b>, цвет — рамкой.</p>
+  </section>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <svg class="world" viewBox="0 0 844 390" preserveAspectRatio="none">
+        <rect x="0" y="250" width="844" height="140" fill="#2a3256"/>
+        <path d="M120 380 L230 268 H640 L740 380 Z" fill="#141a3c" stroke="#64e0ff" stroke-width="2"/>
+        <ellipse cx="350" cy="300" rx="64" ry="16" fill="#c98a2a" opacity=".85"/><ellipse cx="322" cy="290" rx="9" ry="12" fill="#bfefff"/>
+        <rect x="440" y="250" width="40" height="62" rx="8" fill="rgba(100,180,255,.18)" stroke="rgba(130,236,255,.5)"/><circle cx="460" cy="292" r="15" fill="#6aa8ff"/><rect x="452" y="286" width="5" height="7" fill="#111"/><rect x="463" y="286" width="5" height="7" fill="#111"/>
+        <rect x="500" y="250" width="40" height="62" rx="8" fill="rgba(100,180,255,.18)" stroke="rgba(130,236,255,.5)"/><circle cx="520" cy="292" r="15" fill="#bec4d2"/><rect x="512" y="286" width="5" height="7" fill="#111"/><rect x="523" y="286" width="5" height="7" fill="#111"/>
+        <ellipse cx="130" cy="330" rx="56" ry="15" fill="none" stroke="#FFD34A" stroke-width="3"/>
+      </svg>
+      <div class="hud"><span class="hchip ol" style="color:var(--speed)"><svg class="ico"><use href="#bolt"/></svg>10</span><span class="hchip ol" style="color:var(--coin)"><svg class="ico"><use href="#coin"/></svg>184</span></div>
+
+      <!-- bay owner + incubator -->
+      <div class="abs" style="left:41%; top:58%">
+        <div class="plaque ol"><span class="t">Отсек MidnightComet</span>
+          <span class="v">Инкубатор · 1/2 · есть свободное место</span>
+          <span class="btn ol">+1 место <svg class="ico"><use href="#coin"/></svg>150</span></div>
+      </div>
+      <!-- pods -->
+      <div class="abs" style="left:59%; top:40%">
+        <div class="plaque ol"><span class="t">Капсулы 2/30</span><span class="v">Пришелец в капсуле приносит монеты</span>
+          <span class="btn ol">Купить <svg class="ico"><use href="#coin"/></svg>100</span></div>
+      </div>
+      <!-- trainer -->
+      <div class="abs" style="left:15.5%; top:79%">
+        <div class="plaque ol"><span class="t">Тренажёр · ур. 0</span><span class="v s"><svg class="ico"><use href="#bolt"/></svg>+6/с — встань сюда</span>
+          <span class="btn ol">Улучшить <svg class="ico"><use href="#coin"/></svg>300</span></div>
+      </div>
+      <!-- egg timer -->
+      <div class="abs" style="left:38.2%; top:71%"><span class="chip ol" style="color:var(--egg)"><svg class="ico"><use href="#clock"/></svg>19:15</span></div>
+      <!-- alien chips -->
+      <div class="abs" style="left:54.5%; top:63%"><span class="chip ol"><i class="dot" style="background:#50A0FF"></i><svg class="ico" style="color:var(--coin)"><use href="#coin"/></svg>8.5/с</span></div>
+      <div class="abs" style="left:61.6%; top:63%"><span class="chip ol"><i class="dot" style="background:#BEC4D2"></i><svg class="ico" style="color:var(--coin)"><use href="#coin"/></svg>1/с</span></div>
+    </div></div>
+    <figcaption><b>1. Отсек.</b> Таблички на тёмном стекле, как плашки HUD: заголовок, строка под ним, неоновая кнопка за монеты (только хозяину отсека). Мелкое — «фишками» в одну строку: таймер яйца, доход пришельца (точка — цвет ступени; полное имя — в окне отсека). Табличка хозяина и инкубатора — одна, а не две друг над другом.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="hud"><span class="hchip ol" style="color:var(--speed)"><svg class="ico"><use href="#bolt"/></svg>10</span><span class="hchip ol" style="color:var(--coin)"><svg class="ico"><use href="#coin"/></svg>184</span></div>
+      <div class="toasts">
+        <span class="toast ol" style="--c:#43CC5F"><span class="badge"><svg class="ico"><use href="#check"/></svg></span>Награда: <svg class="ico" style="color:var(--coin)"><use href="#coin"/></svg>+200 и <svg class="ico" style="color:var(--speed)"><use href="#bolt"/></svg>+1.8K</span>
+        <span class="toast ol" style="--c:#FFE0A8"><span class="badge" style="color:#1a1a2a"><svg class="ico" style="color:#fff"><use href="#egg"/></svg></span>Яйцо в инкубаторе!</span>
+        <span class="toast ol" style="--c:#FF5A64"><span class="badge"><svg class="ico"><use href="#cross"/></svg></span>Не хватает монет. Подожди доход</span>
+      </div>
+      <div class="cap" style="left:4%; bottom:30%">Было:</div>
+      <div style="position:absolute; left:4%; bottom:8%; display:flex; flex-direction:column; gap:.6cqw; align-items:flex-start">
+        <span class="toast old ol">Награда: ●+200 и ⚡+1.8K</span>
+        <span class="toast old bad ol">Не хватает монет. Подожди доход</span>
+      </div>
+    </div></div>
+    <figcaption><b>2. Тосты.</b> Стеклянная пилюля со значком слева: зелёная галочка — хорошее, красный крестик — отказ, свой значок для частых (яйцо, пришелец, ⚡). Цвет — только рамкой и значком, текст белый: читается на любом фоне. Место — как сейчас, сверху по центру, до 4 штук.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <svg class="world" viewBox="0 0 844 390" preserveAspectRatio="none">
+        <ellipse cx="300" cy="230" rx="60" ry="30" fill="#4b4752"/><ellipse cx="300" cy="218" rx="10" ry="13" fill="#e2e6f0"/>
+        <circle cx="240" cy="190" r="15" fill="#7ccf86"/><circle cx="235" cy="186" r="2.5" fill="#111"/><circle cx="245" cy="186" r="2.5" fill="#111"/>
+        <ellipse cx="640" cy="170" rx="50" ry="26" fill="#4b4752"/><circle cx="600" cy="140" r="14" fill="#a46bff"/>
+        <rect x="430" y="300" width="22" height="50" rx="8" fill="#e9eef8"/><circle cx="441" cy="292" r="11" fill="#f0c9a8"/>
+      </svg>
+      <div class="abs glabel ol" style="left:28.4%; top:44%; color:#EAF2FF">Слизень-сторож<small><svg class="ico"><use href="#bolt"/></svg>9 · rec 10</small></div>
+      <div class="abs glabel ol" style="left:71%; top:31%; color:#FF6A6A">Лиловый краб<small><svg class="ico"><use href="#bolt"/></svg>153 · rec 171</small></div>
+      <div class="abs" style="left:52.3%; top:72%"><span class="chip ol" style="color:var(--shield); border-color:rgba(143,240,160,.6)"><svg class="ico"><use href="#shield"/></svg>Новичок</span></div>
+    </div></div>
+    <figcaption><b>3. Над стражами и игроками.</b> Подписи стражей не меняются: имя в цвете силы и «⚡ · rec» — их много, плашки загромоздили бы космос (выделение «по силам» — отдельная идея, решим позже). Над новичком — зелёная фишка со щитом вместо текста.</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Что меняется</h2>
+      <ul>
+        <li>Все таблички в мире — на общем компоненте: стеклянная плашка или фишка, кнопка — неоновая <code>ActionButton</code> (сейчас — старая жёлтая).</li>
+        <li>Табличка хозяина отсека и табличка инкубатора — одна.</li>
+        <li>Доход пришельца — короткой фишкой; длинное «Обычный · Слизень-сторож · Краб-дрон» уходит.</li>
+        <li>Тосты — стеклянные пилюли со значком.</li>
+        <li>Таблички чужих отсеков — только имя хозяина: меньше налезающего текста на станции.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Вопросы</h2>
+      <ol>
+        <li>Над пришельцем в капсуле — короткая фишка «точка ступени + доход» или полное имя, как сейчас?</li>
+        <li>Чужие отсеки — показывать только имя хозяина (капсулы, инкубатор, тренажёр — только у своего)?</li>
+        <li>Тосты — стеклянные со значком (как здесь) или оставить сплошные зелёные/красные?</li>
+      </ol>
+    </div>
+  </section>
+</main>
+</body>
+</html>
