@@ -125,3 +125,39 @@ describe("AlienIndex.pending", function()
 		expect(#sets).toBe(0)
 	end)
 end)
+
+describe("AlienIndex.openingSet", function()
+	local FAR_SET: AlienIndex.Set = {
+		id = AlienIndex.setId(5, "Normal"),
+		grade = 5,
+		variant = "Normal",
+		aliens = { "B.Common", "B.Uncommon", "B.Rare" },
+	}
+	local ALL = { SET, FAR_SET, METEOR_SET }
+	local NORMAL = { SET, FAR_SET }
+
+	it("opens where a reward waits, in the order of the sets", function()
+		local index = AlienIndex.empty()
+		AlienIndex.seed(index, { "B.Common" })
+		AlienIndex.discover(index, "A.Rare.Meteor")
+		expect(AlienIndex.openingSet(index, ALL, NORMAL)).toBe(METEOR_SET)
+		AlienIndex.discover(index, "A.Common")
+		expect(AlienIndex.openingSet(index, ALL, NORMAL)).toBe(SET)
+	end)
+
+	it("counts a complete, unclaimed set as waiting", function()
+		local index = AlienIndex.empty()
+		AlienIndex.seed(index, { "A.Common", "A.Uncommon", "A.Rare" })
+		expect(AlienIndex.openingSet(index, ALL, NORMAL)).toBe(SET)
+	end)
+
+	it("without rewards, opens at the farthest guardian with a find", function()
+		local index = AlienIndex.empty()
+		AlienIndex.seed(index, { "A.Common", "B.Uncommon" })
+		expect(AlienIndex.openingSet(index, ALL, NORMAL)).toBe(FAR_SET)
+	end)
+
+	it("has no place for an empty index", function()
+		expect(AlienIndex.openingSet(AlienIndex.empty(), ALL, NORMAL)).toBe(nil)
+	end)
+end)

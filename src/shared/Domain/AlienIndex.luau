@@ -128,4 +128,21 @@ function AlienIndex.waiting(state: State, sets: { Set }): number
 	return count
 end
 
+-- Where the index window opens: the first of `sets` with a reward waiting, else the last of
+-- `fallback` with any alien found (the farthest guardian the player has aliens of), else nil.
+function AlienIndex.openingSet(state: State, sets: { Set }, fallback: { Set }): Set?
+	for _, set in sets do
+		if AlienIndex.waiting(state, { set }) > 0 then
+			return set
+		end
+	end
+	for position = #fallback, 1, -1 do
+		local set = fallback[position]
+		if AlienIndex.foundOf(state, set.aliens) > 0 then
+			return set
+		end
+	end
+	return nil
+end
+
 return table.freeze(AlienIndex)

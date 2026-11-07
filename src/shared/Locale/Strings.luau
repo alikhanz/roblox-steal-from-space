@@ -688,12 +688,23 @@ local Strings = {
 		en = "Claim all",
 	},
 	["index.setClaim.button"] = {
-		ru = "Набор: ●+{coins}",
-		en = "Set: ●+{coins}",
+		ru = "●+{coins}",
+		en = "●+{coins}",
 	},
+	-- Beside a check mark, at the end of a guardian's row.
 	["index.setDone.hint"] = {
-		ru = "Набор собран",
-		en = "Set complete",
+		ru = "Собран",
+		en = "Done",
+	},
+	-- Over the column of guardian names.
+	["index.guardian.title"] = {
+		ru = "Страж",
+		en = "Guardian",
+	},
+	-- Under the count while the meteor section has no finds.
+	["index.meteorSource.hint"] = {
+		ru = "Метеоритных выводят из метеоритных яиц",
+		en = "Meteor aliens hatch from meteor eggs",
 	},
 	["index.discovered.toast"] = {
 		ru = "Новый пришелец в индексе!",
@@ -1035,6 +1046,27 @@ local Strings = {
 	["tier.legendary.title"] = {
 		ru = "Легендарный",
 		en = "Legendary",
+	},
+	-- Short tier names over the narrow columns of the index.
+	["tier.commonShort.title"] = {
+		ru = "Обычн.",
+		en = "Common",
+	},
+	["tier.uncommonShort.title"] = {
+		ru = "Необычн.",
+		en = "Uncom.",
+	},
+	["tier.rareShort.title"] = {
+		ru = "Редкий",
+		en = "Rare",
+	},
+	["tier.epicShort.title"] = {
+		ru = "Эпич.",
+		en = "Epic",
+	},
+	["tier.legendaryShort.title"] = {
+		ru = "Легенд.",
+		en = "Legend.",
 	},
 	["coins.stat.title"] = {
 		ru = "Монеты",

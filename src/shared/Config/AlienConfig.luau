@@ -17,6 +17,8 @@ export type AlienId = string
 
 export type Tier = {
 	read nameKey: keyof<typeof(Strings)>,
+	-- The name cut short, for narrow columns (the index).
+	read shortKey: keyof<typeof(Strings)>,
 	-- Multiplies the grade's base income.
 	read incomeFactor: number,
 	-- Base odds of hatching into this tier, before the egg's luck (see Hatch.shiftedWeights).
@@ -53,11 +55,36 @@ export type Grade = {
 local TIER_ORDER: { TierId } = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 
 local TIERS: { [TierId]: Tier } = {
-	Common = { nameKey = "tier.common.title", incomeFactor = 1, hatchWeight = 55 },
-	Uncommon = { nameKey = "tier.uncommon.title", incomeFactor = 2, hatchWeight = 28 },
-	Rare = { nameKey = "tier.rare.title", incomeFactor = 5, hatchWeight = 12 },
-	Epic = { nameKey = "tier.epic.title", incomeFactor = 15, hatchWeight = 4 },
-	Legendary = { nameKey = "tier.legendary.title", incomeFactor = 50, hatchWeight = 1 },
+	Common = {
+		nameKey = "tier.common.title",
+		shortKey = "tier.commonShort.title",
+		incomeFactor = 1,
+		hatchWeight = 55,
+	},
+	Uncommon = {
+		nameKey = "tier.uncommon.title",
+		shortKey = "tier.uncommonShort.title",
+		incomeFactor = 2,
+		hatchWeight = 28,
+	},
+	Rare = {
+		nameKey = "tier.rare.title",
+		shortKey = "tier.rareShort.title",
+		incomeFactor = 5,
+		hatchWeight = 12,
+	},
+	Epic = {
+		nameKey = "tier.epic.title",
+		shortKey = "tier.epicShort.title",
+		incomeFactor = 15,
+		hatchWeight = 4,
+	},
+	Legendary = {
+		nameKey = "tier.legendary.title",
+		shortKey = "tier.legendaryShort.title",
+		incomeFactor = 50,
+		hatchWeight = 1,
+	},
 }
 
 -- The common alien of guardian k earns INCOME_BASE * INCOME_GROWTH^(k-1) coins per second. Income
