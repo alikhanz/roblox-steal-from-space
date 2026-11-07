@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Индекс пришельцев</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root {
+  --bg: #0a0d1c; --surface: #121733; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 70ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul, .notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ───────── Phone screen 844 × 390: everything in cqw so it scales with the frame ───────── */
+.screen {
+  --text: #EAF2FF; --muted: #9DB6D2; --line: rgba(130, 236, 255, .5); --glass: rgba(10, 14, 40, .5);
+  --speed: #FFD34A; --coin: #FFC83D; --gold: #FFBB2E; --main: #43CC5F; --index: #A06BFF; --danger: #FF5A64;
+  --t1: #BEC4D2; --t2: #6EE182; --t3: #50A0FF; --t4: #BE5AFF; --t5: #FFBE3C;
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+}
+.screen .ol { text-shadow: 0 0 .15cqw rgba(0,0,0,.5), 0 .1cqw .1cqw rgba(0,0,0,.5); }
+.ico { width: 1em; height: 1em; flex: none; overflow: visible; }
+.scene { position: absolute; inset: 0; background:
+  radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130, 70, 210, .42), transparent 70%),
+  radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40, 130, 230, .34), transparent 70%), #060919; }
+.platform { position: absolute; left: -15cqw; right: -15cqw; bottom: -30cqw; height: 52cqw; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 18%, #4a5680, #2a3256 58%, #1b2140); box-shadow: 0 -.3cqw 0 #64e0ff; }
+.veil { position: absolute; inset: 0; background: rgba(2, 4, 14, .5); }
+
+/* Window (NeonWindow): 675 × 363 points of the reference screen */
+.win { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 80cqw; height: 43cqw;
+  background: linear-gradient(#181E56, #0A0C28); opacity: .97; border: .12cqw solid var(--line); border-radius: 1.8cqw;
+  display: flex; flex-direction: column; overflow: hidden; }
+.head { height: 5.2cqw; flex: none; display: flex; align-items: center; gap: 1.4cqw; padding: 0 1.4cqw 0 1.9cqw;
+  background: linear-gradient(90deg, rgba(80, 220, 255, .18), rgba(255, 80, 200, .18)); border-bottom: .12cqw solid rgba(130, 236, 255, .3); }
+.head h3 { margin: 0; flex: 1; font-size: 2.6cqw; font-weight: 900; }
+.pill { display: flex; align-items: center; gap: .5cqw; padding: .35cqw 1.1cqw .35cqw .6cqw; background: var(--glass); border: .12cqw solid var(--line);
+  border-radius: 99px; font-size: 1.8cqw; color: var(--coin); }
+.pill .ico { font-size: 2.4cqw; }
+.close { width: 3.8cqw; height: 3.8cqw; border-radius: 50%; display: grid; place-items: center; font-size: 2.6cqw;
+  background: linear-gradient(rgba(255, 90, 100, .36), rgba(255, 90, 100, .16)); border: .24cqw solid #c64a59; }
+.body { flex: 1; min-height: 0; display: grid; grid-template-columns: 19cqw 1fr; gap: 1.2cqw; padding: 1cqw 1.4cqw .9cqw; }
+.foot { height: 5.9cqw; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 1.4cqw; padding: 0 1.4cqw 0 1.9cqw;
+  border-top: .12cqw solid rgba(130, 236, 255, .2); font-size: 1.5cqw; color: var(--muted); }
+.foot b { color: var(--text); }
+
+.btn { display: flex; align-items: center; justify-content: center; gap: .4cqw; border-radius: 99px; color: var(--text);
+  font-size: 1.6cqw; padding: .55cqw 1.4cqw; border: .24cqw solid; white-space: nowrap; }
+.btn .ico { font-size: 1.9cqw; color: var(--coin); }
+.btn.gold { border-color: #9b7420; background: linear-gradient(rgba(255, 187, 46, .42), rgba(255, 187, 46, .18)); box-shadow: 0 0 1.4cqw rgba(255, 187, 46, .35); }
+.btn.big { font-size: 1.85cqw; padding: .8cqw 2.2cqw; }
+
+/* Left: the section switch and the four zones */
+.side { display: flex; flex-direction: column; gap: .8cqw; min-height: 0; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: .5cqw; padding: .4cqw; border-radius: 99px; background: rgba(255,255,255,.04); border: .12cqw solid rgba(130,236,255,.3); }
+.seg span { position: relative; text-align: center; font-size: 1.3cqw; padding: .55cqw 0; border-radius: 99px; color: var(--muted); }
+.seg span.on { color: var(--text); background: linear-gradient(rgba(160, 107, 255, .5), rgba(160, 107, 255, .22)); box-shadow: 0 0 1cqw rgba(160,107,255,.4); }
+.badge { position: absolute; top: -.9cqw; right: -.3cqw; min-width: 2cqw; height: 2cqw; padding: 0 .5cqw; border-radius: 99px; background: var(--danger);
+  border: .18cqw solid #fff; font-size: 1.15cqw; display: grid; place-items: center; color: #fff; }
+.zone { position: relative; display: flex; flex-direction: column; gap: .3cqw; padding: .7cqw 1cqw; border-radius: 1.2cqw;
+  background: rgba(255,255,255,.035); border: .12cqw solid rgba(130,236,255,.22); }
+.zone .zn { font-size: 1.55cqw; }
+.zone .zc { display: flex; align-items: center; gap: .6cqw; font-size: 1.25cqw; color: var(--muted); }
+.zone .zb { flex: 1; height: .8cqw; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.zone .zb i { display: block; height: 100%; background: linear-gradient(90deg, var(--index), #d4b6ff); border-radius: 99px; }
+.zone.on { border: .24cqw solid #8a5be0; background: linear-gradient(rgba(160,107,255,.22), rgba(160,107,255,.08)); box-shadow: 0 0 1.2cqw rgba(160,107,255,.35); }
+.zone .dot { position: absolute; top: .7cqw; right: .8cqw; width: 1.3cqw; height: 1.3cqw; border-radius: 50%; background: var(--danger); border: .15cqw solid #fff; }
+.zone.locked { opacity: .45; }
+
+/* Right: the tier names over the columns, then one row per guardian */
+.grid { display: flex; flex-direction: column; gap: .45cqw; min-height: 0; }
+.cols, .grow { display: grid; grid-template-columns: 1fr repeat(5, 4.7cqw) 9.6cqw; column-gap: .3cqw; justify-items: center; align-items: center; }
+.cols span { font-size: 1cqw; text-align: center; white-space: nowrap; }
+.cols span:first-child { justify-self: start; text-align: left; color: var(--muted); font-size: 1.25cqw; }
+.grow { padding: .2cqw .5cqw .2cqw .9cqw; border-radius: 1cqw; background: rgba(255,255,255,.03); border: .12cqw solid rgba(130,236,255,.16); }
+.grow.ready { border-color: #9b7420; background: linear-gradient(90deg, rgba(255,187,46,.12), rgba(255,187,46,.04)); }
+.grow .gn { justify-self: start; font-size: 1.4cqw; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grow .end { justify-self: end; display: flex; justify-content: flex-end; font-size: 1.45cqw; color: var(--muted); }
+.grow .end.done { color: #5BDB6E; }
+.cell { width: 3.5cqw; height: 3.5cqw; border-radius: 1cqw; display: grid; place-items: center; position: relative;
+  background: rgba(255,255,255,.04); border: .14cqw solid rgba(130,236,255,.2); color: var(--muted); font-size: 1.9cqw; }
+.cell.f { border: .2cqw solid color-mix(in srgb, var(--c) 75%, #0A0E28); background: linear-gradient(color-mix(in srgb, var(--c) 30%, transparent), color-mix(in srgb, var(--c) 10%, transparent)); }
+.cell.new { border: .26cqw solid var(--gold); box-shadow: 0 0 1.3cqw rgba(255,187,46,.75), inset 0 0 .8cqw rgba(255,187,46,.35); }
+/* The alien: a ball in its tier colour with two eyes, like the greybox alien in the bay */
+.alien { width: 2.3cqw; height: 2.1cqw; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 55%, #fff), var(--c) 60%);
+  position: relative; box-shadow: 0 0 .7cqw color-mix(in srgb, var(--c) 60%, transparent); }
+.alien::before, .alien::after { content: ""; position: absolute; top: .68cqw; width: .4cqw; height: .58cqw; border-radius: 50%; background: #14141e; }
+.alien::before { left: .62cqw; } .alien::after { right: .62cqw; }
+.cell.meteor .alien { box-shadow: 0 0 .5cqw rgba(255,120,30,.9), 0 0 1.1cqw rgba(255,180,60,.6); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="coin" viewBox="-2 -2 28 28"><circle cx="12" cy="12" r="9.7" fill="currentColor" fill-opacity=".4" stroke="currentColor" stroke-width="2.2"/><path d="M15.6 8.6c-.6-1.5-2-2.3-3.6-2.3-2.1 0-3.6 1.1-3.6 2.8 0 3.7 7.2 1.9 7.2 5.6 0 1.8-1.6 2.9-3.7 2.9-1.8 0-3.2-.9-3.8-2.3M12 4.4v15.2" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="check" viewBox="-2 -2 28 28"><path d="m5 12.5 4.6 4.6L19.5 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <section class="intro">
+    <h1>Индекс пришельцев</h1>
+    <p>Макет к брифу <b>docs/design/screens/index.md</b>. Телефон 844 × 390, стиль «Б1 спокойный».</p>
+    <p>Слева — <b>обычные / метеоритные</b> и четыре зоны со счётчиком. Справа — <b>шесть стражей выбранной зоны</b>, у каждого пять пришельцев по ступеням. Сейчас индекс — одна длинная лента на 24 стража; здесь всё помещается без прокрутки.</p>
+  </section>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="scene"></div><div class="platform"></div><div class="veil"></div>
+      <div class="win">
+        <div class="head"><h3 class="ol">Индекс пришельцев</h3>
+          <span class="pill ol"><svg class="ico"><use href="#coin"/></svg>124K</span>
+          <span class="close ol">×</span></div>
+        <div class="body">
+          <div class="side">
+            <div class="seg ol"><span class="on">Обычные<i class="badge" style="font-style:normal">3</i></span><span>Метеоритные</span></div>
+            <div class="zone on ol"><span class="dot"></span><span class="zn">Пояс обломков</span><span class="zc"><span class="zb"><i style="width:63%"></i></span>19/30</span></div>
+            <div class="zone ol"><span class="zn">Ледяные кольца</span><span class="zc"><span class="zb"><i style="width:23%"></i></span>7/30</span></div>
+            <div class="zone ol"><span class="zn">Красная туманность</span><span class="zc"><span class="zb"><i style="width:0"></i></span>0/30</span></div>
+            <div class="zone ol"><span class="zn">Горизонт событий</span><span class="zc"><span class="zb"><i style="width:0"></i></span>0/30</span></div>
+          </div>
+          <div class="grid">
+            <div class="cols ol"><span>Страж</span><span style="color:var(--t1)">Обычн.</span><span style="color:var(--t2)">Необычн.</span><span style="color:var(--t3)">Редкий</span><span style="color:var(--t4)">Эпич.</span><span style="color:var(--t5)">Легенд.</span><span></span></div>
+            <div class="grow ol"><span class="gn">Слизень-сторож</span>
+              <span class="cell f" style="--c:var(--t1)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t2)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t3)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t4)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t5)"><i class="alien"></i></span>
+              <span class="end done"><svg class="ico" style="font-size:1.8cqw"><use href="#check"/></svg>&nbsp;Собран</span></div>
+            <div class="grow ready ol"><span class="gn">Краб-дрон</span>
+              <span class="cell f" style="--c:var(--t1)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t2)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t3)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t4)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t5)"><i class="alien"></i></span>
+              <span class="end"><span class="btn gold ol"><svg class="ico"><use href="#coin"/></svg>+18K</span></span></div>
+            <div class="grow ol"><span class="gn">Лиловый краб</span>
+              <span class="cell f" style="--c:var(--t1)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t2)"><i class="alien"></i></span><span class="cell f new" style="--c:var(--t3)"><i class="alien"></i></span><span class="cell">?</span><span class="cell">?</span>
+              <span class="end">3/5</span></div>
+            <div class="grow ol"><span class="gn">Кислотный слизень</span>
+              <span class="cell f new" style="--c:var(--t1)"><i class="alien"></i></span><span class="cell f" style="--c:var(--t2)"><i class="alien"></i></span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span>
+              <span class="end">2/5</span></div>
+            <div class="grow ol"><span class="gn">Ржавый краб</span>
+              <span class="cell f" style="--c:var(--t1)"><i class="alien"></i></span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span>
+              <span class="end">1/5</span></div>
+            <div class="grow ol"><span class="gn">Король слизней</span>
+              <span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span>
+              <span class="end">0/5</span></div>
+          </div>
+        </div>
+        <div class="foot ol"><span>Открыто <b>26 из 120</b> · нажми на светящегося — там награда</span><span class="btn gold big ol">Забрать всё</span></div>
+      </div>
+    </div></div>
+    <figcaption><b>1. Обычные, Пояс обломков.</b> Найденный пришелец — шарик в цвете своей ступени; новый светится золотом, нажатие забирает награду. Полный набор — золотая кнопка с наградой; забранный — «✓ Собран». Красная точка на зоне и число на «Обычные» — где ждут награды. «Забрать всё» — пока хоть одна ждёт.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="scene"></div><div class="platform"></div><div class="veil"></div>
+      <div class="win">
+        <div class="head"><h3 class="ol">Индекс пришельцев</h3>
+          <span class="pill ol"><svg class="ico"><use href="#coin"/></svg>124K</span>
+          <span class="close ol">×</span></div>
+        <div class="body">
+          <div class="side">
+            <div class="seg ol"><span>Обычные</span><span class="on">Метеоритные</span></div>
+            <div class="zone ol"><span class="zn">Пояс обломков</span><span class="zc"><span class="zb"><i style="width:7%"></i></span>2/30</span></div>
+            <div class="zone on ol"><span class="zn">Ледяные кольца</span><span class="zc"><span class="zb"><i style="width:0"></i></span>0/30</span></div>
+            <div class="zone ol"><span class="zn">Красная туманность</span><span class="zc"><span class="zb"><i style="width:0"></i></span>0/30</span></div>
+            <div class="zone ol"><span class="zn">Горизонт событий</span><span class="zc"><span class="zb"><i style="width:0"></i></span>0/30</span></div>
+          </div>
+          <div class="grid">
+            <div class="cols ol"><span>Страж</span><span style="color:var(--t1)">Обычн.</span><span style="color:var(--t2)">Необычн.</span><span style="color:var(--t3)">Редкий</span><span style="color:var(--t4)">Эпич.</span><span style="color:var(--t5)">Легенд.</span><span></span></div>
+            <div class="grow ol"><span class="gn">Ледяной червь</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="end">0/5</span></div>
+            <div class="grow ol"><span class="gn">Снежный краб</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="end">0/5</span></div>
+            <div class="grow ol"><span class="gn">Морозный слизень</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="end">0/5</span></div>
+            <div class="grow ol"><span class="gn">Хрустальный червь</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="end">0/5</span></div>
+            <div class="grow ol"><span class="gn">Ледяной скат</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="end">0/5</span></div>
+            <div class="grow ol"><span class="gn">Мать червей</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="cell">?</span><span class="end">0/5</span></div>
+          </div>
+        </div>
+        <div class="foot ol"><span>Открыто <b>2 из 120</b> · метеоритных выводят из метеоритных яиц</span><span></span></div>
+      </div>
+    </div></div>
+    <figcaption><b>2. Метеоритные, Ледяные кольца — пусто.</b> Неизвестные — тёмные клетки с «?». Внизу — откуда такие берутся. Кнопки «Забрать всё» нет: наград не ждёт.</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Что меняется</h2>
+      <ul>
+        <li>Общее неоновое окно, как у отсека и заданий. Старое — длинный список 24 стражей подряд, на телефоне много прокрутки.</li>
+        <li>Зоны слева со счётчиком и полосой: видно, где ещё собирать. Красная точка — там ждёт награда.</li>
+        <li>Пришелец в клетке — шарик с глазами в цвете ступени, как в отсеке, а не название ступени в квадрате. Названия ступеней — один раз над столбцами.</li>
+        <li>Награда за набор — кнопкой с монетой прямо в строке стража.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Вопросы</h2>
+      <ol>
+        <li>Раскладка: зоны слева и шесть стражей справа (как здесь) или одна длинная лента, как сейчас?</li>
+        <li>Клетка: шарик с глазами в цвете ступени (как здесь) или название ступени текстом?</li>
+        <li>Какая зона открыта при входе: где ждёт награда, иначе самая дальняя, куда ты уже доставлял яйцо?</li>
+      </ol>
+    </div>
+  </section>
+</main>
+</body>
+</html>
