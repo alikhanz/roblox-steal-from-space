@@ -18,9 +18,11 @@ local PRESSED_SCALE = 0.95
 -- A disabled button: how see-through its glass and its word get.
 local DISABLED_TRANSPARENCY = 0.5
 local PADDING_X = 10
-local PADDING_Y = 3
+-- Vertical padding by size: a large button is a big, easy target.
+local PADDING_Y: { [string]: number } = { Small = 3, Normal = 5, Large = 9 }
+local TEXT_SIZE: { [string]: number } = { Small = NEON.TEXT_SMALL, Normal = NEON.TEXT_BODY, Large = NEON.TEXT_SECTION }
 
-export type Size = "Small" | "Normal"
+export type Size = "Small" | "Normal" | "Large"
 
 export type Props = {
 	name: string,
@@ -30,12 +32,18 @@ export type Props = {
 	onClick: () -> (),
 	enabled: (() -> boolean)?,
 	size: Size?,
+	-- A share of its parent's width (the word centred); without it the button fits its word.
+	width: number?,
 	layoutOrder: number?,
+	visible: (() -> boolean)?,
 }
 
 local function ActionButton(props: Props): TextButton
 	local pressed = source(false)
-	local textSize = if props.size == "Small" then NEON.TEXT_SMALL else NEON.TEXT_BODY
+	local size = props.size or "Normal"
+	local textSize = TEXT_SIZE[size]
+	local paddingY = PADDING_Y[size]
+	local width = props.width
 	local function isEnabled(): boolean
 		return if props.enabled then props.enabled() else true
 	end
@@ -63,10 +71,12 @@ local function ActionButton(props: Props): TextButton
 	return create("TextButton")({
 		Name = props.name,
 		LayoutOrder = props.layoutOrder or 0,
-		AutomaticSize = Enum.AutomaticSize.XY,
+		Size = if width then UDim2.fromScale(width, 0) else UDim2.new(),
+		AutomaticSize = if width then Enum.AutomaticSize.Y else Enum.AutomaticSize.XY,
 		BackgroundTransparency = 1,
 		Text = "",
 		AutoButtonColor = false,
+		Visible = props.visible or true,
 		Activated = function()
 			if isEnabled() then
 				props.onClick()
@@ -80,14 +90,15 @@ local function ActionButton(props: Props): TextButton
 		create("TextLabel")({
 			Name = "Label",
 			ZIndex = 1,
-			AutomaticSize = Enum.AutomaticSize.XY,
+			Size = if width then UDim2.fromScale(1, 0) else UDim2.new(),
+			AutomaticSize = if width then Enum.AutomaticSize.Y else Enum.AutomaticSize.XY,
 			BackgroundTransparency = 1,
 			FontFace = NEON.FONT,
 			TextSize = textSize,
 			TextColor3 = NEON.TEXT,
 			TextTransparency = faded,
 			Text = props.text,
-			Layout.padding(PADDING_X, PADDING_Y),
+			Layout.padding(PADDING_X, paddingY),
 			textStroke,
 		}),
 	}) :: TextButton

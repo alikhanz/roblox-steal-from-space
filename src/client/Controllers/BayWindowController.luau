@@ -17,6 +17,7 @@ local BayWindow = require(script.Parent.Parent.UI.BayWindow)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
@@ -265,19 +266,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		)
 	end
 
-	local function eggLine(egg: ProfileState.Egg): string
-		local _ = clock()
-		local left = egg.hatchAt - workspace:GetServerTimeNow()
-		local when = if left > 0
-			then text("egg.hatchIn.hint", { time = Duration.clock(left) })
-			else text("egg.ready.hint")
-		return `{Names.eggWithGuardian(locale, egg)} — {when}`
-	end
-
-	local function waitingLine(egg: ProfileState.WaitingEgg): string
-		return `{Names.eggWithGuardian(locale, egg)} — {text("egg.waiting.hint")}`
-	end
-
 	-- The Robux tier of the incubator's next slot.
 	local function slotTier(): number
 		return Purchases.slotTier(profile.bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
@@ -327,6 +315,80 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		end
 	end
 
+	-- "8.5/s": coins a second.
+	local function incomeText(income: BigNum.BigNum): string
+		return text("bay.income.hint", { income = BigNum.format(income) })
+	end
+
+	-- What the pods bring together.
+	local function podsIncome(): BigNum.BigNum
+		local total = BigNum.ZERO
+		for _, pod in profile.bay().pods do
+			local alien = pod.alien and AlienConfig.ALIENS[pod.alien.id]
+			if alien then
+				total = BigNum.add(total, alien.income)
+			end
+		end
+		return total
+	end
+
+	-- The window's rows for `aliens`, the best earners first.
+	local function rowsOf(aliens: { ProfileState.Alien }): { BayWindow.Row }
+		local sorted = table.clone(aliens)
+		local function incomeOf(record: ProfileState.Alien): BigNum.BigNum
+			local alien = AlienConfig.ALIENS[record.id]
+			return if alien then alien.income else BigNum.ZERO
+		end
+		table.sort(sorted, function(a, b)
+			return BigNum.lessThan(incomeOf(b), incomeOf(a))
+		end)
+		local rows: { BayWindow.Row } = {}
+		for _, record in sorted do
+			local alien = AlienConfig.ALIENS[record.id]
+			local _, guardian = Names.alienParts(locale, record.id)
+			local row: BayWindow.Row = {
+				uid = record.uid,
+				alienId = record.id,
+				name = guardian or "?",
+				income = incomeText(incomeOf(record)),
+				color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
+				variant = nil,
+			}
+			if alien and alien.variant ~= "Normal" then
+				row.variant = "Meteor"
+			end
+			table.insert(rows, row)
+		end
+		return rows
+	end
+
+	-- The incubator's eggs for its slots: colour, timer or "Ready!".
+	local function eggSlots(): { BayWindow.EggSlot }
+		local _ = clock()
+		local now = workspace:GetServerTimeNow()
+		local slots: { BayWindow.EggSlot } = {}
+		for _, egg in profile.bay().incubator do
+			local left = egg.hatchAt - now
+			local look = (EggLooks.RARITIES :: any)[egg.rarity]
+			table.insert(slots, {
+				color = if look then look.color else Theme.NEON.MUTED,
+				label = if left > 0 then Duration.clock(left) else text("egg.ready.hint"),
+				ready = left <= 0,
+			})
+		end
+		return slots
+	end
+
+	local function selectionKind(): BayWindow.Selection
+		local records = selectedRecords()
+		if #records == 0 then
+			return "None"
+		elseif #records > 1 then
+			return "Many"
+		end
+		return if records[1].location == "Pod" then "Pod" else "Away"
+	end
+
 	local function mountUi(playerGui: Instance)
 		Vide.mount(function()
 			Vide.effect(pruneSelection)
@@ -346,15 +408,28 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					visible = function()
 						return isOpen()
 					end,
-					bay = profile.bay,
+					coins = function()
+						return BigNum.format(profile.coins())
+					end,
 					texts = {
 						title = text("bay.window.title"),
-						close = text("bay.close.button"),
-						pods = text("bay.pods.title"),
-						emptyPod = text("bay.emptyPod.hint"),
+						pods = function()
+							local bay = profile.bay()
+							return `{text("bay.pods.title")} {#bay.pods - freePods()}/{#bay.pods}`
+						end,
+						podsIncome = function()
+							return incomeText(podsIncome())
+						end,
+						freePods = function()
+							local free = freePods()
+							return if free > 0 then text("bay.freePods.hint", { count = free }) else ""
+						end,
+						podsEmpty = text("bay.podsEmpty.hint"),
+						autoPlace = text("bay.autoPlace.button"),
 						buyPod = function()
 							return text("bay.buyPod.button", { price = BigNum.format(podPrice()) })
 						end,
+						maxPods = text("notice.maxPods.toast"),
 						incubator = function()
 							local bay = profile.bay()
 							return text(
@@ -363,6 +438,10 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							)
 						end,
 						incubatorEmpty = text("bay.incubatorEmpty.hint"),
+						waiting = function()
+							local count = #profile.bay().waiting
+							return if count > 0 then text("bay.incubatorWaiting.hint", { count = count }) else ""
+						end,
 						buySlot = function()
 							return text("bay.buySlot.button", { price = BigNum.format(slotPrice()) })
 						end,
@@ -378,6 +457,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 								{ count = #profile.bay().inventory, max = BayConfig.INVENTORY_SLOTS }
 							)
 						end,
+						inventoryEmpty = text("bay.inventoryEmpty.hint"),
 						floor = function()
 							return text("bay.floor.title", { count = #profile.bay().floor })
 						end,
@@ -386,9 +466,26 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 								then text("bay.pickUpFloor.hint")
 								else text("bay.floorFull.hint")
 						end,
-						autoPlace = text("bay.autoPlace.button"),
-						crossbreed = text("bay.crossbreed.button"),
 						crossbreedHint = text("bay.crossbreed.hint"),
+						status = status,
+						selectedName = function()
+							local entry = single()
+							if not entry then
+								return ""
+							end
+							-- Not an if-expression: it would keep only the first of the two names.
+							local _, guardian = Names.alienParts(locale, entry.record.id)
+							return guardian or ""
+						end,
+						selectedLine = function()
+							local entry = single()
+							local alien = entry and AlienConfig.ALIENS[entry.record.id]
+							if not entry or not alien then
+								return ""
+							end
+							local tier = Names.alienParts(locale, entry.record.id)
+							return `{tier or "?"} · {incomeText(alien.income)}`
+						end,
 						sell = function()
 							local pending = readPendingSale()
 							local entry = single()
@@ -401,30 +498,29 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							return text("bay.sell.button")
 						end,
 						toPod = text("bay.toPod.button"),
-						toInventory = function()
-							local entry = single()
-							return if entry and entry.location == "Pod"
-								then text("bay.fromPod.button")
-								else text("bay.toInventory.button")
-						end,
-						status = status,
+						fromPod = text("bay.fromPod.button"),
+						crossbreed = text("bay.crossbreed.button"),
 					},
-					alienName = function(alienId)
-						local _, guardian = Names.alienParts(locale, alienId)
-						return guardian
+					pods = function()
+						local aliens = {}
+						for _, pod in profile.bay().pods do
+							if pod.alien then
+								table.insert(aliens, pod.alien)
+							end
+						end
+						return rowsOf(aliens)
 					end,
-					alienSubtitle = function(alienId)
-						local alien = AlienConfig.ALIENS[alienId]
-						local tier = Names.alienParts(locale, alienId)
-						local income = if alien then BigNum.format(alien.income) else "?"
-						return text("alien.tierIncome.hint", { tier = tier or "?", income = income })
+					inventory = function()
+						return rowsOf(profile.bay().inventory)
 					end,
-					alienColor = function(alienId)
-						local alien = AlienConfig.ALIENS[alienId]
-						return if alien then AlienLooks.TIERS[alien.tier].color else Theme.MUTED
+					floor = function()
+						return rowsOf(profile.bay().floor)
 					end,
-					eggLine = eggLine,
-					waitingLine = waitingLine,
+					eggs = eggSlots,
+					slots = function()
+						return profile.bay().incubatorSlots
+					end,
+					selection = selectionKind,
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
 					end,
@@ -437,9 +533,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					end,
 					onToggle = toggle,
 					canCrossbreed = canCrossbreed,
-					canSell = function()
-						return single() ~= nil
-					end,
 					canMoveToPod = function()
 						local entry = single()
 						return entry ~= nil and entry.location ~= "Pod" and freePods() > 0
@@ -453,6 +546,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					canBuyPod = function()
 						return #profile.bay().pods < BayConfig.MAX_PODS
 							and not BigNum.lessThan(profile.coins(), podPrice())
+					end,
+					podsAtMax = function()
+						return #profile.bay().pods >= BayConfig.MAX_PODS
 					end,
 					slotForSale = function()
 						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS

@@ -1,83 +1,125 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The bay window: pods, the incubator, the inventory and what waits on the floor, with the
--- actions on the selected aliens. Reads the profile copy; every action is a request to the
+-- The bay window (docs/design/screens/bay-window.md): two columns in a neon window. Left: the
+-- pods as a list by income, one row for the free ones, the big "best into pods" and "+ pod"
+-- buttons. Right: the incubator's slots with timers, the queue, buying slots, the inventory and
+-- the floor, the crossbreed note. The footer: the selected alien and its actions, or what to
+-- do. Rows come in ready (sorted, worded) from the controller; every action is a request to the
 -- server. Texts come in resolved: the component knows no keys.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local AlienCard = require(script.Parent.AlienCard)
-local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
-local Button = require(script.Parent.Button)
+local ActionButton = require(script.Parent.ActionButton)
+local AlienRow = require(script.Parent.AlienRow)
+local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
-local ProfileState = require(script.Parent.Parent.State.ProfileState)
+local NeonWindow = require(script.Parent.NeonWindow)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
 local indexes = Vide.indexes
 
-local MAX_WIDTH = 760
-local MAX_HEIGHT = 600
-local PADDING = 16
-local GAP = 10
-local CARD_SIZE = UDim2.fromOffset(190, 64)
-local TITLE_TEXT_SIZE = 24
-local SECTION_TEXT_SIZE = 18
-local HINT_TEXT_SIZE = 14
-local ACTION_BAR_HEIGHT = 48
-local STATUS_HEIGHT = 36
-local CLOSE_SIZE = 36
+local NEON = Theme.NEON
+local COLUMN_GAP = 12
+local LEFT_SHARE = 0.53
+local SECTION_HEIGHT = 22
+local ROW_GAP = 4
+local ACTIONS_HEIGHT = 36
+local SLOT_SIZE = Vector2.new(46, 40)
+local EGG_SIZE = 26
+local SLOT_CORNER = UDim.new(0, 9)
+local READY_COLOR = Color3.fromHex("#43CC5F")
+-- Rows past this order are the fixed lines after a list's rows.
+local AFTER_ROWS = 1000
+-- The footer's room for its buttons; the selected alien's words take the rest.
+local FOOTER_BUTTONS_ROOM = 340
+-- Below the slots: the last row's timer labels hang under them.
+local SLOTS_BOTTOM_ROOM = 8
+
+local function bottomPadding(pixels: number): UIPadding
+	local instance = Instance.new("UIPadding")
+	instance.PaddingBottom = UDim.new(0, pixels)
+	return instance
+end
+
+export type Row = {
+	uid: number,
+	alienId: string,
+	name: string,
+	-- "8.5/s".
+	income: string,
+	color: Color3,
+	-- A badge for a variant alien; nil for a regular one.
+	variant: Icons.Name?,
+}
+
+export type EggSlot = {
+	color: Color3,
+	-- "1:20" while it warms, "Ready!" when it is.
+	label: string,
+	ready: boolean,
+}
+
+-- What is selected: nothing, one alien in a pod, one elsewhere, or several (a crossbreed).
+export type Selection = "None" | "Pod" | "Away" | "Many"
 
 export type Texts = {
 	title: string,
-	close: string,
-	pods: string,
-	emptyPod: string,
+	-- "Pods 3/6".
+	pods: () -> string,
+	-- The pods' income together, "21.9/s".
+	podsIncome: () -> string,
+	-- "Free: 3"; empty when every pod is taken.
+	freePods: () -> string,
+	podsEmpty: string,
+	autoPlace: string,
 	buyPod: () -> string,
-	-- "Incubator · 2/4": eggs warming of the slots.
+	maxPods: string,
+	-- "Incubator 2/4".
 	incubator: () -> string,
 	incubatorEmpty: string,
-	-- "+1 slot 450 ●".
+	-- "Waiting for a slot: 2"; empty without a queue.
+	waiting: () -> string,
 	buySlot: () -> string,
-	-- "+1 slot 19 R$".
 	buySlotRobux: () -> string,
 	inventory: () -> string,
+	inventoryEmpty: string,
 	floor: () -> string,
-	-- How to pick them up, or why not right now.
 	floorHint: () -> string,
-	autoPlace: string,
-	crossbreed: string,
 	crossbreedHint: string,
+	-- The footer's line while nothing or several aliens are selected.
+	status: () -> string,
+	-- The selected alien: its name and "Rare · 8.5/s".
+	selectedName: () -> string,
+	selectedLine: () -> string,
 	sell: () -> string,
 	toPod: string,
-	-- "To inventory", or "Out of the pod" while the selected alien stands in one.
-	toInventory: () -> string,
-	-- What the selection means right now and what to do next; sits above the action buttons.
-	status: () -> string,
+	fromPod: string,
+	crossbreed: string,
 }
 
 export type Props = {
 	visible: () -> boolean,
-	bay: () -> ProfileState.Bay,
+	coins: () -> string,
 	texts: Texts,
-	-- Guardian name (nil for an unknown alien), tier-and-income line and tier color of an alien.
-	alienName: (alienId: string) -> string?,
-	alienSubtitle: (alienId: string) -> string,
-	alienColor: (alienId: string) -> Color3,
-	-- Egg line: "<name> — hatches in …", refreshed by the controller.
-	eggLine: (egg: ProfileState.Egg) -> string,
-	-- A queued egg's line: "<name> — waiting for a slot".
-	waitingLine: (egg: ProfileState.WaitingEgg) -> string,
+	pods: () -> { Row },
+	inventory: () -> { Row },
+	floor: () -> { Row },
+	-- The incubator's eggs in their slots, and how many slots it has.
+	eggs: () -> { EggSlot },
+	slots: () -> number,
+	selection: () -> Selection,
 	isSelected: (uid: number) -> boolean,
 	-- True for an alien that cannot join the current crossbreed selection.
 	isDimmed: (alienId: string) -> boolean,
 	onToggle: (uid: number) -> (),
 	canCrossbreed: () -> boolean,
-	canSell: () -> boolean,
 	canMoveToPod: () -> boolean,
 	canMoveToInventory: () -> boolean,
 	canBuyPod: () -> boolean,
+	-- Every pod the bay can hold is bought.
+	podsAtMax: () -> boolean,
 	-- Shown while the incubator can take another slot; enabled when it is affordable.
 	canBuySlot: () -> boolean,
 	slotForSale: () -> boolean,
@@ -94,308 +136,485 @@ export type Props = {
 	onBuySlotRobux: () -> (),
 }
 
-local function sectionTitle(text: string | () -> string, order: number, visible: (() -> boolean)?): TextLabel
+type LabelOptions = { size: number?, color: Color3?, visible: (() -> boolean)?, wrapped: boolean? }
+
+local function label(name: string, text: string | () -> string, order: number, options: LabelOptions?): TextLabel
+	local opts: LabelOptions = options or {}
 	return create("TextLabel")({
-		Name = "SectionTitle",
+		Name = name,
 		LayoutOrder = order,
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
-		FontFace = Theme.FONT,
-		TextSize = SECTION_TEXT_SIZE,
-		TextColor3 = Theme.TEXT,
+		FontFace = NEON.FONT,
+		TextSize = opts.size or NEON.TEXT_BODY,
+		TextColor3 = opts.color or NEON.MUTED,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Visible = visible or true,
+		TextWrapped = opts.wrapped ~= false,
+		Visible = opts.visible or true,
 		Text = text,
+		Layout.textStroke(),
 	}) :: TextLabel
 end
 
-local function hint(text: string | () -> string, order: number, visible: (() -> boolean)?): TextLabel
-	return create("TextLabel")({
-		Name = "Hint",
-		LayoutOrder = order,
-		Size = UDim2.fromScale(1, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 1,
-		FontFace = Theme.FONT,
-		TextSize = HINT_TEXT_SIZE,
-		TextColor3 = Theme.MUTED,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextWrapped = true,
-		Visible = visible or true,
-		Text = text,
-	}) :: TextLabel
+local function sectionTitle(text: () -> string, order: number, visible: (() -> boolean)?): TextLabel
+	return label("Section", text, order, { size = NEON.TEXT_SECTION, color = NEON.TEXT, visible = visible })
 end
 
-local function grid(name: string, order: number, children: any): Frame
+local function list(name: string, order: number, children: any): Frame
 	return create("Frame")({
 		Name = name,
 		LayoutOrder = order,
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
-		create("UIGridLayout")({
-			CellSize = CARD_SIZE,
-			CellPadding = UDim2.fromOffset(GAP, GAP),
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Vertical,
+			Padding = UDim.new(0, ROW_GAP),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 		children,
 	}) :: Frame
 end
 
+local function scroller(name: string, position: UDim2, size: UDim2, children: any): ScrollingFrame
+	return create("ScrollingFrame")({
+		Name = name,
+		Position = position,
+		Size = size,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = NEON.LINE,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Vertical,
+			Padding = UDim.new(0, 6),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		-- Room for the selection frame and the scroll bar.
+		Layout.padding(3, 3),
+		children,
+	}) :: ScrollingFrame
+end
+
+-- One incubator slot: an egg in its rarity's colour with its timer or "Ready!", or empty.
+local function EggCell(slot: () -> EggSlot?, order: number): Frame
+	local function egg(): EggSlot?
+		return slot()
+	end
+	return create("Frame")({
+		Name = "Slot",
+		LayoutOrder = order,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = function()
+			return if egg() then 0.93 else 0.98
+		end,
+		create("UICorner")({ CornerRadius = SLOT_CORNER }),
+		Layout.panelLine(),
+		create("ImageLabel")({
+			Name = "Egg",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.42),
+			Size = UDim2.fromOffset(EGG_SIZE, EGG_SIZE),
+			BackgroundTransparency = 1,
+			Image = Icons.ICONS.Egg,
+			ImageColor3 = function()
+				local current = egg()
+				return if current then current.color else NEON.MUTED
+			end,
+			Visible = function()
+				return egg() ~= nil
+			end,
+		}),
+		create("TextLabel")({
+			Name = "Label",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 1),
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(0, 14),
+			BackgroundColor3 = function()
+				local current = egg()
+				return if current and current.ready then READY_COLOR else NEON.GLASS
+			end,
+			BackgroundTransparency = function()
+				local current = egg()
+				return if current and current.ready then 0.2 else 0.15
+			end,
+			FontFace = NEON.FONT,
+			TextSize = NEON.TEXT_SMALL,
+			TextColor3 = NEON.TEXT,
+			Text = function()
+				local current = egg()
+				return if current then current.label else ""
+			end,
+			Visible = function()
+				return egg() ~= nil
+			end,
+			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
+			Layout.padding(5, 0),
+		}),
+	}) :: Frame
+end
+
 local function BayWindow(props: Props): Frame
 	local texts = props.texts
 
-	local function card(alien: () -> ProfileState.Alien?, order: number): TextButton
-		return AlienCard({
-			layoutOrder = order,
-			title = function()
-				local record = alien()
-				return if record then props.alienName(record.id) else nil
-			end,
-			subtitle = function()
-				local record = alien()
-				return if record then props.alienSubtitle(record.id) else ""
-			end,
-			color = function()
-				local record = alien()
-				return if record then props.alienColor(record.id) else Theme.PANEL
-			end,
-			selected = function()
-				local record = alien()
-				return record ~= nil and props.isSelected(record.uid)
-			end,
-			dimmed = function()
-				local record = alien()
-				return record ~= nil and props.isDimmed(record.id)
-			end,
-			emptyText = texts.emptyPod,
-			onTap = function()
-				local record = alien()
-				if record then
-					props.onToggle(record.uid)
-				end
-			end,
-		})
+	local function rows(source: () -> { Row }, idle: boolean): any
+		return indexes(source, function(row: () -> Row, index: number)
+			return AlienRow({
+				layoutOrder = index,
+				name = function()
+					return row().name
+				end,
+				income = function()
+					return row().income
+				end,
+				tierColor = function()
+					return row().color
+				end,
+				variant = function()
+					return row().variant
+				end,
+				selected = function()
+					return props.isSelected(row().uid)
+				end,
+				dimmed = function()
+					return props.isDimmed(row().alienId)
+				end,
+				idle = idle,
+				onTap = function()
+					props.onToggle(row().uid)
+				end,
+			})
+		end)
 	end
 
-	local pods = indexes(function()
-		return props.bay().pods
-	end, function(pod, index)
-		return card(function()
-			return pod().alien
-		end, index)
-	end)
-	local inventory = indexes(function()
-		return props.bay().inventory
-	end, function(alien, index)
-		return card(alien, index)
-	end)
-	local floor = indexes(function()
-		return props.bay().floor
-	end, function(alien, index)
-		return card(alien, index)
-	end)
-	local eggs = indexes(function()
-		return props.bay().incubator
-	end, function(egg, index)
-		return hint(function()
-			return props.eggLine(egg())
-		end, index)
-	end)
-	-- The queue after the eggs warming: ordered after any number of them.
-	local waitingEggs = indexes(function()
-		return props.bay().waiting
-	end, function(egg, index)
-		return hint(function()
-			return props.waitingLine(egg())
-		end, BayConfig.MAX_INCUBATOR_SLOTS + (index :: number))
+	-- Every slot of the incubator in order: its egg, or nothing for a free one.
+	local slotList = Vide.derive(function(): { { egg: EggSlot? } }
+		local eggs = props.eggs()
+		local result: { { egg: EggSlot? } } = {}
+		for index = 1, props.slots() do
+			table.insert(result, { egg = eggs[index] })
+		end
+		return result
 	end)
 
-	return create("Frame")({
-		Name = "BayWindow",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(0.92, 0.88),
-		BackgroundColor3 = Theme.PANEL,
-		BackgroundTransparency = 0.05,
-		Visible = props.visible,
-		create("UICorner")({ CornerRadius = Theme.CORNER }),
-		Layout.maxSize(MAX_WIDTH, MAX_HEIGHT),
-		Layout.padding(PADDING, PADDING),
-
-		create("TextLabel")({
-			Name = "Title",
-			Size = UDim2.new(1, -CLOSE_SIZE, 0, CLOSE_SIZE),
+	local function footerInfo(): Frame
+		local function hasOne(): boolean
+			local selection = props.selection()
+			return selection == "Pod" or selection == "Away"
+		end
+		return create("Frame")({
+			Name = "Info",
+			LayoutOrder = 1,
+			-- Takes what the buttons leave.
+			Size = UDim2.new(1, -FOOTER_BUTTONS_ROOM, 1, 0),
 			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = TITLE_TEXT_SIZE,
-			TextColor3 = Theme.TEXT,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Text = texts.title,
-		}),
-		create("TextButton")({
-			Name = "Close",
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.fromScale(1, 0),
-			Size = UDim2.fromOffset(CLOSE_SIZE, CLOSE_SIZE),
-			BackgroundColor3 = Theme.DANGER,
-			FontFace = Theme.FONT,
-			TextSize = TITLE_TEXT_SIZE,
-			TextColor3 = Theme.TEXT,
-			Text = "×",
-			Activated = function()
-				props.onClose()
-			end,
-			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		}),
-
-		create("ScrollingFrame")({
-			Name = "Sections",
-			Position = UDim2.fromOffset(0, CLOSE_SIZE + GAP),
-			Size = UDim2.new(1, 0, 1, -(CLOSE_SIZE + STATUS_HEIGHT + ACTION_BAR_HEIGHT + GAP * 3)),
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-			ScrollBarThickness = 6,
-			AutomaticCanvasSize = Enum.AutomaticSize.Y,
-			CanvasSize = UDim2.new(),
-			ScrollingDirection = Enum.ScrollingDirection.Y,
 			create("UIListLayout")({
 				FillDirection = Enum.FillDirection.Vertical,
-				Padding = UDim.new(0, GAP),
+				VerticalAlignment = Enum.VerticalAlignment.Center,
 				SortOrder = Enum.SortOrder.LayoutOrder,
 			}),
-			Layout.padding(GAP),
-
-			sectionTitle(texts.pods, 1),
-			grid("Pods", 2, pods),
-			sectionTitle(texts.incubator, 3),
-			create("Frame")({
-				Name = "Incubator",
-				LayoutOrder = 4,
-				Size = UDim2.fromScale(1, 0),
-				AutomaticSize = Enum.AutomaticSize.Y,
-				BackgroundTransparency = 1,
-				create("UIListLayout")({
-					FillDirection = Enum.FillDirection.Vertical,
-					Padding = UDim.new(0, 2),
-					SortOrder = Enum.SortOrder.LayoutOrder,
-				}),
-				hint(texts.incubatorEmpty, 0, function()
-					return #props.bay().incubator == 0
-				end),
-				eggs,
-				waitingEggs,
+			label("Name", texts.selectedName, 1, { size = NEON.TEXT_SECTION, color = NEON.TEXT, visible = hasOne }),
+			label("Line", texts.selectedLine, 2, { size = NEON.TEXT_SMALL, visible = hasOne }),
+			label("Status", texts.status, 3, {
+				visible = function()
+					return not hasOne()
+				end,
 			}),
-			sectionTitle(texts.inventory, 5),
-			hint(texts.crossbreedHint, 6),
-			grid("Inventory", 7, inventory),
-			sectionTitle(texts.floor, 8, function()
-				return #props.bay().floor > 0
-			end),
-			hint(texts.floorHint, 9, function()
-				return #props.bay().floor > 0
-			end),
-			grid("Floor", 10, floor),
-		}),
+		}) :: Frame
+	end
 
-		create("TextLabel")({
-			Name = "Status",
-			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.new(0, 0, 1, -(ACTION_BAR_HEIGHT + GAP)),
-			Size = UDim2.new(1, 0, 0, STATUS_HEIGHT),
-			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = HINT_TEXT_SIZE,
-			TextColor3 = Theme.SPEED,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextYAlignment = Enum.TextYAlignment.Bottom,
-			TextWrapped = true,
-			Text = texts.status,
-		}),
-
-		create("Frame")({
-			Name = "Actions",
-			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.fromScale(0, 1),
-			Size = UDim2.new(1, 0, 0, ACTION_BAR_HEIGHT),
+	local function footerButtons(): Frame
+		local function selection(): Selection
+			return props.selection()
+		end
+		return create("Frame")({
+			Name = "Buttons",
+			LayoutOrder = 2,
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromScale(0, 1),
 			BackgroundTransparency = 1,
 			create("UIListLayout")({
 				FillDirection = Enum.FillDirection.Horizontal,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
-				Padding = UDim.new(0, GAP),
+				HorizontalAlignment = Enum.HorizontalAlignment.Right,
+				Padding = UDim.new(0, 8),
 				SortOrder = Enum.SortOrder.LayoutOrder,
-				Wraps = true,
 			}),
-			Button({ name = "AutoPlace", layoutOrder = 1, text = texts.autoPlace, onClick = props.onAutoPlace }),
-			Button({
-				name = "ToPod",
-				layoutOrder = 2,
-				text = texts.toPod,
-				enabled = props.canMoveToPod,
-				onClick = props.onMoveToPod,
-			}),
-			Button({
-				name = "ToInventory",
-				layoutOrder = 3,
-				text = texts.toInventory,
+			ActionButton({
+				name = "FromPod",
+				text = texts.fromPod,
+				color = NEON.ACTION.Move,
+				layoutOrder = 1,
 				enabled = props.canMoveToInventory,
+				visible = function()
+					return selection() == "Pod"
+				end,
 				onClick = props.onMoveToInventory,
 			}),
-			Button({
-				name = "Crossbreed",
-				layoutOrder = 4,
-				text = texts.crossbreed,
-				enabled = props.canCrossbreed,
-				onClick = props.onCrossbreed,
+			ActionButton({
+				name = "ToPod",
+				text = texts.toPod,
+				color = NEON.ACTION.Move,
+				layoutOrder = 2,
+				enabled = props.canMoveToPod,
+				visible = function()
+					return selection() == "Away"
+				end,
+				onClick = props.onMoveToPod,
 			}),
-			Button({
+			ActionButton({
 				name = "Sell",
-				layoutOrder = 5,
 				text = texts.sell,
-				enabled = props.canSell,
-				color = Theme.DANGER,
+				color = NEON.ACTION.Sell,
+				layoutOrder = 3,
+				visible = function()
+					local current = selection()
+					return current == "Pod" or current == "Away"
+				end,
 				onClick = props.onSell,
 			}),
-			Button({
-				name = "BuyPod",
-				layoutOrder = 6,
-				text = texts.buyPod,
-				enabled = props.canBuyPod,
-				color = Theme.COINS_DARK,
-				onClick = props.onBuyPod,
+			ActionButton({
+				name = "Crossbreed",
+				text = texts.crossbreed,
+				color = NEON.ACTION.Crossbreed,
+				layoutOrder = 4,
+				enabled = props.canCrossbreed,
+				visible = function()
+					return selection() ~= "None"
+				end,
+				onClick = props.onCrossbreed,
 			}),
+		}) :: Frame
+	end
+
+	local left = create("Frame")({
+		Name = "Pods",
+		Size = UDim2.new(LEFT_SHARE, -COLUMN_GAP / 2, 1, 0),
+		BackgroundTransparency = 1,
+		create("Frame")({
+			Name = "Head",
+			Size = UDim2.new(1, 0, 0, SECTION_HEIGHT),
+			BackgroundTransparency = 1,
+			label("Title", texts.pods, 1, { size = NEON.TEXT_SECTION, color = NEON.TEXT, wrapped = false }),
 			create("Frame")({
-				Name = "BuySlotSlot",
-				LayoutOrder = 7,
-				Size = UDim2.fromScale(0, 0),
+				Name = "Income",
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.fromScale(1, 0.5),
 				AutomaticSize = Enum.AutomaticSize.XY,
 				BackgroundTransparency = 1,
-				Visible = props.slotForSale,
-				Button({
-					name = "BuySlot",
-					text = texts.buySlot,
-					enabled = props.canBuySlot,
-					color = Theme.COINS_DARK,
-					onClick = props.onBuySlot,
+				create("UIListLayout")({
+					FillDirection = Enum.FillDirection.Horizontal,
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					Padding = UDim.new(0, 3),
+					SortOrder = Enum.SortOrder.LayoutOrder,
 				}),
-			}),
-			create("Frame")({
-				Name = "BuySlotRobuxSlot",
-				LayoutOrder = 8,
-				Size = UDim2.fromScale(0, 0),
-				AutomaticSize = Enum.AutomaticSize.XY,
-				BackgroundTransparency = 1,
-				Visible = props.slotForRobux,
-				Button({
-					name = "BuySlotRobux",
-					text = texts.buySlotRobux,
-					color = Theme.TOAST_GOOD,
-					onClick = props.onBuySlotRobux,
+				create("ImageLabel")({
+					Name = "Coin",
+					LayoutOrder = 1,
+					Size = UDim2.fromOffset(15, 15),
+					BackgroundTransparency = 1,
+					Image = Icons.ICONS.Coin,
+					ImageColor3 = NEON.COINS,
+				}),
+				create("TextLabel")({
+					Name = "Value",
+					LayoutOrder = 2,
+					AutomaticSize = Enum.AutomaticSize.XY,
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_BODY,
+					TextColor3 = NEON.MUTED,
+					Text = texts.podsIncome,
+					Layout.textStroke(),
 				}),
 			}),
 		}),
-	}) :: Frame
+		scroller(
+			"List",
+			UDim2.fromOffset(0, SECTION_HEIGHT + 6),
+			UDim2.new(1, 0, 1, -(SECTION_HEIGHT + 6 + ACTIONS_HEIGHT + 8)),
+			{
+				list("Rows", 1, rows(props.pods, false)),
+				-- All the free pods in one row.
+				create("TextLabel")({
+					Name = "Free",
+					LayoutOrder = AFTER_ROWS,
+					Size = UDim2.new(1, 0, 0, 28),
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_BODY,
+					TextColor3 = NEON.MUTED,
+					Text = texts.freePods,
+					Visible = function()
+						return texts.freePods() ~= ""
+					end,
+					create("UICorner")({ CornerRadius = UDim.new(0, 9) }),
+					Layout.panelLine(),
+				}),
+				label("Empty", texts.podsEmpty, AFTER_ROWS + 1, {
+					visible = function()
+						return #props.pods() == 0
+					end,
+				}),
+			}
+		),
+		create("Frame")({
+			Name = "Actions",
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.fromScale(0, 1),
+			Size = UDim2.new(1, 0, 0, ACTIONS_HEIGHT),
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Padding = UDim.new(0.04, 0),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			ActionButton({
+				name = "AutoPlace",
+				text = texts.autoPlace,
+				color = NEON.ACTION.Main,
+				size = "Large",
+				width = 0.48,
+				layoutOrder = 1,
+				onClick = props.onAutoPlace,
+			}),
+			ActionButton({
+				name = "BuyPod",
+				text = texts.buyPod,
+				color = NEON.ACTION.Coins,
+				size = "Large",
+				width = 0.48,
+				layoutOrder = 2,
+				enabled = props.canBuyPod,
+				visible = function()
+					return not props.podsAtMax()
+				end,
+				onClick = props.onBuyPod,
+			}),
+			create("TextLabel")({
+				Name = "MaxPods",
+				LayoutOrder = 3,
+				Size = UDim2.fromScale(0.48, 1),
+				BackgroundTransparency = 1,
+				FontFace = NEON.FONT,
+				TextSize = NEON.TEXT_SMALL,
+				TextColor3 = NEON.MUTED,
+				TextWrapped = true,
+				Text = texts.maxPods,
+				Visible = props.podsAtMax,
+			}),
+		}),
+	})
+
+	local right = create("Frame")({
+		Name = "Side",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Size = UDim2.new(1 - LEFT_SHARE, -COLUMN_GAP / 2, 1, 0),
+		BackgroundTransparency = 1,
+		scroller("Scroll", UDim2.new(), UDim2.fromScale(1, 1), {
+			sectionTitle(texts.incubator, 1),
+			create("Frame")({
+				Name = "Slots",
+				LayoutOrder = 2,
+				Size = UDim2.fromScale(1, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundTransparency = 1,
+				-- Room for the timer labels hanging below the last row of slots.
+				bottomPadding(SLOTS_BOTTOM_ROOM),
+				create("UIGridLayout")({
+					CellSize = UDim2.fromOffset(SLOT_SIZE.X, SLOT_SIZE.Y),
+					CellPadding = UDim2.fromOffset(6, 12),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+				indexes(slotList, function(slot, index)
+					return EggCell(function()
+						return slot().egg
+					end, index)
+				end),
+			}),
+			label("IncubatorEmpty", texts.incubatorEmpty, 3, {
+				visible = function()
+					return #props.eggs() == 0
+				end,
+			}),
+			label("Waiting", texts.waiting, 4, {
+				visible = function()
+					return texts.waiting() ~= ""
+				end,
+			}),
+			create("Frame")({
+				Name = "BuySlots",
+				LayoutOrder = 5,
+				Size = UDim2.fromScale(1, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundTransparency = 1,
+				Visible = props.slotForSale,
+				create("UIListLayout")({
+					FillDirection = Enum.FillDirection.Horizontal,
+					Padding = UDim.new(0, 8),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+				ActionButton({
+					name = "BuySlot",
+					text = texts.buySlot,
+					color = NEON.ACTION.Coins,
+					layoutOrder = 1,
+					enabled = props.canBuySlot,
+					onClick = props.onBuySlot,
+				}),
+				ActionButton({
+					name = "BuySlotRobux",
+					text = texts.buySlotRobux,
+					color = NEON.ACTION.Robux,
+					layoutOrder = 2,
+					visible = props.slotForRobux,
+					onClick = props.onBuySlotRobux,
+				}),
+			}),
+			sectionTitle(texts.inventory, 6),
+			list("Inventory", 7, rows(props.inventory, true)),
+			label("InventoryEmpty", texts.inventoryEmpty, 8, {
+				visible = function()
+					return #props.inventory() == 0
+				end,
+			}),
+			sectionTitle(texts.floor, 9, function()
+				return #props.floor() > 0
+			end),
+			list("Floor", 10, rows(props.floor, true)),
+			label("FloorHint", texts.floorHint, 11, {
+				visible = function()
+					return #props.floor() > 0
+				end,
+			}),
+			label("Crossbreed", texts.crossbreedHint, 12, { size = NEON.TEXT_SMALL }),
+		}),
+	})
+
+	return NeonWindow({
+		name = "BayWindow",
+		visible = props.visible,
+		title = texts.title,
+		coins = props.coins,
+		onClose = props.onClose,
+		body = { left, right },
+		footer = {
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			footerInfo(),
+			footerButtons(),
+		},
+	})
 end
 
 return BayWindow

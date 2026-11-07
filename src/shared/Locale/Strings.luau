@@ -285,6 +285,25 @@ local Strings = {
 		ru = "Пусто",
 		en = "Empty",
 	},
+	-- One row in the pods list standing for all the empty pods.
+	["bay.freePods.hint"] = {
+		ru = "Свободно: {count}",
+		en = "Free: {count}",
+	},
+	-- Under the pods list while the player has no aliens yet.
+	["bay.podsEmpty.hint"] = {
+		ru = "Вылупи пришельца, и он сядет в капсулу",
+		en = "Hatch an alien and it takes a pod",
+	},
+	-- Coins a second, next to a coin icon (alien rows and the pods total).
+	["bay.income.hint"] = {
+		ru = "{income}/с",
+		en = "{income}/s",
+	},
+	["bay.inventoryEmpty.hint"] = {
+		ru = "Пусто",
+		en = "Empty",
+	},
 	["bay.buyPod.button"] = {
 		ru = "Капсула: {price}",
 		en = "Pod: {price}",
