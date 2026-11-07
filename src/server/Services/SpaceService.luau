@@ -161,10 +161,6 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 
 	local function onPlayerAdded(player: Player)
 		FlightInputs.create().Parent = player
-		-- The classic touch stick, always drawn bottom-left: the floating one only shows under a
-		-- finger, and new players do not find it (docs/design/screens/hud.md). Set here as well as
-		-- in the project file: Rojo does not write StarterPlayer's properties into an open place.
-		player.DevTouchMovementMode = Enum.DevTouchMovementMode.Thumbstick
 		local spawn = dependencies.getSpawn()
 		if spawn then
 			player.RespawnLocation = spawn
