@@ -10,6 +10,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local Icons = require(script.Parent.Parent.UI.Icons)
+local Marks = require(ReplicatedStorage.Shared.Locale.Marks)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
@@ -32,6 +34,11 @@ local HOUR = 60 * 60
 local PASS_TEXTS: { [Purchases.PassId]: { title: Text.Key, hint: Text.Key } } = {
 	DoubleTraining = { title = "store.doubleTraining.title", hint = "store.doubleTraining.hint" },
 	NightShift = { title = "store.nightShift.title", hint = "store.nightShift.hint" },
+}
+-- Each pass's icon and colour on its card.
+local PASS_LOOKS: { [Purchases.PassId]: { icon: Icons.Name, color: Color3 } } = {
+	DoubleTraining = { icon = "Bolt", color = Theme.NEON.SPEED },
+	NightShift = { icon = "Moon", color = Color3.fromHex("#8E8CFF") },
 }
 -- The training packs' titles, in MonetizationConfig.TRAINING_PACK_SECONDS order.
 local TRAINING_TITLES: { Text.Key } = {
@@ -90,7 +97,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		return Purchases.slotTier(profile.bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
 	end
 
-	local function passRows(): { StoreWindow.Row }
+	local function passCards(): { StoreWindow.Pass }
 		local tuning = MonetizationConfig.PASS_TUNING
 		local hintArgs: { [Purchases.PassId]: Text.Args } = {
 			DoubleTraining = { factor = tuning.doubleTrainingMultiplier },
@@ -101,47 +108,55 @@ function StoreController.new(dependencies: Dependencies): StoreController
 				trainingBase = tuning.trainingCapSeconds // HOUR,
 			},
 		}
-		local rows = {}
+		local cards: { StoreWindow.Pass } = {}
 		for _, pass in MonetizationConfig.PASS_ORDER do
 			if not purchases.sellsPass(pass) then
 				continue
 			end
 			local texts = PASS_TEXTS[pass]
-			table.insert(rows, {
+			local looks = PASS_LOOKS[pass]
+			table.insert(cards, {
 				title = text(texts.title),
 				hint = function()
 					return text(texts.hint, hintArgs[pass])
 				end,
+				icon = looks.icon,
+				color = looks.color,
 				price = function()
 					return price(purchases.passPrice(pass))
 				end,
-				offered = function()
-					return not purchases.owns(pass)
+				priceReady = function()
+					return purchases.passPrice(pass) ~= nil
 				end,
-				status = function()
-					return text("store.owned.hint")
+				owned = function()
+					return purchases.owns(pass)
 				end,
 				onBuy = function()
 					purchases.promptPass(openedFrom, pass)
 				end,
 			})
 		end
-		return rows
+		return cards
 	end
 
-	local function productRows(): { StoreWindow.Row }
-		local rows = {}
+	local function productCards(): { StoreWindow.Product }
+		local cards: { StoreWindow.Product } = {}
 		for index, seconds in MonetizationConfig.TRAINING_PACK_SECONDS do
 			if not purchases.sells("Training", nil, seconds) then
 				continue
 			end
-			table.insert(rows, {
+			table.insert(cards, {
 				title = text(TRAINING_TITLES[index]),
-				hint = function()
-					return text("store.training.hint", { speed = BigNum.format(packSpeed(seconds)) })
+				-- Exactly what the pack gives now, from the player's trainer (decision 024).
+				value = function()
+					return `{Marks.SPEED}+{BigNum.format(packSpeed(seconds))}`
 				end,
+				color = Theme.NEON.SPEED,
 				price = function()
 					return price(purchases.productPrice("Training", nil, seconds))
+				end,
+				priceReady = function()
+					return purchases.productPrice("Training", nil, seconds) ~= nil
 				end,
 				offered = function()
 					return true
@@ -155,29 +170,37 @@ function StoreController.new(dependencies: Dependencies): StoreController
 			})
 		end
 		-- "Egg ready now" is not here: it is sold on the egg itself (decision 063).
-		table.insert(rows, {
+		local function hasRoom(): boolean
+			return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+		end
+		table.insert(cards, {
 			title = text("store.slot.title"),
-			hint = function()
+			-- Slots now and after the purchase.
+			value = function()
 				local slots = profile.bay().incubatorSlots
-				return if slots < BayConfig.MAX_INCUBATOR_SLOTS
-					then text("store.slot.hint", { count = slots })
-					else text("store.slotMax.hint")
+				return if hasRoom()
+					then text("store.slotGrow.hint", { from = slots, to = slots + 1 })
+					else tostring(slots)
 			end,
+			valueIcon = "Egg" :: Icons.Name,
+			color = Theme.NEON.EGG,
 			price = function()
 				return price(purchases.productPrice("IncubatorSlot", slotTier()))
 			end,
+			priceReady = function()
+				return purchases.productPrice("IncubatorSlot", slotTier()) ~= nil
+			end,
 			offered = function()
-				return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
-					and purchases.sells("IncubatorSlot", slotTier())
+				return hasRoom() and purchases.sells("IncubatorSlot", slotTier())
 			end,
 			status = function()
-				return ""
+				return if hasRoom() then "" else text("store.slotMax.hint")
 			end,
 			onBuy = function()
 				purchases.promptProduct(openedFrom, "IncubatorSlot", slotTier())
 			end,
 		})
-		return rows
+		return cards
 	end
 
 	-- What a granted purchase gave, as a toast.
@@ -198,10 +221,6 @@ function StoreController.new(dependencies: Dependencies): StoreController
 	end
 
 	local function mountUi(playerGui: Instance)
-		local rows = passRows()
-		for _, entry in productRows() do
-			table.insert(rows, entry)
-		end
 		Vide.mount(function()
 			return create("ScreenGui")({
 				Name = "StoreUi",
@@ -211,9 +230,18 @@ function StoreController.new(dependencies: Dependencies): StoreController
 					visible = function()
 						return isOpen()
 					end,
-					title = text("store.window.title"),
-					hint = text("store.window.hint"),
-					rows = rows,
+					coins = function()
+						return BigNum.format(profile.coins())
+					end,
+					texts = {
+						title = text("store.window.title"),
+						hint = text("store.window.hint"),
+						forever = text("store.forever.title"),
+						now = text("store.now.title"),
+						owned = text("store.owned.hint"),
+					},
+					passes = passCards(),
+					products = productCards(),
 					onClose = function()
 						isOpen(false)
 					end,

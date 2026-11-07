@@ -622,7 +622,26 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					visible = function()
 						return readReward() ~= nil
 					end,
-					title = text("welcome.back.title"),
+					texts = {
+						title = text("welcome.back.title"),
+						away = function()
+							local current = readReward()
+							return if current
+								then text("welcome.earned.hint", { time = Duration.describe(locale, current.seconds) })
+								else ""
+						end,
+						pods = text("welcome.pods.hint"),
+						trainer = text("welcome.trainer.hint"),
+						claim = text("welcome.claim.button"),
+						double = function()
+							local current = readReward()
+							local tier = if current then current.doubleTier else 0
+							return text(
+								"welcome.double.button",
+								{ price = robux(purchases.productPrice("CollectDouble", tier)) }
+							)
+						end,
+					},
 					coins = function()
 						local current = readReward()
 						return if current then BigNum.format(current.coins) else ""
@@ -631,34 +650,18 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						local current = readReward()
 						return if current then BigNum.format(current.speed) else ""
 					end,
-					details = function()
-						local current = readReward()
-						if not current then
-							return ""
-						end
-						return text("welcome.earned.hint", {
-							time = Duration.describe(locale, current.seconds),
-							coins = BigNum.format(current.coins),
-							speed = BigNum.format(current.speed),
-						})
-					end,
 					eggs = function()
 						local current = readReward()
 						return if current and current.readyEggs > 0
 							then text("welcome.eggsReady.hint", { count = current.readyEggs })
 							else ""
 					end,
-					claim = text("welcome.claim.button"),
 					onClaim = function()
 						reward(nil)
 					end,
-					double = function()
+					doubleReady = function()
 						local current = readReward()
-						local tier = if current then current.doubleTier else 0
-						return text(
-							"welcome.double.button",
-							{ price = robux(purchases.productPrice("CollectDouble", tier)) }
-						)
+						return current ~= nil and purchases.productPrice("CollectDouble", current.doubleTier) ~= nil
 					end,
 					canDouble = function()
 						local current = readReward()

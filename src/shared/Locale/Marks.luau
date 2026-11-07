@@ -1,10 +1,11 @@
 --!strict
--- Resource marks in player texts: `●` stands for coins and `⚡` for speed. Strings put the mark
--- right before the amount ("Reward: ●+12K and ⚡+3.4K"); the UI draws each mark as its icon
--- (UI/IconText), so an amount of coins looks the same in a toast, on a sign and in a window.
+-- Resource marks in player texts: `●` stands for coins, `⚡` for speed and `R$` for Robux.
+-- Strings put the mark right before the amount ("Reward: ●+12K and ⚡+3.4K", "R$ 49"); the UI
+-- draws each mark as its icon (UI/IconText), so an amount looks the same in a toast, on a sign
+-- and in a window. Where no icon can be drawn (a ProximityPrompt), the mark stays as written.
 -- `split` cuts a text into words and marks for that.
 
-export type Icon = "Coin" | "Bolt"
+export type Icon = "Coin" | "Bolt" | "Robux"
 
 export type Piece = {
 	-- Words, trimmed of the spaces around a mark (the UI puts its own gap there).
@@ -16,12 +17,14 @@ export type Piece = {
 local MARKS: { [string]: Icon } = {
 	["●"] = "Coin",
 	["⚡"] = "Bolt",
+	["R$"] = "Robux",
 }
 
 local Marks = {}
 
 Marks.COINS = "●"
 Marks.SPEED = "⚡"
+Marks.ROBUX = "R$"
 
 local function trim(text: string): string
 	return (string.gsub(text, "^%s+", ""):gsub("%s+$", ""))

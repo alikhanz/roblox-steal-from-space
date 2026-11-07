@@ -36,8 +36,10 @@ export type Props = {
 	name: string,
 	visible: () -> boolean,
 	title: string,
-	-- The player's coins in the header.
-	coins: () -> string,
+	-- The player's coins in the header; nil for none (a window that is about coins itself).
+	coins: (() -> string)?,
+	-- The largest size, points of the reference screen; a compact window passes its own.
+	size: Vector2?,
 	onClose: () -> (),
 	-- The body's and the footer's own children.
 	body: any,
@@ -127,7 +129,7 @@ local function NeonWindow(props: Props): Frame
 			create("UICorner")({ CornerRadius = NEON.WINDOW_CORNER }),
 			create("UIGradient")({ Rotation = 90, Color = ColorSequence.new(WINDOW_TOP, WINDOW_BOTTOM) }),
 			Layout.panelLine(),
-			Layout.maxSize(SIZE.X, SIZE.Y),
+			Layout.maxSize((props.size or SIZE).X, (props.size or SIZE).Y),
 			Layout.screenScale(),
 
 			create("Frame")({
@@ -148,23 +150,25 @@ local function NeonWindow(props: Props): Frame
 					Text = props.title,
 					Layout.textStroke(),
 				}),
-				create("Frame")({
-					Name = "CoinsSlot",
-					ZIndex = 1,
-					AnchorPoint = Vector2.new(1, 0.5),
-					Position = UDim2.new(1, -(PADDING + CLOSE_SIZE + PADDING), 0.5, 0),
-					AutomaticSize = Enum.AutomaticSize.XY,
-					BackgroundTransparency = 1,
-					ResourcePill({
-						name = "Coins",
-						icon = "Coin",
-						color = NEON.COINS,
-						value = props.coins,
-						textSize = NEON.TEXT_SECTION,
-						widest = WIDEST_NUMBER,
-						layoutOrder = 1,
-					}),
-				}),
+				if props.coins
+					then create("Frame")({
+						Name = "CoinsSlot",
+						ZIndex = 1,
+						AnchorPoint = Vector2.new(1, 0.5),
+						Position = UDim2.new(1, -(PADDING + CLOSE_SIZE + PADDING), 0.5, 0),
+						AutomaticSize = Enum.AutomaticSize.XY,
+						BackgroundTransparency = 1,
+						ResourcePill({
+							name = "Coins",
+							icon = "Coin",
+							color = NEON.COINS,
+							value = props.coins,
+							textSize = NEON.TEXT_SECTION,
+							widest = WIDEST_NUMBER,
+							layoutOrder = 1,
+						}),
+					})
+					else nil,
 				CloseButton(props.onClose),
 				create("Frame")({
 					Name = "Line",

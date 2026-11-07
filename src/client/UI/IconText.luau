@@ -27,6 +27,8 @@ local LEGACY_STROKE_TRANSPARENCY = 0.4
 local ICON_COLORS: { [Marks.Icon]: Color3 } = {
 	Coin = NEON.COINS,
 	Bolt = NEON.SPEED,
+	-- Robux prices stand mostly on Robux-coloured buttons: the icon is the text's own white.
+	Robux = NEON.TEXT,
 }
 
 -- Neon: the style's thin dark outline; Legacy: Roblox's text stroke of the greybox signs.

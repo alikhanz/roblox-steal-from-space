@@ -514,8 +514,17 @@ local Strings = {
 		en = "Welcome back!",
 	},
 	["welcome.earned.hint"] = {
-		ru = "Тебя не было {time}. Капсулы и тренажёр работали без тебя",
-		en = "You were away {time}. Your pods and trainer kept working",
+		ru = "Тебя не было {time}",
+		en = "You were away {time}",
+	},
+	-- Under the big numbers of the welcome-back screen.
+	["welcome.pods.hint"] = {
+		ru = "принесли капсулы",
+		en = "from your pods",
+	},
+	["welcome.trainer.hint"] = {
+		ru = "накачал тренажёр",
+		en = "from your trainer",
 	},
 	["welcome.eggsReady.hint"] = {
 		ru = "Готово яиц: {count}. Вылупи их в отсеке",
@@ -1151,8 +1160,22 @@ local Strings = {
 	},
 	-- A price in Robux, as buttons show it.
 	["store.robux.hint"] = {
-		ru = "{price} R$",
-		en = "{price} R$",
+		ru = "R$ {price}",
+		en = "R$ {price}",
+	},
+	-- Column titles of the store: passes, and purchases that pay at once.
+	["store.forever.title"] = {
+		ru = "Навсегда",
+		en = "Forever",
+	},
+	["store.now.title"] = {
+		ru = "Сразу",
+		en = "Right now",
+	},
+	-- Incubator slots now and after buying one.
+	["store.slotGrow.hint"] = {
+		ru = "{from} → {to}",
+		en = "{from} → {to}",
 	},
 	["store.owned.hint"] = {
 		ru = "Куплено",
@@ -1163,8 +1186,8 @@ local Strings = {
 		en = "Double training",
 	},
 	["store.doubleTraining.hint"] = {
-		ru = "Тренажёр даёт ×{factor} ⚡, даже когда тебя нет в игре. Навсегда",
-		en = "Your trainer gives ×{factor} ⚡, even while you're away. Forever",
+		ru = "Тренажёр даёт ×{factor} ⚡, даже когда тебя нет в игре",
+		en = "Your trainer gives ×{factor} ⚡, even while you're away",
 	},
 	["store.nightShift.title"] = {
 		ru = "Ночная смена",

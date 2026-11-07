@@ -26,6 +26,10 @@ describe("Marks.split", function()
 		expect(Marks.split("●⚡")).toEqual({ { icon = "Coin" }, { icon = "Bolt" } })
 	end)
 
+	it("reads R$ as the Robux mark", function()
+		expect(Marks.split("×2 for R$ 5")).toEqual({ { text = "×2 for" }, { icon = "Robux" }, { text = "5" } })
+	end)
+
 	it("tells whether a text has a mark", function()
 		expect(Marks.has("Buy: ●77K")).toBe(true)
 		expect(Marks.has("More ⚡")).toBe(true)
