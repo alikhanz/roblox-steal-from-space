@@ -21,6 +21,9 @@ local NEON = table.freeze({
 	SPEED = hex("#FFD34A"),
 	COINS = hex("#FFC83D"),
 	OXYGEN = hex("#5FD4FF"),
+	-- Newbie protection and the egg in hand.
+	SHIELD = hex("#8FF0A0"),
+	EGG = hex("#FFE0A8"),
 	-- Menu tiles.
 	TILE = table.freeze({
 		Bay = hex("#3EA6FF"),

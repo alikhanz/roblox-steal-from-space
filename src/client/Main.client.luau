@@ -69,6 +69,7 @@ Lifecycle.run({
 		toast = toastState.push,
 		abilities = abilityState,
 		speed = speedState.speed,
+		loaded = profileState.loaded,
 		openStore = if purchaseState.available
 			then function()
 				storeController.open("Goal")

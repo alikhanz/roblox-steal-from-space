@@ -14,24 +14,25 @@ local UserInputService = game:GetService("UserInputService")
 local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
 local AbilityChips = require(script.Parent.Parent.UI.AbilityChips)
 local AbilityState = require(script.Parent.Parent.State.AbilityState)
+local ActionButton = require(script.Parent.Parent.UI.ActionButton)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
-local Button = require(script.Parent.Parent.UI.Button)
 local Crosshair = require(script.Parent.Parent.UI.Crosshair)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
-local GoalBadge = require(script.Parent.Parent.UI.GoalBadge)
+local GoalCard = require(script.Parent.Parent.UI.GoalCard)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
+local Layout = require(script.Parent.Parent.UI.Layout)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
+local ResourcePill = require(script.Parent.Parent.UI.ResourcePill)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SpeedGoal = require(ReplicatedStorage.Shared.Domain.SpeedGoal)
-local StatBadge = require(script.Parent.Parent.UI.StatBadge)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
@@ -41,7 +42,18 @@ local create = Vide.create
 local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
-local STAT_GAP = 8
+-- What a number shows before the profile arrives.
+local NOT_LOADED = "—"
+-- The first resource icon sticks out this far left of its plaque; the next one sticks into the
+-- gap between plaques, so the gap is wider than that.
+local RESOURCE_ICON_ROOM = 14
+local RESOURCE_GAP = 20
+
+local function leftPadding(pixels: number): UIPadding
+	local instance = Instance.new("UIPadding")
+	instance.PaddingLeft = UDim.new(0, pixels)
+	return instance
+end
 
 -- Every guardian's recommended stat, from the station outwards: the speed goals (SpeedGoal).
 local RECOMMENDED = (function(): { BigNum.BigNum }
@@ -59,6 +71,8 @@ export type Dependencies = {
 	abilities: AbilityState.AbilityState,
 	-- The player's speed stat.
 	speed: () -> BigNum.BigNum,
+	-- True once the profile arrived; numbers show a dash before that.
+	loaded: () -> boolean,
 	-- Opens the shop from the speed goal; nil where nothing is sold (an unpublished place).
 	openStore: (() -> ())?,
 }
@@ -76,6 +90,7 @@ function HudController.new(dependencies: Dependencies): HudController
 	-- Slow mode is on (the simulation keeps it on the character).
 	local slowMode = source(false)
 	local speed = dependencies.speed
+	local loaded = dependencies.loaded
 	local stunned = source(false)
 	-- What the current hit says: a guardian's catch, the serpent's or a player's strike.
 	local hitToast = source("guardian.caught.toast" :: Text.Key)
@@ -297,118 +312,115 @@ function HudController.new(dependencies: Dependencies): HudController
 						return Text.get(locale, hitToast())
 					end,
 				}),
+				-- The left column (docs/design/screens/hud.md): the resources in a row, the speed
+				-- goal under them. It starts under Roblox's top bar: the ScreenGui keeps the inset.
 				create("Frame")({
 					Name = "Stats",
-					-- The middle of the left edge: the top-left corner is under the chat window.
-					AnchorPoint = Vector2.new(0, 0.5),
-					Position = UDim2.new(0, Theme.MARGIN, 0.5, 0),
+					Position = UDim2.fromOffset(Theme.NEON.EDGE, Theme.NEON.GAP),
 					AutomaticSize = Enum.AutomaticSize.XY,
 					BackgroundTransparency = 1,
+					Layout.screenScale(),
 					create("UIListLayout")({
 						FillDirection = Enum.FillDirection.Vertical,
-						Padding = UDim.new(0, STAT_GAP),
+						Padding = UDim.new(0, Theme.NEON.GAP),
 						SortOrder = Enum.SortOrder.LayoutOrder,
 					}),
-					StatBadge({
-						name = "SpeedBadge",
-						title = Text.get(locale, "speed.stat.title"),
-						icon = "⚡",
-						color = Theme.SPEED,
-						value = function()
-							return BigNum.format(speed())
-						end,
-						layoutOrder = 1,
-					}),
-					-- The next guardian to grow towards, how far the stat is from it, and the way to
-					-- the training packs in the shop.
 					create("Frame")({
-						Name = "Goal",
-						LayoutOrder = 2,
+						Name = "Resources",
+						LayoutOrder = 1,
 						AutomaticSize = Enum.AutomaticSize.XY,
 						BackgroundTransparency = 1,
-						Visible = function()
-							return goal() ~= nil
-						end,
+						-- Room for the first icon, which sticks out left of its plaque.
+						leftPadding(RESOURCE_ICON_ROOM),
 						create("UIListLayout")({
 							FillDirection = Enum.FillDirection.Horizontal,
 							VerticalAlignment = Enum.VerticalAlignment.Center,
-							Padding = UDim.new(0, STAT_GAP),
+							Padding = UDim.new(0, RESOURCE_GAP),
 							SortOrder = Enum.SortOrder.LayoutOrder,
 						}),
-						GoalBadge({
-							name = "GoalBadge",
-							title = function()
-								local current = goal()
-								local key: any = if current then GuardianConfig.POSTS[current.post].nameKey else nil
-								return if key
-									then Text.get(locale, "speed.goal.title", { name = Text.get(locale, key) })
-									else ""
-							end,
+						ResourcePill({
+							name = "Speed",
+							icon = "Bolt",
+							color = Theme.NEON.SPEED,
 							value = function()
-								local current = goal()
-								return if current
-									then `{BigNum.format(speed())} / {BigNum.format(current.target)}`
-									else ""
-							end,
-							progress = function()
-								local current = goal()
-								return if current then current.progress else 1
-							end,
-							color = Theme.SPEED,
-							visible = function()
-								return goal() ~= nil
+								return if loaded() then BigNum.format(speed()) else NOT_LOADED
 							end,
 							layoutOrder = 1,
 						}),
-						if dependencies.openStore
-							then Button({
+						ResourcePill({
+							name = "Coins",
+							icon = "Coin",
+							color = Theme.NEON.COINS,
+							value = function()
+								return if loaded() then BigNum.format(dependencies.coins()) else NOT_LOADED
+							end,
+							layoutOrder = 2,
+						}),
+						-- How long nobody can rob this player (and they cannot rob anyone): last in
+						-- the row, as it goes away.
+						ResourcePill({
+							name = "Newbie",
+							icon = "Shield",
+							color = Theme.NEON.SHIELD,
+							textSize = Theme.NEON.TEXT_SECTION,
+							value = function()
+								local minutes = math.ceil(newbieSecondsLeft() / 60)
+								return Text.get(locale, "time.minutesShort.hint", { count = minutes })
+							end,
+							visible = function()
+								return newbieSecondsLeft() > 0
+							end,
+							layoutOrder = 3,
+						}),
+					}),
+					-- The next guardian to grow towards, how far the stat is from it, and the way to
+					-- the training packs in the shop.
+					GoalCard({
+						title = function()
+							local current = goal()
+							local key: any = if current then GuardianConfig.POSTS[current.post].nameKey else nil
+							return if key
+								then Text.get(locale, "speed.goal.title", { name = Text.get(locale, key) })
+								else ""
+						end,
+						value = function()
+							local current = goal()
+							return if current then `{BigNum.format(speed())} / {BigNum.format(current.target)}` else ""
+						end,
+						progress = function()
+							local current = goal()
+							return if current then current.progress else 1
+						end,
+						more = if dependencies.openStore
+							then ActionButton({
 								name = "MoreSpeed",
-								layoutOrder = 2,
 								text = Text.get(locale, "store.goal.button"),
-								color = Theme.TOAST_GOOD,
+								color = Theme.NEON.ACTION.Coins,
+								size = "Small",
 								onClick = dependencies.openStore,
 							})
 							else nil,
-					}),
-					StatBadge({
-						name = "CoinsBadge",
-						title = Text.get(locale, "coins.stat.title"),
-						icon = "●",
-						color = Theme.COINS,
-						value = function()
-							return BigNum.format(dependencies.coins())
-						end,
-						layoutOrder = 3,
-					}),
-					-- How long nobody can rob this player (and they cannot rob anyone).
-					StatBadge({
-						name = "NewbieBadge",
-						title = Text.get(locale, "pvp.newbieStat.title"),
-						icon = "🛡",
-						color = Theme.TOAST_GOOD,
-						value = function()
-							local minutes = math.ceil(newbieSecondsLeft() / 60)
-							return Text.get(locale, "time.minutesShort.hint", { count = minutes })
-						end,
+						layoutOrder = 2,
 						visible = function()
-							return newbieSecondsLeft() > 0
+							return loaded() and goal() ~= nil
 						end,
-						layoutOrder = 5,
 					}),
-					-- The egg in hand: the thief sees their own back, so the HUD says it.
-					StatBadge({
-						name = "EggBadge",
-						title = Text.get(locale, "egg.carried.hint"),
-						icon = "🥚",
-						color = Theme.TEXT,
+					-- The egg in hand: the thief sees their own back, so the HUD says it. Moves to
+					-- the bottom centre with the oxygen bar (plan step 7).
+					ResourcePill({
+						name = "CarriedEgg",
+						icon = "Egg",
+						color = Theme.NEON.EGG,
+						textSize = Theme.NEON.TEXT_SECTION,
 						value = function()
 							local rarity = readCarried()
-							return if rarity then Names.egg(locale, rarity) or rarity else ""
+							local name = if rarity then Names.egg(locale, rarity) or rarity else ""
+							return `{Text.get(locale, "egg.carried.hint")}: {name}`
 						end,
 						visible = function()
 							return readCarried() ~= nil
 						end,
-						layoutOrder = 4,
+						layoutOrder = 3,
 					}),
 				}),
 				OxygenBar({

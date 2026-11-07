@@ -193,7 +193,7 @@ SpaceSimulation (предсказание) ─> атрибуты персона�
 ## UI (клиент)
 
 - Компоненты на Vide в `src/client/UI`: без ключей локализации и без сетевых вызовов — тексты приходят готовыми, действия — колбэками. Контроллеры (`HudController`, `BayWindowController`) собирают тексты через `Text.get`, читают `ProfileState` и отправляют команды через `Remotes`.
-- `Theme` — палитра и шрифт; `Layout` — `UIPadding`/`UISizeConstraint`/`UIStroke`, которых нет в типах Vide; `Button`, `StatBadge`, `WorldLabel`, `AlienCard`, `Toasts` — переиспользуемые детали.
+- `Theme` — палитра и шрифт: `Theme.NEON` — утверждённый стиль ([design/DESIGN.md](design/DESIGN.md)), плоские токены — грейбокс окон до их брифов. `Layout` — `UIPadding`/`UISizeConstraint`/`UIStroke`, которых нет в типах Vide, и детали стиля: масштаб экрана (`screenScale`), обводка текста, цветное стекло (`glass`). `Icons` — номера загруженных иконок (белые, цвет даёт `ImageColor3`; исходники SVG в `assets/ui`, `lune run icons`). Переиспользуемые детали: неоновые `ResourcePill`, `GoalCard`, `ActionButton`; старые `Button`, `WorldLabel`, `AlienCard`, `Toasts`.
 - Маяк станции (`StationBeaconController`, компонент `StationBeacon`) — экранная метка, а не BillboardGui: каждый кадр точка над куполом проецируется камерой, `Domain/ScreenMarker` (чистый, с тестом) решает, стоять метке над куполом или у края экрана со стрелкой. Так метка видна с любого расстояния и не зависит от стриминга станции.
 - Имена пришельцев и яиц собирает `Locale/Names` (чистый модуль с тестом): пришелец — «ступень · страж», пока у пришельцев нет своих имён.
 

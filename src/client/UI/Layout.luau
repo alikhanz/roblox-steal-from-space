@@ -114,20 +114,43 @@ function Layout.iconColor(color: Color3): Color3
 	return color:Lerp(Color3.new(1, 1, 1), Theme.NEON.ICON_LIGHTEN)
 end
 
--- Coloured glass for an element whose BackgroundColor3 is `color` and BackgroundTransparency
--- is 0: a fill fading downwards and an outline (DESIGN.md, "Как цвет ложится на кнопку").
--- `dense` is the thicker fill of action buttons. Returns the instances to put among children.
-function Layout.glass(color: Color3, dense: boolean?): { Instance }
+-- Coloured glass on an element with no background of its own: a fill of `color` fading
+-- downwards and an outline (DESIGN.md, "Как цвет ложится на кнопку"). The fill is a child
+-- frame, not the element's background: a gradient on a text element would fade its text too.
+-- Put the element's own content above it (a higher ZIndex). `dense` is the thicker fill of
+-- action buttons. Returns the instances to put among children.
+function Layout.glass(color: Color3, corner: UDim, dense: boolean?): { Instance }
 	local top = if dense then Theme.NEON.DENSE_FILL_TOP else Theme.NEON.FILL_TOP
 	local bottom = if dense then Theme.NEON.DENSE_FILL_BOTTOM else Theme.NEON.FILL_BOTTOM
+	local fill = Instance.new("Frame")
+	fill.Name = "Glass"
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.BackgroundColor3 = color
+	fill.BorderSizePixel = 0
+	fill.ZIndex = 0
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = corner
+	fillCorner.Parent = fill
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 90
 	gradient.Transparency = NumberSequence.new(top, bottom)
+	gradient.Parent = fill
 	local outline = Instance.new("UIStroke")
 	outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	outline.Color = Layout.lineColor(color)
 	outline.Thickness = Theme.NEON.LINE_THICKNESS
-	return { gradient, outline }
+	return { fill, outline }
+end
+
+-- Plain glass for a panel or plaque: the dark see-through background and the faint cyan line.
+-- Set on an element whose children sit above its background anyway.
+function Layout.panelLine(): UIStroke
+	local outline = Instance.new("UIStroke")
+	outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	outline.Color = Theme.NEON.LINE
+	outline.Transparency = Theme.NEON.LINE_TRANSPARENCY
+	outline.Thickness = 1
+	return outline
 end
 
 return table.freeze(Layout)
