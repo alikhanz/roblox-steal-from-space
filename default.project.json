@@ -21,6 +21,9 @@
 			}
 		},
 		"StarterPlayer": {
+			"$properties": {
+				"DevTouchMovementMode": "Thumbstick"
+			},
 			"StarterPlayerScripts": {
 				"Client": {
 					"$path": "src/client"
