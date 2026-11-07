@@ -9,6 +9,7 @@ local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
 
 local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
@@ -178,6 +179,22 @@ function HudController.new(dependencies: Dependencies): HudController
 	local function start()
 		local player = Players.LocalPlayer
 		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		-- Roblox's chat window opens top-left by default, over the HUD's left column, and the
+		-- player list holds the top-right corner. With a keyboard or a gamepad the chat goes to the
+		-- bottom-right corner (the action icons are in the bottom centre); on a touch screen, where
+		-- the flight buttons take the bottom-right and the chat and the player list start closed,
+		-- it opens top-right (docs/design/DESIGN.md, screen zones).
+		local chatWindow = TextChatService:FindFirstChildOfClass("ChatWindowConfiguration")
+		local function placeChat()
+			if not chatWindow then
+				return
+			end
+			local touch = UserInputService.PreferredInput == Enum.PreferredInput.Touch
+			chatWindow.HorizontalAlignment = Enum.HorizontalAlignment.Right
+			chatWindow.VerticalAlignment = if touch then Enum.VerticalAlignment.Top else Enum.VerticalAlignment.Bottom
+		end
+		placeChat()
+		UserInputService:GetPropertyChangedSignal("PreferredInput"):Connect(placeChat)
 
 		local function fraction(): number
 			return Oxygen.fraction(oxygen(), OxygenConfig.CAPACITY)
