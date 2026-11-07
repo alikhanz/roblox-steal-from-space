@@ -41,35 +41,58 @@ end)
 describe("Zones.nextInSpace", function()
 	it("keeps the jetpack while flying in until over the floor", function()
 		-- Inside the dome sphere, but past the platform's edge: still flying.
-		expect(Zones.nextInSpace(true, Vector3.new(44, 10, 0), STATION, MARGIN)).toBe(true)
+		expect(Zones.nextInSpace(true, Vector3.new(44, 10, 0), { STATION }, MARGIN)).toBe(true)
 		-- Over the edge, but not yet past the margin: still flying.
-		expect(Zones.nextInSpace(true, Vector3.new(38, 10, 0), STATION, MARGIN)).toBe(true)
+		expect(Zones.nextInSpace(true, Vector3.new(38, 10, 0), { STATION }, MARGIN)).toBe(true)
 		-- Well over the floor: lands.
-		expect(Zones.nextInSpace(true, Vector3.new(36, 10, 0), STATION, MARGIN)).toBe(false)
+		expect(Zones.nextInSpace(true, Vector3.new(36, 10, 0), { STATION }, MARGIN)).toBe(false)
 	end)
 
 	it("starts flying just past the rim when walking off the edge", function()
-		expect(Zones.nextInSpace(false, Vector3.new(42, 3, 0), STATION, MARGIN)).toBe(false)
-		expect(Zones.nextInSpace(false, Vector3.new(44, 3, 0), STATION, MARGIN)).toBe(true)
+		expect(Zones.nextInSpace(false, Vector3.new(42, 3, 0), { STATION }, MARGIN)).toBe(false)
+		expect(Zones.nextInSpace(false, Vector3.new(44, 3, 0), { STATION }, MARGIN)).toBe(true)
 	end)
 
 	it("keeps walking on the floor boundary and flies only past the margin below it", function()
-		expect(Zones.nextInSpace(false, Vector3.new(0, -4, 0), STATION, MARGIN)).toBe(false)
-		expect(Zones.nextInSpace(false, Vector3.new(0, -8, 0), STATION, MARGIN)).toBe(true)
+		expect(Zones.nextInSpace(false, Vector3.new(0, -4, 0), { STATION }, MARGIN)).toBe(false)
+		expect(Zones.nextInSpace(false, Vector3.new(0, -8, 0), { STATION }, MARGIN)).toBe(true)
 	end)
 
 	it("does not flip while hovering exactly on the boundary", function()
 		local boundary = Vector3.new(40, 10, 0)
 		local inSpace = true
 		for _ = 1, 10 do
-			inSpace = Zones.nextInSpace(inSpace, boundary, STATION, MARGIN)
+			inSpace = Zones.nextInSpace(inSpace, boundary, { STATION }, MARGIN)
 		end
 		expect(inSpace).toBe(true)
 
 		local walking = false
 		for _ = 1, 10 do
-			walking = Zones.nextInSpace(walking, boundary, STATION, MARGIN)
+			walking = Zones.nextInSpace(walking, boundary, { STATION }, MARGIN)
 		end
 		expect(walking).toBe(false)
+	end)
+end)
+
+describe("Zones with several stations", function()
+	-- A second station (an island) far off along +X: the same shape, centred at x = 200.
+	local ISLAND: Zones.Station = {
+		domeCenter = Vector3.new(200, 30, 0),
+		domeRadius = 50,
+		platformCenter = Vector3.new(200, 0, 0),
+		platformRadius = 40,
+		floorY = -4,
+	}
+	local BOTH = { STATION, ISLAND }
+
+	it("tells which station a position is in, or none out in space", function()
+		expect(Zones.stationAt(Vector3.new(0, 3, 0), BOTH)).toBe(1)
+		expect(Zones.stationAt(Vector3.new(210, 3, 0), BOTH)).toBe(2)
+		expect(Zones.stationAt(Vector3.new(100, 3, 0), BOTH)).toBe(nil)
+	end)
+
+	it("walks on any of them and flies between them", function()
+		expect(Zones.nextInSpace(true, Vector3.new(200, 5, 0), BOTH, MARGIN)).toBe(false)
+		expect(Zones.nextInSpace(false, Vector3.new(100, 5, 0), BOTH, MARGIN)).toBe(true)
 	end)
 end)

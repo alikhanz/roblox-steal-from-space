@@ -30,11 +30,31 @@ function Zones.isInStation(position: Vector3, station: Station): boolean
 	return depthInside(position, station) >= 0
 end
 
--- Decides the next mode with hysteresis, so a character hovering on the boundary does not flip
--- between flying and walking every step: switching to walking needs `margin` studs inside,
--- switching to flying needs `margin` studs outside.
-function Zones.nextInSpace(wasInSpace: boolean, position: Vector3, station: Station, margin: number): boolean
-	local depth = depthInside(position, station)
+-- The deepest of `stations` around a position (the central station and the islands, decision
+-- 068, never overlap): how deep, and which one.
+local function deepest(position: Vector3, stations: { Station }): (number, number?)
+	local best = -math.huge
+	local index: number? = nil
+	for place, station in stations do
+		local depth = depthInside(position, station)
+		if depth > best then
+			best, index = depth, place
+		end
+	end
+	return best, index
+end
+
+-- Which of `stations` a position is in, by its place in the list; nil out in space.
+function Zones.stationAt(position: Vector3, stations: { Station }): number?
+	local depth, index = deepest(position, stations)
+	return if depth >= 0 then index else nil
+end
+
+-- Decides the next mode with hysteresis, so a character hovering on a boundary does not flip
+-- between flying and walking every step: switching to walking needs `margin` studs inside any
+-- of `stations`, switching to flying needs `margin` studs outside all of them.
+function Zones.nextInSpace(wasInSpace: boolean, position: Vector3, stations: { Station }, margin: number): boolean
+	local depth = deepest(position, stations)
 	if wasInSpace then
 		return depth < margin
 	end

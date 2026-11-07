@@ -17,6 +17,7 @@ local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.WorldConfig)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
+local Zones = require(ReplicatedStorage.Shared.Domain.Zones)
 
 local WORLD_FOLDER_NAME = "World"
 local NESTS_FOLDER_NAME = "Nests"
@@ -50,8 +51,10 @@ export type NestSite = {
 export type WorldService = {
 	name: string,
 	start: () -> (),
-	-- Where players respawn; nil before the world is built.
+	-- Where players spawn at first, on the central station; nil before the world is built.
 	getSpawn: () -> SpawnLocation?,
+	-- The spawn on island `index` (its owner's home, decision 068); nil before the world is built.
+	getIslandSpawn: (index: number) -> SpawnLocation?,
 	-- Nest locations; empty before the world is built.
 	getNestSites: () -> { NestSite },
 	-- The coin board stand on the platform; nil before the world is built.
@@ -83,8 +86,7 @@ end
 
 -- Stepped hull under the platform. Each step is a little wider than the dome sphere at its top,
 -- so the part of the sphere below the platform stays hidden inside the hull.
-local function buildHull(parent: Instance)
-	local station = StationConfig.STATION
+local function buildHull(parent: Instance, station: Zones.Station)
 	local sphereBottomY = station.domeCenter.Y - station.domeRadius
 	local depth = station.floorY - sphereBottomY
 	if depth <= 0 then
@@ -147,11 +149,12 @@ local function buildBorder(parent: Instance)
 	folder.Parent = parent
 end
 
-local function buildStation(parent: Instance): SpawnLocation
-	local station = StationConfig.STATION
-	local platformCenter = StationConfig.PLATFORM_CENTER - Vector3.yAxis * StationConfig.PLATFORM_THICKNESS / 2
+-- A platform under its dome (the central station or an island, decision 068): the walkable
+-- floor, a glowing rim, the dome's shell and the hull under it, in `parent`.
+local function buildDomedPlatform(parent: Instance, station: Zones.Station)
+	local platformCenter = station.platformCenter - Vector3.yAxis * StationConfig.PLATFORM_THICKNESS / 2
 
-	local platform = disc("Platform", platformCenter, StationConfig.PLATFORM_RADIUS, StationConfig.PLATFORM_THICKNESS)
+	local platform = disc("Platform", platformCenter, station.platformRadius, StationConfig.PLATFORM_THICKNESS)
 	platform.Material = Enum.Material.DiamondPlate
 	platform.Color = PLATFORM_COLOR
 	platform.Anchored = true
@@ -161,7 +164,7 @@ local function buildStation(parent: Instance): SpawnLocation
 	local rim = disc(
 		"Rim",
 		platformCenter,
-		StationConfig.PLATFORM_RADIUS + StationConfig.RIM_WIDTH,
+		station.platformRadius + StationConfig.RIM_WIDTH,
 		StationConfig.PLATFORM_THICKNESS / 2
 	)
 	rim.Material = Enum.Material.Neon
@@ -182,19 +185,43 @@ local function buildStation(parent: Instance): SpawnLocation
 	scenery(shell)
 	shell.Parent = parent
 
+	buildHull(parent, station)
+end
+
+-- A spawn point at `position`: any player may spawn there.
+local function spawnAt(name: string, position: Vector3, parent: Instance): SpawnLocation
 	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = "StationSpawn"
+	spawn.Name = name
 	spawn.Size = Vector3.new(8, 1, 8)
-	spawn.CFrame = CFrame.new(StationConfig.PLATFORM_CENTER + StationConfig.SPAWN_OFFSET)
+	spawn.CFrame = CFrame.new(position)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Anchored = true
 	spawn.CanTouch = false
 	spawn.Parent = parent
+	return spawn
+end
 
-	buildHull(parent)
+local function buildStation(parent: Instance): SpawnLocation
+	buildDomedPlatform(parent, StationConfig.STATION)
+	local spawn = spawnAt("StationSpawn", StationConfig.PLATFORM_CENTER + StationConfig.SPAWN_OFFSET, parent)
 	buildBorder(parent)
 	return spawn
+end
+
+-- The islands around the station, one per player's bay (decision 068), each with the spawn of
+-- its owner. Returns the spawns in island order.
+local function buildIslands(parent: Instance): { SpawnLocation }
+	local spawns: { SpawnLocation } = {}
+	for index, island in StationConfig.ISLANDS do
+		local folder = Instance.new("Folder")
+		folder.Name = `Island{index}`
+		buildDomedPlatform(folder, island)
+		local frame = StationConfig.ISLAND_FRAMES[index]
+		spawns[index] = spawnAt("IslandSpawn", (frame * CFrame.new(StationConfig.ISLAND_SPAWN_OFFSET)).Position, folder)
+		folder.Parent = parent
+	end
+	return spawns
 end
 
 local function randomInField(random: Random): Vector3
@@ -440,6 +467,7 @@ end
 
 function WorldService.new(): WorldService
 	local spawn: SpawnLocation? = nil
+	local islandSpawns: { SpawnLocation } = {}
 	local nestSites: { NestSite } = {}
 	local coinBoard: Model? = nil
 
@@ -451,6 +479,7 @@ function WorldService.new(): WorldService
 		local world = Instance.new("Folder")
 		world.Name = WORLD_FOLDER_NAME
 		spawn = buildStation(world)
+		islandSpawns = buildIslands(world)
 		local shop = ShopModel.build()
 		CollectionService:AddTag(shop, ShopConfig.TAG)
 		shop.Parent = world
@@ -471,6 +500,9 @@ function WorldService.new(): WorldService
 		start = start,
 		getSpawn = function()
 			return spawn
+		end,
+		getIslandSpawn = function(index)
+			return islandSpawns[index]
 		end,
 		getNestSites = function()
 			return nestSites

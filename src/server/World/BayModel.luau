@@ -31,13 +31,10 @@ local function disc(name: string, cframe: CFrame, radius: number, thickness: num
 	return part
 end
 
--- The frame of bay `slot` (1-based): on the ring, on the platform floor, facing the center.
+-- The frame of bay `slot` (1-based): the middle of its island's floor, facing the station center
+-- (decision 068).
 function BayModel.origin(slot: number): CFrame
-	local angle = (slot - 1) / BayLooks.BAY_COUNT * math.pi * 2
-	local center = StationConfig.PLATFORM_CENTER
-	local position = center
-		+ Vector3.new(math.cos(angle) * BayLooks.RING_RADIUS, 0, math.sin(angle) * BayLooks.RING_RADIUS)
-	return CFrame.lookAt(position, Vector3.new(center.X, position.Y, center.Z))
+	return StationConfig.ISLAND_FRAMES[slot]
 end
 
 local PODS_PER_TIER = BayLooks.POD_ROWS * BayLooks.PODS_PER_ROW

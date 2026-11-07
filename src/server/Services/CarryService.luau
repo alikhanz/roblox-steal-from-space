@@ -19,10 +19,27 @@ local EggModel = require(script.Parent.Parent.World.EggModel)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+local Zones = require(ReplicatedStorage.Shared.Domain.Zones)
 
 -- Knocked-out eggs stay outside this sphere (see EggConfig.DOME_MARGIN).
 local DOME_CENTER = StationConfig.STATION.domeCenter
-local EGG_DOME_RADIUS = StationConfig.STATION.domeRadius + EggConfig.DOME_MARGIN
+
+-- Loose eggs stay out of every dome (the central station's and the islands', decision 068): a
+-- position pushed out of each, a velocity kept from heading into any.
+local function outsideDomes(position: Vector3): Vector3
+	for _, station in StationConfig.STATIONS do
+		position = Bounds.pushOutside(position, station.domeCenter, station.domeRadius + EggConfig.DOME_MARGIN)
+	end
+	return position
+end
+
+local function keepOutsideDomes(position: Vector3, velocity: Vector3): Vector3
+	for _, station in StationConfig.STATIONS do
+		velocity =
+			Bounds.keepOutside(position, velocity, station.domeCenter, station.domeRadius + EggConfig.DOME_MARGIN)
+	end
+	return velocity
+end
 
 -- The server accepts a grab a little beyond the reach, for latency between client and server.
 local REACH_TOLERANCE = 3
@@ -67,6 +84,9 @@ export type Dependencies = {
 		variant: AlienConfig.VariantId?,
 		luck: number?
 	) -> boolean,
+	-- The island of the player's bay (StationConfig.ISLANDS); nil until they have one. An egg is
+	-- delivered on the central station or on that island, not on someone else's (decision 068).
+	getHomeIsland: (player: Player) -> number?,
 }
 
 -- An egg as the other services see it: with its grade (nil if its nest has none).
@@ -204,7 +224,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		part.Name = `LooseEgg{looseCounter}`
 		part.Anchored = true
 		-- An egg knocked loose inside the dome pops out through it.
-		part.CFrame = CFrame.new(Bounds.pushOutside(position, DOME_CENTER, EGG_DOME_RADIUS))
+		part.CFrame = CFrame.new(outsideDomes(position))
 		part:SetAttribute(EggConfig.LOOSE_EGG_GRADE_ATTRIBUTE, dependencies.getHomeGrade(egg.nestId))
 		part:SetAttribute(EggConfig.LOOSE_EGG_DROPPED_BY_ATTRIBUTE, if owner then owner.UserId else nil)
 		part.Parent = folder
@@ -251,12 +271,10 @@ function CarryService.new(dependencies: Dependencies): CarryService
 				continue
 			end
 			local part = entry.part
-			entry.velocity = Bounds.keepOutside(part.Position, entry.velocity, DOME_CENTER, EGG_DOME_RADIUS)
+			entry.velocity = keepOutsideDomes(part.Position, entry.velocity)
 			local spin = EggConfig.DROP_SPIN_RATE * deltaTime
 			local moved = part.Position + entry.velocity * deltaTime
-			part.CFrame = CFrame.new(Bounds.pushOutside(moved, DOME_CENTER, EGG_DOME_RADIUS))
-				* part.CFrame.Rotation
-				* CFrame.Angles(spin, spin * 0.6, 0)
+			part.CFrame = CFrame.new(outsideDomes(moved)) * part.CFrame.Rotation * CFrame.Angles(spin, spin * 0.6, 0)
 			entry.velocity *= EggConfig.DROP_RETENTION_PER_SECOND ^ deltaTime
 			if entry.velocity.Magnitude < DRIFT_REST_SPEED then
 				entry.velocity = Vector3.zero
@@ -304,6 +322,16 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		end
 	end
 
+	-- The central station (first in StationConfig.STATIONS) or the player's own island.
+	local function isHome(player: Player, position: Vector3): boolean
+		local station = Zones.stationAt(position, StationConfig.STATIONS)
+		if station == 1 then
+			return true
+		end
+		local island = dependencies.getHomeIsland(player)
+		return station ~= nil and island ~= nil and station == island + 1
+	end
+
 	local function deliver(player: Player)
 		local entry = carried[player]
 		if not entry then
@@ -339,8 +367,12 @@ function CarryService.new(dependencies: Dependencies): CarryService
 				entry.reachedStation = true
 				reachedStation.fire(player, publicOf(entry.egg))
 			end
-			-- Back on the station platform with an egg: delivered.
-			if carried[player] and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == false then
+			-- Landed with an egg on the central station or on the player's own island: delivered.
+			if
+				carried[player]
+				and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == false
+				and isHome(player, root.Position)
+			then
 				deliver(player)
 			end
 		end

@@ -319,7 +319,7 @@ local function step(deltaTime: number)
 
 		local previous = rig.character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE)
 		local inSpace =
-			Zones.nextInSpace(previous == true, rig.root.Position, StationConfig.STATION, StationConfig.ZONE_MARGIN)
+			Zones.nextInSpace(previous == true, rig.root.Position, StationConfig.STATIONS, StationConfig.ZONE_MARGIN)
 		-- Compared with the raw attribute so a fresh character (nil) gets an explicit value.
 		if previous ~= inSpace then
 			rig.character:SetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE, inSpace)

@@ -43,6 +43,8 @@ export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
 	scheduler: Scheduler.Scheduler,
+	-- The spawn on island `index`: a player respawns on their own island (decision 068).
+	getIslandSpawn: (index: number) -> SpawnLocation?,
 }
 
 export type BayService = {
@@ -52,6 +54,8 @@ export type BayService = {
 	refresh: (player: Player) -> (),
 	-- The bay's frame on the platform; nil until the player has one.
 	getOrigin: (player: Player) -> CFrame?,
+	-- The island the player's bay stands on (StationConfig.ISLANDS); nil until they have one.
+	getIsland: (player: Player) -> number?,
 	-- Puts an egg into the incubator; it hatches after its rarity's random time, into an alien of
 	-- `variant` (the usual one when nil), with `luck` on top of its own (EggConfig.luckOf). False
 	-- without an active profile.
@@ -345,17 +349,41 @@ function BayService.new(dependencies: Dependencies): BayService
 		return if data then Bay.incomePerSecond(data, incomeOf) else BigNum.ZERO
 	end
 
+	-- Islands taken on joining, before the bay is built (it waits for the profile).
+	local reserved: { [Player]: number } = {}
+
+	-- A joining player gets their island at once (decision 068): its spawn becomes theirs before
+	-- their first character appears, so they start at home.
+	local function reserve(player: Player)
+		if reserved[player] or bays[player] then
+			return
+		end
+		local slot = freeSlot()
+		if not slot then
+			warn(`[BayService] No island for {player.Name}: all taken`)
+			return
+		end
+		slotOwners[slot] = player
+		reserved[player] = slot
+		local spawn = dependencies.getIslandSpawn(slot)
+		if spawn then
+			player.RespawnLocation = spawn
+		end
+	end
+
 	-- Eggs that became ready while the player was away wait in their slots, ready to hatch.
 	local function assign(player: Player)
 		if bays[player] or player.Parent ~= Players then
 			return
 		end
-		local slot = freeSlot()
+		reserve(player)
+		local slot = reserved[player]
 		local parent = folder
 		if not slot or not parent then
 			warn(`[BayService] No bay for {player.Name}: {if slot then "world not built" else "all slots taken"}`)
 			return
 		end
+		reserved[player] = nil
 		local origin = BayModel.origin(slot)
 		local model = BayModel.build(slot, origin)
 		model:SetAttribute(BayConfig.OWNER_ID_ATTRIBUTE, player.UserId)
@@ -370,6 +398,11 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	local function release(player: Player)
+		local slot = reserved[player]
+		if slot then
+			reserved[player] = nil
+			slotOwners[slot] = nil
+		end
 		local bay = bays[player]
 		if not bay then
 			return
@@ -543,6 +576,10 @@ function BayService.new(dependencies: Dependencies): BayService
 		bayFolder.Parent = world or workspace
 		folder = bayFolder
 
+		Players.PlayerAdded:Connect(reserve)
+		for _, player in Players:GetPlayers() do
+			reserve(player)
+		end
 		dependencies.activated.connect(assign)
 		Players.PlayerRemoving:Connect(release)
 		dependencies.scheduler.every(BayConfig.INCOME_TICK_SECONDS, tick)
@@ -555,6 +592,10 @@ function BayService.new(dependencies: Dependencies): BayService
 		getOrigin = function(player: Player): CFrame?
 			local bay = bays[player]
 			return if bay then bay.origin else nil
+		end,
+		getIsland = function(player: Player): number?
+			local bay = bays[player]
+			return if bay then bay.slot else reserved[player]
 		end,
 		addEgg = addEgg,
 		addAlien = addAlien,

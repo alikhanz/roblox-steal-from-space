@@ -59,6 +59,7 @@ local bayService = BayService.new({
 	getData = profile.getData,
 	update = profile.update,
 	scheduler = scheduler,
+	getIslandSpawn = worldService.getIslandSpawn,
 })
 local economyService = EconomyService.new({
 	getData = profile.getData,
@@ -156,6 +157,7 @@ local carryService = CarryService.new({
 	homeEggDelivered = eggHomes.delivered,
 	getHomeGrade = eggHomes.grade,
 	deliverEgg = bayService.addEgg,
+	getHomeIsland = bayService.getIsland,
 })
 
 -- A brand-new player's first gift unlocks with their first delivery, once the analytics have

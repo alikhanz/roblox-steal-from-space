@@ -2,13 +2,11 @@
 -- How bays look and where their parts stand. Positions are in a bay's own frame: X to the right,
 -- -Z toward the platform center, Y up from the platform floor. Pure numbers live in BayConfig.
 
-local ServerConfig = require("./ServerConfig")
-local StationConfig = require("./StationConfig")
+local StationSize = require("./StationSize")
 
--- Bays stand on a ring around the platform center, each facing inward; it follows the station's
--- size.
-local RING_RADIUS = StationConfig.BAY_RING_RADIUS
-local BAY_COUNT = ServerConfig.MAX_PLAYERS
+-- One bay on each island around the station (decision 068; the islands' places are in
+-- StationConfig).
+local BAY_COUNT = StationSize.ISLAND_COUNT
 
 -- Pods stand in two tiers of three rows: the lower tier on the floor fills first, the upper
 -- one floats right above it, so 30 pods fit in the footprint of the bay.
@@ -22,7 +20,6 @@ local POD_ROW_Z = { -2, -5, -8 }
 local POD_TIER_HEIGHT = 4.4
 
 return table.freeze({
-	RING_RADIUS = RING_RADIUS,
 	BAY_COUNT = BAY_COUNT,
 
 	BASE_SIZE = Vector3.new(26, 0.4, 18),

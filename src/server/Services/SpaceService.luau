@@ -161,8 +161,10 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 
 	local function onPlayerAdded(player: Player)
 		FlightInputs.create().Parent = player
+		-- The central station's spawn only for a player without an island yet: BayService puts
+		-- every joining player's spawn on their own island (decision 068).
 		local spawn = dependencies.getSpawn()
-		if spawn then
+		if spawn and not player.RespawnLocation then
 			player.RespawnLocation = spawn
 		end
 		player.CharacterAdded:Connect(equip)

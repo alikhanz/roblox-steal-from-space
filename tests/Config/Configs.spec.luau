@@ -14,6 +14,7 @@ local MeteorConfig = require("../../src/shared/Config/MeteorConfig")
 local MeteorShower = require("../../src/shared/Domain/MeteorShower")
 local MonetizationConfig = require("../../src/shared/Config/MonetizationConfig")
 local SerpentConfig = require("../../src/shared/Config/SerpentConfig")
+local ServerConfig = require("../../src/shared/Config/ServerConfig")
 local Speed = require("../../src/shared/Domain/Speed")
 local SpeedConfig = require("../../src/shared/Config/SpeedConfig")
 local StationSize = require("../../src/shared/Config/StationSize")
@@ -271,6 +272,20 @@ describe("StationSize", function()
 
 	it("puts the storm's edge on the station border, where guardians stop", function()
 		expect(StormConfig.RANGE_RADIUS).toBe(StationSize.BORDER_RADIUS)
+	end)
+
+	it("rings the islands around the station dome, apart and inside the border (decision 068)", function()
+		local ring = StationSize.ISLAND_RING_RADIUS
+		local dome = StationSize.ISLAND_DOME_RADIUS
+		expect(StationSize.ISLAND_COUNT).toBe(ServerConfig.MAX_PLAYERS)
+		expect(StationSize.ISLAND_DOME_RADIUS > StationSize.ISLAND_RADIUS).toBe(true)
+		-- Neighbouring island domes do not touch.
+		local neighbours = 2 * ring * math.sin(math.pi / StationSize.ISLAND_COUNT)
+		expect(neighbours > 2 * dome).toBe(true)
+		-- Nor does an island's dome touch the central one.
+		expect(ring - dome > StationSize.DOME_RADIUS).toBe(true)
+		-- The whole ring is inside the border, where guardians stop.
+		expect(ring + dome < StationSize.BORDER_RADIUS).toBe(true)
 	end)
 end)
 
