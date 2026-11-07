@@ -193,7 +193,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 			end
 			local paid = { coins = BigNum.format(reward.coins), speed = BigNum.format(reward.speed) }
 			-- The egg needs no toast of its own: the bay cheers every new egg in the incubator.
-			toast(text("gift.rewarded.toast", paid), Theme.TOAST_GOOD)
+			toast(text("gift.rewarded.toast", paid), "Gift")
 			task.delay(CLOSE_AFTER_CLAIM_SECONDS, function()
 				isOpen(false)
 			end)

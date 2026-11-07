@@ -23,7 +23,6 @@ local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
-local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
@@ -248,7 +247,7 @@ function IndexController.new(dependencies: Dependencies): IndexController
 		local message = if count == 1
 			then text("index.discovered.toast")
 			else text("index.discoveredMany.toast", { count = count })
-		toast(message, Theme.TOAST_GOOD)
+		toast(message, "Alien")
 	end
 	local function watchFinds()
 		local found = profile.index().found
@@ -346,7 +345,7 @@ function IndexController.new(dependencies: Dependencies): IndexController
 		})
 
 		profile.indexRewarded.connect(function(coins)
-			toast(text("index.rewarded.toast", { coins = BigNum.format(coins) }), Theme.TOAST_GOOD)
+			toast(text("index.rewarded.toast", { coins = BigNum.format(coins) }), "Coins")
 		end)
 	end
 

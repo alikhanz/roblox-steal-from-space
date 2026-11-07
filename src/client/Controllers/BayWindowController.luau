@@ -311,7 +311,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		local previous = incubatorCount
 		incubatorCount = count
 		if previous ~= nil and count > previous then
-			toast(text("egg.delivered.toast"), Theme.TOAST_GOOD)
+			toast(text("egg.delivered.toast"), "Egg")
 		end
 	end
 
@@ -689,7 +689,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 		local function announce(key: Text.Key, alienId: string, location: ProfileState.Location)
 			local args = { name = Names.alien(locale, alienId) or "?", place = placeText(location) }
-			toast(text(key, args), Theme.TOAST_GOOD)
+			toast(text(key, args), "Alien")
 		end
 		-- Hatches arrive one event each; several at once become one toast.
 		local pendingHatches: { { alienId: string, location: ProfileState.Location } } = {}
@@ -704,7 +704,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 				if #batch == 1 then
 					announce("alien.hatched.toast", batch[1].alienId, batch[1].location)
 				else
-					toast(text("alien.hatchedMany.toast", { count = #batch }), Theme.TOAST_GOOD)
+					toast(text("alien.hatchedMany.toast", { count = #batch }), "Alien")
 				end
 			end)
 		end)
@@ -713,7 +713,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		end)
 		profile.notice.connect(function(notice)
 			local key: Text.Key = (NOTICE_KEYS :: any)[notice] or "notice.unknownAlien.toast"
-			toast(text(key), Theme.TOAST_BAD)
+			toast(text(key), "Bad")
 		end)
 		profile.offlineReward.connect(function(coins, speed, seconds, readyEggs, doubleTier)
 			purchases.refreshPrices()

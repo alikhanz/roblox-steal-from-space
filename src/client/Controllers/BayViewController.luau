@@ -12,10 +12,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
@@ -27,6 +30,7 @@ local Theme = require(script.Parent.Parent.UI.Theme)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local Vide = require(ReplicatedStorage.Packages.Vide)
+local WorldChip = require(script.Parent.Parent.UI.WorldChip)
 local WorldLabel = require(script.Parent.Parent.UI.WorldLabel)
 
 local PART_WAIT_TIMEOUT = 10
@@ -107,6 +111,13 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 	-- Mounts a label once the part is there; the server builds models part by part.
 	-- Signs with buttons mount here: a BillboardGui takes clicks only from inside PlayerGui.
 	local playerGui: Instance? = nil
+
+	-- An egg's rarity colour for its chip (EggLooks), the egg's colour when unknown.
+	local function eggColor(part: BasePart): Color3
+		local rarity = part:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
+		local look = if type(rarity) == "string" then (EggLooks.RARITIES :: any)[rarity] else nil
+		return if look then look.color else Theme.NEON.EGG
+	end
 
 	-- Mounts a label once the part is there; the server builds models part by part. `clickable`
 	-- puts the sign into PlayerGui (adorned to the part) so its button works.
@@ -286,13 +297,14 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 			warn(`[BayViewController] {instance:GetFullName()} has no known alien; no label`)
 			return
 		end
-		local income = BigNum.format(AlienConfig.ALIENS[alienId].income)
+		local alien = AlienConfig.ALIENS[alienId]
+		local income = BigNum.format(alien.income)
+		-- A short chip: the tier's colour and the income; the full name is in the bay window.
 		label(instance, "Body", function(part)
-			return WorldLabel({
+			return WorldChip({
 				adornee = part,
-				title = title,
-				value = Text.get(locale, "alien.income.hint", { income = income }),
-				valueColor = Theme.SPEED,
+				dot = AlienLooks.TIERS[alien.tier].color,
+				text = Text.get(locale, "alien.income.hint", { income = income }),
 				studsAbove = ALIEN_STUDS_ABOVE,
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),
@@ -372,11 +384,13 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				remaining(if left > 0 then Duration.clock(left) else Text.get(locale, "egg.ready.hint"))
 			end
 			tick()
-			return WorldLabel({
+			local color = eggColor(part)
+			return WorldChip({
 				adornee = part,
-				title = "",
-				value = remaining,
-				valueColor = Theme.SPEED,
+				icon = "Egg",
+				iconColor = color,
+				text = remaining,
+				color = color,
 				studsAbove = EGG_STUDS_ABOVE,
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),
@@ -386,11 +400,12 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 
 	local function watchWaitingEgg(instance: Instance)
 		label(instance, nil, function(part)
-			return WorldLabel({
+			return WorldChip({
 				adornee = part,
-				title = "",
-				value = Text.get(locale, "egg.waiting.hint"),
-				valueColor = Theme.MUTED,
+				icon = "Egg",
+				iconColor = eggColor(part),
+				text = Text.get(locale, "egg.waiting.hint"),
+				color = Theme.NEON.MUTED,
 				studsAbove = EGG_STUDS_ABOVE,
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),

@@ -21,7 +21,6 @@ local Remotes = require(script.Parent.Parent.Net.Remotes)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local ShopWindow = require(script.Parent.Parent.UI.ShopWindow)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
-local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
@@ -176,7 +175,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 					buyAsked = false
 					dependencies.toasts.push(
 						text("shop.bought.toast", { name = Names.jetpack(locale, level) }),
-						Theme.TOAST_GOOD
+						"Speed"
 					)
 				end
 				lastLevel = level

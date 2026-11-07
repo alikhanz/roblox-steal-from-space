@@ -38,6 +38,7 @@ local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SpeedGoal = require(ReplicatedStorage.Shared.Domain.SpeedGoal)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
+local Toasts = require(script.Parent.Parent.UI.Toasts)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
 local Tutorial = require(ReplicatedStorage.Shared.Domain.Tutorial)
 local TutorialPanel = require(script.Parent.Parent.UI.TutorialPanel)
@@ -82,7 +83,7 @@ end)()
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
 	-- Shows a short message (grabbed, delivered or dropped egg).
-	toast: (text: string, color: Color3) -> (),
+	toast: (text: string, kind: Toasts.Kind) -> (),
 	abilities: AbilityState.AbilityState,
 	-- The player's speed stat.
 	speed: () -> BigNum.BigNum,
@@ -368,7 +369,7 @@ function HudController.new(dependencies: Dependencies): HudController
 				if before and post > before then
 					local reached: any = GuardianConfig.POSTS[post - 1].nameKey
 					local name = Text.get(locale, reached)
-					dependencies.toast(Text.get(locale, "speed.goalReached.toast", { name = name }), Theme.TOAST_GOOD)
+					dependencies.toast(Text.get(locale, "speed.goalReached.toast", { name = name }), "Speed")
 				end
 			end)
 			local children: { Instance } = {
@@ -623,12 +624,12 @@ function HudController.new(dependencies: Dependencies): HudController
 				return
 			end
 			if now then
-				dependencies.toast(Text.get(locale, "egg.grabbed.toast"), Theme.TOAST_GOOD)
+				dependencies.toast(Text.get(locale, "egg.grabbed.toast"), "Egg")
 			elseif isStunned then
-				dependencies.toast(Text.get(locale, "egg.dropped.toast"), Theme.TOAST_BAD)
+				dependencies.toast(Text.get(locale, "egg.dropped.toast"), "Bad")
 			elseif inSpace() then
 				-- Lost out in space without a hit: only a harpoon does that.
-				dependencies.toast(Text.get(locale, "pvp.harpooned.toast"), Theme.TOAST_BAD)
+				dependencies.toast(Text.get(locale, "pvp.harpooned.toast"), "Bad")
 			end
 		end)
 	end

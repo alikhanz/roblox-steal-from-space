@@ -20,7 +20,6 @@ local QuestWindow = require(script.Parent.Parent.UI.QuestWindow)
 local Quests = require(ReplicatedStorage.Shared.Domain.Quests)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
-local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -188,7 +187,7 @@ function QuestController.new(dependencies: Dependencies): QuestController
 		for index, quest in current.list do
 			local before = previous.list[index]
 			if before and before.kind == quest.kind and not isComplete(before) and isComplete(quest) then
-				toast(text("quests.done.toast"), Theme.TOAST_GOOD)
+				toast(text("quests.done.toast"), "Good")
 			end
 		end
 	end
@@ -252,10 +251,7 @@ function QuestController.new(dependencies: Dependencies): QuestController
 		mountUi(playerGui)
 
 		profile.questRewarded.connect(function(coins, speed)
-			toast(
-				text("quests.rewarded.toast", { coins = BigNum.format(coins), speed = BigNum.format(speed) }),
-				Theme.TOAST_GOOD
-			)
+			toast(text("quests.rewarded.toast", { coins = BigNum.format(coins), speed = BigNum.format(speed) }), "Good")
 		end)
 		-- The tile in the HUD menu row, with how many finished quests wait to be claimed; its key
 		-- (J) is answered by MenuState.

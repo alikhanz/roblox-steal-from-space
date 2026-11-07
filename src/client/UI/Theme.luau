@@ -101,9 +101,6 @@ return table.freeze({
 	SELECTED = Color3.fromRGB(34, 70, 130),
 	-- Secondary text.
 	MUTED = Color3.fromRGB(160, 168, 190),
-	-- Toast backgrounds.
-	TOAST_GOOD = Color3.fromRGB(40, 130, 80),
-	TOAST_BAD = Color3.fromRGB(150, 50, 50),
 	-- The whole game speaks in the style's font already; the greybox windows use it too.
 	FONT = NEON.FONT,
 	TEXT_SIZE = 18,

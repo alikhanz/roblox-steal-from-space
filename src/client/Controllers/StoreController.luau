@@ -21,6 +21,7 @@ local StoreWindow = require(script.Parent.Parent.UI.StoreWindow)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
+local Toasts = require(script.Parent.Parent.UI.Toasts)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -211,13 +212,21 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		end
 		local coins = BigNum.format(granted.coins)
 		local speed = BigNum.format(granted.speed)
-		local message = if granted.compensated
-			then text("store.compensated.toast", { coins = coins })
-			elseif granted.kind == "Training" then text("store.training.toast", { speed = speed })
-			elseif granted.kind == "ReadyNow" then text("store.readyNow.toast")
-			elseif granted.kind == "IncubatorSlot" then text("store.slot.toast")
-			else text("store.double.toast", { coins = coins, speed = speed })
-		dependencies.toasts.push(message, Theme.TOAST_GOOD)
+		-- Not if-expressions: each branch gives the message and its kind together.
+		local message: string
+		local kind: Toasts.Kind
+		if granted.compensated then
+			message, kind = text("store.compensated.toast", { coins = coins }), "Coins"
+		elseif granted.kind == "Training" then
+			message, kind = text("store.training.toast", { speed = speed }), "Speed"
+		elseif granted.kind == "ReadyNow" then
+			message, kind = text("store.readyNow.toast"), "Egg"
+		elseif granted.kind == "IncubatorSlot" then
+			message, kind = text("store.slot.toast"), "Egg"
+		else
+			message, kind = text("store.double.toast", { coins = coins, speed = speed }), "Good"
+		end
+		dependencies.toasts.push(message, kind)
 	end
 
 	local function mountUi(playerGui: Instance)
@@ -274,7 +283,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		purchases.granted.connect(announce)
 		purchases.passUnlocked.connect(function(pass)
 			local name = text(PASS_TEXTS[pass].title)
-			dependencies.toasts.push(text("store.unlocked.toast", { name = name }), Theme.TOAST_GOOD)
+			dependencies.toasts.push(text("store.unlocked.toast", { name = name }), "Good")
 		end)
 	end
 

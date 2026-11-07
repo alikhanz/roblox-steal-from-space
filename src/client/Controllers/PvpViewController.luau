@@ -8,7 +8,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
-local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 
 export type Dependencies = {
@@ -38,9 +37,9 @@ function PvpViewController.new(dependencies: Dependencies): PvpViewController
 				return
 			end
 			if droppedEgg then
-				dependencies.toasts.push(Text.get(locale, keys.egg), Theme.TOAST_GOOD)
+				dependencies.toasts.push(Text.get(locale, keys.egg), "Good")
 			elseif hit then
-				dependencies.toasts.push(Text.get(locale, keys.hit), Theme.TOAST_GOOD)
+				dependencies.toasts.push(Text.get(locale, keys.hit), "Good")
 			end
 		end)
 	end

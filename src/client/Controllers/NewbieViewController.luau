@@ -10,7 +10,7 @@ local Mount = require(script.Parent.Parent.UI.Mount)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
-local WorldLabel = require(script.Parent.Parent.UI.WorldLabel)
+local WorldChip = require(script.Parent.Parent.UI.WorldChip)
 
 local HEAD_WAIT_TIMEOUT = 10
 local STUDS_ABOVE = 3
@@ -50,11 +50,13 @@ function NewbieViewController.new(): NewbieViewController
 				return
 			end
 			unmounts[character] = Mount.instance(function()
-				return WorldLabel({
+				return WorldChip({
 					adornee = head,
-					title = Text.get(locale, "pvp.newbie.title"),
-					value = "",
-					valueColor = Theme.TOAST_GOOD,
+					icon = "Shield",
+					iconColor = Theme.NEON.SHIELD,
+					lineColor = Theme.NEON.SHIELD,
+					text = Text.get(locale, "pvp.newbie.title"),
+					color = Theme.NEON.SHIELD,
 					studsAbove = STUDS_ABOVE,
 					maxDistance = MAX_DISTANCE,
 				})
