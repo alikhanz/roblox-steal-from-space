@@ -5,6 +5,8 @@
 -- from that and from whether they carry an egg, so a lost egg simply brings back "steal".
 -- Pure Luau.
 
+local BigNum = require("./BigNum")
+
 local Tutorial = {}
 
 -- What the player is told to do. Steal and CarryHome come twice: for the first guardian and,
@@ -78,6 +80,18 @@ local STEPS: { [Hint]: number } = {
 	StealStronger = 5,
 	CarryHomeStronger = 5,
 }
+
+-- Whether a stealing step leads the player back to the egg they dropped rather than to a nest:
+-- its guardian (of `grade`; nil for a keeper with none) counts for the step (at least
+-- `stepGrade`) and is one the player outruns (their `speed` at least its `recommended`).
+function Tutorial.backToDropped(
+	grade: number?,
+	stepGrade: number,
+	speed: BigNum.BigNum,
+	recommended: BigNum.BigNum
+): boolean
+	return grade ~= nil and grade >= stepGrade and not BigNum.lessThan(speed, recommended)
+end
 
 -- The step `hint` belongs to, 1..STEP_COUNT; nil once the tutorial is done.
 function Tutorial.stepOf(hint: Hint): number?

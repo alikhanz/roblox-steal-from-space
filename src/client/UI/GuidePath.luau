@@ -49,12 +49,15 @@ function GuidePath.new(): GuidePath
 
 	local beam = Instance.new("Beam")
 	beam.Name = "TutorialPath"
-	beam.Attachment0 = start
-	beam.Attachment1 = finish
+	-- From the target to the player: a beam lays its texture's top towards Attachment0, so the
+	-- chevrons (pointing up in the sprite) point at the target. A positive speed runs the
+	-- texture towards Attachment1, hence the minus: the chevrons run to the target too.
+	beam.Attachment0 = finish
+	beam.Attachment1 = start
 	beam.Texture = Icons.CHEVRONS
 	beam.TextureMode = Enum.TextureMode.Wrap
 	beam.TextureLength = CHEVRON_LENGTH
-	beam.TextureSpeed = CHEVRON_SPEED
+	beam.TextureSpeed = -CHEVRON_SPEED
 	beam.Width0 = WIDTH
 	beam.Width1 = WIDTH
 	beam.FaceCamera = true

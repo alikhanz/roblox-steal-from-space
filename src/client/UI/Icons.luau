@@ -59,6 +59,7 @@ return table.freeze({
 	GLOW = "rbxassetid://136899120987901",
 	-- Two jetpack flames, drawn over the Jetpack icon at the same size; coloured by a gradient.
 	FLAME = "rbxassetid://123575093225405",
-	-- One chevron pointing along +X, repeated along the tutorial's path (a Beam's texture).
-	CHEVRONS = "rbxassetid://127548510823373",
+	-- One chevron pointing up, repeated along the tutorial's path (a Beam's texture: a beam lays
+	-- the image's height along its length, the top towards Attachment0).
+	CHEVRONS = "rbxassetid://138942572476441",
 })

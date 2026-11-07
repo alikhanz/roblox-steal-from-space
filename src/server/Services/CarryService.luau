@@ -192,7 +192,8 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		return entry.egg
 	end
 
-	local function spawnLoose(egg: Egg, position: Vector3, launch: Vector3?)
+	-- `owner`: the player who dropped it.
+	local function spawnLoose(egg: Egg, position: Vector3, launch: Vector3?, owner: Player?)
 		local folder = looseFolder
 		if not folder then
 			leavePlay(egg)
@@ -204,6 +205,8 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		part.Anchored = true
 		-- An egg knocked loose inside the dome pops out through it.
 		part.CFrame = CFrame.new(Bounds.pushOutside(position, DOME_CENTER, EGG_DOME_RADIUS))
+		part:SetAttribute(EggConfig.LOOSE_EGG_GRADE_ATTRIBUTE, dependencies.getHomeGrade(egg.nestId))
+		part:SetAttribute(EggConfig.LOOSE_EGG_DROPPED_BY_ATTRIBUTE, if owner then owner.UserId else nil)
 		part.Parent = folder
 		CollectionService:AddTag(part, EggConfig.LOOSE_EGG_TAG)
 		loose[part.Name] = {
@@ -226,7 +229,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			leavePlay(egg)
 			return true
 		end
-		spawnLoose(egg, root.Position, launch)
+		spawnLoose(egg, root.Position, launch, player)
 		return true
 	end
 
@@ -419,7 +422,9 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			end
 			return positions
 		end,
-		spawnLooseEgg = spawnLoose,
+		spawnLooseEgg = function(egg: Egg, position: Vector3, launch: Vector3?)
+			spawnLoose(egg, position, launch)
+		end,
 		removeLooseEggs = function(homeId: string)
 			for id, entry in loose do
 				if entry.egg.nestId == homeId then

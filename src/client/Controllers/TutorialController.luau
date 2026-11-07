@@ -50,6 +50,11 @@ local HINT_ICONS: { [Hint]: Icons.Name } = {
 	CarryHomeStronger = "Home",
 }
 
+export type Dependencies = {
+	-- The player's speed stat: a dropped egg leads back only if its guardian is outrun.
+	speed: () -> BigNum.BigNum,
+}
+
 export type TutorialController = {
 	name: string,
 	start: () -> (),
@@ -62,7 +67,7 @@ export type TutorialController = {
 
 local TutorialController = {}
 
-function TutorialController.new(): TutorialController
+function TutorialController.new(dependencies: Dependencies): TutorialController
 	local locale: Text.Locale = "en"
 	local hint = source(nil :: Hint?)
 	local readHint = hint :: () -> Hint?
@@ -117,6 +122,32 @@ function TutorialController.new(): TutorialController
 		return best, bestNest
 	end
 
+	-- The egg this player dropped (knocked out, out of oxygen), if the stealing step of
+	-- `stepGrade` should lead back to it: its guardian counts for the step and is one the player
+	-- outruns (Tutorial.backToDropped). The nearest of such eggs, and its guardian's grade.
+	local function droppedEgg(stepGrade: number, from: Vector3): (BasePart?, number?)
+		local best: BasePart? = nil
+		local bestGrade: number? = nil
+		local bestDistance = math.huge
+		local speed = dependencies.speed()
+		for _, egg in CollectionService:GetTagged(EggConfig.LOOSE_EGG_TAG) do
+			local grade = egg:GetAttribute(EggConfig.LOOSE_EGG_GRADE_ATTRIBUTE)
+			local post = if type(grade) == "number" then GuardianConfig.POSTS[grade] else nil
+			if
+				egg:IsA("BasePart")
+				and egg:GetAttribute(EggConfig.LOOSE_EGG_DROPPED_BY_ATTRIBUTE) == Players.LocalPlayer.UserId
+				and post
+				and Tutorial.backToDropped(grade :: number, stepGrade, speed, post.recommended)
+			then
+				local distance = (egg.Position - from).Magnitude
+				if distance < bestDistance then
+					best, bestGrade, bestDistance = egg, grade :: number, distance
+				end
+			end
+		end
+		return best, bestGrade
+	end
+
 	-- The player's egg that is soonest ready in their incubator.
 	local function ownEgg(bay: Instance): BasePart?
 		local best: BasePart? = nil
@@ -152,6 +183,11 @@ function TutorialController.new(): TutorialController
 		local grade = STEAL_GRADE[current]
 		if grade then
 			-- The key union is too big for the solver here (as in GuardianViewController).
+			local dropped, droppedGrade = droppedEgg(grade, from)
+			if dropped and droppedGrade then
+				local droppedKey: any = GuardianConfig.POSTS[droppedGrade].nameKey
+				return dropped.Position, Text.get(locale, droppedKey), dropped
+			end
 			local nameKey: any = GuardianConfig.POSTS[grade].nameKey
 			local point, nest = nestOf(grade, from)
 			return point, Text.get(locale, nameKey), nest
@@ -195,10 +231,16 @@ function TutorialController.new(): TutorialController
 			end
 			return
 		end
-		if title ~= Vide.untrack(pinTitle) then
-			pinTitle(title)
+		-- Over a guardian's egg in view, its own sign already names it: the pin keeps only the
+		-- distance. Off screen, at the edge, the name says where the arrow leads.
+		local location = ScreenPin.locate(camera, point)
+		local current = readHint()
+		local named = location.arrow ~= nil or not (current and STEAL_GRADE[current])
+		local shownTitle = if named then title else ""
+		if shownTitle ~= Vide.untrack(pinTitle) then
+			pinTitle(shownTitle)
 		end
-		pin.place(camera, point, ScreenPin.distanceText(locale, (point - root.Position).Magnitude))
+		pin.show(location, ScreenPin.distanceText(locale, (point - root.Position).Magnitude))
 		if guide then
 			guide.show(root.Position, point, thing)
 		end

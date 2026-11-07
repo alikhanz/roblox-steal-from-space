@@ -91,3 +91,24 @@ describe("Tutorial.stepOf", function()
 		expect(Tutorial.stepOf("Done")).toBe(nil)
 	end)
 end)
+
+describe("Tutorial.backToDropped", function()
+	local BigNum = require("../../src/shared/Domain/BigNum")
+	local function n(value: number): BigNum.BigNum
+		return BigNum.fromNumber(value)
+	end
+
+	it("leads back to an egg whose guardian the player outruns and that counts for the step", function()
+		expect(Tutorial.backToDropped(1, 1, n(10), n(10))).toBe(true)
+		expect(Tutorial.backToDropped(3, 2, n(500), n(400))).toBe(true)
+	end)
+
+	it("not to an egg whose guardian is faster than the player", function()
+		expect(Tutorial.backToDropped(3, 1, n(50), n(400))).toBe(false)
+	end)
+
+	it("not to an egg of a weaker guardian than the step needs, nor one with no guardian", function()
+		expect(Tutorial.backToDropped(1, 2, n(500), n(10))).toBe(false)
+		expect(Tutorial.backToDropped(nil, 1, n(500), n(10))).toBe(false)
+	end)
+end)

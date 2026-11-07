@@ -139,6 +139,10 @@ return table.freeze({
 	CARRIED_EGG_TAG = "CarriedEgg",
 	LOOSE_EGG_RARITY_ATTRIBUTE = "Rarity",
 	LOOSE_EGG_SIZE_ATTRIBUTE = "Size",
+	-- On a loose egg: the grade of the guardian that guards it (none for keepers without one),
+	-- and the user id of the player who dropped it (the tutorial leads them back to it).
+	LOOSE_EGG_GRADE_ATTRIBUTE = "Grade",
+	LOOSE_EGG_DROPPED_BY_ATTRIBUTE = "DroppedBy",
 	-- On every egg part: the alien variant it hatches into (AlienConfig.VariantId).
 	EGG_VARIANT_ATTRIBUTE = "Variant",
 

@@ -62,7 +62,7 @@ local storeController = StoreController.new({
 	menu = menuState,
 })
 local eventController = EventController.new()
-local tutorialController = TutorialController.new()
+local tutorialController = TutorialController.new({ speed = speedState.speed })
 
 Lifecycle.run({
 	profileState,
