@@ -114,7 +114,9 @@ function PromptViewController.new(): PromptViewController
 					end)
 				end,
 			})
-		end, adornee)
+			-- Under PlayerGui, not the adornee: a BillboardGui in the world draws, but only one
+			-- under PlayerGui receives taps, so on a phone the badge could not be pressed.
+		end, Players.LocalPlayer:FindFirstChildOfClass("PlayerGui") or adornee)
 		view = {
 			unmount = unmount,
 			progress = progress,
