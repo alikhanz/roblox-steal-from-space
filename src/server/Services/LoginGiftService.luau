@@ -55,7 +55,8 @@ export type LoginGiftService = {
 	eggDelivered: (player: Player) -> (),
 	claim: (player: Player) -> Notice?,
 	-- Studio command: makes the last gift `days` days old (1: the next streak day waits; 2: a
-	-- day was missed).
+	-- day was missed). A player who has not delivered yet counts as having delivered from the
+	-- first guardian: Studio profiles always start new, and the gift waits for a delivery.
 	shiftDays: (player: Player, days: number) -> boolean,
 }
 
@@ -131,6 +132,7 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 
 	local function shiftDays(player: Player, days: number): boolean
 		local written = dependencies.update(player, function(data)
+			data.bestPost = math.max(data.bestPost, 1)
 			-- From today, not from the stored day, so calling it twice does not skip a day.
 			if data.loginGift.lastDay > 0 then
 				data.loginGift.lastDay = math.max(today() - days, 1)

@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local Icons = require(script.Parent.Parent.UI.Icons)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
@@ -32,6 +33,17 @@ local source = Vide.source
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 -- The countdown to new quests is whole minutes and seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
+-- A first tap on "Swap" waits this long for the second one, then the card calms down.
+local SWAP_CONFIRM_SECONDS = 3
+
+local TASK_ICONS: { [ProfileState.QuestKind]: Icons.Name } = {
+	DeliverEggs = "Egg",
+	DeliverFromZone = "Egg",
+	HatchAliens = "Bay",
+	Train = "Bolt",
+	Crossbreed = "Index",
+	KnockEgg = "Strike",
+}
 
 local TASK_KEYS: { [ProfileState.QuestKind]: Text.Key } = {
 	DeliverEggs = "quest.deliverEggs.hint",
@@ -66,6 +78,12 @@ function QuestController.new(dependencies: Dependencies): QuestController
 	local isOpen = dependencies.windows.slot("Quests")
 	-- Bumped every second while the window is open, so the countdown recomputes.
 	local clock = source(0)
+	-- The quest whose swap waits for a second tap. Read through a plain getter: Vide types an
+	-- optional source ambiguously when called without arguments.
+	local pendingSwap = source(nil :: number?)
+	local readPendingSwap = pendingSwap :: () -> number?
+	-- Each first tap gets its own number, so an old timer never calms a newer tap.
+	local swapTaps = 0
 	local locale: Text.Locale = "en"
 
 	local function text(key: Text.Key, args: Text.Args?): string
@@ -96,33 +114,56 @@ function QuestController.new(dependencies: Dependencies): QuestController
 		return `{math.floor(quest.progress)}/{quest.target}`
 	end
 
-	-- What the quest pays right now, the way the server will pay it.
-	local function rewardText(quest: ProfileState.Quest): string
+	-- What the quest pays right now, the way the server will pay it: coins and ⚡, formatted.
+	local function rewardTexts(quest: ProfileState.Quest): (string, string)
 		local definition = Quests.definition(QuestConfig.DEFINITIONS, quest.kind)
 		local minutes = if definition then definition.rewardMinutes else 0
 		local coins, speed = Pace.reward(profile, minutes, QuestConfig.MIN_REWARD_COINS, true)
-		return `+{BigNum.format(coins)} ● · +{BigNum.format(speed)} ⚡`
+		return BigNum.format(coins), BigNum.format(speed)
 	end
 
 	local function rows(): { QuestWindow.Row }
 		local current = profile.quests()
+		local pending = readPendingSwap()
 		local result: { QuestWindow.Row } = {}
-		for _, quest in current.list do
-			local state: "Active" | "Done" | "Claimed" = if quest.claimed
+		for index, quest in current.list do
+			local state: QuestWindow.State = if quest.claimed
 				then "Claimed"
 				elseif isComplete(quest) then "Done"
 				else "Active"
+			local coins, speed = rewardTexts(quest)
 			local row: QuestWindow.Row = {
+				icon = (TASK_ICONS :: any)[quest.kind] or "Quests",
 				task = taskText(quest),
 				progress = quest.progress / math.max(quest.target, 1),
 				progressText = progressText(quest),
-				reward = rewardText(quest),
+				coins = coins,
+				speed = speed,
 				state = state,
 				canSwap = not current.rerolled,
+				confirming = pending == index,
 			}
 			table.insert(result, row)
 		end
 		return result
+	end
+
+	-- A swap takes two taps: the first asks "Sure?", the second swaps. Unanswered, the question
+	-- goes away by itself.
+	local function swap(index: number)
+		if readPendingSwap() == index then
+			pendingSwap(nil)
+			Remotes.RerollQuest.Fire(index)
+			return
+		end
+		swapTaps += 1
+		local tap = swapTaps
+		pendingSwap(index)
+		task.delay(SWAP_CONFIRM_SECONDS, function()
+			if swapTaps == tap and readPendingSwap() == index then
+				pendingSwap(nil)
+			end
+		end)
 	end
 
 	local function claimable(): number
@@ -155,6 +196,12 @@ function QuestController.new(dependencies: Dependencies): QuestController
 	local function mountUi(playerGui: Instance)
 		Vide.mount(function()
 			Vide.effect(watchQuests)
+			-- A closed window forgets a half-made swap.
+			Vide.effect(function()
+				if not isOpen() then
+					pendingSwap(nil)
+				end
+			end)
 			return create("ScreenGui")({
 				Name = "QuestUi",
 				ResetOnSpawn = false,
@@ -163,6 +210,9 @@ function QuestController.new(dependencies: Dependencies): QuestController
 				QuestWindow({
 					visible = function()
 						return isOpen()
+					end,
+					coins = function()
+						return BigNum.format(profile.coins())
 					end,
 					rows = rows,
 					texts = {
@@ -179,14 +229,14 @@ function QuestController.new(dependencies: Dependencies): QuestController
 						end,
 						claim = text("quests.claim.button"),
 						swap = text("quests.swap.button"),
+						confirm = text("quests.confirm.hint"),
 						claimed = text("quests.claimed.hint"),
 					},
 					onClaim = function(index)
+						pendingSwap(nil)
 						Remotes.ClaimQuest.Fire(index)
 					end,
-					onSwap = function(index)
-						Remotes.RerollQuest.Fire(index)
-					end,
+					onSwap = swap,
 					onClose = function()
 						isOpen(false)
 					end,

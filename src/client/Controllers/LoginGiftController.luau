@@ -12,8 +12,9 @@ local RunService = game:GetService("RunService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local LoginGiftConfig = require(ReplicatedStorage.Shared.Config.LoginGiftConfig)
-local LoginGiftScreen = require(script.Parent.Parent.UI.LoginGiftScreen)
+local LoginGiftWindow = require(script.Parent.Parent.UI.LoginGiftWindow)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Pace = require(script.Parent.Parent.State.Pace)
@@ -75,13 +76,14 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 	end
 
 	-- What each streak day gives right now.
-	local function tiles(): { LoginGiftScreen.Tile }
+	local function tiles(): { LoginGiftWindow.Tile }
 		local gift = profile.loginGift()
-		local result: { LoginGiftScreen.Tile } = {}
+		local look = (EggLooks.RARITIES :: any)[LoginGiftConfig.EGG_RARITY]
+		local result: { LoginGiftWindow.Tile } = {}
 		for day, minutes in LoginGiftConfig.MINUTES do
 			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true)
 			-- Taken: days before today, and today once its gift is in.
-			local state: LoginGiftScreen.TileState = if day < gift.day or (day == gift.day and not gift.available)
+			local state: LoginGiftWindow.TileState = if day < gift.day or (day == gift.day and not gift.available)
 				then "Taken"
 				elseif day == gift.day then "Today"
 				else "Ahead"
@@ -90,6 +92,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				coins = BigNum.format(coins),
 				speed = BigNum.format(speed),
 				egg = if day == LoginGiftConfig.EGG_DAY then eggName() else nil,
+				eggColor = if day == LoginGiftConfig.EGG_DAY and look then look.color else nil,
 				state = state,
 			})
 		end
@@ -117,15 +120,18 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 					layer = gui :: ScreenGui
 				end),
 
-				LoginGiftScreen.create({
+				LoginGiftWindow.create({
 					visible = function()
 						return isOpen() and not dependencies.welcomeOpen()
+					end,
+					coins = function()
+						return BigNum.format(profile.coins())
 					end,
 					tiles = tiles,
 					title = text("gift.window.title"),
 					hint = hint,
 					claim = text("gift.claim.button"),
-					later = text("gift.later.button"),
+					miss = text("gift.miss.hint"),
 					canClaim = function()
 						return profile.loginGift().available
 					end,
@@ -183,7 +189,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 
 		profile.giftRewarded.connect(function(reward)
 			if screen and layer then
-				LoginGiftScreen.burst(screen, layer, reward.day, Theme.COINS)
+				LoginGiftWindow.burst(screen, layer, reward.day, Theme.NEON.ACTION.Coins)
 			end
 			local paid = { coins = BigNum.format(reward.coins), speed = BigNum.format(reward.speed) }
 			-- The egg needs no toast of its own: the bay cheers every new egg in the incubator.

@@ -732,12 +732,12 @@ local Strings = {
 		en = "Day {day}",
 	},
 	["gift.claim.button"] = {
-		ru = "Забрать",
-		en = "Claim",
+		ru = "Забрать подарок",
+		en = "Claim gift",
 	},
-	["gift.later.button"] = {
-		ru = "Позже",
-		en = "Later",
+	["gift.miss.hint"] = {
+		ru = "Пропустишь день — серия начнётся заново",
+		en = "Miss a day and your streak starts over",
 	},
 	["gift.streak.hint"] = {
 		ru = "Заходи каждый день, и подарки будут расти",
@@ -752,8 +752,8 @@ local Strings = {
 		en = "Next gift in {time}",
 	},
 	["gift.rewarded.toast"] = {
-		ru = "Подарок: +{coins} ● и +{speed} ⚡",
-		en = "Gift: +{coins} ● and +{speed} ⚡",
+		ru = "Подарок: +{coins} монет и +{speed} ⚡",
+		en = "Gift: +{coins} coins, +{speed} ⚡",
 	},
 	["notice.giftTaken.toast"] = {
 		ru = "Сегодняшний подарок уже у тебя",
@@ -796,8 +796,12 @@ local Strings = {
 		en = "Quest complete!",
 	},
 	["quests.rewarded.toast"] = {
-		ru = "Награда: +{coins} ● и +{speed} ⚡",
-		en = "Reward: +{coins} ● and +{speed} ⚡",
+		ru = "Награда: +{coins} монет и +{speed} ⚡",
+		en = "Reward: +{coins} coins, +{speed} ⚡",
+	},
+	["quests.confirm.hint"] = {
+		ru = "Точно?",
+		en = "Sure?",
 	},
 	["quest.deliverEggs.hint"] = {
 		ru = {
