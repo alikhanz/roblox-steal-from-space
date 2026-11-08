@@ -47,6 +47,14 @@ METAL.MetalnessMap = "rbxassetid://98590861543766"
 METAL.RoughnessMap = "rbxassetid://118069329022679"
 METAL.StudsPerTile = 10
 METAL.Parent = game:GetService("MaterialService")
+-- A meteor's molten shell: the seamless crack texture and its emissive mask
+-- (assets/blender/aliens/lava_texture.py).
+local LAVA = {
+	colour = "rbxassetid://76302202190340",
+	glow = "rbxassetid://107726084185062",
+	strength = 4,
+	tint = Color3.fromRGB(255, 120, 35),
+}
 -- Particles fade in and out instead of popping: the soft look.
 local SOFT = { { 0, 1 }, { 0.15, 0 }, { 0.75, 0.15 }, { 1, 1 } }
 
@@ -219,7 +227,7 @@ return function(only: { [string]: boolean }?): string
 		end
 
 		-- Paint. Opaque hull a touch richer than in Blender (Roblox's light is flatter); a meteor's
-		-- molten parts become smouldering basalt, its heat shown by light and embers.
+		-- molten parts wear the lava crack texture, its heat also shown by light and embers.
 		local wingParts, flameParts = {}, {}
 		for _, part in model:GetDescendants() do
 			if not part:IsA("MeshPart") then
@@ -254,9 +262,21 @@ return function(only: { [string]: boolean }?): string
 				part.Color = colour
 				part.Transparency = if transparency >= 0.7 then 0.45 else 0.2
 			elseif kind == "L" then
+				-- Cooled crust with glowing lava in the cracks: the crack texture on the export's
+				-- box-projected UVs, the cracks lit by the emissive mask.
 				part.Material = Enum.Material.SmoothPlastic
-				part.Color = Color3.fromRGB(48, 32, 28)
-				part.Reflectance = 0.05
+				part.Color = Color3.new(1, 1, 1)
+				part.Reflectance = 0
+				local old = part:FindFirstChildOfClass("SurfaceAppearance")
+				if old then
+					old:Destroy()
+				end
+				local lava = Instance.new("SurfaceAppearance")
+				lava.ColorMap = LAVA.colour
+				lava.EmissiveMaskContent = Content.fromUri(LAVA.glow)
+				lava.EmissiveStrength = LAVA.strength
+				lava.EmissiveTint = LAVA.tint
+				lava.Parent = part
 			else
 				part.Material = Enum.Material.Neon
 				part.Color = colour

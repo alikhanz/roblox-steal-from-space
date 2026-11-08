@@ -61,6 +61,35 @@ def paint_of(mat):
     return {"material": "SmoothPlastic", "color": colour(base), "reflectance": 0.1 if inputs["Roughness"].default_value < 0.25 else 0.02}
 
 
+# A meteor's molten shell wears the lava crack texture in game (lava_texture.py): one tile spans this
+# many Blender units, so its cells come out about the size the renders' procedural cracks have.
+LAVA_TILE = 1.5
+
+
+def lava_uvs():
+    """Box-projected UVs on the molten parts, in world units (so the cracks are one size all over the
+    pet and match across joined parts); no UVs on the rest, which wear flat colour."""
+    for obj in bpy.data.objects:
+        if obj.type != "MESH":
+            continue
+        mesh = obj.data
+        molten = bool(mesh.materials) and mesh.materials[0] is not None and mesh.materials[0].name.startswith("Meteor")
+        while mesh.uv_layers:
+            mesh.uv_layers.remove(mesh.uv_layers[0])
+        if not molten:
+            continue
+        layer = mesh.uv_layers.new(name="UVMap")
+        world = obj.matrix_world
+        rotation = world.to_3x3()
+        for polygon in mesh.polygons:
+            normal = rotation @ polygon.normal
+            axis = max(range(3), key=lambda i: abs(normal[i]))
+            u, v = [(1, 2), (0, 2), (0, 1)][axis]
+            for loop in polygon.loop_indices:
+                point = world @ mesh.vertices[mesh.loops[loop].vertex_index].co
+                layer.data[loop].uv = (point[u] / LAVA_TILE, point[v] / LAVA_TILE)
+
+
 def join_by_role():
     """Real meshes with modifiers applied, effect stand-ins dropped, one object per role and material."""
     for obj in list(bpy.data.objects):
@@ -70,6 +99,7 @@ def join_by_role():
     bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
     roles = {obj.name: obj.get("role", "body") for obj in bpy.context.selected_objects}
     bpy.ops.object.convert(target="MESH")
+    lava_uvs()
     groups = {}
     for obj in bpy.data.objects:
         if obj.type == "MESH" and obj.data.materials and obj.data.materials[0]:
@@ -105,7 +135,7 @@ def main():
         name = f"{kind_id}-{variant}"
         bpy.ops.object.select_all(action="SELECT")
         bpy.ops.export_scene.gltf(filepath=os.path.join(OUT_DIR, name + ".glb"), export_format="GLB", use_selection=True,
-                                  export_apply=True, export_yup=True, export_texcoords=False, export_materials="NONE")
+                                  export_apply=True, export_yup=True, export_texcoords=True, export_materials="NONE")
         colours = robo.theme(kind[3], kind[4])["colours"]
         meta = {
             "kind": kind_id, "zone": kind[3], "family": kind[2], "tier": tier, "meteor": meteor, "slot": kind[8],
