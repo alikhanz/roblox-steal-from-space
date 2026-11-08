@@ -1,11 +1,12 @@
--- Dresses the imported robot pets in ServerStorage.RoboPet2 for the game look (preview prototype,
--- a ModuleScript run from Edit via MCP; the paint data sits in ServerStorage.RoboPetData). Paint
+-- Dresses the robot pets in ServerStorage.RoboPets/<kind>/<kind>-<variant> for the game look (preview
+-- prototype, a ModuleScript run from Edit via MCP). The pets come from PetUnpack (unpack.luau): the
+-- pet's data in its attributes, each part's paint in the part's Paint attribute. Paint
 -- and size; a soft core light low under the body; particles by zone and signature, soft (fading in and out) and
 -- layered (a soft glow under the sparkles); fairy wings with a see-through membrane; comets with
 -- particle tails instead of orbit rings; a turning rune circle on the floor; and for a meteor a
 -- smouldering basalt shell, fireball comets, a comet tail of fire, smoke and sparks and a crest of
 -- fire behind its head; a legendary glows (a big soft radiance behind it) under a turning medal of rays.
-local DATA = game:GetService("HttpService"):JSONDecode(game.ServerStorage.RoboPetData.Value)
+local ROOT = game.ServerStorage.RoboPets
 
 local TEX = {
 	star = "rbxassetid://113891832030197",
@@ -200,13 +201,12 @@ end
 -- Dresses the pets named in `only` (all when nil) and reports what it did.
 return function(only: { [string]: boolean }?): string
 	local report = {}
-	for name, entry in DATA do
-		if only and not only[name] then
+	for _, model in ROOT:GetDescendants() do
+		if not (model:IsA("Model") and model:GetAttribute("Zone")) then
 			continue
 		end
-		local model = game.ServerStorage.RoboPet2:FindFirstChild(name)
-		if not model then
-			table.insert(report, "missing " .. name)
+		local name = model.Name
+		if only and not only[name] then
 			continue
 		end
 		for _, d in model:GetDescendants() do
@@ -214,16 +214,17 @@ return function(only: { [string]: boolean }?): string
 				d:Destroy()
 			end
 		end
-		local zone, _family, tier, meteor, signature, _glow, core, tierColor =
-			entry[1]:match("^(%a+)|(%a+)|(%d)|(%a+)|([%w_%+]*)|([%d,]+)|([%d,]+)|([%d,]+)|([%d,]+)$")
-		tier = tonumber(tier)
-		meteor = meteor == "true"
-		core, tierColor = rgb(core), rgb(tierColor)
+		local zone, tier, meteor = model:GetAttribute("Zone"), model:GetAttribute("Tier"), model:GetAttribute("Meteor")
+		local signature = model:GetAttribute("Signature") or ""
+		local core, tierColor = rgb(model:GetAttribute("Core")), rgb(model:GetAttribute("TierColor"))
 		local paints = {}
-		for item in entry[2]:gmatch("[^;]+") do
-			-- part=<kind><r>,<g>,<b>,<transparency>,<reflectance>,<Blender material>
-			local part, kind, r, g, b, t, refl, source = item:match("^([%w_]+)=(%a)(%d+),(%d+),(%d+),([%d%.]+),([%d%.]+),?(%a*)$")
-			paints[part] = { kind, Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b)), tonumber(t), tonumber(refl), source }
+		for _, part in model:GetDescendants() do
+			local code = part:IsA("MeshPart") and part:GetAttribute("Paint")
+			if code then
+				-- <kind><r>,<g>,<b>,<transparency>,<reflectance>,<Blender material>
+				local kind, r, g, b, t, refl, source = code:match("^(%a)(%d+),(%d+),(%d+),([%d%.]+),([%d%.]+),?(%a*)$")
+				paints[part.Name] = { kind, Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b)), tonumber(t), tonumber(refl), source }
+			end
 		end
 
 		-- Paint. Opaque hull a touch richer than in Blender (Roblox's light is flatter); a meteor's

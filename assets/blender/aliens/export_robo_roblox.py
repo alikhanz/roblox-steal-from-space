@@ -69,7 +69,7 @@ LAVA_TILE = 1.5
 def lava_uvs():
     """Box-projected UVs on the molten parts, in world units (so the cracks are one size all over the
     pet and match across joined parts); no UVs on the rest, which wear flat colour."""
-    for obj in bpy.data.objects:
+    for obj in bpy.context.view_layer.objects:
         if obj.type != "MESH":
             continue
         mesh = obj.data
@@ -91,8 +91,9 @@ def lava_uvs():
 
 
 def join_by_role():
-    """Real meshes with modifiers applied, effect stand-ins dropped, one object per role and material."""
-    for obj in list(bpy.data.objects):
+    """Real meshes with modifiers applied, effect stand-ins dropped, one object per role and material.
+    Works on the objects of the view layer only (a pack keeps finished pets out of it)."""
+    for obj in list(bpy.context.view_layer.objects):
         if obj.type not in ("MESH", "CURVE", "META", "FONT") or obj.get("role") == "fx":
             bpy.data.objects.remove(obj)
     bpy.ops.object.select_all(action="SELECT")
@@ -101,7 +102,7 @@ def join_by_role():
     bpy.ops.object.convert(target="MESH")
     lava_uvs()
     groups = {}
-    for obj in bpy.data.objects:
+    for obj in bpy.context.view_layer.objects:
         if obj.type == "MESH" and obj.data.materials and obj.data.materials[0]:
             key = (roles.get(obj.name, obj.get("role", "body")), obj.data.materials[0].name)
             groups.setdefault(key, []).append(obj)
@@ -121,9 +122,85 @@ def join_by_role():
     return parts
 
 
+def rgb255(c):
+    return ",".join(str(round(v * 255)) for v in c[:3])
+
+
+def paint_code(paint):
+    """A part's paint in a few characters: <S|N|G|L>r,g,b,transparency,reflectance,<material>."""
+    letter = {"SmoothPlastic": "S", "Neon": "N", "Glass": "G", "CrackedLava": "L"}[paint["material"]]
+    return f"{letter}{rgb255(paint['color'])},{paint.get('transparency', 0):g},{paint.get('reflectance', 0):g},{paint['source']}"
+
+
+def marker(name, location):
+    """A tiny tetrahedron that only carries a name (a glTF node needs geometry to reach Roblox)."""
+    mesh = bpy.data.meshes.new(name)
+    s = 0.02
+    mesh.from_pydata([(0, 0, 0), (s, 0, 0), (0, s, 0), (0, 0, s)], [], [(0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3)])
+    obj = bpy.data.objects.new(name, mesh)
+    obj.location = location
+    bpy.context.scene.collection.objects.link(obj)
+    return obj
+
+
+PACK_VARIANTS = ["0", "1", "2", "3", "4", "m0", "m1", "m2", "m3", "m4"]
+PACK_SPACING = 12.0
+
+
+def pack(kind):
+    """All ten variants of a kind (five tiers, plain and meteor) in one GLB, a row of pets. Everything
+    the game needs rides in the node names, so nothing is copied by hand into Studio:
+      <variant>|<role>_<n>|<paint code>              a part;
+      <variant>|meta1|zone|family|tier|meteor|sig    and
+      <variant>|meta2|glow|core|tierColor|shell      the pet (tiny marker nodes)."""
+    kind_id = kind[0]
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    packed = bpy.data.collections.new("Packed")
+    bpy.context.scene.collection.children.link(packed)
+    colours = robo.theme(kind[3], kind[4])["colours"]
+    for index, variant in enumerate(PACK_VARIANTS):
+        meteor = variant.startswith("m")
+        tier = int(variant.lstrip("m"))
+        robo_kinds.build(kind, tier, 0.0, 0.0, meteor)
+        parts = join_by_role()
+        x = index * PACK_SPACING
+        finished = []
+        for obj in list(bpy.context.view_layer.objects):
+            if obj.type != "MESH":
+                continue
+            paint = parts.get(obj.name)
+            if paint is None:
+                bpy.data.objects.remove(obj)
+                continue
+            obj.name = obj.data.name = f"{variant}|{obj.name}|{paint_code(paint)}"
+            finished.append(obj)
+        signature = "+".join(part.__name__ for part in kind[6])
+        finished.append(marker(f"{variant}|meta1|{kind[3]}|{kind[2]}|{tier}|{str(meteor).lower()}|{signature}", (0, 0, -1)))
+        finished.append(marker(f"{variant}|meta2|{rgb255(colour(colours['glow']))}|{rgb255(colour(colours['core']))}|{rgb255(colour(robo.TIER_COLORS[tier]))}|{rgb255(colour(colours['shell']))}", (0, 0, -1)))
+        for obj in finished:
+            if len(obj.name) > 62:
+                raise ValueError(f"name too long for Blender: {obj.name}")
+            obj.location.x += x
+            for collection in list(obj.users_collection):
+                collection.objects.unlink(obj)
+            packed.objects.link(obj)
+        # Finished pets leave the view layer, so the next build and join leave them alone.
+        bpy.context.view_layer.layer_collection.children["Packed"].exclude = True
+    bpy.context.view_layer.layer_collection.children["Packed"].exclude = False
+    bpy.ops.object.select_all(action="SELECT")
+    path = os.path.join(OUT_DIR, f"pack-{kind_id}.glb")
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_apply=True,
+                              export_yup=True, export_texcoords=True, export_materials="NONE")
+    print("Packed", kind_id, len(bpy.context.selected_objects), "nodes", os.path.getsize(path), "bytes")
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     kinds = {kind[0]: kind for kind in robo_kinds.KINDS}
+    if SPECS and SPECS[0] == "--pack":
+        for kind_id in SPECS[1:] or list(kinds):
+            pack(kinds[kind_id])
+        return
     for spec in SPECS:
         kind_id, variant = spec.split(":")
         meteor = variant.startswith("m")
