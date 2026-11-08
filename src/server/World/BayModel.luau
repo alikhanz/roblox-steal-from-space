@@ -219,6 +219,9 @@ function BayModel.floorCFrame(origin: CFrame, index: number): CFrame
 end
 
 -- A box of the stand at `cframe`.
+-- A part of the stand around the rider. It never collides: the frame and the rail stand close
+-- around the character, and the pull onto the platform would wedge them (and their jetpack)
+-- against a solid post and tip them over; only the platform is solid.
 local function standPart(name: string, size: Vector3, cframe: CFrame, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -226,6 +229,7 @@ local function standPart(name: string, size: Vector3, cframe: CFrame, color: Col
 	part.CFrame = cframe
 	part.Material = Enum.Material.Metal
 	part.Color = color
+	part.CanCollide = false
 	scenery(part)
 	part.Parent = parent
 	return part
@@ -269,7 +273,6 @@ local function buildStand(origin: CFrame, island: Instance)
 		)
 		pilot.Shape = Enum.PartType.Ball
 		pilot.Material = Enum.Material.Neon
-		pilot.CanCollide = false
 
 		local post = BayLooks.STAND_RAIL_THICKNESS
 		local postHeight = BayLooks.STAND_RAIL_HEIGHT
@@ -301,7 +304,6 @@ local function buildStand(origin: CFrame, island: Instance)
 		parent
 	)
 	blast.Material = Enum.Material.Neon
-	blast.CanCollide = false
 
 	local ring = disc(
 		"TrainerRing",
