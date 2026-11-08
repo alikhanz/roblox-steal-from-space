@@ -29,7 +29,8 @@
 		},
 		"Lighting": {
 			"$properties": {
-				"Technology": "Voxel"
+				"LightingStyle": "Realistic",
+				"PrioritizeLightingQuality": false
 			}
 		},
 		"TextChatService": {
