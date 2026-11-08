@@ -31,6 +31,17 @@ local STAND_INS = { Flame = true, FlameCore = true, Tongue = true, Ray = true, R
 local CRYSTALS = { Shard = true, IceSpike = true, Icicle = true, Fringe = true, Spout = true, Bubble = true, Brood = true }
 -- Faint see-through glows (a hover field, a smoke wisp): barely-there Neon.
 local AURAS = { Hover = true, Smoke = true }
+-- Polished metal for the pets' gold and chrome: a material variant of flat maps (white colour, about
+-- 0.6 metalness, 0.3 roughness; assets/fx/pbr-*.svg). Under Realistic lighting (decision 076) it
+-- catches highlights; plastic with reflectance stays flat.
+local METAL = game:GetService("MaterialService"):FindFirstChild("PetMetal") or Instance.new("MaterialVariant")
+METAL.Name = "PetMetal"
+METAL.BaseMaterial = Enum.Material.SmoothPlastic
+METAL.ColorMap = "rbxassetid://100769285128033"
+METAL.MetalnessMap = "rbxassetid://98590861543766"
+METAL.RoughnessMap = "rbxassetid://118069329022679"
+METAL.StudsPerTile = 10
+METAL.Parent = game:GetService("MaterialService")
 -- Particles fade in and out instead of popping: the soft look.
 local SOFT = { { 0, 1 }, { 0.15, 0 }, { 0.75, 0.15 }, { 1, 1 } }
 
@@ -218,7 +229,17 @@ return function(only: { [string]: boolean }?): string
 				continue
 			end
 			local kind, colour, transparency = p[1], p[2], p[3]
-			if kind == "S" then
+			if kind == "S" and p[4] >= 0.3 then
+				-- Metal in Blender (gold, chrome): polished metal here (the PetMetal variant). Metal
+				-- shows only what it reflects, and space is dark, so it is partly metal and gold is a
+				-- bright, saturated gold, or it turns olive.
+				part.Material = Enum.Material.SmoothPlastic
+				part.MaterialVariant = METAL.Name
+				local _, saturation = colour:ToHSV()
+				part.Color = if saturation > 0.3 then Color3.fromRGB(255, 190, 45) else colour
+				part.Reflectance = 0
+				part.Transparency = 0
+			elseif kind == "S" then
 				part.Material = Enum.Material.SmoothPlastic
 				part.Color = boost(colour, 1.25, 1.12)
 				part.Reflectance = math.min(p[4], 0.15)
