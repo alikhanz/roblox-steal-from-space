@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A meteor pet's fan of fire: 16 thin rays, long and short in turn, fading out to the tips. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.5"/></filter>
+    <radialGradient id="fade" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.8"/>
+      <stop offset="0.12" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.55" stop-color="#fff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="m"><circle cx="128" cy="128" r="128" fill="url(#fade)"/></mask>
+    <path id="long" d="M-4 -14 L0 -126 L4 -14 Z"/>
+    <path id="short" d="M-3 -14 L0 -84 L3 -14 Z"/>
+    <path id="longSoft" d="M-9 -14 L0 -122 L9 -14 Z"/>
+    <path id="shortSoft" d="M-7 -14 L0 -80 L7 -14 Z"/>
+  </defs>
+  <g mask="url(#m)" fill="#fff">
+    <g transform="translate(128 128)" filter="url(#blur)" opacity="0.6">
+      <use href="#longSoft" transform="rotate(0)"/>
+      <use href="#shortSoft" transform="rotate(22)"/>
+      <use href="#longSoft" transform="rotate(45)"/>
+      <use href="#shortSoft" transform="rotate(67)"/>
+      <use href="#longSoft" transform="rotate(90)"/>
+      <use href="#shortSoft" transform="rotate(112)"/>
+      <use href="#longSoft" transform="rotate(135)"/>
+      <use href="#shortSoft" transform="rotate(157)"/>
+      <use href="#longSoft" transform="rotate(180)"/>
+      <use href="#shortSoft" transform="rotate(202)"/>
+      <use href="#longSoft" transform="rotate(225)"/>
+      <use href="#shortSoft" transform="rotate(247)"/>
+      <use href="#longSoft" transform="rotate(270)"/>
+      <use href="#shortSoft" transform="rotate(292)"/>
+      <use href="#longSoft" transform="rotate(315)"/>
+      <use href="#shortSoft" transform="rotate(337)"/>
+    </g>
+    <g transform="translate(128 128)">
+      <use href="#long" transform="rotate(0)"/>
+      <use href="#short" transform="rotate(22)"/>
+      <use href="#long" transform="rotate(45)"/>
+      <use href="#short" transform="rotate(67)"/>
+      <use href="#long" transform="rotate(90)"/>
+      <use href="#short" transform="rotate(112)"/>
+      <use href="#long" transform="rotate(135)"/>
+      <use href="#short" transform="rotate(157)"/>
+      <use href="#long" transform="rotate(180)"/>
+      <use href="#short" transform="rotate(202)"/>
+      <use href="#long" transform="rotate(225)"/>
+      <use href="#short" transform="rotate(247)"/>
+      <use href="#long" transform="rotate(270)"/>
+      <use href="#short" transform="rotate(292)"/>
+      <use href="#long" transform="rotate(315)"/>
+      <use href="#short" transform="rotate(337)"/>
+    </g>
+  </g>
+</svg>

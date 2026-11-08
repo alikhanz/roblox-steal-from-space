@@ -48,12 +48,14 @@ def paint_of(mat):
     alpha = inputs["Alpha"].default_value
     if mat.name.startswith("Meteor"):
         return {"material": "CrackedLava", "color": [0.35, 0.12, 0.05]}
-    if strength >= 1.0 and max(emission[:3]) > 0.2:
-        return {"material": "Neon", "color": colour(emission)}
+    # See-through first: a crystal, jelly or aura that also glows a little is still glass in game
+    # (as Neon it burns to a solid white spike under Bloom).
     if alpha < 0.99:
         return {"material": "Glass", "color": colour(base), "transparency": round(1 - alpha, 2)}
     if inputs["Transmission Weight"].default_value >= 0.5:
         return {"material": "Glass", "color": colour(base), "transparency": 0.35}
+    if strength >= 1.0 and max(emission[:3]) > 0.2:
+        return {"material": "Neon", "color": colour(emission)}
     if inputs["Metallic"].default_value >= 0.5:
         return {"material": "SmoothPlastic", "color": colour(base), "reflectance": 0.35, "metal": True}
     return {"material": "SmoothPlastic", "color": colour(base), "reflectance": 0.1 if inputs["Roughness"].default_value < 0.25 else 0.02}
@@ -83,7 +85,9 @@ def join_by_role():
             bpy.ops.object.join()
         joined = bpy.context.view_layer.objects.active
         joined.name = joined.data.name = f"{role}_{index}"
-        parts[joined.name] = paint_of(bpy.data.materials[material])
+        # The Blender material's name goes along, so the game (and a check of the render against
+        # the game) knows what a part is, not only its colour.
+        parts[joined.name] = {**paint_of(bpy.data.materials[material]), "source": material.split(".")[0]}
     return parts
 
 

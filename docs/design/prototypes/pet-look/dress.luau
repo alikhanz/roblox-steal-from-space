@@ -3,8 +3,8 @@
 -- and size; a soft core light low under the body; particles by zone and signature, soft (fading in and out) and
 -- layered (a soft glow under the sparkles); fairy wings with a see-through membrane; comets with
 -- particle tails instead of orbit rings; a turning rune circle on the floor; and for a meteor a
--- smouldering basalt shell, fireball comets and a comet tail of fire, smoke and sparks; a legendary
--- glows (a big soft radiance behind it) instead of the old rays.
+-- smouldering basalt shell, fireball comets, a comet tail of fire, smoke and sparks and a fan of fire
+-- rays behind; a legendary glows (a big soft radiance behind it) instead of the old medal rays.
 local DATA = game:GetService("HttpService"):JSONDecode(game.ServerStorage.RoboPetData.Value)
 
 local TEX = {
@@ -16,12 +16,20 @@ local TEX = {
 	ember = "rbxassetid://82123783399839",
 	flame = "rbxassetid://120732950893778",
 	halo = "rbxassetid://100306136441986",
+	rays = "rbxassetid://135408710453006",
 	smoke = "rbxasset://textures/particles/smoke_main.dds",
 }
 local SCALE = 3.3
 local GOLD = Color3.fromRGB(255, 200, 70)
 local FIRE = Color3.fromRGB(255, 120, 30)
 local WHITE = Color3.new(1, 1, 1)
+-- Blender materials that need their own treatment here (the sidecar names each part's material).
+-- Light drawn as geometry in Blender (flame tongues, the medal rays): hidden, particles play it.
+local STAND_INS = { Flame = true, FlameCore = true, Tongue = true, Ray = true, RayShort = true }
+-- Ice and glass that glow a little in Blender: clear tinted glass here, never a solid Neon spike.
+local CRYSTALS = { Shard = true, IceSpike = true, Icicle = true, Fringe = true, Spout = true, Bubble = true, Brood = true }
+-- Faint see-through glows (a hover field, a smoke wisp): barely-there Neon.
+local AURAS = { Hover = true, Smoke = true }
 -- Particles fade in and out instead of popping: the soft look.
 local SOFT = { { 0, 1 }, { 0.15, 0 }, { 0.75, 0.15 }, { 1, 1 } }
 
@@ -158,13 +166,14 @@ return function(only: { [string]: boolean }?): string
 		core, tierColor = rgb(core), rgb(tierColor)
 		local paints = {}
 		for item in entry[2]:gmatch("[^;]+") do
-			local part, kind, r, g, b, t, refl = item:match("^([%w_]+)=(%a)(%d+),(%d+),(%d+),([%d%.]+),([%d%.]+)$")
-			paints[part] = { kind, Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b)), tonumber(t), tonumber(refl) }
+			-- part=<kind><r>,<g>,<b>,<transparency>,<reflectance>,<Blender material>
+			local part, kind, r, g, b, t, refl, source = item:match("^([%w_]+)=(%a)(%d+),(%d+),(%d+),([%d%.]+),([%d%.]+),?(%a*)$")
+			paints[part] = { kind, Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b)), tonumber(t), tonumber(refl), source }
 		end
 
 		-- Paint. Opaque hull a touch richer than in Blender (Roblox's light is flatter); a meteor's
 		-- molten parts become smouldering basalt, its heat shown by light and embers.
-		local wingParts = {}
+		local wingParts, flameParts = {}, {}
 		for _, part in model:GetDescendants() do
 			if not part:IsA("MeshPart") then
 				continue
@@ -196,12 +205,32 @@ return function(only: { [string]: boolean }?): string
 				part.Color = colour
 				part.Transparency = 0
 			end
+			-- What the part is in Blender, where a flat Roblox material would get it wrong.
+			local source = p[5]
+			if STAND_INS[source] then
+				part.Transparency = 1 -- light drawn as geometry in Blender; particles play it here
+			elseif CRYSTALS[source] then
+				part.Material = Enum.Material.Glass
+				part.Color = boost(colour, 1.15, 1)
+				part.Transparency = 0.3
+			elseif AURAS[source] then
+				part.Material = Enum.Material.Neon
+				part.Transparency = 0.8
+			elseif source == "Galaxy" then
+				-- A lilac nebula in Blender: lilac here (glass turned it magenta), its stars are particles.
+				part.Material = Enum.Material.SmoothPlastic
+				part.Color = Color3.fromRGB(150, 115, 230)
+				part.Transparency = 0
+			end
 			part.CastShadow = part.Material ~= Enum.Material.Neon
 			if role == "core" then
 				part.Material = Enum.Material.Neon
 				part.Color = boost(core, 1.2, 1.2)
 			elseif role == "wingL" or role == "wingR" then
 				table.insert(wingParts, part)
+			elseif role == "flame" then
+				table.insert(flameParts, part)
+				part.Transparency = 1
 			elseif role == "hingeL" or role == "hingeR" then
 				part.Transparency = 1 -- a wing's pivot marker, never seen
 			elseif role == "ring" then
@@ -353,13 +382,47 @@ return function(only: { [string]: boolean }?): string
 		-- The signature's effect.
 		for sig in signature:gmatch("[^%+]+") do
 			if sig == "flames" then
-				emitter(top, "Flames", {
+				-- The candle flames burn where Blender drew their (now hidden) tongues, as tall as they
+				-- were: from just above the dome (Roblox draws no particles behind Glass, so inside the
+				-- dome they would vanish), a body of fire and a pale core, not too additive (on a bright
+				-- background additive fire disappears).
+				local base, low, height = Vector3.zero, math.huge, 0
+				for _, part in flameParts do
+					base += part.Position
+					low = math.min(low, part.Position.Y - part.Size.Y / 2)
+					height = math.max(height, part.Size.Y)
+				end
+				local flameAt = top
+				if #flameParts > 0 then
+					base /= #flameParts
+					flameAt = Instance.new("Attachment")
+					flameAt.Name = "FlameBase"
+					flameAt.Parent = fx
+					flameAt.WorldPosition = Vector3.new(base.X, low + height * 0.45, base.Z)
+				end
+				local lift = math.max(height, 2)
+				emitter(flameAt, "Flames", {
 					Texture = TEX.flame,
-					Color = colours({ { 0, Color3.fromRGB(255, 250, 200) }, { 0.3, Color3.fromRGB(255, 170, 50) }, { 1, Color3.fromRGB(220, 40, 20) } }),
-					Size = seq({ { 0, 0.8 }, { 0.5, 1.3 }, { 1, 0.2 } }),
+					LightEmission = 0.4,
+					Transparency = seq({ { 0, 0.6 }, { 0.15, 0.05 }, { 0.6, 0.2 }, { 1, 1 } }),
+					Color = colours({ { 0, Color3.fromRGB(255, 230, 120) }, { 0.35, Color3.fromRGB(255, 140, 30) }, { 1, Color3.fromRGB(200, 40, 15) } }),
+					Size = seq({ { 0, lift * 0.95 }, { 0.4, lift * 1.1 }, { 1, lift * 0.2 } }),
 					Lifetime = NumberRange.new(0.45, 0.75),
-					Rate = 45,
-					Speed = NumberRange.new(3, 5),
+					Rate = 60,
+					Speed = NumberRange.new(lift * 1.1, lift * 1.6),
+					SpreadAngle = Vector2.new(12, 12),
+					Rotation = NumberRange.new(-20, 20),
+					RotSpeed = NumberRange.new(-40, 40),
+				})
+				emitter(flameAt, "FlameCore", {
+					Texture = TEX.flame,
+					LightEmission = 0.8,
+					Transparency = seq({ { 0, 0.6 }, { 0.15, 0.05 }, { 0.6, 0.2 }, { 1, 1 } }),
+					Color = ColorSequence.new(Color3.fromRGB(255, 245, 190)),
+					Size = seq({ { 0, lift * 0.57 }, { 0.5, lift * 0.5 }, { 1, lift * 0.1 } }),
+					Lifetime = NumberRange.new(0.3, 0.45),
+					Rate = 40,
+					Speed = NumberRange.new(lift * 0.9, lift * 1.25),
 					SpreadAngle = Vector2.new(12, 12),
 					Rotation = NumberRange.new(-20, 20),
 					RotSpeed = NumberRange.new(-40, 40),
@@ -449,6 +512,33 @@ return function(only: { [string]: boolean }?): string
 					Rate = 8,
 					Speed = NumberRange.new(2, 3),
 					SpreadAngle = Vector2.new(10, 10),
+				})
+			elseif sig == "smoke" then
+				-- Blender's violet wisps of shadow rising behind (dropped from the export).
+				emitter(back, "Wisps", {
+					Texture = TEX.smoke,
+					LightEmission = 0.3,
+					Color = ColorSequence.new(Color3.fromRGB(130, 80, 200)),
+					Size = seq({ { 0, 0.6 }, { 1, 2.2 } }),
+					Transparency = seq({ { 0, 1 }, { 0.2, 0.55 }, { 1, 1 } }),
+					Lifetime = NumberRange.new(1.6, 2.4),
+					Rate = 6,
+					Speed = NumberRange.new(1, 1.6),
+					EmissionDirection = Enum.NormalId.Top,
+					SpreadAngle = Vector2.new(15, 15),
+				})
+			elseif sig == "flakes" then
+				-- Blender's glowing snowflakes over the pet (dropped from the export).
+				emitter(top, "Flakes", {
+					Texture = TEX.star,
+					Color = ColorSequence.new(Color3.fromRGB(190, 240, 255)),
+					Size = seq({ { 0, 0 }, { 0.2, 0.4 }, { 1, 0 } }),
+					Lifetime = NumberRange.new(2, 3),
+					Rate = 8,
+					Speed = NumberRange.new(0.3, 0.8),
+					SpreadAngle = Vector2.new(70, 70),
+					Acceleration = Vector3.new(0, -0.8, 0),
+					RotSpeed = NumberRange.new(-60, 60),
 				})
 			elseif sig == "galaxy" then
 				emitter(fx, "Galaxy", {
@@ -580,6 +670,32 @@ return function(only: { [string]: boolean }?): string
 			})
 		end
 
+		-- A meteor of any tier wears a fan of fire rays behind its body (in the Blender renders, its
+		-- comet tail seen from the front), growing with the tier: always facing the camera, two
+		-- layers turning slowly against each other (animate.luau spins every image with a Spin attribute).
+		if meteor then
+			local medal = Instance.new("BillboardGui")
+			medal.Name = "Rays"
+			medal.Size = UDim2.fromScale(radius * (2.4 + tier * 0.3), radius * (2.4 + tier * 0.3))
+			medal.LightInfluence = 0
+			medal.Brightness = 1.2
+			medal.MaxDistance = 300
+			medal.Parent = attachment(fx, "Rays", Vector3.new(0, size.Y * 0.1, size.Z * 0.25))
+			-- { colour, share of the billboard, spin in degrees a second, transparency }
+			for _, layer in { { FIRE, 1, 4, 0.15 }, { Color3.fromRGB(255, 200, 120), 0.7, -7, 0.35 } } do
+				local image = Instance.new("ImageLabel")
+				image.BackgroundTransparency = 1
+				image.Image = TEX.rays
+				image.ImageColor3 = layer[1]
+				image.ImageTransparency = layer[4]
+				image.AnchorPoint = Vector2.new(0.5, 0.5)
+				image.Position = UDim2.fromScale(0.5, 0.5)
+				image.Size = UDim2.fromScale(layer[2], layer[2])
+				image:SetAttribute("Spin", layer[3])
+				image.Parent = medal
+			end
+		end
+
 		-- A legendary showers gold glitter.
 		if tier == 4 then
 			emitter(top, "GoldGlitter", {
@@ -596,13 +712,15 @@ return function(only: { [string]: boolean }?): string
 		end
 
 		-- Fairy wings (modelled in Blender, a role a side): the membrane is a faint tint; its glowing
-		-- edge, veins and pattern carry the shape. The membrane is the smaller of a wing's two parts
-		-- (the edge's tube sticks out past it). Sparkles fall off the tip.
+		-- edge, veins and pattern carry the shape. Sparkles fall off the tip.
 		for _, side in { "wingL", "wingR" } do
-			local membrane, area = nil, math.huge
+			-- The membrane is the part of the wing material (EnergyWing, GoldWing); the edge and veins
+			-- are the glowing lines.
+			local membrane
 			for _, part in wingParts do
-				if part:GetAttribute("Role") == side and part.Size.X * part.Size.Y < area then
-					membrane, area = part, part.Size.X * part.Size.Y
+				local source = paints[part.Name] and paints[part.Name][5] or ""
+				if part:GetAttribute("Role") == side and source:match("Wing$") then
+					membrane = part
 				end
 			end
 			if membrane then
@@ -617,7 +735,9 @@ return function(only: { [string]: boolean }?): string
 				membrane.Color = boost(accent, 1.2, 1.1)
 				membrane.Transparency = 0.8
 				membrane.CastShadow = false
-				local sign = if side == "wingL" then -1 else 1
+				-- Outwards is the side the wing really sits on (the import turns the pet round, so
+				-- Blender's left wing is at +X here), not its role's name.
+				local sign = if fx.CFrame:PointToObjectSpace(membrane.Position).X > 0 then 1 else -1
 				-- The forewing's sharp tip: up and out.
 				local tip = attachment(membrane, "Tip", Vector3.new(sign * membrane.Size.X * 0.45, membrane.Size.Y * 0.45, 0))
 				emitter(tip, "TipSparkles", {
@@ -636,24 +756,32 @@ return function(only: { [string]: boolean }?): string
 		-- Fairy dust off part of each wing's edge: the dust markers from Blender become emitters on
 		-- the membrane (so they flap with it), throwing fine glowing dust in the wing's colour along
 		-- the stroke, forwards as the wing opens and back as it folds (the client fires them).
+		-- The markers are gone after the first dressing; then the Dust points they left are dressed anew.
 		for _, marker in model:GetDescendants() do
-			if not (marker:IsA("MeshPart") and marker.Name:match("^dust[LR]")) then
-				continue
-			end
-			local side = "wing" .. marker.Name:sub(5, 5)
-			local host
-			for _, part in wingParts do
-				if part:GetAttribute("Role") == side and part.Material == Enum.Material.SmoothPlastic then
-					host = part
+			local host, at
+			if marker:IsA("MeshPart") and marker.Name:match("^dust[LR]") then
+				local side = "wing" .. marker.Name:sub(5, 5)
+				for _, part in wingParts do
+					if part:GetAttribute("Role") == side and part.Material == Enum.Material.SmoothPlastic then
+						host = part
+					end
 				end
+				if host then
+					at = Instance.new("Attachment")
+					at.Name = "Dust"
+					at.Parent = host
+					at.WorldPosition = marker.Position
+				end
+				marker:Destroy()
+			elseif marker:IsA("Attachment") and marker.Name == "Dust" then
+				host, at = marker.Parent, marker
+				at:ClearAllChildren()
 			end
 			if host then
-				local at = Instance.new("Attachment")
-				at.Name = "Dust"
-				at.Parent = host
-				at.WorldPosition = marker.Position
 				local dust = boost(accent, 0.8, 1.2)
-				for _, stroke in { { "DustOpen", Enum.NormalId.Back }, { "DustFold", Enum.NormalId.Front } } do
+				-- The dust follows the stroke: opening, the wing edge sweeps forward (the pet faces -Z,
+				-- so forward is Front); folding, it sweeps back over the pet's back.
+				for _, stroke in { { "DustOpen", Enum.NormalId.Front }, { "DustFold", Enum.NormalId.Back } } do
 					emitter(at, stroke[1], {
 						Texture = TEX.ember,
 						EmissionDirection = stroke[2],
@@ -680,7 +808,6 @@ return function(only: { [string]: boolean }?): string
 					})
 				end
 			end
-			marker:Destroy()
 		end
 
 		-- Comets instead of orbit rings (tier 3+), unless a meteor's fireballs fly already.

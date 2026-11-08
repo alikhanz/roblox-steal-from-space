@@ -1,8 +1,8 @@
 -- Client-side motion of the dressed robot pets in workspace.RoboPetGame (preview prototype, run in
 -- a playtest via MCP). Parts move by their Role attribute: the pet bobs and sways; the rune circle
 -- stays on the floor and turns; a rotor spins; drones circle the lead; rocks and planets orbit the
--- centre; rays turn about the facing axis; each fairy wing opens and folds back on its hinge; comets fly tilted
--- orbits (their trails draw the arcs); the core light pulses. One BulkMoveTo per frame.
+-- centre; each fairy wing opens and folds back on its hinge; comets fly tilted orbits (their trails
+-- draw the arcs); a meteor's fan of rays spins; the core light pulses. One BulkMoveTo per frame.
 local RunService = game:GetService("RunService")
 local folder = workspace:WaitForChild("RoboPetGame", 10)
 pcall(function()
@@ -23,6 +23,7 @@ for index, model in folder:GetChildren() do
 		hinges = {},
 		dustOpen = {},
 		dustFold = {},
+		spinning = {},
 		beat = 0,
 		centre = base:PointToObjectSpace(cf.Position),
 	}
@@ -47,6 +48,8 @@ for index, model in folder:GetChildren() do
 			table.insert(pet.dustOpen, item)
 		elseif item:IsA("ParticleEmitter") and item.Name:match("^DustFold") then
 			table.insert(pet.dustFold, item)
+		elseif item:IsA("ImageLabel") and item:GetAttribute("Spin") then
+			table.insert(pet.spinning, item)
 		end
 	end
 	for role, sum in sums do
@@ -92,9 +95,12 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 			elseif role == "rays" then
 				frame = bob * c * CFrame.Angles(0, 0, t * 0.5) * cInv * offset
 			elseif role == "wingL" or role == "wingR" then
+				-- The side comes from where the hinge really is, not the role's name: the import turns
+				-- the pet round, so Blender's left wing sits at +X here. As the beat rises the wing
+				-- folds back (its edge sweeps to +Z, behind the pet) and lifts; as it falls, it opens.
 				local hinge = CFrame.new(pet.hinges[role])
-				local side = if role == "wingL" then -1 else 1
-				frame = bob * hinge * CFrame.Angles(0, side * swing, side * 0.12 * beat) * hinge:Inverse() * offset
+				local side = if pet.hinges[role].X > 0 then 1 else -1
+				frame = bob * hinge * CFrame.Angles(0, -side * swing, side * 0.12 * beat) * hinge:Inverse() * offset
 			elseif role == "wisp" then
 				local tilt = part:GetAttribute("Tilt")
 				local angle = t * (part:GetAttribute("Speed") or 1.6) + part:GetAttribute("Phase")
@@ -110,6 +116,10 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 		end
 		if pet.light then
 			pet.light.Brightness = pet.brightness + math.sin(t * 3 + ph) * 0.4
+		end
+		-- The legendary medal of rays turns slowly, its two layers against each other.
+		for _, image in pet.spinning do
+			image.Rotation = t * image:GetAttribute("Spin")
 		end
 	end
 	workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
