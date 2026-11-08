@@ -13,6 +13,7 @@ local MeteorLooks = require(ReplicatedStorage.Shared.Config.MeteorLooks)
 local NestLayout = require(ReplicatedStorage.Shared.Domain.NestLayout)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
 local ShopModel = require(script.Parent.Parent.World.ShopModel)
+local SkyLooks = require(ReplicatedStorage.Shared.Config.SkyLooks)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.WorldConfig)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
@@ -27,7 +28,6 @@ local PLATFORM_COLOR = Color3.fromRGB(128, 136, 160)
 local HULL_COLOR = Color3.fromRGB(70, 76, 94)
 -- Glowing rim around the platform: makes the station easy to find from the asteroid field.
 local RIM_COLOR = Color3.fromRGB(90, 200, 255)
-local STAR_COUNT = 5000
 -- The map edge: a faint shell so players see where space ends (Bounds stops them there).
 local BOUNDARY_COLOR = Color3.fromRGB(150, 90, 255)
 local BOUNDARY_TRANSPARENCY = 0.9
@@ -443,17 +443,28 @@ local function buildBoundary(parent: Instance)
 end
 
 local function configureLighting()
-	Lighting.ClockTime = 0
-	Lighting.Brightness = 3
-	Lighting.Ambient = Color3.fromRGB(90, 96, 125)
-	Lighting.OutdoorAmbient = Color3.fromRGB(120, 126, 155)
-	Lighting.EnvironmentDiffuseScale = 0.3
-	Lighting.EnvironmentSpecularScale = 0.5
+	Lighting.ClockTime = SkyLooks.CLOCK_TIME
+	Lighting.GeographicLatitude = SkyLooks.LATITUDE
+	Lighting.Brightness = SkyLooks.BRIGHTNESS
+	Lighting.Ambient = SkyLooks.AMBIENT
+	Lighting.OutdoorAmbient = SkyLooks.OUTDOOR_AMBIENT
+	Lighting.ColorShift_Top = SkyLooks.COLOR_SHIFT_TOP
+	Lighting.EnvironmentDiffuseScale = SkyLooks.ENVIRONMENT_DIFFUSE
+	Lighting.EnvironmentSpecularScale = SkyLooks.ENVIRONMENT_SPECULAR
+	Lighting.GlobalShadows = SkyLooks.GLOBAL_SHADOWS
 	Lighting.FogEnd = 1e5
 
+	-- Our own space skybox, and the sun in it (the stars are in the skybox).
 	local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
-	sky.StarCount = STAR_COUNT
-	sky.CelestialBodiesShown = false
+	sky.SkyboxFt = SkyLooks.SKYBOX.Ft
+	sky.SkyboxBk = SkyLooks.SKYBOX.Bk
+	sky.SkyboxLf = SkyLooks.SKYBOX.Lf
+	sky.SkyboxRt = SkyLooks.SKYBOX.Rt
+	sky.SkyboxUp = SkyLooks.SKYBOX.Up
+	sky.SkyboxDn = SkyLooks.SKYBOX.Dn
+	sky.StarCount = 0
+	sky.CelestialBodiesShown = true
+	sky.SunAngularSize = SkyLooks.SUN_ANGULAR_SIZE
 	sky.Parent = Lighting
 
 	-- Space has no air: a hazy atmosphere would hide the asteroid field.
