@@ -3,7 +3,7 @@
 -- A pin on the screen for a place in the world: a sign with a name and a distance, drawn over
 -- the place while it is in view and held at the screen edge with an arrow towards it when it is
 -- not (Domain/ScreenMarker). Screen space, so it shows from any distance and does not depend on
--- the place streaming in. The station beacon and event markers are pins.
+-- the place streaming in. The home beacon and event markers are pins.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

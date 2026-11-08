@@ -1108,9 +1108,10 @@ local Strings = {
 		ru = "Кислород кончается! Лети к станции",
 		en = "Low oxygen! Fly back to the station",
 	},
-	["station.beacon.title"] = {
-		ru = "Станция",
-		en = "Station",
+	-- The pin over the player's own island while they are anywhere else (decision 069).
+	["island.beacon.title"] = {
+		ru = "Твой остров",
+		en = "Your island",
 	},
 	-- The tutorial (decision 065): one line at a time, what to do now.
 	["tutorial.steal.hint"] = {

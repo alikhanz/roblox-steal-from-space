@@ -14,6 +14,7 @@ local EventController = require(script.Parent.Controllers.EventController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
 local HitEffectsController = require(script.Parent.Controllers.HitEffectsController)
+local HomeBeaconController = require(script.Parent.Controllers.HomeBeaconController)
 local HudController = require(script.Parent.Controllers.HudController)
 local IndexController = require(script.Parent.Controllers.IndexController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
@@ -30,7 +31,6 @@ local SerpentController = require(script.Parent.Controllers.SerpentController)
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local SpeedState = require(script.Parent.State.SpeedState)
-local StationBeaconController = require(script.Parent.Controllers.StationBeaconController)
 local StationBorderController = require(script.Parent.Controllers.StationBorderController)
 local StoreController = require(script.Parent.Controllers.StoreController)
 local ToastState = require(script.Parent.State.ToastState)
@@ -113,7 +113,7 @@ Lifecycle.run({
 	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
-	StationBeaconController.new(),
+	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
 	tutorialController,
 	StationBorderController.new(),
 	eventController,

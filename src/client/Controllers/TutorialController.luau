@@ -63,6 +63,8 @@ export type TutorialController = {
 	-- The step of the hint, 1..Tutorial.STEP_COUNT; nil for none, and for the farewell line.
 	step: () -> number?,
 	icon: () -> Icons.Name?,
+	-- True while its pin leads to the player's island (carrying an egg home).
+	pointsHome: () -> boolean,
 }
 
 local TutorialController = {}
@@ -288,6 +290,10 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 		icon = function(): Icons.Name?
 			local current = readHint()
 			return if current then HINT_ICONS[current] else nil
+		end,
+		pointsHome = function(): boolean
+			local current = Vide.untrack(readHint)
+			return current == "CarryHome" or current == "CarryHomeStronger"
 		end,
 	}
 end
