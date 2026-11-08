@@ -3,7 +3,8 @@
 -- and size; a soft core light low under the body; particles by zone and signature, soft (fading in and out) and
 -- layered (a soft glow under the sparkles); fairy wings with a see-through membrane; comets with
 -- particle tails instead of orbit rings; a turning rune circle on the floor; and for a meteor a
--- smouldering basalt shell, fireball comets and a comet tail of fire, smoke and sparks.
+-- smouldering basalt shell, fireball comets and a comet tail of fire, smoke and sparks; a legendary
+-- glows (a big soft radiance behind it) instead of the old rays.
 local DATA = game:GetService("HttpService"):JSONDecode(game.ServerStorage.RoboPetData.Value)
 
 local TEX = {
@@ -206,7 +207,7 @@ return function(only: { [string]: boolean }?): string
 			elseif role == "ring" then
 				part.Transparency = 1 -- the rune circle takes its place
 			elseif role == "rays" then
-				part.Transparency = 0.45
+				part.Transparency = 1 -- the old medal rays; a soft radiance takes their place
 			end
 		end
 
@@ -225,7 +226,8 @@ return function(only: { [string]: boolean }?): string
 		fx.CFrame = cf
 		fx.Parent = model
 		local top = attachment(fx, "Top", Vector3.new(0, size.Y * 0.5, 0))
-		local back = attachment(fx, "Back", Vector3.new(0, size.Y * 0.05, -size.Z * 0.45))
+		-- The back of the pet: the imported model faces -Z, so its back is +Z (a meteor's tail streams from here).
+		local back = attachment(fx, "Back", Vector3.new(0, size.Y * 0.05, size.Z * 0.45))
 
 		-- Light low under the body: it lights the floor round the pet (a bright light on the body
 		-- burns its colours to white under Bloom).
@@ -467,7 +469,7 @@ return function(only: { [string]: boolean }?): string
 		if meteor then
 			emitter(back, "TailFire", {
 				Texture = TEX.flame,
-				EmissionDirection = Enum.NormalId.Front,
+				EmissionDirection = Enum.NormalId.Back,
 				Color = colours({
 					{ 0, Color3.fromRGB(255, 250, 210) },
 					{ 0.2, Color3.fromRGB(255, 200, 80) },
@@ -489,7 +491,7 @@ return function(only: { [string]: boolean }?): string
 				Texture = TEX.smoke,
 				LightEmission = 0,
 				LightInfluence = 1,
-				EmissionDirection = Enum.NormalId.Front,
+				EmissionDirection = Enum.NormalId.Back,
 				Color = ColorSequence.new(Color3.fromRGB(60, 48, 44)),
 				Transparency = seq({ { 0, 1 }, { 0.2, 0.55 }, { 1, 1 } }),
 				Size = seq({ { 0, 1.2 }, { 1, 4.5 } }),
@@ -503,7 +505,7 @@ return function(only: { [string]: boolean }?): string
 			})
 			emitter(back, "TailSparks", {
 				Texture = TEX.spark,
-				EmissionDirection = Enum.NormalId.Front,
+				EmissionDirection = Enum.NormalId.Back,
 				Orientation = Enum.ParticleOrientation.VelocityParallel,
 				Transparency = seq({ { 0, 0 }, { 1, 1 } }),
 				Color = colours({ { 0, Color3.fromRGB(255, 240, 180) }, { 1, Color3.fromRGB(255, 120, 30) } }),
@@ -529,6 +531,53 @@ return function(only: { [string]: boolean }?): string
 			for index = 1, count do
 				comet(model, cf, radius, index, count, Color3.fromRGB(255, 190, 90), FIRE, true)
 			end
+		end
+
+		-- A legendary glows: a big soft radiance behind the body (gold; fire for a meteor) that
+		-- breathes slowly, a brighter heart in it and slow sparkles drifting out of it. The glow
+		-- moves with the pet (locked to the carrier), and sits behind it (negative ZOffset).
+		if tier == 4 then
+			local warm = if meteor then FIRE else GOLD
+			local pale = if meteor then Color3.fromRGB(255, 200, 120) else Color3.fromRGB(255, 240, 180)
+			local glow = attachment(fx, "Radiance", Vector3.new(0, size.Y * 0.1, size.Z * 0.25))
+			emitter(glow, "Radiance", {
+				Texture = TEX.ember,
+				Color = colours({ { 0, pale }, { 1, warm } }),
+				Transparency = seq({ { 0, 1 }, { 0.35, 0.62 }, { 0.7, 0.66 }, { 1, 1 } }),
+				Size = seq({ { 0, radius * 2.4 }, { 1, radius * 3.2 } }),
+				Lifetime = NumberRange.new(2.5, 3.5),
+				Rate = 2.5,
+				Speed = NumberRange.new(0, 0),
+				Rotation = NumberRange.new(0, 360),
+				RotSpeed = NumberRange.new(-10, 10),
+				LockedToPart = true,
+				ZOffset = -3,
+			})
+			emitter(glow, "RadianceHeart", {
+				Texture = TEX.ember,
+				Color = ColorSequence.new(pale),
+				Transparency = seq({ { 0, 1 }, { 0.4, 0.5 }, { 1, 1 } }),
+				Size = seq({ { 0, radius * 1.3 }, { 1, radius * 1.7 } }),
+				Lifetime = NumberRange.new(1.8, 2.4),
+				Rate = 2,
+				Speed = NumberRange.new(0, 0),
+				LockedToPart = true,
+				ZOffset = -2.5,
+			})
+			emitter(glow, "RadianceMotes", {
+				Texture = TEX.star,
+				Color = colours({ { 0, WHITE }, { 0.4, pale }, { 1, warm } }),
+				Size = seq({ { 0, 0 }, { 0.3, 0.35, 0.15 }, { 1, 0 } }),
+				Lifetime = NumberRange.new(2, 3),
+				Rate = 14,
+				Speed = NumberRange.new(0.6, 1.4),
+				SpreadAngle = Vector2.new(180, 180),
+				Shape = Enum.ParticleEmitterShape.Sphere,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+				Rotation = NumberRange.new(0, 360),
+				RotSpeed = NumberRange.new(-60, 60),
+				ZOffset = -1,
+			})
 		end
 
 		-- A legendary showers gold glitter.
