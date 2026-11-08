@@ -41,7 +41,7 @@ Creator Hub → игра → **Monetization → Passes** и **Monetization → D
 | # | Название EN / RU | Описание EN / RU | Цена |
 |---|---|---|---|
 | P1 | Double training / Двойная тренировка | Your trainer gives twice the ⚡, even while you're away. Forever. / Тренажёр даёт вдвое больше ⚡, даже когда тебя нет в игре. Навсегда. | 299 |
-| P2 | Night shift / Ночная смена | While you're away, pods earn for 8 hours instead of 4 and the trainer works for 16 hours instead of 8. / Пока тебя нет, капсулы приносят монеты 8 часов вместо 4, а тренажёр качает ⚡ 16 часов вместо 8. | 149 |
+| P2 | Night shift / Ночная смена | While you're away, aliens earn coins for 8 hours instead of 4 and the trainer works for 16 hours instead of 8. / Пока тебя нет, пришельцы приносят монеты 8 часов вместо 4, а тренажёр качает ⚡ 16 часов вместо 8. *(Было «pods / капсулы» — до решения 068.)* | 149 |
 
 **Покупки:**
 
@@ -50,14 +50,14 @@ Creator Hub → игра → **Monetization → Passes** и **Monetization → D
 | D1 | 1 hour of training / Час тренировки | As much ⚡ as your trainer gives in 1 hour, right away. The shop shows the exact number. / Сразу столько ⚡, сколько тренажёр даёт за час. Точное число — в магазине. | 25 |
 | D2 | 8 hours of training / 8 часов тренировки | As much ⚡ as your trainer gives in 8 hours, right away. The shop shows the exact number. / Сразу столько ⚡, сколько тренажёр даёт за 8 часов. Точное число — в магазине. | 99 |
 | D3 | A day of training / Сутки тренировки | As much ⚡ as your trainer gives in a day, right away. The shop shows the exact number. / Сразу столько ⚡, сколько тренажёр даёт за сутки. Точное число — в магазине. | 249 |
-| D4–D11 | Egg ready now / Яйцо готово сейчас | One egg in your incubator is ready right away. Hatch it in your bay. / Одно яйцо в инкубаторе сразу готово. Вылупи его в отсеке. | D4 3, D5 4, D6 5, D7 7, D8 9, D9 12, D10 16, D11 20 |
-| D12–D14 | Incubator slot / Место в инкубаторе | One more incubator slot right away, no coins needed. / Ещё одно место в инкубаторе сразу, без монет. | D12 19 (3–6-е), D13 49 (7–9-е), D14 99 (10–12-е) |
+| D4–D11 | Egg ready now / Яйцо готово сейчас | One egg in your incubator is ready right away. Hatch it on your island. / Одно яйцо в инкубаторе сразу готово. Вылупи его на острове. *(Было «in your bay / в отсеке».)* | D4 3, D5 4, D6 5, D7 7, D8 9, D9 12, D10 16, D11 20 |
+| D12–D14 | Incubator pod / Капсула инкубатора | One more incubator pod right away, no coins needed. / Ещё одна капсула в инкубаторе сразу, без монет. *(Было «Incubator slot / Место в инкубаторе» — до решения 068; в Creator Hub — «Incubator pod 1–3».)* | D12 19 (3–6-е), D13 49 (7–9-е), D14 99 (10–12-е) |
 | D15 | Collect ×2 / Забрать ×2 | Get the coins and ⚡ from your time away once more. / Ещё раз столько же монет и ⚡, сколько принесло время без тебя. | D15 20 (ступень 8) |
 | D16–D22 | Collect ×2 / Забрать ×2 | то же, что D15 | D16 1, D17 2, D18 3, D19 5, D20 7, D21 10, D22 15 (ступени 1–7) |
 
 У D4–D11, D12–D14 и D15–D22 по смыслу одно название, но Roblox требует разные имена покупок в игре («Developer product name already exists in the universe»), поэтому английское имя — с номером ступени («Collect ×2 3»), а русский перевод (Creator Hub → Localization → Products) — без номера («Забрать ×2»). Переводы есть у всех покупок и пропусков: игрок видит одну покупку, а какую из ступеней показать, решает игра.
 
-**Созданы (Dev, 2026-11-06):** P1 Double training `2070386434`, P2 Night shift `2070559216`; D1 `3728652464`, D2 `3728652573`, D3 `3728652763`; «Egg ready now» по ступеням 1–8 (3–20 R$): `3728652908`, `3728653127`, `3728653284`, `3728653436`, `3728653592`, `3728653681`, `3728653855`, `3728653985`; «Incubator slot» 1–3 (19 / 49 / 99 R$): `3728654116`, `3728654221`, `3728654379`; «Collect ×2» по ступеням 1–8 (1 / 2 / 3 / 5 / 7 / 10 / 15 / 20 R$, решение 064): `3728983039`, `3728983222`, `3728983343`, `3728983452`, `3728983549`, `3728983641`, `3728983708`, `3728654444` (в Creator Hub — «Collect ×2 1» … «Collect ×2 8»: имена покупок там разные, как у «Egg ready now 1–8»). У покупок включено Managed Pricing (региональные цены и оптимизация цен Roblox), у пропусков — нет.
+**Созданы (Dev, 2026-11-06):** P1 Double training `2070386434`, P2 Night shift `2070559216`; D1 `3728652464`, D2 `3728652573`, D3 `3728652763`; «Egg ready now» по ступеням 1–8 (3–20 R$): `3728652908`, `3728653127`, `3728653284`, `3728653436`, `3728653592`, `3728653681`, `3728653855`, `3728653985`; «Incubator slot» 1–3, переименованы в «Incubator pod 1–3» (19 / 49 / 99 R$): `3728654116`, `3728654221`, `3728654379`; «Collect ×2» по ступеням 1–8 (1 / 2 / 3 / 5 / 7 / 10 / 15 / 20 R$, решение 064): `3728983039`, `3728983222`, `3728983343`, `3728983452`, `3728983549`, `3728983641`, `3728983708`, `3728654444` (в Creator Hub — «Collect ×2 1» … «Collect ×2 8»: имена покупок там разные, как у «Egg ready now 1–8»). У покупок включено Managed Pricing (региональные цены и оптимизация цен Roblox), у пропусков — нет.
 
 ## Как это ляжет на код
 
