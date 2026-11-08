@@ -9,6 +9,9 @@ import bpy
 def _principled(name):
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
+    # EEVEE shows what is behind or inside a see-through surface only with raytraced refraction.
+    if hasattr(mat, "use_raytrace_refraction"):
+        mat.use_raytrace_refraction = True
     nodes = mat.node_tree.nodes
     return mat, nodes, mat.node_tree.links, nodes.get("Principled BSDF")
 
@@ -40,14 +43,15 @@ def _bump(nodes, links, bsdf, scale, strength):
     links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
 
-def jelly(name, color, glow=0.0):
-    """Translucent living jelly: light passes through, a soft sheen, a faint inner glow."""
+def jelly(name, color, glow=0.0, clear=False):
+    """Translucent living jelly: light passes through, a soft sheen, a faint inner glow. `clear`
+    makes it see-through enough to show glowing organs inside."""
     mat, nodes, links, bsdf = _principled(name)
     bsdf.inputs["Base Color"].default_value = (*color, 1.0)
     bsdf.inputs["Roughness"].default_value = 0.12
-    bsdf.inputs["Transmission Weight"].default_value = 0.65
+    bsdf.inputs["Transmission Weight"].default_value = 0.95 if clear else 0.65
     bsdf.inputs["IOR"].default_value = 1.33
-    bsdf.inputs["Subsurface Weight"].default_value = 0.3
+    bsdf.inputs["Subsurface Weight"].default_value = 0.0 if clear else 0.3
     bsdf.inputs["Coat Weight"].default_value = 0.5
     if glow > 0:
         bsdf.inputs["Emission Color"].default_value = (*color, 1.0)
