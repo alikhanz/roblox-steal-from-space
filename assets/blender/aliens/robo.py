@@ -12,7 +12,7 @@ import math
 
 import bpy
 import real
-from mathutils import Matrix, Vector
+from mathutils import Euler, Matrix, Vector
 
 GOLD = (1.0, 0.72, 0.18)
 TIER_COLORS = [(0.7, 0.72, 0.78), (0.35, 0.95, 0.45), (0.25, 0.6, 1.0), (0.75, 0.3, 1.0), (1.0, 0.72, 0.15)]
@@ -507,6 +507,9 @@ WING_VEIN_TRACES = [
     [(15, 745), (180, 880), (250, 1020), (200, 1140)],
     [(15, 745), (110, 860), (145, 1060)],
 ]
+# Where fairy dust flies off with each stroke: part of the outer edge, a little inside it (the forewing
+# from its tip down, then the hind lobe's rim).
+WING_DUST_TRACE = [(670, 30), (600, 150), (545, 280), (520, 420), (505, 560), (455, 865), (475, 935), (420, 965)]
 # Nested contours inside the edge (the reference's cells), as fractions of the outline towards the root.
 WING_CELLS = [0.8, 0.6]
 
@@ -604,6 +607,14 @@ def wings(info, color, size, gold=False):
         # the edge sweeps the most). Invisible in game.
         with role("hinge" + name[-1]):
             sphere(hinge, (0.03, 0.03, 0.03), edge, 8)
+        # Dust markers along part of the outer edge (the forewing from its tip down, the hind lobe):
+        # in game, fairy dust flies off them with each stroke. Each is a role of its own so it stays
+        # a separate point; the game turns them into emitters and drops the markers.
+        turn = Euler((math.radians(-10), 0, math.radians(side * -22))).to_matrix()
+        for index, (x, y) in enumerate(_from_trace(WING_DUST_TRACE)):
+            point = Vector(hinge) + turn @ Vector((side * x * span, 0.0, y * span))
+            with role(f"dust{name[-1]}{index + 1}"):
+                sphere(tuple(point), (0.02, 0.02, 0.02), edge, 6)
 
 
 @in_role("fx")  # In game, orbiting comets with trails take the rings' place.

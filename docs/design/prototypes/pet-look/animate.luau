@@ -21,7 +21,8 @@ for index, model in folder:GetChildren() do
 		roles = {},
 		groups = {},
 		hinges = {},
-		bursts = {},
+		dustOpen = {},
+		dustFold = {},
 		beat = 0,
 		centre = base:PointToObjectSpace(cf.Position),
 	}
@@ -42,8 +43,10 @@ for index, model in folder:GetChildren() do
 			end
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
-		elseif item:IsA("ParticleEmitter") and item.Name == "FlapBurst" then
-			table.insert(pet.bursts, item)
+		elseif item:IsA("ParticleEmitter") and item.Name:match("^DustOpen") then
+			table.insert(pet.dustOpen, item)
+		elseif item:IsA("ParticleEmitter") and item.Name:match("^DustFold") then
+			table.insert(pet.dustFold, item)
 		end
 	end
 	for role, sum in sums do
@@ -65,11 +68,12 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 		-- Wings open and fold back like a book on their hinges (a butterfly's beat), with a slight lift.
 		local beat = math.sin(t * 5 + ph)
 		local swing = 0.55 + 0.45 * beat
-		-- On each opening stroke (the beat falls through zero, the wings sweeping out fastest)
-		-- a burst of sparkles flies off the tips and tails.
-		if pet.beat > 0 and beat <= 0 then
-			for _, burst in pet.bursts do
-				burst:Emit(7)
+		-- Fairy dust off the wing edges at the fastest part of each stroke (the beat passes zero):
+		-- forwards as the wings open (the beat falls), back as they fold (it rises).
+		local stroke = if pet.beat > 0 and beat <= 0 then pet.dustOpen elseif pet.beat < 0 and beat >= 0 then pet.dustFold else nil
+		if stroke then
+			for _, dust in stroke do
+				dust:Emit(if dust.Name:match("Star$") then 1 else 5)
 			end
 		end
 		pet.beat = beat

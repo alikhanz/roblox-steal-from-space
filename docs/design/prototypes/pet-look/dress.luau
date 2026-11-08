@@ -581,23 +581,57 @@ return function(only: { [string]: boolean }?): string
 					Acceleration = Vector3.new(0, -1.5, 0),
 					SpreadAngle = Vector2.new(180, 180),
 				})
-				-- A burst flies off the tip and the hind tail on every stroke (the client fires it).
-				local tail = attachment(membrane, "Tail", Vector3.new(sign * membrane.Size.X * 0.15, -membrane.Size.Y * 0.45, 0))
-				for _, at in { tip, tail } do
-					emitter(at, "FlapBurst", {
-						Texture = TEX.star,
-						Color = colours({ { 0, WHITE }, { 1, accent } }),
-						Size = seq({ { 0, 0.5 }, { 1, 0 } }),
-						Lifetime = NumberRange.new(0.5, 0.9),
+			end
+		end
+
+		-- Fairy dust off part of each wing's edge: the dust markers from Blender become emitters on
+		-- the membrane (so they flap with it), throwing fine glowing dust in the wing's colour along
+		-- the stroke, forwards as the wing opens and back as it folds (the client fires them).
+		for _, marker in model:GetDescendants() do
+			if not (marker:IsA("MeshPart") and marker.Name:match("^dust[LR]")) then
+				continue
+			end
+			local side = "wing" .. marker.Name:sub(5, 5)
+			local host
+			for _, part in wingParts do
+				if part:GetAttribute("Role") == side and part.Material == Enum.Material.SmoothPlastic then
+					host = part
+				end
+			end
+			if host then
+				local at = Instance.new("Attachment")
+				at.Name = "Dust"
+				at.Parent = host
+				at.WorldPosition = marker.Position
+				local dust = boost(accent, 0.8, 1.2)
+				for _, stroke in { { "DustOpen", Enum.NormalId.Back }, { "DustFold", Enum.NormalId.Front } } do
+					emitter(at, stroke[1], {
+						Texture = TEX.ember,
+						EmissionDirection = stroke[2],
+						Color = colours({ { 0, WHITE }, { 0.3, dust }, { 1, accent } }),
+						Size = seq({ { 0, 0 }, { 0.15, 0.16, 0.08 }, { 0.7, 0.1, 0.05 }, { 1, 0 } }),
+						Lifetime = NumberRange.new(0.9, 1.6),
 						Rate = 0,
-						Speed = NumberRange.new(3, 6),
-						Drag = 3,
-						SpreadAngle = Vector2.new(70, 70),
-						Rotation = NumberRange.new(0, 360),
-						RotSpeed = NumberRange.new(-200, 200),
+						Speed = NumberRange.new(2, 4.5),
+						Drag = 2.5,
+						Acceleration = Vector3.new(0, -0.6, 0),
+						SpreadAngle = Vector2.new(40, 40),
+					})
+					emitter(at, stroke[1] .. "Star", {
+						Texture = TEX.star,
+						EmissionDirection = stroke[2],
+						Color = colours({ { 0, WHITE }, { 1, dust } }),
+						Size = seq({ { 0, 0 }, { 0.2, 0.22, 0.1 }, { 1, 0 } }),
+						Lifetime = NumberRange.new(0.6, 1.1),
+						Rate = 0,
+						Speed = NumberRange.new(1.5, 3.5),
+						Drag = 2,
+						SpreadAngle = Vector2.new(50, 50),
+						RotSpeed = NumberRange.new(-180, 180),
 					})
 				end
 			end
+			marker:Destroy()
 		end
 
 		-- Comets instead of orbit rings (tier 3+), unless a meteor's fireballs fly already.
