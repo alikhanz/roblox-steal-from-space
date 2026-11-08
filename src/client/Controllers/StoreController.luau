@@ -4,7 +4,6 @@
 -- toasts for what a purchase gave. Prices and passes come from PurchaseState, the numbers a
 -- purchase would give from the profile copy and the same formulas the server uses.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -264,7 +263,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 			-- An unpublished place sells nothing: no button, no window.
 			return
 		end
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[StoreController] PlayerGui did not appear")
 		mountUi(playerGui)

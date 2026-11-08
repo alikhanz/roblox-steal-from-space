@@ -6,7 +6,7 @@
 -- keyed by the model and torn down when it goes.
 
 local CollectionService = game:GetService("CollectionService")
-local LocalizationService = game:GetService("LocalizationService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -174,7 +174,7 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 	end
 
 	local function start()
-		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		local locale = Text.localeOf(Players.LocalPlayer)
 		CollectionService:GetInstanceAddedSignal(GuardianConfig.TAG):Connect(function(instance)
 			watch(instance, locale)
 		end)

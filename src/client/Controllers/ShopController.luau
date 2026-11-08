@@ -7,7 +7,6 @@
 -- closes when the player walks away from the kiosk.
 
 local CollectionService = game:GetService("CollectionService")
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -270,7 +269,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[ShopController] PlayerGui did not appear")
 		mountUi(playerGui)

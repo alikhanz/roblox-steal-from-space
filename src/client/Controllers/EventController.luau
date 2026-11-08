@@ -7,7 +7,6 @@
 -- (Domain/EventSpots), and each new spot is announced; pins are moved apart so none covers
 -- another (Domain/ScreenMarker).
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -346,7 +345,7 @@ function EventController.new(): EventController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[EventController] PlayerGui did not appear")
 		gui = playerGui

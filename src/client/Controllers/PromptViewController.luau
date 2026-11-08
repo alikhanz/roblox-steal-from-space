@@ -4,7 +4,6 @@
 -- as the egg prompt: a key badge, a hold bar and the action's words. The prompt itself stays
 -- an engine prompt; this only replaces its picture. Touch screens press the badge.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -81,6 +80,10 @@ function PromptViewController.new(): PromptViewController
 			return
 		end
 		local progress = source(0)
+		-- Where the prompt hangs over its part: its own height if it sets one (an egg's, below the
+		-- chips over the incubator), else the default.
+		local ownHeight = prompt:GetAttribute(BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE)
+		local studsAbove = if type(ownHeight) == "number" then ownHeight else PROMPT_STUDS_ABOVE
 		-- The words can change while the prompt is up (a price that arrives later).
 		local actionText = source(prompt.ActionText)
 		local view: View
@@ -90,7 +93,7 @@ function PromptViewController.new(): PromptViewController
 					return adornee
 				end,
 				progress = progress,
-				studsAbove = PROMPT_STUDS_ABOVE,
+				studsAbove = studsAbove,
 				showBar = function()
 					return prompt.HoldDuration > 0
 				end,
@@ -139,7 +142,7 @@ function PromptViewController.new(): PromptViewController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		UserInputService:GetPropertyChangedSignal("PreferredInput"):Connect(function()
 			inputMode(UserInputService.PreferredInput)
 		end)

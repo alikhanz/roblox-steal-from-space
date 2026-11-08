@@ -10,7 +10,7 @@
 --     (SerpentConfig.EGG_ATTRIBUTE and the rest).
 --   * A white flash on its head as a hit lands (SerpentConfig.LAST_HIT_ATTRIBUTE).
 
-local LocalizationService = game:GetService("LocalizationService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -154,7 +154,7 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local events = ReplicatedStorage:WaitForChild(EventConfig.FOLDER_NAME, WORLD_WAIT_TIMEOUT)
 		local folder = events and events:WaitForChild("Serpent", WORLD_WAIT_TIMEOUT)
 		if folder then

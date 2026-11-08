@@ -4,7 +4,6 @@
 -- refused commands, the welcome-back screen. Holds the selection; everything else is read from
 -- ProfileState and every action is sent to the server through Remotes.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -681,7 +680,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local player = Players.LocalPlayer
 		local playerGui = player:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[BayWindowController] PlayerGui did not appear")

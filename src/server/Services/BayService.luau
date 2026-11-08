@@ -249,19 +249,21 @@ function BayService.new(dependencies: Dependencies): BayService
 		if not body then
 			return
 		end
-		local words = Text.get(Text.resolveLocale(player.LocaleId), "alien.pickUp.button")
+		local words = Text.get(Text.localeOf(player), "alien.pickUp.button")
 		addOwnerPrompt(player, body, words, function()
 			pickUp(player, uid, body)
 		end)
 	end
 
 	local function addHatchPrompt(player: Player, part: BasePart, uid: number)
-		local words = Text.get(Text.resolveLocale(player.LocaleId), "egg.hatch.button")
+		local words = Text.get(Text.localeOf(player), "egg.hatch.button")
 		addOwnerPrompt(player, part, words, function()
 			if withinReach(player, part) then
 				hatchReady(player, uid)
 			end
-		end)
+		end, {
+			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = BayConfig.EGG_PROMPT_STUDS_ABOVE,
+		})
 	end
 
 	-- A warming egg offers to hatch it now for Robux: the owner's client words the prompt with
@@ -274,11 +276,12 @@ function BayService.new(dependencies: Dependencies): BayService
 			return
 		end
 		-- The price is the client's: Roblox tells each player their own.
-		local locale = Text.resolveLocale(player.LocaleId)
+		local locale = Text.localeOf(player)
 		local unknown = Text.get(locale, "store.robux.hint", { price = "…" })
 		local words = Text.get(locale, "egg.hatchNow.button", { price = unknown })
 		addOwnerPrompt(player, part, words, function() end, {
 			[BayConfig.READY_NOW_TIER_ATTRIBUTE] = tier,
+			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = BayConfig.EGG_PROMPT_STUDS_ABOVE,
 		})
 	end
 

@@ -37,6 +37,23 @@ local PLURAL_RULES: { [Locale]: (number) -> string } = {
 }
 
 -- Maps a Roblox locale id ("ru-ru", "en-us", "de-de") to a supported locale.
+-- The language a player sees the game in: their Roblox account's locale, which Roblox keeps for
+-- in-experience content (Player.LocaleId). Not LocalizationService.RobloxLocaleId: that one is
+-- for Roblox's own interface and can differ, which once mixed English windows with a Russian
+-- prompt from the server. Everything a player reads goes through this.
+function Text.localeOf(player: { read LocaleId: string }): Locale
+	-- In Studio the Player Emulator's locale (Test → Player Emulator, CLAUDE.md) reaches only
+	-- RobloxLocaleId, not Player.LocaleId (that stays the account's): read it there, so a playtest
+	-- can switch the language. `game` is absent in Lune.
+	-- Typed loosely: under Lune's types a service is a plain Instance.
+	local runService: any = game and game:GetService("RunService")
+	if runService and runService:IsStudio() then
+		local localization: any = game:GetService("LocalizationService")
+		return Text.resolveLocale(localization.RobloxLocaleId)
+	end
+	return Text.resolveLocale(player.LocaleId)
+end
+
 function Text.resolveLocale(localeId: string): Locale
 	if string.sub(string.lower(localeId), 1, 2) == "ru" then
 		return "ru"

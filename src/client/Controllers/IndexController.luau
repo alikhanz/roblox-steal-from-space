@@ -7,7 +7,6 @@
 -- one alien registry (AlienConfig through IndexConfig.SETS) and the profile copy; rewards shown
 -- use the formula the server pays with (Pace).
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -330,7 +329,7 @@ function IndexController.new(dependencies: Dependencies): IndexController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[IndexController] PlayerGui did not appear")
 		mountUi(playerGui)

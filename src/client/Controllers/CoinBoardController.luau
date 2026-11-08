@@ -5,7 +5,6 @@
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -96,7 +95,7 @@ function CoinBoardController.new(): CoinBoardController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		for _, instance in CollectionService:GetTagged(LeaderboardConfig.TAG) do
 			watchBoard(instance)
 		end

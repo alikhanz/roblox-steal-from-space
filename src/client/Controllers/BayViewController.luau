@@ -7,7 +7,6 @@
 -- rebuilt by the server.
 
 local CollectionService = game:GetService("CollectionService")
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -445,7 +444,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		observe(BayConfig.TAG, watchBay)
 		observe(BayConfig.ALIEN_TAG, watchAlien)

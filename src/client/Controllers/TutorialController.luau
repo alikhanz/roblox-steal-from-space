@@ -9,7 +9,6 @@
 -- to point at.
 
 local CollectionService = game:GetService("CollectionService")
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -268,7 +267,7 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		Remotes.TutorialChanged.SetCallback(onHint)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		if not playerGui then

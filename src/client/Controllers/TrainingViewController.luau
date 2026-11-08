@@ -3,7 +3,6 @@
 -- pops a label at the head that drifts up and fades. The HUD number itself follows the speed
 -- attributes, so this is only the celebration.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -69,7 +68,7 @@ function TrainingViewController.new(dependencies: Dependencies): TrainingViewCon
 	end
 
 	local function start()
-		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		local locale = Text.localeOf(Players.LocalPlayer)
 		dependencies.profile.trained.connect(function(gain)
 			local character = Players.LocalPlayer.Character
 			local head = character and character:FindFirstChild("Head")

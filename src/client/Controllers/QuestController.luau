@@ -4,7 +4,6 @@
 -- and the toasts for a finished quest and a reward. Rows come from the profile copy; rewards
 -- shown before a claim use the same formula the server pays with (Domain/PlayReward via Pace).
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -245,7 +244,7 @@ function QuestController.new(dependencies: Dependencies): QuestController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[QuestController] PlayerGui did not appear")
 		mountUi(playerGui)

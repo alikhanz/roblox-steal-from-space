@@ -107,4 +107,9 @@ return table.freeze({
 	-- (MonetizationConfig.readyNowTierOf). The owner's client words it with the price and asks
 	-- Roblox for the purchase.
 	READY_NOW_TIER_ATTRIBUTE = "ReadyNowTier",
+	-- On a prompt: how high over its part's centre the client draws it, studs (default: at the
+	-- centre). An egg's prompt hangs low, on the capsule's stand: the timer and "Ready!" chips of
+	-- the ring of capsules sit over the eggs and used to cover it.
+	PROMPT_STUDS_ABOVE_ATTRIBUTE = "StudsAbove",
+	EGG_PROMPT_STUDS_ABOVE = -1.8,
 })

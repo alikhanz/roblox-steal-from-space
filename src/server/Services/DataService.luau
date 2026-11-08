@@ -69,7 +69,7 @@ function DataService.new(): DataService
 		-- Deferred so the kick never re-enters the session manager mid-transition.
 		task.defer(function()
 			if isInGame(player) then
-				player:Kick(Text.get(Text.resolveLocale(player.LocaleId), key))
+				player:Kick(Text.get(Text.localeOf(player), key))
 			end
 		end)
 	end

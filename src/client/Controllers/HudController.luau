@@ -5,7 +5,6 @@
 -- lag-free) and the profile copy for coins.
 
 local CollectionService = game:GetService("CollectionService")
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -203,7 +202,7 @@ function HudController.new(dependencies: Dependencies): HudController
 
 	local function start()
 		local player = Players.LocalPlayer
-		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		local locale = Text.localeOf(Players.LocalPlayer)
 		-- Roblox's chat window opens top-left by default, over the HUD's left column, and the
 		-- player list holds the top-right corner. With a keyboard or a gamepad the chat goes to the
 		-- bottom-left corner, as in most popular games (the action icons are in the bottom centre);

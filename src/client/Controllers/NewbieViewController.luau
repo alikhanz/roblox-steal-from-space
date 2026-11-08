@@ -2,7 +2,6 @@
 -- A "Newbie" sign over every other player under newbie protection, so nobody wastes a strike
 -- on them and everyone sees who is off limits. Follows the player attribute the server keeps.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -91,7 +90,7 @@ function NewbieViewController.new(): NewbieViewController
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		for _, player in Players:GetPlayers() do
 			watch(player)
 		end

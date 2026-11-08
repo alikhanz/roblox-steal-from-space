@@ -3,7 +3,7 @@
 -- loose. A miss says nothing: the attack visibly went nowhere. The victim's side is the hit
 -- flash in the HUD.
 
-local LocalizationService = game:GetService("LocalizationService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
@@ -24,7 +24,7 @@ local PvpViewController = {}
 
 function PvpViewController.new(dependencies: Dependencies): PvpViewController
 	local function start()
-		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		local locale = Text.localeOf(Players.LocalPlayer)
 		local KEYS: { [string]: { egg: Text.Key, hit: Text.Key } } = {
 			Strike = { egg = "pvp.strikeEgg.toast", hit = "pvp.strikeHit.toast" },
 			-- A harpoon on a creature (the star serpent) may hit without an egg coming loose.

@@ -5,7 +5,6 @@
 -- when it is taken. Tile gifts are shown with the same formula the server pays with
 -- (Domain/PlayReward), from the profile copy.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -151,7 +150,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 	end
 
 	local function start()
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[LoginGiftController] PlayerGui did not appear")
 		mountUi(playerGui)

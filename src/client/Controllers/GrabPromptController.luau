@@ -4,7 +4,6 @@
 -- badge is pressed like the button (the same grab input). The egg and the progress come from
 -- GrabState, so the prompt, the button and the grab always agree.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -41,7 +40,7 @@ function GrabPromptController.new(dependencies: Dependencies): GrabPromptControl
 
 	local function start()
 		local player = Players.LocalPlayer
-		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		local locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = player:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[GrabPromptController] PlayerGui did not appear")
 

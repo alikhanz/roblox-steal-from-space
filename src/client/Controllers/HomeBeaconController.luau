@@ -6,7 +6,6 @@
 -- (BayService). While the tutorial itself points home, its own pin says the same and this one
 -- steps aside.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -60,7 +59,7 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 	end
 
 	local function start()
-		local locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		local locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		if not playerGui then
 			warn("[HomeBeaconController] PlayerGui did not appear; no home beacon")

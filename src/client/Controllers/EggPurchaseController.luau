@@ -4,7 +4,6 @@
 -- asks Roblox for that purchase, for this egg. What the purchase does comes from the server, by
 -- its receipt (PurchaseService): the egg hatches at once.
 
-local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -74,7 +73,7 @@ function EggPurchaseController.new(dependencies: Dependencies): EggPurchaseContr
 		if not purchases.available then
 			return
 		end
-		locale = Text.resolveLocale(LocalizationService.RobloxLocaleId)
+		locale = Text.localeOf(Players.LocalPlayer)
 		ProximityPromptService.PromptShown:Connect(show)
 		ProximityPromptService.PromptHidden:Connect(hide)
 		ProximityPromptService.PromptTriggered:Connect(function(prompt)
