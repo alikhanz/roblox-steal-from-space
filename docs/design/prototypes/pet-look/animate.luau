@@ -73,7 +73,7 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 		local stroke = if pet.beat > 0 and beat <= 0 then pet.dustOpen elseif pet.beat < 0 and beat >= 0 then pet.dustFold else nil
 		if stroke then
 			for _, dust in stroke do
-				dust:Emit(if dust.Name:match("Star$") then 1 else 5)
+				dust:Emit(if dust.Name:match("Star$") then 2 else 10)
 			end
 		end
 		pet.beat = beat
