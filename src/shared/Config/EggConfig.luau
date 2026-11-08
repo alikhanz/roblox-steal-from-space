@@ -120,7 +120,7 @@ return table.freeze({
 	-- The grab button (docs/design/screens/grab-button.md) offers an egg this close, studs (or the
 	-- lock range of a fast flyer, if farther); one press locks on and the magnet pulls the flyer
 	-- in from there.
-	GRAB_BUTTON_RANGE = 30,
+	GRAB_BUTTON_RANGE = 50,
 	-- A locked-on grab lets go once its egg is this many button ranges away (it moved off, or
 	-- the flyer got thrown), so a grab never pulls from across the map.
 	GRAB_RELEASE_FACTOR = 1.5,

@@ -64,9 +64,9 @@ local MENU_GAP = 7
 local ROW_BUTTON_SIZE = 52
 local ROW_STRIKE_SIZE = 60
 -- The grab button (docs/design/screens/grab-button.md), the biggest of all: on a touch screen
--- above up and the harpoon, points of the reference screen (diameter, right, bottom); in the
--- keyboard row, first.
-local GRAB_TOUCH = { size = 72, right = 46, bottom = 170 }
+-- on top of the column over up (above the strike), points of the reference screen (diameter,
+-- right, bottom); in the keyboard row, first.
+local GRAB_TOUCH = { size = 72, right = 22, bottom = 178 }
 local ROW_GRAB_SIZE = 66
 -- On a touch screen the bottom stack stands a little left of the middle, clear of the flight
 -- buttons: its centre's share of the screen width.
@@ -262,10 +262,11 @@ function HudController.new(dependencies: Dependencies): HudController
 		local function isSlow(): boolean
 			return slowMode()
 		end
-		-- The flight buttons (docs/design/screens/hud.md). On a touch screen: up and down in
-		-- Roblox's jump corner, the attacks next to them, slow mode left of the attacks (points of
-		-- the reference screen: diameter, and the outer edges' distance from the screen's right
-		-- and bottom). With a keyboard or a gamepad: the same buttons in a row with their keys.
+		-- The flight buttons (docs/design/screens/hud.md). On a touch screen: up in Roblox's jump
+		-- corner and down left of it, the strike above up with the harpoon and the bomb around it,
+		-- slow mode left of all, grab on top (points of the reference screen: diameter, and the
+		-- outer edges' distance from the screen's right and bottom). With a keyboard or a gamepad:
+		-- the same buttons in a row with their keys.
 		local function button(
 			name: string,
 			inputAction: string,
@@ -322,12 +323,14 @@ function HudController.new(dependencies: Dependencies): HudController
 		end
 		local touchButtons: { FlightButtons.ButtonSpec } = {
 			grabButton(GRAB_TOUCH.size, GRAB_TOUCH.right, GRAB_TOUCH.bottom),
-			button("Up", FlightInputs.ASCEND, FLIGHT.Vertical, 59, 22, 93),
-			button("Down", FlightInputs.DESCEND, FLIGHT.Vertical, 59, 22, 22),
-			withCooldown(button("Strike", FlightInputs.STRIKE, FLIGHT.Strike, 64, 93, 22), "Strike"),
-			withCooldown(button("Harpoon", FlightInputs.HARPOON, FLIGHT.Harpoon, 54, 98, 98), "Harpoon"),
-			withCooldown(button("Bomb", FlightInputs.BOMB, FLIGHT.Bomb, 54, 169, 62), "Bomb"),
-			button("SlowMode", FlightInputs.SLOW_MODE, FLIGHT.SlowMode, 44, 241, 22),
+			-- Up takes the place and size of Roblox's jump button (hidden in space): the thumb that
+			-- jumps on the station flies up in space. Down is left of it.
+			button("Up", FlightInputs.ASCEND, FLIGHT.Vertical, 68, 24, 20),
+			button("Down", FlightInputs.DESCEND, FLIGHT.Vertical, 59, 104, 25),
+			withCooldown(button("Strike", FlightInputs.STRIKE, FLIGHT.Strike, 64, 26, 100), "Strike"),
+			withCooldown(button("Harpoon", FlightInputs.HARPOON, FLIGHT.Harpoon, 54, 102, 105), "Harpoon"),
+			withCooldown(button("Bomb", FlightInputs.BOMB, FLIGHT.Bomb, 54, 172, 70), "Bomb"),
+			button("SlowMode", FlightInputs.SLOW_MODE, FLIGHT.SlowMode, 44, 245, 22),
 		}
 		-- The keyboard and gamepad row, left to right: grab (only next to an egg), the attacks,
 		-- slow mode, down, up.
