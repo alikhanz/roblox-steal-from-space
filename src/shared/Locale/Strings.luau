@@ -539,37 +539,51 @@ local Strings = {
 		ru = "×2 за {price}",
 		en = "×2 for {price}",
 	},
-	["trainer.level.hint"] = {
-		ru = "Тренажёр · уровень {level}",
-		en = "Trainer · level {level}",
-	},
-	["trainer.stand.hint"] = {
-		ru = "Встань сюда: +{rate} ⚡/с",
-		en = "Stand here: +{rate} ⚡/s",
-	},
-	["trainer.upgrade.button"] = {
-		ru = "Улучшить: ●{price}",
-		en = "Upgrade: ●{price}",
-	},
 	["trainer.gain.hint"] = {
 		ru = "+{gain} ⚡",
 		en = "+{gain} ⚡",
 	},
-	["bay.podsSign.title"] = {
-		ru = "Капсулы: {count}/{max}",
-		en = "Pods: {count}/{max}",
+	-- The terminals on a player's island (docs/design/screens/terminals.md).
+	["terminal.places.title"] = {
+		ru = "Места",
+		en = "Spots",
 	},
-	["bay.podsSign.hint"] = {
-		ru = "Пришелец в капсуле приносит монеты",
-		en = "An alien in a pod earns coins",
+	["terminal.places.hint"] = {
+		ru = "Пришелец на месте приносит монеты",
+		en = "An alien on a spot earns coins",
 	},
-	["bay.podsFull.hint"] = {
-		ru = "Все капсулы куплены",
-		en = "Every pod is yours",
+	["terminal.incubator.title"] = {
+		ru = "Инкубатор",
+		en = "Incubator",
 	},
-	["bay.buyPodSign.button"] = {
-		ru = "Купить: ●{price}",
-		en = "Buy: ●{price}",
+	["terminal.trainer.title"] = {
+		ru = "Тренажёр",
+		en = "Trainer",
+	},
+	-- The big number on a terminal: how many there are of how many can be.
+	["terminal.count.title"] = {
+		ru = "{count} / {max}",
+		en = "{count} / {max}",
+	},
+	["terminal.level.title"] = {
+		ru = "Ур. {level}",
+		en = "Lv. {level}",
+	},
+	["terminal.trainerRate.hint"] = {
+		ru = "+{rate} ⚡/с на тренажёре",
+		en = "+{rate} ⚡/s on the trainer",
+	},
+	["terminal.buy.button"] = {
+		ru = "Купить ●{price}",
+		en = "Buy ●{price}",
+	},
+	["terminal.upgrade.button"] = {
+		ru = "Улучшить ●{price}",
+		en = "Upgrade ●{price}",
+	},
+	["terminal.maxed.hint"] = {
+		ru = "Всё куплено",
+		en = "Maxed out",
 	},
 	["key.mouseLeft.hint"] = {
 		ru = "ЛКМ",

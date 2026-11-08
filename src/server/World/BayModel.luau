@@ -289,6 +289,67 @@ local function buildSign(origin: CFrame, parent: Instance)
 	end
 end
 
+-- A terminal beside a zone (docs/design/screens/terminals.md): a base with a glow in the zone's
+-- `color`, a column and a tilted screen in a glowing frame, the screen toward the spawn. The
+-- client draws the screen (the part named BayConfig.TERMINAL_SCREEN_NAME, its front face).
+local function buildTerminal(origin: CFrame, name: string, position: Vector3, color: Color3): Model
+	local model = Instance.new("Model")
+	model.Name = name
+	local facing = BayLooks.TERMINAL_FACES
+	local frame = origin * CFrame.lookAt(position, Vector3.new(facing.X, position.Y, facing.Z))
+
+	local function piece(pieceName: string, size: Vector3, cframe: CFrame, pieceColor: Color3, material: Enum.Material)
+		local part = Instance.new("Part")
+		part.Name = pieceName
+		part.Size = size
+		part.CFrame = cframe
+		part.Color = pieceColor
+		part.Material = material
+		scenery(part)
+		part.Parent = model
+		return part
+	end
+
+	local base = BayLooks.TERMINAL_BASE_SIZE
+	local glowSize = base + Vector3.new(2, 0, 2) * BayLooks.TERMINAL_GLOW_MARGIN - Vector3.yAxis * base.Y * 0.5
+	local glow = piece("Glow", glowSize, frame * CFrame.new(0, glowSize.Y / 2, 0), color, Enum.Material.Neon)
+	glow.CanCollide = false
+	local stand =
+		piece("Base", base, frame * CFrame.new(0, base.Y / 2, 0), BayLooks.TERMINAL_BASE_COLOR, Enum.Material.Metal)
+	local column = BayLooks.TERMINAL_COLUMN_SIZE
+	piece(
+		"Column",
+		column,
+		frame * CFrame.new(0, base.Y + column.Y / 2, 0),
+		BayLooks.TERMINAL_COLOR,
+		Enum.Material.Metal
+	)
+
+	local screenSize = BayLooks.TERMINAL_SCREEN_SIZE
+	local screenFrame = frame
+		* CFrame.new(0, BayLooks.TERMINAL_SCREEN_HEIGHT, 0)
+		* CFrame.Angles(math.rad(BayLooks.TERMINAL_SCREEN_TILT), 0, 0)
+	local margin = BayLooks.TERMINAL_FRAME_MARGIN
+	local rim = piece(
+		"Rim",
+		screenSize + Vector3.new(margin * 2, margin * 2, -screenSize.Z / 2),
+		screenFrame * CFrame.new(0, 0, screenSize.Z / 4),
+		color,
+		Enum.Material.Neon
+	)
+	rim.CanCollide = false
+	piece(
+		BayConfig.TERMINAL_SCREEN_NAME,
+		screenSize,
+		screenFrame,
+		BayLooks.TERMINAL_SCREEN_COLOR,
+		Enum.Material.SmoothPlastic
+	)
+
+	model.PrimaryPart = stand
+	return model
+end
+
 -- The lines on the floor around each zone, in its colour.
 local function buildZoneLines(origin: CFrame, parent: Instance)
 	local places = BayLooks.PLACES
@@ -365,15 +426,12 @@ function BayModel.build(slot: number, origin: CFrame): Model
 
 	buildTrainer(origin, model)
 
-	-- Invisible: only carries the places' sign.
-	local placesSign = Instance.new("Part")
-	placesSign.Name = BayConfig.PODS_SIGN_NAME
-	placesSign.Size = Vector3.one * 0.2
-	placesSign.Transparency = 1
-	placesSign.CFrame = origin * CFrame.new(BayLooks.PLACES_SIGN_POSITION)
-	placesSign.CanCollide = false
-	scenery(placesSign)
-	placesSign.Parent = model
+	local places = BayLooks.PLACES_TERMINAL_POSITION
+	local hatchery = BayLooks.INCUBATOR_TERMINAL_POSITION
+	local training = BayLooks.TRAINER_TERMINAL_POSITION
+	buildTerminal(origin, BayConfig.PLACES_TERMINAL_NAME, places, BayLooks.PLACES_COLOR).Parent = model
+	buildTerminal(origin, BayConfig.INCUBATOR_TERMINAL_NAME, hatchery, BayLooks.INCUBATOR_COLOR).Parent = model
+	buildTerminal(origin, BayConfig.TRAINER_TERMINAL_NAME, training, BayLooks.TRAINER_RING_COLOR).Parent = model
 
 	local contents = Instance.new("Folder")
 	contents.Name = BayConfig.CONTENTS_NAME

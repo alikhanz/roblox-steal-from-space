@@ -55,9 +55,26 @@ return table.freeze({
 	PLACE_RING_WIDTH = 0.3,
 	-- A bought place with no alien: a small pad.
 	EMPTY_PLACE_WIDTH = 2.6,
-	-- An invisible anchor for the places' sign (count, price, buy button): over the space between
-	-- the incubator and the first row.
-	PLACES_SIGN_POSITION = Vector3.new(0, 8, 15),
+
+	-- Terminals (docs/design/screens/terminals.md): a stand with a tilted screen beside each zone,
+	-- in the entrance's wedge, the screen toward the spawn. The places' one stands by the floor's
+	-- tray: a bought place takes an alien from the floor.
+	PLACES_TERMINAL_POSITION = Vector3.new(-17, 0, -44),
+	INCUBATOR_TERMINAL_POSITION = Vector3.new(0, 0, -17.5),
+	TRAINER_TERMINAL_POSITION = Vector3.new(17, 0, -46),
+	TERMINAL_FACES = Vector3.new(0, 0, -StationSize.ISLAND_SPAWN_DISTANCE),
+	TERMINAL_BASE_SIZE = Vector3.new(2.8, 0.3, 2.8),
+	TERMINAL_COLUMN_SIZE = Vector3.new(0.7, 3.1, 0.7),
+	TERMINAL_SCREEN_SIZE = Vector3.new(4, 3, 0.3),
+	-- The screen's center above the floor (a player's chest), and its tilt back, degrees.
+	TERMINAL_SCREEN_HEIGHT = 4.5,
+	TERMINAL_SCREEN_TILT = 15,
+	-- The glowing frame round the screen and the glow under the base, studs past their part.
+	TERMINAL_FRAME_MARGIN = 0.15,
+	TERMINAL_GLOW_MARGIN = 0.1,
+	TERMINAL_COLOR = Color3.fromRGB(58, 67, 112),
+	TERMINAL_BASE_COLOR = Color3.fromRGB(27, 33, 64),
+	TERMINAL_SCREEN_COLOR = Color3.fromRGB(22, 32, 96),
 
 	-- The incubator: a disc under the capsules; eggs in its slots lie in the capsules.
 	INCUBATOR_POSITION = Vector3.zero,

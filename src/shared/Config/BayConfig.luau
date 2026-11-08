@@ -76,9 +76,13 @@ return table.freeze({
 	SIGN_NAME = "Sign",
 	INCUBATOR_NAME = "Incubator",
 	TRAINER_NAME = "Trainer",
-	PODS_SIGN_NAME = "PodsSign",
 	CONTENTS_NAME = "Contents",
-	-- On the bay model: the owner's trainer level and pod count, for the signs.
+	-- The terminals (docs/design/screens/terminals.md) and the part their screen is drawn on.
+	PLACES_TERMINAL_NAME = "PlacesTerminal",
+	INCUBATOR_TERMINAL_NAME = "IncubatorTerminal",
+	TRAINER_TERMINAL_NAME = "TrainerTerminal",
+	TERMINAL_SCREEN_NAME = "Screen",
+	-- On the bay model: the owner's trainer level and pod count, for the terminals.
 	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
 	POD_COUNT_ATTRIBUTE = "PodCount",
 	-- Alien models standing in pods or waiting on the floor.

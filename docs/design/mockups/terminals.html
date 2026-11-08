@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Терминалы острова</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark;
+  --text: #EAF2FF; --muted: #9DB6D2; --coin: #FFC83D; --speed: #FFD34A;
+  --places: #3EA6FF; --inc: #FFAA3C; --trainer: #FFD34A; --pile: #9aa3c2; --floor: #2c3248; --sign: #5ac8ff; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 74ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.panel { background: #0d1130; border: 1px solid #2a3156; border-radius: 22px; padding: 18px; }
+.two { display: grid; grid-template-columns: 3fr 2fr; gap: 18px; align-items: start; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: "Nunito", sans-serif; font-weight: 900; }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul, .notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Terminal screens (SurfaceGui, 4 x 3 studs). */
+.screens { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 760px) { .screens { grid-template-columns: 1fr; } }
+.term { display: flex; flex-direction: column; align-items: center; }
+.screen { width: 100%; max-width: 300px; aspect-ratio: 4 / 3; border-radius: 16px; padding: 12px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  background: linear-gradient(rgba(22, 32, 96, .92), rgba(10, 13, 44, .92)); border: 3px solid color-mix(in srgb, var(--c) 75%, #0A0E28);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 35%, transparent), inset 0 0 30px rgba(0,0,0,.4);
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); }
+.screen .h { font-size: 22px; color: color-mix(in srgb, var(--c) 45%, #fff); }
+.screen .big { font-size: 34px; line-height: 1.1; }
+.screen .s { font-size: 15px; color: var(--muted); line-height: 1.25; }
+.screen .v { font-size: 16px; color: var(--speed); }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 99px; font-size: 18px; padding: 6px 20px; margin-top: 2px; border: 3px solid #9b7420; color: var(--text);
+  background: linear-gradient(rgba(255, 187, 46, .5), rgba(255, 187, 46, .22)); box-shadow: 0 0 14px rgba(255,187,46,.4); }
+.btn.dim { opacity: .45; box-shadow: none; }
+.done { font-size: 15px; color: #7be495; }
+.ico { display: inline-block; width: 1em; height: 1em; vertical-align: -.12em; }
+.stand { width: 18%; height: 54px; background: linear-gradient(#3a4370, #222849); }
+.base { width: 46%; height: 12px; border-radius: 6px; background: #1b2140; box-shadow: 0 0 12px color-mix(in srgb, var(--c) 45%, transparent); border-top: 2px solid color-mix(in srgb, var(--c) 75%, #000); }
+.cap { font-size: 14px; color: var(--muted-page); margin-top: 8px; text-align: center; }
+.row-title { font-weight: 900; font-size: 17px; margin: 6px 0 2px; color: var(--ink); }
+.board { max-width: 420px; margin: 0 auto; border-radius: 10px; padding: 14px 18px; text-align: center; background: #2c3248; border-top: 4px solid var(--sign); border-bottom: 4px solid var(--sign);
+  font-weight: 900; font-size: 26px; color: var(--text); box-shadow: 0 0 18px rgba(90,200,255,.25); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="coin" viewBox="-2 -2 28 28"><circle cx="12" cy="12" r="9.7" fill="currentColor" fill-opacity=".4" stroke="currentColor" stroke-width="2.2"/><path d="M15.6 8.6c-.6-1.5-2-2.3-3.6-2.3-2.1 0-3.6 1.1-3.6 2.8 0 3.7 7.2 1.9 7.2 5.6 0 1.8-1.6 2.9-3.7 2.9-1.8 0-3.2-.9-3.8-2.3M12 4.4v15.2" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="bolt" viewBox="-2 -2 28 28"><path d="M15 1.4 3.8 13.8h7l-1.8 8.8L20.4 9.4h-7z" fill="currentColor" fill-opacity=".5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+<div class="page">
+  <section class="intro">
+    <h1>Терминалы острова</h1>
+    <p>Вместо надписей с кнопками, висящих в воздухе над тренажёром, инкубатором и местами, — <b>терминал рядом с каждым</b>: стойка с экраном на высоте груди. На экране — что это, сколько сейчас и кнопка покупки, она же улучшает.</p>
+    <p>Грейбокс: форма стойки и экрана — заглушка до арт-прохода; экран рисуется в стиле Б1.</p>
+  </section>
+
+  <figure>
+    <div class="two">
+      <div class="panel">
+        <svg viewBox="-34 -6 68 72" role="img" aria-label="Вход острова сверху с терминалами">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0 10 5 0 10z" fill="#fff"/></marker>
+          </defs>
+          <!-- Plan for a player walking in: the entrance at the bottom, their left on the left. 1 unit = 1 stud. y = -z. -->
+          <rect x="-34" y="-6" width="68" height="72" fill="var(--floor)"/>
+          <!-- Places horseshoe edges (300°: the wedge of 60° toward the entrance). -->
+          <line x1="-9" y1="15.6" x2="-34" y2="58.9" stroke="var(--places)" stroke-width=".5"/>
+          <line x1="9" y1="15.6" x2="34" y2="58.9" stroke="var(--places)" stroke-width=".5"/>
+          <!-- Incubator: zone ring, stand, capsules. -->
+          <circle cx="0" cy="0" r="15" fill="rgba(255,170,60,.07)" stroke="var(--inc)" stroke-width=".5"/>
+          <circle cx="0" cy="0" r="10.9" fill="#3a2a1a" stroke="var(--inc)" stroke-width=".4"/>
+          <g fill="rgba(140,220,255,.25)" stroke="#8cdcff" stroke-width=".3">
+            <circle cx="0" cy="8.5" r="1.6"/><circle cx="4.25" cy="7.36" r="1.6"/><circle cx="-4.25" cy="7.36" r="1.6"/>
+            <circle cx="7.36" cy="4.25" r="1.6"/><circle cx="-7.36" cy="4.25" r="1.6"/><circle cx="8.5" cy="0" r="1.6"/>
+          </g>
+          <!-- Trainer (walker's left) and floor tray (walker's right). -->
+          <circle cx="-17" cy="55" r="5" fill="rgba(255,211,74,.06)" stroke="var(--trainer)" stroke-width=".4"/>
+          <circle cx="-17" cy="55" r="3" fill="#1b2140" stroke="var(--trainer)" stroke-width=".6"/>
+          <rect x="12" y="48" width="10" height="14" rx="1.2" fill="rgba(154,163,194,.08)" stroke="var(--pile)" stroke-width=".5"/>
+          <g fill="#bec4d2"><circle cx="13.5" cy="59" r=".9"/><circle cx="15.8" cy="59" r=".9" fill="#6ee182"/><circle cx="18.1" cy="59" r=".9" fill="#be5aff"/></g>
+          <!-- Spawn. -->
+          <circle cx="0" cy="57" r="3" fill="none" stroke="#fff" stroke-width=".35" stroke-dasharray="1 1"/>
+          <circle cx="0" cy="57" r="1" fill="#fff"/>
+          <!-- Terminals: base + screen bar, facing the spawn. -->
+          <g>
+            <circle cx="-17" cy="46" r="1.3" fill="#1b2140" stroke="var(--trainer)" stroke-width=".5"/>
+            <line x1="-18.7" y1="47.2" x2="-15.6" y2="49.2" stroke="var(--trainer)" stroke-width="1"/>
+            <circle cx="17" cy="44" r="1.3" fill="#1b2140" stroke="var(--places)" stroke-width=".5"/>
+            <line x1="18.5" y1="45.3" x2="15.4" y2="47.4" stroke="var(--places)" stroke-width="1"/>
+            <circle cx="0" cy="17.5" r="1.3" fill="#1b2140" stroke="var(--inc)" stroke-width=".5"/>
+            <line x1="-2" y1="19" x2="2" y2="19" stroke="var(--inc)" stroke-width="1"/>
+          </g>
+          <g font-size="2.6" text-anchor="middle" paint-order="stroke" stroke="#2c3248" stroke-width=".8">
+            <text x="-17" y="42" fill="var(--trainer)">терминал</text>
+            <text x="17" y="40" fill="var(--places)">терминал</text>
+            <text x="0" y="23.5" fill="var(--inc)">терминал</text>
+            <text x="-17" y="64" fill="var(--trainer)">тренажёр</text>
+            <text x="17" y="65.5" fill="var(--pile)">пол</text>
+            <text x="0" y="3" fill="var(--inc)">инкубатор</text>
+            <text x="0" y="53" fill="#fff">спавн</text>
+            <text x="-26" y="8" fill="var(--places)">места</text>
+            <text x="26" y="8" fill="var(--places)">места</text>
+          </g>
+        </svg>
+      </div>
+      <div class="panel">
+        <svg viewBox="-1 -8 27 9" role="img" aria-label="Терминал сбоку рядом с игроком">
+          <!-- Side view, 1 unit = 1 stud: floor at y = 0. -->
+          <line x1="-1" y1="0" x2="26" y2="0" stroke="#4a5478" stroke-width=".25"/>
+          <!-- Player: 5 studs. -->
+          <rect x="2" y="-5" width="1.6" height="5" rx=".6" fill="#fff"/>
+          <text x="2.8" y="-5.6" font-size=".8" fill="#fff" text-anchor="middle">игрок</text>
+          <!-- Terminal: base, column, tilted screen. -->
+          <rect x="7.6" y="-.3" width="2.8" height=".3" rx=".1" fill="#1b2140" stroke="var(--places)" stroke-width=".1"/>
+          <rect x="8.65" y="-3.4" width=".7" height="3.1" fill="#3a4370"/>
+          <g transform="translate(9 -4.5) rotate(-15)">
+            <rect x="-.2" y="-1.5" width=".4" height="3" fill="#162060" stroke="var(--places)" stroke-width=".12"/>
+          </g>
+          <line x1="9" y1="-4.5" x2="13.6" y2="-4.5" stroke="var(--muted-page)" stroke-width=".06" stroke-dasharray=".3 .2"/>
+          <text x="14" y="-4.3" font-size=".7" fill="var(--muted-page)">экран 4 × 3,</text>
+          <text x="14" y="-3.4" font-size=".7" fill="var(--muted-page)">центр 4,5, наклон 15°</text>
+        </svg>
+      </div>
+    </div>
+    <figcaption><b>1. Где стоят</b> (вход острова сверху, лево и право — как у игрока, входящего от спавна). Все три — экраном к спавну: тренажёр — между площадкой тренажёра и инкубатором; места — перед лотком пола (купил место — пришелец с пола встаёт на него); инкубатор — на краю своей зоны, по центру прохода. Справа — терминал сбоку рядом с игроком.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="row-title">Свой терминал</div>
+    <div class="screens">
+      <div class="term" style="--c: var(--places)">
+        <div class="screen"><span class="h">Места</span><span class="big">12 / 30</span><span class="s">Пришелец на месте приносит монеты</span>
+          <span class="btn">Купить <svg class="ico" style="color:var(--coin)"><use href="#coin"/></svg>59K</span></div>
+        <div class="stand"></div><div class="base"></div>
+        <div class="cap">Монет хватает — кнопка горит</div>
+      </div>
+      <div class="term" style="--c: var(--inc)">
+        <div class="screen"><span class="h">Инкубатор</span><span class="big">6 / 6</span><span class="s">Ждут места: 3</span>
+          <span class="btn dim">+1 место <svg class="ico" style="color:var(--coin)"><use href="#coin"/></svg>121M</span></div>
+        <div class="stand"></div><div class="base"></div>
+        <div class="cap">Монет не хватает — кнопка бледная</div>
+      </div>
+      <div class="term" style="--c: var(--trainer)">
+        <div class="screen"><span class="h">Тренажёр</span><span class="big">Ур. 3</span><span class="v"><svg class="ico"><use href="#bolt"/></svg>+18/с на стенде</span>
+          <span class="btn">Улучшить <svg class="ico" style="color:var(--coin)"><use href="#coin"/></svg>2.4K</span></div>
+        <div class="stand"></div><div class="base"></div>
+        <div class="cap">Сколько ⚡ в секунду даёт сейчас</div>
+      </div>
+    </div>
+    <div class="row-title">Всё куплено и чужой терминал</div>
+    <div class="screens">
+      <div class="term" style="--c: var(--places)">
+        <div class="screen"><span class="h">Места</span><span class="big">30 / 30</span><span class="s">Пришелец на месте приносит монеты</span>
+          <span class="done">Всё куплено</span></div>
+        <div class="stand"></div><div class="base"></div>
+        <div class="cap">Всё куплено — вместо кнопки строка</div>
+      </div>
+      <div class="term" style="--c: var(--inc)">
+        <div class="screen"><span class="h">Инкубатор</span><span class="big">2 / 2</span><span class="s">Все места заняты</span></div>
+        <div class="stand"></div><div class="base"></div>
+        <div class="cap">Чужой остров — без кнопки</div>
+      </div>
+      <div class="term" style="--c: var(--trainer)">
+        <div class="screen"><span class="h">Тренажёр</span><span class="big">Ур. 12</span><span class="v"><svg class="ico"><use href="#bolt"/></svg>+1.2K/с на стенде</span></div>
+        <div class="stand"></div><div class="base"></div>
+        <div class="cap">Чужой остров — без кнопки</div>
+      </div>
+    </div>
+    <figcaption><b>2. Экраны.</b> Заголовок в цвете зоны, крупно — сколько сейчас, подсказка, кнопка с ценой (только хозяину). Нажал кнопку на экране мышью или пальцем — купил или улучшил, как сейчас на табличках. Дальше 80 studs экран гаснет.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="board">Отсек MidnightComet_Rider</div>
+    <figcaption><b>3. Табличка хозяина</b> — имя прямо на доске у входа, с обеих сторон, вместо надписи над ней. Слово «отсек» сменится на шаге 5 (тексты).</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Что меняется</h2>
+      <ul>
+        <li>Надписей с кнопками над тренажёром, инкубатором и местами больше нет.</li>
+        <li>Фишки над пришельцами и таймеры яиц остаются как есть.</li>
+        <li>Имя хозяина — на самой доске.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Решено</h2>
+      <ol>
+        <li>Покупка — только кнопкой на экране, без клавиши E.</li>
+        <li>Стенд джетпака — отдельным брифом сразу после терминалов.</li>
+      </ol>
+    </div>
+  </section>
+</div>
+</body>
+</html>
