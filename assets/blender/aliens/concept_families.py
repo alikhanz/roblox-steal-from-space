@@ -1,0 +1,240 @@
+# Concept sheet of the six alien families (decision 072): each guardian's babies are one of six
+# kinds (slime, crab, worm, ray, swarm, whale), shown here in the colour of the family's first
+# guardian. Top row: the common tier, plain; bottom row: the legendary tier in its full outfit
+# (spots, a crown, sparkles, the gold ring). Agrees the family before all 24 kinds are built.
+#
+# Run headless from the repo root:
+#   blender --background --factory-startup --python assets/blender/aliens/concept_families.py -- <out.png>
+
+import math
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+
+import bpy  # noqa: E402
+import toon  # noqa: E402
+from mathutils import Matrix, Vector  # noqa: E402
+
+OUT = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else "concept_families.png"
+
+COMMON_RING = (0.70, 0.72, 0.78)
+GOLD = (1.0, 0.74, 0.18)
+SPACING = 3.8
+ROW_HEIGHT = 3.6
+# Each figure turns this far round its own axis (degrees) to show its volume.
+YAW = -22
+
+
+def lighter(color, amount=0.45):
+    return tuple(c + (1 - c) * amount for c in color)
+
+
+def darker(color, amount=0.35):
+    return tuple(c * (1 - amount) for c in color)
+
+
+# Each family: its colour and where its outfit goes, relative to the figure's base point
+# (x, 0, z): the top of the head (the crown) and spots on its body.
+
+
+def slime(x, z, color):
+    body = toon.sphere("Body", (x, 0, z + 0.86), (1.0, 0.92, 0.84), color, 56)
+    for vertex in body.data.vertices:
+        if vertex.co.z < 0:
+            sag = 1 + 0.16 * (-vertex.co.z)
+            vertex.co.x *= sag
+            vertex.co.y *= sag
+    toon.face((x, -0.86, z + 1.0), 0.32, 1.0)
+    return {"top": z + 1.66, "width": 1.3,
+            "spots": [(-0.7, -0.55, 1.3, 0.12), (0.62, -0.6, 1.35, 0.1), (0.8, -0.45, 0.62, 0.11), (0.1, -0.35, 1.62, 0.12)]}
+
+
+def crab(x, z, color):
+    shell = toon.sphere("Shell", (x, 0, z + 0.78), (1.05, 0.78, 0.6), color, 48)
+    # Eyes on stalks.
+    for side in (-1, 1):
+        toon.cylinder("Stalk", (x + side * 0.32, -0.25, z + 1.42), 0.07, 0.5, darker(color, 0.15))
+        toon.sphere("EyeWhite", (x + side * 0.32, -0.3, z + 1.78), (0.22, 0.2, 0.24), toon.WHITE)
+        toon.sphere("Pupil", (x + side * 0.32, -0.48, z + 1.76), (0.12, 0.05, 0.14), toon.BLACK)
+        toon.sphere("Shine", (x + side * 0.28, -0.53, z + 1.82), (0.04, 0.02, 0.045), toon.WHITE, 16)
+        # A chubby arm and a two-fingered claw.
+        toon.sphere("Arm", (x + side * 1.12, -0.15, z + 0.85), (0.24, 0.24, 0.24), color)
+        toon.sphere("Claw", (x + side * 1.42, -0.3, z + 1.18), (0.3, 0.26, 0.36), color)
+        toon.cone("Pincer", (x + side * 1.5, -0.32, z + 1.58), 0.13, 0.36, color, (0, math.radians(side * -20), 0), 12)
+        # Three little legs.
+        for index in range(3):
+            leg = toon.cylinder("Leg", (x + side * (0.65 + index * 0.18), 0.15 - index * 0.2, z + 0.2), 0.06, 0.45, darker(color, 0.15))
+            leg.rotation_euler = (0, math.radians(side * 35), 0)
+    toon.no_outline(toon.sphere("Cheek", (x - 0.55, -0.72, z + 0.75), (0.13, 0.04, 0.08), toon.CHEEK, 16, roughness=0.6, coat=0.0))
+    toon.no_outline(toon.sphere("Cheek", (x + 0.55, -0.72, z + 0.75), (0.13, 0.04, 0.08), toon.CHEEK, 16, roughness=0.6, coat=0.0))
+    smile = toon.torus("Smile", (x, -0.78, z + 0.8), 0.11, 0.028, toon.BLACK, (math.radians(90), 0, 0))
+    for vertex in smile.data.vertices:
+        if vertex.co.y > 0.0:
+            vertex.co.y = 0.0
+    toon.no_outline(smile)
+    return {"top": z + 1.38, "width": 1.5,
+            "spots": [(-0.55, -0.55, 1.1, 0.1), (0.5, -0.58, 1.05, 0.12), (0.0, -0.45, 1.25, 0.1)]}
+
+
+def worm(x, z, color):
+    # A curled tail of shrinking segments behind, a big raised head in front.
+    for index, (dy, dz, r) in enumerate(((1.15, 0.28, 0.28), (0.8, 0.36, 0.36), (0.38, 0.48, 0.44))):
+        toon.sphere("Segment", (x + 0.12 * math.sin(index * 1.4), dy, z + dz), (r, r, r), color if index % 2 else lighter(color, 0.15))
+    toon.sphere("Head", (x, -0.15, z + 1.15), (0.66, 0.6, 0.62), color, 48)
+    for side in (-1, 1):
+        toon.cylinder("Antenna", (x + side * 0.22, -0.05, z + 1.85), 0.035, 0.32, darker(color, 0.2), (0, math.radians(side * 18), 0))
+        toon.sphere("AntennaTip", (x + side * 0.28, -0.05, z + 2.02), (0.08, 0.08, 0.08), lighter(color, 0.5))
+    toon.face((x, -0.72, z + 1.22), 0.24, 0.85)
+    return {"top": z + 1.76, "width": 1.1,
+            "spots": [(-0.45, -0.5, 1.45, 0.09), (0.42, -0.52, 1.5, 0.08), (0.1, 0.0, 0.95, 0.1), (-0.2, 0.75, 0.68, 0.09)]}
+
+
+def ray(x, z, color):
+    # A flat diamond of a body tilted to show its back, wing tips curling up, a long thin tail.
+    # A plump diamond tilted a little to show its back, wing tips curling up; the face on its
+    # rounded front, the tail straight back.
+    tilt = math.radians(-18)
+    body = toon.sphere("Body", (x, 0.15, z + 0.92), (1.5, 1.0, 0.46), color, 56)
+    body.rotation_euler = (tilt, 0, 0)
+    for vertex in body.data.vertices:
+        reach = abs(vertex.co.x)
+        vertex.co.z += 0.5 * reach ** 3
+        if vertex.co.y > 0:
+            vertex.co.y *= 1 - 0.3 * reach
+    # Pale star dots on the back.
+    for dx, dy, dz in ((-0.75, 0.3, 1.3), (0.7, 0.32, 1.32), (0.0, 0.55, 1.42), (-0.35, -0.05, 1.3), (0.38, -0.02, 1.32)):
+        toon.no_outline(toon.sphere("Star", (x + dx, dy, z + dz), (0.06, 0.06, 0.06), lighter(color, 0.75), 12, emission=0.6))
+    toon.cone("Tail", (x, 1.65, z + 1.1), 0.07, 1.3, darker(color, 0.15), (math.radians(-82), 0, 0), 12)
+    for side in (-1, 1):
+        toon.cone("Horn", (x + side * 0.45, -0.72, z + 1.12), 0.1, 0.3, darker(color, 0.1), (math.radians(65), 0, math.radians(side * 15)), 12)
+    toon.face((x, -0.74, z + 1.2), 0.28, 0.85, smile=False)
+    return {"top": z + 1.42, "width": 1.7,
+            "spots": [(-0.95, -0.2, 1.15, 0.1), (0.9, -0.2, 1.12, 0.1), (-0.5, 0.3, 1.1, 0.08), (0.55, 0.32, 1.08, 0.08)]}
+
+
+def swarm(x, z, color):
+    # A round bug with see-through wings, and two tiny buddies buzzing around it.
+    def bug(bx, bz, size, main):
+        toon.sphere("Bug", (bx, 0, bz), (0.72 * size, 0.66 * size, 0.7 * size), color, 40)
+        for side in (-1, 1):
+            wing = toon.sphere("Wing", (bx + side * 0.55 * size, 0.35 * size, bz + 0.5 * size), (0.42 * size, 0.06 * size, 0.28 * size), (0.85, 0.92, 1.0), 24, roughness=0.05, coat=1.0)
+            wing.rotation_euler = (0, math.radians(side * -35), 0)
+            toon.cylinder("Feeler", (bx + side * 0.2 * size, -0.2 * size, bz + 0.78 * size), 0.03 * size, 0.3 * size, darker(color, 0.3), (0, math.radians(side * 25), 0))
+        if main:
+            toon.face((bx, -0.64 * size, bz + 0.08 * size), 0.26 * size, 0.9 * size)
+        else:
+            for side in (-1, 1):
+                toon.sphere("EyeWhite", (bx + side * 0.2 * size, -0.6 * size, bz + 0.1 * size), (0.18 * size, 0.08 * size, 0.22 * size), toon.WHITE)
+                toon.sphere("Pupil", (bx + side * 0.2 * size, -0.68 * size, bz + 0.08 * size), (0.1 * size, 0.04 * size, 0.13 * size), toon.BLACK)
+    bug(x, z + 0.95, 1.0, True)
+    bug(x - 1.1, z + 1.7, 0.42, False)
+    bug(x + 1.05, z + 0.55, 0.38, False)
+    return {"top": z + 1.68, "width": 1.2,
+            "spots": [(-0.45, -0.45, 1.25, 0.09), (0.48, -0.45, 1.2, 0.08), (0.0, -0.3, 1.55, 0.08)]}
+
+
+def whale(x, z, color):
+    # A round baby whale facing you: a big head, a fluke curled up behind, little fins.
+    toon.sphere("Body", (x, 0.15, z + 0.95), (1.15, 1.0, 0.85), color, 56)
+    toon.sphere("Belly", (x, -0.35, z + 0.72), (0.85, 0.55, 0.55), lighter(color, 0.45), 40)
+    # The tail curls up behind the body; its fluke peeks out over the back to one side.
+    toon.cylinder("TailStem", (x + 0.35, 1.0, z + 1.15), 0.2, 0.7, color, (math.radians(-40), 0, math.radians(-20)))
+    for side in (-1, 1):
+        fluke = toon.sphere("Fluke", (x + 0.55 + side * 0.32, 1.25, z + 1.55), (0.36, 0.12, 0.2), color, 32)
+        fluke.rotation_euler = (math.radians(40), math.radians(side * 25), math.radians(-20))
+        fin = toon.sphere("Fin", (x + side * 1.1, -0.1, z + 0.55), (0.35, 0.16, 0.14), color, 24)
+        fin.rotation_euler = (0, math.radians(side * 30), 0)
+    # A tiny spout of stars.
+    for dx, dz, size in ((0.55, 2.0, 0.11), (0.4, 2.15, 0.08), (0.7, 2.18, 0.07)):
+        toon.sphere("Spout", (x + dx, 0.0, z + dz), (size, size, size), lighter(color, 0.7), 16)
+    toon.face((x, -0.83, z + 1.12), 0.34, 1.0)
+    return {"top": z + 1.82, "width": 1.4,
+            "spots": [(-0.65, -0.55, 1.45, 0.09), (0.6, -0.58, 1.48, 0.1), (-0.95, -0.2, 1.05, 0.08), (0.95, -0.2, 1.0, 0.08)]}
+
+
+FAMILIES = [
+    ("Слизень", slime, (0.30, 0.82, 0.38)),
+    ("Краб", crab, (0.95, 0.40, 0.25)),
+    ("Червь", worm, (0.45, 0.80, 0.98)),
+    ("Скат", ray, (0.32, 0.38, 0.95)),
+    ("Рой", swarm, (0.92, 0.28, 0.55)),
+    ("Кит", whale, (0.22, 0.35, 0.75)),
+]
+
+
+def ring(x, z, width, color):
+    toon.torus("Ring", (x, 0, z + 0.03), width, 0.07, color, emission=0.3)
+
+
+def legendary_outfit(x, z, info, color):
+    spot = lighter(color, 0.55)
+    for dx, dy, dz, size in info["spots"]:
+        toon.no_outline(toon.sphere("Spot", (x + dx, dy, z + dz), (size, size * 0.6, size * 0.9), spot, 16))
+    top = info["top"]
+    toon.cylinder("Crown", (x, 0.0, top), 0.38, 0.16, GOLD)
+    for index in range(6):
+        angle = math.radians(index * 60 + 90)
+        toon.cone("CrownTip", (x + 0.34 * math.cos(angle), 0.34 * math.sin(angle), top + 0.2), 0.08, 0.24, GOLD)
+    toon.sphere("Gem", (x, -0.38, top), (0.08, 0.05, 0.08), (0.95, 0.15, 0.4), 16)
+    for px, pz, size in ((-1.55, 1.7, 0.13), (1.6, 1.9, 0.15), (-1.7, 0.75, 0.1), (1.65, 0.6, 0.11)):
+        for spin in (0, 45):
+            toon.cone("Sparkle", (x + px, -0.9, z + pz), size, size * 0.2, GOLD, (math.radians(90), 0, math.radians(spin)), 4, emission=1.5)
+
+
+def turned(x, z, make):
+    """Builds a figure with `make` and turns it a little round its own axis, so the straight
+    camera sees it three-quarter while the rows stay level."""
+    before = set(bpy.data.objects)
+    info = make()
+    pivot = Matrix.Translation(Vector((x, 0, z)))
+    turn = pivot @ Matrix.Rotation(math.radians(YAW), 4, "Z") @ pivot.inverted()
+    for obj in set(bpy.data.objects) - before:
+        obj.matrix_world = turn @ obj.matrix_world
+    return info
+
+
+def build():
+    toon.reset()
+    for column, (name, make, color) in enumerate(FAMILIES):
+        x = column * SPACING
+        # Top row: common.
+        top_z = ROW_HEIGHT
+
+        def common():
+            figure = make(x, top_z, color)
+            ring(x, top_z, figure["width"], COMMON_RING)
+            return figure
+
+        turned(x, top_z, common)
+
+        # Bottom row: legendary.
+        def legendary():
+            figure = make(x, 0.0, color)
+            ring(x, 0.0, figure["width"], GOLD)
+            legendary_outfit(x, 0.0, figure, color)
+            return figure
+
+        turned(x, 0.0, legendary)
+        toon.label(name, (x, -1.4, -0.75))
+    toon.label("Обычный", (-2.6, -1.4, ROW_HEIGHT + 0.7), 0.3)
+    toon.label("Легендарный", (-2.6, -1.4, 0.7), 0.3)
+
+
+def render():
+    width = (len(FAMILIES) - 1) * SPACING
+    toon.render(
+        OUT,
+        width=width,
+        height=ROW_HEIGHT * 2,
+        center=(width / 2 - 0.9, 0, ROW_HEIGHT * 0.66),
+        ortho_scale=width + 4.8,
+        resolution=(2400, 1000),
+        camera_height=4.0,
+        light_scale=1.5,
+    )
+
+
+build()
+render()
+print("Wrote", OUT)
