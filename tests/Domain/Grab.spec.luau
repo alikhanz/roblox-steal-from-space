@@ -90,3 +90,86 @@ describe("Grab.magnetVelocity", function()
 		expect(velocity.Magnitude).toBeCloseTo(0, 0.05)
 	end)
 end)
+
+describe("Grab.nextEngaged", function()
+	local function input(overrides: { [string]: any }): Grab.EngageInput
+		local base: { [string]: any } = {
+			engaged = nil,
+			pressed = false,
+			wasPressed = false,
+			candidate = "Nest1",
+			engagedPresent = false,
+			movingAway = false,
+			blocked = false,
+		}
+		for key, value in overrides do
+			base[key] = value
+		end
+		return base :: any
+	end
+
+	it("locks on the offered egg with one press", function()
+		expect(Grab.nextEngaged(input({ pressed = true }))).toBe("Nest1")
+	end)
+
+	it("needs a fresh press: holding the input does not lock on again", function()
+		expect(Grab.nextEngaged(input({ pressed = true, wasPressed = true }))).toBe(nil)
+	end)
+
+	it("keeps the lock without holding the input", function()
+		expect(Grab.nextEngaged(input({ engaged = "Nest1", engagedPresent = true }))).toBe("Nest1")
+	end)
+
+	it("lets go on a second press", function()
+		expect(Grab.nextEngaged(input({ engaged = "Nest1", engagedPresent = true, pressed = true }))).toBe(nil)
+	end)
+
+	it("lets go when the egg is gone or the flyer steers away", function()
+		expect(Grab.nextEngaged(input({ engaged = "Nest1", engagedPresent = false }))).toBe(nil)
+		expect(Grab.nextEngaged(input({ engaged = "Nest1", engagedPresent = true, movingAway = true }))).toBe(nil)
+	end)
+
+	it("locks on afresh when pressed right after losing the lock", function()
+		local next = Grab.nextEngaged(input({ engaged = "Loose1", engagedPresent = false, pressed = true }))
+		expect(next).toBe("Nest1")
+	end)
+
+	it("lets go and refuses to lock on while grabbing is impossible", function()
+		expect(Grab.nextEngaged(input({ engaged = "Nest1", engagedPresent = true, blocked = true }))).toBe(nil)
+		expect(Grab.nextEngaged(input({ pressed = true, blocked = true }))).toBe(nil)
+	end)
+
+	it("does nothing on a press with no egg offered", function()
+		local nothingNear = input({ pressed = true })
+		nothingNear.candidate = nil
+		expect(Grab.nextEngaged(nothingNear)).toBe(nil)
+	end)
+end)
+
+describe("Grab.isMovingAway", function()
+	local roblox = require("@lune/roblox")
+	local Vector3 = (roblox :: any).Vector3 :: typeof(Vector3)
+	local toEgg = Vector3.new(10, 3, 0)
+
+	it("is true when steering clearly away from the egg", function()
+		expect(Grab.isMovingAway(Vector3.new(-1, 0, 0), toEgg, 0.5, -0.5)).toBe(true)
+		expect(Grab.isMovingAway(Vector3.new(-0.7, 0, 0.7), toEgg, 0.5, -0.5)).toBe(true)
+	end)
+
+	it("is false toward the egg, sideways, or with a light touch", function()
+		expect(Grab.isMovingAway(Vector3.new(1, 0, 0), toEgg, 0.5, -0.5)).toBe(false)
+		expect(Grab.isMovingAway(Vector3.new(0, 0, 1), toEgg, 0.5, -0.5)).toBe(false)
+		expect(Grab.isMovingAway(Vector3.new(-0.3, 0, 0), toEgg, 0.5, -0.5)).toBe(false)
+	end)
+
+	it("ignores an egg straight above or below", function()
+		expect(Grab.isMovingAway(Vector3.new(-1, 0, 0), Vector3.new(0, 8, 0), 0.5, -0.5)).toBe(false)
+	end)
+end)
+
+describe("Grab.buttonRange", function()
+	it("is the button's own range, or a fast flyer's longer lock range", function()
+		expect(Grab.buttonRange(9, 30)).toBe(30)
+		expect(Grab.buttonRange(50, 30)).toBe(50)
+	end)
+end)

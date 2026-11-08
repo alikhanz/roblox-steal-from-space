@@ -1,21 +1,18 @@
 --!strict
--- Shows the grab prompt over the egg the player can grab right now, with the grab progress.
--- Uses the same target search as the simulation, so the prompt and the grab always agree.
+-- The prompt over the egg the grab button is for (docs/design/screens/grab-button.md): it marks
+-- the egg the button would grab, and its bar fills with the grab's progress. On a touch screen its
+-- badge is pressed like the button (the same grab input). The egg and the progress come from
+-- GrabState, so the prompt, the button and the grab always agree.
 
 local LocalizationService = game:GetService("LocalizationService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
-local EggTargets = require(ReplicatedStorage.Shared.Simulation.EggTargets)
-local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
-local Grab = require(ReplicatedStorage.Shared.Domain.Grab)
 local GrabPrompt = require(script.Parent.Parent.UI.GrabPrompt)
+local GrabState = require(script.Parent.Parent.State.GrabState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
-local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
 local TouchBindings = require(script.Parent.Parent.Input.TouchBindings)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -27,6 +24,10 @@ local KEYBOARD_BADGE = "E"
 local GAMEPAD_BADGE = "X"
 local TOUCH_BADGE = "✋"
 
+export type Dependencies = {
+	grab: GrabState.GrabState,
+}
+
 export type GrabPromptController = {
 	name: string,
 	start: () -> (),
@@ -34,30 +35,9 @@ export type GrabPromptController = {
 
 local GrabPromptController = {}
 
-function GrabPromptController.new(): GrabPromptController
-	local target = source(nil :: BasePart?)
-	local progress = source(0)
+function GrabPromptController.new(dependencies: Dependencies): GrabPromptController
+	local grab = dependencies.grab
 	local inputMode = source(UserInputService.PreferredInput)
-
-	local function update()
-		local character = Players.LocalPlayer.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		local canGrab = character ~= nil
-			and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true
-			and character:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE) == nil
-		if not canGrab or not root or not root:IsA("BasePart") then
-			target(nil)
-			progress(0)
-			return
-		end
-		-- The prompt shows as soon as the grab can lock on (the same range as the simulation).
-		local lockRange =
-			Grab.lockRange(TopSpeed.of(character :: Model), EggConfig.GRAB_REACH, EggConfig.LOCK_LEAD_SECONDS)
-		local found = EggTargets.nearest(root.Position, lockRange)
-		target(if found then found.part else nil)
-		local value = (character :: Model):GetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE)
-		progress(if found and type(value) == "number" then value else 0)
-	end
 
 	local function start()
 		local player = Players.LocalPlayer
@@ -71,8 +51,11 @@ function GrabPromptController.new(): GrabPromptController
 
 		Vide.mount(function()
 			return GrabPrompt({
-				target = target,
-				progress = progress,
+				target = function(): BasePart?
+					local target = grab.target()
+					return if target then target.part else nil
+				end,
+				progress = grab.progress,
 				badgeText = function()
 					local mode = inputMode()
 					return if mode == Enum.PreferredInput.Touch
@@ -80,7 +63,11 @@ function GrabPromptController.new(): GrabPromptController
 						elseif mode == Enum.PreferredInput.Gamepad then GAMEPAD_BADGE
 						else KEYBOARD_BADGE
 				end,
+				-- Locked on, the bar says it all.
 				hint = function()
+					if grab.engaged() then
+						return ""
+					end
 					return if inputMode() == Enum.PreferredInput.Touch
 						then Text.get(locale, "egg.grabTouch.hint")
 						else Text.get(locale, "egg.grab.hint")
@@ -90,8 +77,6 @@ function GrabPromptController.new(): GrabPromptController
 				end,
 			})
 		end, playerGui)
-
-		RunService.RenderStepped:Connect(update)
 	end
 
 	return {

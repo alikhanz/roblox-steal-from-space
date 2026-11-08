@@ -196,8 +196,8 @@ local function fly(
 	elseif lunge then
 		-- The strike: a straight dash along the aim it started with.
 		velocity = lunge * (maxSpeed + PvpConfig.STRIKE.lungeExtraSpeed)
-	elseif target and FlightInputs.isPressed(context, FlightInputs.GRAB) then
-		-- Magnetic grab: lock onto the egg instead of drifting past it.
+	elseif target then
+		-- Magnetic grab, locked on with one press: pulled to the egg instead of drifting past it.
 		velocity =
 			Grab.magnetVelocity(current, rig.root.Position, target.position, deltaTime, EggConfig.MAGNET, maxSpeed)
 	else
@@ -330,8 +330,53 @@ local function breathe(player: Player, rig: Rig, inSpace: boolean, deltaTime: nu
 	end
 end
 
--- Fills the grab progress while the grab input is held next to an egg. Completion is only a
--- request: the server confirms it outside the simulation (CarryService) and hands over the egg.
+-- The grab's lock (docs/design/screens/grab-button.md, Grab.nextEngaged): one press of the grab
+-- input locks on the egg the grab button offers, and the lock holds without holding the input.
+-- Returns the locked-on egg, if any. The lock and the last input state live in character
+-- attributes, so the client predicts them as the server runs them.
+local function engage(rig: Rig, context: Instance, blocked: boolean, lockRange: number): EggTargets.Target?
+	local character = rig.character
+	local position = rig.root.Position
+	local range = Grab.buttonRange(lockRange, EggConfig.GRAB_BUTTON_RANGE)
+	local engagedId = character:GetAttribute(EggConfig.GRAB_ENGAGED_ATTRIBUTE)
+	local engaged = if type(engagedId) == "string"
+		then EggTargets.find(engagedId, position, range * EggConfig.GRAB_RELEASE_FACTOR)
+		else nil
+	local pressed = FlightInputs.isPressed(context, FlightInputs.GRAB)
+	local wasPressed = character:GetAttribute(EggConfig.GRAB_PRESSED_ATTRIBUTE) == true
+	-- Looked for only on a press: the egg the button offers.
+	local candidate = if pressed and not wasPressed and not blocked then EggTargets.nearest(position, range) else nil
+
+	local nextId = Grab.nextEngaged({
+		engaged = if type(engagedId) == "string" then engagedId else nil,
+		pressed = pressed,
+		wasPressed = wasPressed,
+		candidate = if candidate then candidate.id else nil,
+		engagedPresent = engaged ~= nil,
+		movingAway = engaged ~= nil and Grab.isMovingAway(
+			rig.humanoid.MoveDirection,
+			engaged.position - position,
+			EggConfig.GRAB_LEAVE_MOVE,
+			EggConfig.GRAB_LEAVE_DOT
+		),
+		blocked = blocked,
+	})
+	if nextId ~= engagedId then
+		character:SetAttribute(EggConfig.GRAB_ENGAGED_ATTRIBUTE, nextId)
+	end
+	if pressed ~= wasPressed then
+		character:SetAttribute(EggConfig.GRAB_PRESSED_ATTRIBUTE, pressed)
+	end
+	if nextId == nil then
+		return nil
+	elseif engaged and engaged.id == nextId then
+		return engaged
+	end
+	return candidate
+end
+
+-- Fills the grab progress while the grab is locked on an egg. Completion is only a request: the
+-- server confirms it outside the simulation (CarryService) and hands over the egg.
 local function grab(rig: Rig, deltaTime: number, target: EggTargets.Target?, holding: boolean)
 	local character = rig.character
 	local previousProgress = character:GetAttribute(EggConfig.GRAB_PROGRESS_ATTRIBUTE)
@@ -372,10 +417,11 @@ local function step(deltaTime: number)
 		toggleSlowMode(rig.character, context)
 		local hit = currentHit(rig.character)
 		local carrying = carriedRarity(rig.character) ~= nil
-		-- The egg in reach, if any: shared by the magnetic grab and the grab progress.
-		-- A fast flyer locks onto an egg from farther away, so it is not flown past.
+		-- The egg the grab is locked on, if any: shared by the magnetic grab and the grab progress.
+		-- A fast flyer is offered an egg from farther away, so it is not flown past. A stunned
+		-- thief cannot grab: the dropped egg is not snatched straight back.
 		local lockRange = Grab.lockRange(flightSpeed(rig.character), EggConfig.GRAB_REACH, EggConfig.LOCK_LEAD_SECONDS)
-		local target = if carrying then nil else EggTargets.nearest(rig.root.Position, lockRange)
+		local target = engage(rig, context, not inSpace or hit ~= nil or carrying, lockRange)
 		-- Hands full with an egg: no strike.
 		local lunge = strike(rig, context, inSpace and hit == nil and not carrying, deltaTime)
 
@@ -396,8 +442,7 @@ local function step(deltaTime: number)
 			true
 		)
 		breathe(player, rig, inSpace, deltaTime)
-		-- A stunned thief cannot grab: the dropped egg is not snatched straight back.
-		grab(rig, deltaTime, target, FlightInputs.isPressed(context, FlightInputs.GRAB) and hit == nil)
+		grab(rig, deltaTime, target, target ~= nil)
 	end
 end
 

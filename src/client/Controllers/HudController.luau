@@ -18,10 +18,12 @@ local ActionButton = require(script.Parent.Parent.UI.ActionButton)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Crosshair = require(script.Parent.Parent.UI.Crosshair)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local GoalCard = require(script.Parent.Parent.UI.GoalCard)
+local GrabState = require(script.Parent.Parent.State.GrabState)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Icons = require(script.Parent.Parent.UI.Icons)
@@ -61,6 +63,11 @@ local MENU_GAP = 7
 -- The PC row of actions: button diameters, points (the strike, used most, is the biggest).
 local ROW_BUTTON_SIZE = 52
 local ROW_STRIKE_SIZE = 60
+-- The grab button (docs/design/screens/grab-button.md), the biggest of all: on a touch screen
+-- above up and the harpoon, points of the reference screen (diameter, right, bottom); in the
+-- keyboard row, first.
+local GRAB_TOUCH = { size = 72, right = 46, bottom = 170 }
+local ROW_GRAB_SIZE = 66
 -- On a touch screen the bottom stack stands a little left of the middle, clear of the flight
 -- buttons: its centre's share of the screen width.
 local TOUCH_STACK_X = 0.41
@@ -97,6 +104,8 @@ export type Dependencies = {
 	menu: MenuState.MenuState,
 	-- Opens the shop from the speed goal; nil where nothing is sold (an unpublished place).
 	openStore: (() -> ())?,
+	-- The grab button's egg, lock and progress (docs/design/screens/grab-button.md).
+	grab: GrabState.GrabState,
 }
 
 export type HudController = {
@@ -291,7 +300,28 @@ function HudController.new(dependencies: Dependencies): HudController
 			return spec
 		end
 		local FLIGHT = Theme.NEON.FLIGHT
+		-- Grab: only next to an egg, in its rarity's colour, pulsing until pressed, the ring
+		-- filling once locked on.
+		local grab = dependencies.grab
+		local function grabButton(size: number, right: number?, bottom: number?): FlightButtons.ButtonSpec
+			local spec = button("Grab", FlightInputs.GRAB, Theme.NEON.EGG, size, right, bottom)
+			spec.icon = "Egg"
+			spec.label = Text.get(locale, "egg.grabButton.button")
+			spec.visible = function()
+				return grab.target() ~= nil
+			end
+			spec.tint = function()
+				local target = grab.target()
+				return if target then EggLooks.RARITIES[target.rarity].color else Theme.NEON.EGG
+			end
+			spec.pulse = function()
+				return not grab.engaged()
+			end
+			spec.progress = grab.progress
+			return spec
+		end
 		local touchButtons: { FlightButtons.ButtonSpec } = {
+			grabButton(GRAB_TOUCH.size, GRAB_TOUCH.right, GRAB_TOUCH.bottom),
 			button("Up", FlightInputs.ASCEND, FLIGHT.Vertical, 59, 22, 93),
 			button("Down", FlightInputs.DESCEND, FLIGHT.Vertical, 59, 22, 22),
 			withCooldown(button("Strike", FlightInputs.STRIKE, FLIGHT.Strike, 64, 93, 22), "Strike"),
@@ -299,9 +329,10 @@ function HudController.new(dependencies: Dependencies): HudController
 			withCooldown(button("Bomb", FlightInputs.BOMB, FLIGHT.Bomb, 54, 169, 62), "Bomb"),
 			button("SlowMode", FlightInputs.SLOW_MODE, FLIGHT.SlowMode, 44, 241, 22),
 		}
-		touchButtons[6].active = isSlow
-		-- The keyboard and gamepad row, left to right: the attacks, slow mode, down, up.
+		-- The keyboard and gamepad row, left to right: grab (only next to an egg), the attacks,
+		-- slow mode, down, up.
 		local rowButtons: { FlightButtons.ButtonSpec } = {
+			grabButton(ROW_GRAB_SIZE),
 			withCooldown(button("Strike", FlightInputs.STRIKE, FLIGHT.Strike, ROW_STRIKE_SIZE), "Strike"),
 			withCooldown(button("Harpoon", FlightInputs.HARPOON, FLIGHT.Harpoon, ROW_BUTTON_SIZE), "Harpoon"),
 			withCooldown(button("Bomb", FlightInputs.BOMB, FLIGHT.Bomb, ROW_BUTTON_SIZE), "Bomb"),
@@ -309,9 +340,15 @@ function HudController.new(dependencies: Dependencies): HudController
 			button("Down", FlightInputs.DESCEND, FLIGHT.Vertical, ROW_BUTTON_SIZE),
 			button("Up", FlightInputs.ASCEND, FLIGHT.Vertical, ROW_BUTTON_SIZE),
 		}
-		rowButtons[4].active = isSlow
 		for _, spec in rowButtons do
 			spec.keyText = keyOf(spec.action)
+		end
+		for _, specs in { touchButtons, rowButtons } do
+			for _, spec in specs do
+				if spec.action == FlightInputs.SLOW_MODE then
+					spec.active = isSlow
+				end
+			end
 		end
 		local function isTouch(): boolean
 			return inputMode() == Enum.PreferredInput.Touch

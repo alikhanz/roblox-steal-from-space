@@ -1,7 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The prompt over a grabbable egg: a key badge ("E", "X") or, on touch screens, a badge to press
--- and hold, plus a bar that fills while the grab is held.
+-- The prompt over a grabbable egg: a key badge ("E", "X") or, on touch screens, a badge to press,
+-- plus a bar that fills with the grab's progress.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

@@ -20,13 +20,19 @@ local Strings = {
 		ru = "Вышло обновление игры. Зайди снова, чтобы играть дальше.",
 		en = "The game just got an update. Rejoin to keep playing.",
 	},
+	-- Under the prompt over an egg: one press grabs (docs/design/screens/grab-button.md).
 	["egg.grab.hint"] = {
-		ru = "Держи, чтобы взять",
-		en = "Hold to grab",
+		ru = "Нажми, чтобы взять",
+		en = "Press to grab",
 	},
 	["egg.grabTouch.hint"] = {
-		ru = "Нажми и держи",
-		en = "Tap and hold",
+		ru = "Нажми, чтобы взять",
+		en = "Tap to grab",
+	},
+	-- The word on the grab button, under the egg icon.
+	["egg.grabButton.button"] = {
+		ru = "Схватить",
+		en = "Grab",
 	},
 	["guardian.slimeWarden.title"] = {
 		ru = "Слизень-сторож",
@@ -1117,6 +1123,11 @@ local Strings = {
 	["tutorial.steal.hint"] = {
 		ru = "Лети к стражу и укради яйцо из гнезда",
 		en = "Fly to a guardian and steal its egg",
+	},
+	-- At an egg, while the grab button shows.
+	["tutorial.grabButton.hint"] = {
+		ru = "Жми кнопку с яйцом",
+		en = "Hit the egg button",
 	},
 	["tutorial.carryHome.hint"] = {
 		ru = "Неси яйцо на станцию. За границей станции страж отстанет",

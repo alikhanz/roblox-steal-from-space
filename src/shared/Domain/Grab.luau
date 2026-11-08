@@ -1,12 +1,69 @@
 --!strict
--- Grabbing an egg: hold the grab input near an egg until the progress fills. The grab locks
--- onto an egg from farther away the faster the flyer is (lockRange), and the jetpack then pulls
--- them in (magnetVelocity); the progress fills only within reach. Letting go, or losing the
--- lock, resets it.
+-- Grabbing an egg (docs/design/screens/grab-button.md): one press of the grab input near an egg
+-- locks the grab on it (nextEngaged), the jetpack then pulls the flyer in (magnetVelocity) and
+-- the progress fills within reach (step). Pressing again, steering away, losing the egg or being
+-- hit lets go and resets the progress.
 
 local Grab = {}
 
--- Progress 0..1 after one step. `locked`: the grab is held on an egg within the lock range;
+export type EngageInput = {
+	-- The egg the grab is locked on now (its id), if any.
+	engaged: string?,
+	-- The grab input is down on this step, and was down on the last one.
+	pressed: boolean,
+	wasPressed: boolean,
+	-- The nearest egg the grab button offers, if any.
+	candidate: string?,
+	-- The locked-on egg is still there and near enough to hold on to.
+	engagedPresent: boolean,
+	-- The flyer steers away from the locked-on egg (isMovingAway).
+	movingAway: boolean,
+	-- Grabbing is impossible now: not in space, stunned, or hands full.
+	blocked: boolean,
+}
+
+-- The egg the grab is locked on after this step. A press (the input going down) locks on the
+-- offered egg, or lets go if already locked on; the lock also ends when the egg is gone or out
+-- of hold range, when the flyer steers away, or when grabbing becomes impossible.
+function Grab.nextEngaged(input: EngageInput): string?
+	if input.blocked then
+		return nil
+	end
+	local engaged = input.engaged
+	if engaged and (not input.engagedPresent or input.movingAway) then
+		engaged = nil
+	end
+	if input.pressed and not input.wasPressed then
+		-- A second press lets go; a press after the lock was lost locks on afresh.
+		if engaged then
+			return nil
+		end
+		return input.candidate
+	end
+	return engaged
+end
+
+-- Whether move input steers away from the egg: strong enough (`minMove` of a full push) and
+-- pointing away from it (its direction's dot with the way to the egg at most `maxDot`). Only
+-- the level part counts: flying up or down never lets go.
+function Grab.isMovingAway(moveDirection: Vector3, toEgg: Vector3, minMove: number, maxDot: number): boolean
+	-- Plain numbers, not the Vector3 global (unavailable in Lune).
+	local moveLength = math.sqrt(moveDirection.X ^ 2 + moveDirection.Z ^ 2)
+	local eggLength = math.sqrt(toEgg.X ^ 2 + toEgg.Z ^ 2)
+	if moveLength < minMove or eggLength < 1e-4 then
+		return false
+	end
+	local dot = (moveDirection.X * toEgg.X + moveDirection.Z * toEgg.Z) / (moveLength * eggLength)
+	return dot <= maxDot
+end
+
+-- How far the grab button offers an egg: its own range, or the lock range of a fast flyer.
+function Grab.buttonRange(lockRange: number, buttonRange: number): number
+	return math.max(lockRange, buttonRange)
+end
+
+-- Progress 0..1 after one step. `holding`: the grab is locked on (nextEngaged); `locked`: its
+-- egg is found;
 -- `inReach`: that egg is within the plain grab reach. Locked but not yet in reach (the magnet
 -- is still pulling the flyer in) keeps the progress where it is.
 function Grab.step(

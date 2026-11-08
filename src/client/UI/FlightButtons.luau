@@ -7,7 +7,9 @@
 -- covered by a dark sector with the seconds left; a disabled one turns grey; a switched-on one
 -- (slow mode) is lit: solid colour, dark icon.
 
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
@@ -33,8 +35,21 @@ local DISABLED_TRANSPARENCY = 0.6
 local LIT_FILL_TOP = 0.05
 local LIT_FILL_BOTTOM = 0.25
 local LIT_GLOW_TRANSPARENCY = 0.25
--- The whole group's box, points: big enough for every button's place in it.
-local AREA = Vector2.new(300, 170)
+-- A button with a word under its icon: the icon a little smaller and higher, the word below.
+local LABELLED_ICON_SHARE = 0.45
+local LABELLED_ICON_Y = 0.4
+local LABEL_Y = 0.74
+-- The ring of progress round a button, against the button's size.
+local RING_SHARE = 1.18
+-- Appearing: grows in from this scale over this long, seconds. Pulsing: breathes this much
+-- bigger, one breath this long, seconds.
+local APPEAR_FROM = 0.8
+local APPEAR_SECONDS = 0.15
+local PULSE_GROWTH = 0.06
+local PULSE_SECONDS = 1.4
+-- The whole group's box, points: big enough for every button's place in it (the grab button
+-- stands above the others).
+local AREA = Vector2.new(300, 260)
 -- The PC row: space between buttons; the key cap's height and how far it sticks out.
 local ROW_GAP = 12
 local KEY_HEIGHT = 17
@@ -60,6 +75,17 @@ export type ButtonSpec = {
 	enabled: (() -> boolean)?,
 	-- A switch that is on (slow mode).
 	active: (() -> boolean)?,
+	-- Shown only while this says so (the grab button: only next to an egg); always otherwise. It
+	-- grows in when it appears.
+	visible: (() -> boolean)?,
+	-- Its colour now, when it changes (the grab button: the egg's rarity); `color` otherwise.
+	tint: (() -> Color3)?,
+	-- A short word under the icon.
+	label: string?,
+	-- Gently pulses while this says so, to be noticed.
+	pulse: (() -> boolean)?,
+	-- A ring round the button filling clockwise, 0..1; the button gets a solid base for it.
+	progress: (() -> number)?,
 }
 
 export type Props = {
@@ -69,10 +95,18 @@ export type Props = {
 	onButton: (actionName: string, button: GuiButton) -> (),
 }
 
--- One half of the cooldown sector: a dark disc clipped to the left or right half of the
--- button, with a gradient that leaves only the part of the circle still cooling. Together the
--- halves cover the circle clockwise from twelve o'clock by `fraction`.
-local function sectorHalf(side: "Left" | "Right", fraction: () -> number): Frame
+-- One half of a sector: a disc clipped to the left or right half of its parent, with a gradient
+-- that leaves only the part of the circle covered so far. Together the halves cover the circle
+-- clockwise from twelve o'clock by `fraction`: dark over a cooling button, light for a ring of
+-- progress.
+local function sectorHalf(
+	side: "Left" | "Right",
+	fraction: () -> number,
+	name: string,
+	color: Color3,
+	transparency: number,
+	zIndex: number
+): Frame
 	local gradient = Instance.new("UIGradient")
 	gradient.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0),
@@ -89,8 +123,8 @@ local function sectorHalf(side: "Left" | "Right", fraction: () -> number): Frame
 		end
 	end)
 	return create("Frame")({
-		Name = `Cooldown{side}`,
-		ZIndex = 3,
+		Name = `{name}{side}`,
+		ZIndex = zIndex,
 		Position = if side == "Left" then UDim2.fromScale(0, 0) else UDim2.fromScale(0.5, 0),
 		Size = UDim2.fromScale(0.5, 1),
 		BackgroundTransparency = 1,
@@ -101,13 +135,13 @@ local function sectorHalf(side: "Left" | "Right", fraction: () -> number): Frame
 		end,
 		create("ImageLabel")({
 			Name = "Disc",
-			ZIndex = 3,
+			ZIndex = zIndex,
 			Position = if side == "Left" then UDim2.fromScale(0, 0) else UDim2.fromScale(-1, 0),
 			Size = UDim2.fromScale(2, 1),
 			BackgroundTransparency = 1,
 			Image = Icons.DISC,
-			ImageColor3 = Color3.new(0, 0, 0),
-			ImageTransparency = COOLDOWN_TRANSPARENCY,
+			ImageColor3 = color,
+			ImageTransparency = transparency,
 			gradient,
 		}),
 	}) :: Frame
@@ -149,6 +183,16 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 		return if spec.cooldown then spec.cooldown() else 0
 	end
 
+	local function colorNow(): Color3
+		return if spec.tint then spec.tint() else spec.color
+	end
+	local function isShown(): boolean
+		return if spec.visible then spec.visible() else true
+	end
+	local function progress(): number
+		return if spec.progress then spec.progress() else 0
+	end
+
 	local corner = UDim.new(0.5, 0)
 	local glass = Layout.glass(spec.color, corner)
 	local fill = glass[1] :: Frame
@@ -156,23 +200,58 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 	fill.ZIndex = 1
 	local gradient = fill:FindFirstChildOfClass("UIGradient") :: UIGradient
 	local pressScale = Instance.new("UIScale")
+	-- Growing in on appearing and the pulse, multiplied into the press scale.
+	local motion = source(1)
 	local function isLit(): boolean
 		return isActive() and isEnabled()
 	end
 	Vide.effect(function()
 		local enabled = isEnabled()
 		local lit = isLit()
+		local color = colorNow()
+		fill.BackgroundColor3 = color
 		fill.BackgroundTransparency = if enabled then 0 else DISABLED_TRANSPARENCY
-		outline.Color = if lit
-			then Layout.iconColor(spec.color)
-			elseif enabled then Layout.lineColor(spec.color)
-			else NEON.MUTED
+		outline.Color = if lit then Layout.iconColor(color) elseif enabled then Layout.lineColor(color) else NEON.MUTED
 		outline.Transparency = if enabled then 0 else DISABLED_TRANSPARENCY
 		gradient.Transparency = if lit
 			then NumberSequence.new(LIT_FILL_TOP, LIT_FILL_BOTTOM)
 			else NumberSequence.new(NEON.FILL_TOP, NEON.FILL_BOTTOM)
-		pressScale.Scale = if pressed() and enabled then PRESSED_SCALE else 1
+		pressScale.Scale = (if pressed() and enabled then PRESSED_SCALE else 1) * motion()
 	end)
+	-- Appearing (grows in) and pulsing (breathes) are driven frame by frame while they last.
+	if spec.visible or spec.pulse then
+		local shownAt = os.clock()
+		Vide.effect(function()
+			if isShown() then
+				shownAt = os.clock()
+			end
+		end)
+		Vide.effect(function()
+			local pulsing = spec.pulse ~= nil and spec.pulse() and not GuiService.ReducedMotionEnabled
+			if not isShown() then
+				motion(1)
+				return
+			end
+			local connection: RBXScriptConnection
+			connection = RunService.Heartbeat:Connect(function()
+				local age = os.clock() - shownAt
+				if age >= APPEAR_SECONDS and not pulsing then
+					-- Grown in and still: nothing more to drive.
+					motion(1)
+					connection:Disconnect()
+					return
+				end
+				local appear = if age < APPEAR_SECONDS
+					then APPEAR_FROM + (1 - APPEAR_FROM) * age / APPEAR_SECONDS
+					else 1
+				local beat = if pulsing
+					then 1 + PULSE_GROWTH * (0.5 - 0.5 * math.cos(2 * math.pi * age / PULSE_SECONDS))
+					else 1
+				motion(appear * beat)
+			end)
+			Vide.cleanup(connection)
+		end)
+	end
 
 	local right, bottom = spec.right, spec.bottom
 	return create("ImageButton")({
@@ -184,6 +263,7 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 		Size = UDim2.fromOffset(spec.size, spec.size),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
+		Visible = isShown,
 		Layout.followPress(pressed),
 		action(function(instance)
 			if onButton then
@@ -203,36 +283,78 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 			pressScale,
 			create("ImageLabel")({
 				Name = "Glow",
-				ZIndex = 0,
+				ZIndex = -2,
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.fromScale(GLOW_SHARE, GLOW_SHARE),
 				BackgroundTransparency = 1,
 				Image = Icons.GLOW,
-				ImageColor3 = spec.color,
+				ImageColor3 = colorNow,
 				ImageTransparency = function()
-					return if isLit() then LIT_GLOW_TRANSPARENCY else GLOW_TRANSPARENCY
+					return if isLit() or (spec.pulse and spec.pulse()) then LIT_GLOW_TRANSPARENCY else GLOW_TRANSPARENCY
 				end,
 				Visible = isEnabled,
 			}),
+			-- The ring of progress: a light sector round the button, over a solid base that hides
+			-- its middle under the see-through glass.
+			if spec.progress
+				then create("Frame")({
+					Name = "Ring",
+					ZIndex = -1,
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.fromScale(0.5, 0.5),
+					Size = UDim2.fromScale(RING_SHARE, RING_SHARE),
+					BackgroundTransparency = 1,
+					sectorHalf("Left", progress, "Ring", NEON.TEXT, 0, -1),
+					sectorHalf("Right", progress, "Ring", NEON.TEXT, 0, -1),
+				})
+				else nil,
+			if spec.progress
+				then create("ImageLabel")({
+					Name = "Base",
+					ZIndex = 0,
+					Size = UDim2.fromScale(1, 1),
+					BackgroundTransparency = 1,
+					Image = Icons.DISC,
+					ImageColor3 = NEON.GLASS,
+				})
+				else nil,
 			glass,
 			create("ImageLabel")({
 				Name = "Icon",
 				ZIndex = 2,
 				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.5, 0.5),
-				Size = UDim2.fromScale(ICON_SHARE, ICON_SHARE),
+				Position = if spec.label then UDim2.fromScale(0.5, LABELLED_ICON_Y) else UDim2.fromScale(0.5, 0.5),
+				Size = if spec.label
+					then UDim2.fromScale(LABELLED_ICON_SHARE, LABELLED_ICON_SHARE)
+					else UDim2.fromScale(ICON_SHARE, ICON_SHARE),
 				BackgroundTransparency = 1,
 				Image = Icons.ICONS[spec.icon],
 				ImageColor3 = function()
 					return if isLit()
 						then NEON.GLASS
-						elseif isEnabled() then Layout.iconColor(spec.color)
+						elseif isEnabled() then Layout.iconColor(colorNow())
 						else NEON.MUTED
 				end,
 			}),
-			sectorHalf("Left", fraction),
-			sectorHalf("Right", fraction),
+			if spec.label
+				then create("TextLabel")({
+					Name = "Label",
+					ZIndex = 2,
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.fromScale(0.5, LABEL_Y),
+					Size = UDim2.fromScale(1, 0),
+					AutomaticSize = Enum.AutomaticSize.Y,
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_SMALL,
+					TextColor3 = NEON.TEXT,
+					Text = spec.label,
+					Layout.textStroke(),
+				})
+				else nil,
+			sectorHalf("Left", fraction, "Cooldown", Color3.new(0, 0, 0), COOLDOWN_TRANSPARENCY, 3),
+			sectorHalf("Right", fraction, "Cooldown", Color3.new(0, 0, 0), COOLDOWN_TRANSPARENCY, 3),
 			create("TextLabel")({
 				Name = "Seconds",
 				ZIndex = 4,

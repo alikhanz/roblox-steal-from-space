@@ -12,6 +12,7 @@ local EggEffectsController = require(script.Parent.Controllers.EggEffectsControl
 local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseController)
 local EventController = require(script.Parent.Controllers.EventController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
+local GrabState = require(script.Parent.State.GrabState)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
 local HitEffectsController = require(script.Parent.Controllers.HitEffectsController)
 local HomeBeaconController = require(script.Parent.Controllers.HomeBeaconController)
@@ -42,6 +43,8 @@ local profileState = ProfileState.new()
 local toastState = ToastState.new()
 local abilityState = AbilityState.new(profileState)
 local speedState = SpeedState.new()
+-- The egg the grab button offers, the grab's lock and progress (button, egg prompt, tutorial).
+local grabState = GrabState.new()
 -- One window open at a time: opening one closes the other.
 local windowState = WindowState.new()
 -- The windows' tiles in the HUD menu row and their keys.
@@ -62,13 +65,14 @@ local storeController = StoreController.new({
 	menu = menuState,
 })
 local eventController = EventController.new()
-local tutorialController = TutorialController.new({ speed = speedState.speed })
+local tutorialController = TutorialController.new({ speed = speedState.speed, grab = grabState })
 
 Lifecycle.run({
 	profileState,
 	purchaseState,
 	abilityState,
 	speedState,
+	grabState,
 	menuState,
 	AimController.new(),
 	HudController.new({
@@ -86,8 +90,9 @@ Lifecycle.run({
 				storeController.open("Goal")
 			end
 			else nil,
+		grab = grabState,
 	}),
-	GrabPromptController.new(),
+	GrabPromptController.new({ grab = grabState }),
 	PromptViewController.new(),
 	EggPurchaseController.new({ purchases = purchaseState }),
 	GuardianViewController.new({ speed = speedState.speed }),

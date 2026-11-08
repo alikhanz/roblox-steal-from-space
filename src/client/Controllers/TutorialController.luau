@@ -17,6 +17,7 @@ local RunService = game:GetService("RunService")
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local GrabState = require(script.Parent.Parent.State.GrabState)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuidePath = require(script.Parent.Parent.UI.GuidePath)
 local Icons = require(script.Parent.Parent.UI.Icons)
@@ -53,6 +54,8 @@ local HINT_ICONS: { [Hint]: Icons.Name } = {
 export type Dependencies = {
 	-- The player's speed stat: a dropped egg leads back only if its guardian is outrun.
 	speed: () -> BigNum.BigNum,
+	-- The grab button: next to an egg the stealing line says to press it.
+	grab: GrabState.GrabState,
 }
 
 export type TutorialController = {
@@ -80,6 +83,10 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 	local path: GuidePath.GuidePath? = nil
 
 	local function lineFor(current: Hint?): string
+		-- At an egg, the next thing to do is the grab button (docs/design/screens/grab-button.md).
+		if (current == "Steal" or current == "StealStronger") and dependencies.grab.target() ~= nil then
+			return Text.get(locale, "tutorial.grabButton.hint")
+		end
 		if current == "Steal" then
 			return Text.get(locale, "tutorial.steal.hint")
 		elseif current == "CarryHome" or current == "CarryHomeStronger" then

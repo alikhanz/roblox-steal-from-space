@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кнопка «Схватить»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 32px; }
+h1 { font-weight: 900; font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 74ch; color: var(--muted-page); }
+.intro b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+
+/* ───────── Screen (phone 844 × 390, PC 16:9) ───────── */
+.screen {
+  --text: #EAF2FF; --line: rgba(130, 236, 255, .5); --glass: rgba(10, 14, 40, .5);
+  --ol: 0 .15cqw 0 #000, 0 0 .4cqw rgba(0,0,0,.8);
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+  background:
+    radial-gradient(ellipse 50cqw 26cqw at 78% 10%, rgba(130, 70, 210, .35), transparent 70%),
+    radial-gradient(ellipse 40cqw 22cqw at 15% 85%, rgba(40, 120, 220, .25), transparent 70%),
+    #05071a;
+}
+.screen.pc { aspect-ratio: 16 / 9; }
+.stars { position: absolute; inset: 0; background-image:
+  radial-gradient(1px 1px at 12% 20%, #fff8, transparent), radial-gradient(1px 1px at 33% 64%, #fff6, transparent),
+  radial-gradient(1px 1px at 58% 12%, #fff8, transparent), radial-gradient(1px 1px at 71% 48%, #fff5, transparent),
+  radial-gradient(1px 1px at 88% 30%, #fff7, transparent), radial-gradient(1px 1px at 22% 82%, #fff6, transparent); }
+
+/* The nest and egg in the middle of the view */
+.rock { position: absolute; left: 41cqw; top: 22cqw; width: 18cqw; height: 9cqw; border-radius: 50%;
+  background: radial-gradient(ellipse at 40% 30%, #5a5f7d, #262a42 70%); }
+.egg { position: absolute; left: 47.6cqw; top: 15.6cqw; width: 4.8cqw; height: 6.4cqw; border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%;
+  background: radial-gradient(ellipse at 35% 30%, #c9ecff, var(--rc) 60%); box-shadow: 0 0 2.4cqw var(--rc); }
+.guard { position: absolute; left: 60cqw; top: 9cqw; width: 6cqw; height: 6cqw; border-radius: 40%; background: #3a3f63; opacity: .8; }
+.guard::after { content: "zZ"; position: absolute; right: -2cqw; top: -2cqw; font-size: 1.6cqw; color: #9DB6D2; }
+.player { position: absolute; width: 4cqw; height: 6cqw; border-radius: 1.4cqw; background: #e8d2c0; box-shadow: 1.2cqw .6cqw 0 -.4cqw #b45; }
+.far .player { left: 24cqw; top: 26cqw; }
+.near .player { left: 41.5cqw; top: 16.5cqw; }
+.got .player { left: 44cqw; top: 15cqw; }
+.got .egg { left: 46.8cqw; top: 18.4cqw; width: 3.2cqw; height: 4.2cqw; }
+.pull { position: absolute; left: 28cqw; top: 22cqw; width: 18cqw; height: .5cqw; border-radius: 1cqw;
+  background: linear-gradient(90deg, transparent, rgba(143, 244, 255, .7)); transform: rotate(-12deg); transform-origin: left; }
+/* The egg's own small prompt: a highlight and a bar */
+.egg-bar { position: absolute; left: 46cqw; top: 12.6cqw; width: 8cqw; height: 1cqw; border-radius: 1cqw; background: rgba(0,0,0,.5); border: .2cqw solid rgba(255,255,255,.6); overflow: hidden; }
+.egg-bar i { display: block; height: 100%; width: var(--p); background: var(--rc); }
+.tag { position: absolute; left: 50cqw; top: 9.4cqw; transform: translateX(-50%); font-size: 1.5cqw; text-shadow: var(--ol); white-space: nowrap; }
+
+/* HUD bits for context */
+.stat { position: absolute; left: 2cqw; top: 9cqw; display: flex; gap: 1cqw; }
+.stat span { background: var(--glass); border: .2cqw solid var(--line); border-radius: 3cqw; padding: .5cqw 1.6cqw; font-size: 2cqw; }
+.oxy { position: absolute; left: 30cqw; bottom: 3cqw; width: 30cqw; height: 1.6cqw; border-radius: 1cqw; background: rgba(0,0,0,.45); border: .2cqw solid var(--line); }
+.oxy i { display: block; width: 82%; height: 100%; background: #4cc9ff; border-radius: 1cqw; }
+.tut { position: absolute; left: 45cqw; bottom: 6.4cqw; transform: translateX(-50%); background: var(--glass); border: .2cqw solid var(--line); border-radius: 2cqw; padding: .8cqw 2cqw; font-size: 1.7cqw; white-space: nowrap; }
+.tut.new { border-color: #ffd34a; box-shadow: 0 0 1.4cqw rgba(255, 211, 74, .5); }
+
+/* Flight buttons (hud.md, phone) */
+.fbtn { position: absolute; border-radius: 50%; display: grid; place-items: center; border: .25cqw solid var(--mc); background: color-mix(in srgb, var(--mc) 25%, transparent); box-shadow: 0 0 1cqw color-mix(in srgb, var(--mc) 50%, transparent); font-size: 3cqw; }
+.f-up { right: 2.6cqw; bottom: 11cqw; width: 7cqw; height: 7cqw; --mc: #8ff4ff; }
+.f-down { right: 2.6cqw; bottom: 2.6cqw; width: 7cqw; height: 7cqw; --mc: #8ff4ff; }
+.f-hit { right: 11cqw; bottom: 2.6cqw; width: 7.6cqw; height: 7.6cqw; --mc: #ff7a3d; }
+.f-harpoon { right: 11.6cqw; bottom: 11.6cqw; width: 6.4cqw; height: 6.4cqw; --mc: #3fd9ff; }
+.f-bomb { right: 20cqw; bottom: 7.4cqw; width: 6.4cqw; height: 6.4cqw; --mc: #b57bff; }
+.f-slow { right: 28.6cqw; bottom: 2.6cqw; width: 5cqw; height: 5cqw; --mc: #5bdb6e; font-size: 2.4cqw; }
+
+/* The new grab button: 72 of the 844 reference = 8.5cqw */
+.grab { position: absolute; right: 5.4cqw; bottom: 20.2cqw; width: 8.5cqw; height: 8.5cqw; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1cqw;
+  border: .3cqw solid #fff; background: color-mix(in srgb, var(--rc) 55%, rgba(10,14,40,.6));
+  box-shadow: 0 0 2.2cqw var(--rc), inset 0 0 1.2cqw rgba(255,255,255,.25); }
+.grab .eggico { width: 3cqw; height: 3.8cqw; border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%; background: radial-gradient(ellipse at 35% 30%, #fff, #e8f6ff 45%, color-mix(in srgb, var(--rc) 40%, #fff)); box-shadow: 0 .2cqw .4cqw rgba(0,0,0,.4); }
+.grab .word { font-size: 1.35cqw; text-shadow: var(--ol); }
+.grab.pulse { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 1.2cqw var(--rc), inset 0 0 1.2cqw rgba(255,255,255,.25); transform: scale(1); } 50% { box-shadow: 0 0 3.6cqw var(--rc), inset 0 0 1.2cqw rgba(255,255,255,.35); transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .grab.pulse { animation: none; } }
+.ring { position: absolute; inset: -.9cqw; border-radius: 50%; background: conic-gradient(#fff var(--p), rgba(255,255,255,.15) 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - .7cqw), #000 calc(100% - .65cqw)); mask: radial-gradient(farthest-side, transparent calc(100% - .7cqw), #000 calc(100% - .65cqw)); }
+.callout { position: absolute; font-size: 1.5cqw; color: #ffd34a; text-shadow: var(--ol); white-space: nowrap; }
+
+/* PC action row */
+.pc .row { position: absolute; left: 50%; bottom: 2.6cqw; transform: translateX(-50%); display: flex; gap: 1.2cqw; }
+.pc .act { position: relative; width: 5.4cqw; height: 5.4cqw; border-radius: 50%; display: grid; place-items: center; border: .22cqw solid var(--mc); background: color-mix(in srgb, var(--mc) 25%, transparent); font-size: 2.4cqw; }
+.pc .act .key { position: absolute; right: -.6cqw; bottom: -.6cqw; font-size: 1.1cqw; background: #0b0f2a; border: .15cqw solid #fff8; border-radius: .6cqw; padding: .1cqw .5cqw; }
+.pc .act.grabpc { width: 6.6cqw; height: 6.6cqw; border: .26cqw solid #fff; background: color-mix(in srgb, var(--rc) 55%, rgba(10,14,40,.6)); box-shadow: 0 0 2cqw var(--rc); }
+.pc .act.grabpc .eggico { width: 2.4cqw; height: 3cqw; border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%; background: radial-gradient(ellipse at 35% 30%, #fff, #e8f6ff 45%, color-mix(in srgb, var(--rc) 40%, #fff)); }
+.pc .oxy { left: 50%; transform: translateX(-50%); bottom: 10.4cqw; width: 26cqw; height: 1.2cqw; }
+.pc .tut { left: 50%; bottom: 12.6cqw; font-size: 1.4cqw; }
+.pc .stat span { font-size: 1.6cqw; }
+
+.notes { border-top: 1px solid var(--rule); padding-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 20px; }
+.notes ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>Кнопка «Схватить»</h1>
+    <p>Бриф: <b>docs/design/screens/grab-button.md</b>. Большая кнопка над кнопками полёта, появляется рядом с яйцом. <b>Одно нажатие</b>: магнит сам подтягивает к яйцу, кольцо заполняется, яйцо в руках. Держать ничего не надо.</p>
+  </div>
+
+  <figure>
+    <div class="device"><div class="screen far" style="--rc:#4c8dff">
+      <div class="stars"></div><div class="guard"></div><div class="rock"></div><div class="egg"></div><div class="player"></div>
+      <div class="tag">Редкое яйцо · 26 м</div>
+      <div class="stat"><span>⚡ 412</span><span>● 1.2K</span></div>
+      <div class="tut new">Жми кнопку с яйцом</div><div class="oxy"><i></i></div>
+      <div class="fbtn f-up">▲</div><div class="fbtn f-down">▼</div><div class="fbtn f-hit">✊</div><div class="fbtn f-harpoon">➚</div><div class="fbtn f-bomb">◉</div><div class="fbtn f-slow">🐌</div>
+      <div class="grab pulse"><div class="eggico"></div><div class="word">Схватить</div></div>
+      <div class="callout" style="right: 15.4cqw; bottom: 31cqw">новая кнопка, 72</div>
+    </div></div>
+    <figcaption><b>1. Яйцо ближе 30 studs.</b> Над столбиком «вверх/вниз» появилась кнопка в цвете редкости яйца и мягко пульсирует. Строка туториала (если идёт) — «Жми кнопку с яйцом» (вопрос 1 брифа).</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen near" style="--rc:#4c8dff">
+      <div class="stars"></div><div class="guard"></div><div class="rock"></div><div class="egg"></div><div class="player"></div><div class="pull" style="left:30cqw;top:21cqw;width:12cqw"></div>
+      <div class="egg-bar" style="--p:55%"><i></i></div>
+      <div class="stat"><span>⚡ 412</span><span>● 1.2K</span></div>
+      <div class="oxy"><i></i></div>
+      <div class="fbtn f-up">▲</div><div class="fbtn f-down">▼</div><div class="fbtn f-hit">✊</div><div class="fbtn f-harpoon">➚</div><div class="fbtn f-bomb">◉</div><div class="fbtn f-slow">🐌</div>
+      <div class="grab"><div class="ring" style="--p:55%"></div><div class="eggico"></div><div class="word">Схватить</div></div>
+    </div></div>
+    <figcaption><b>2. Нажал один раз.</b> Джетпак сам подлетел к яйцу и держит рядом, кольцо вокруг кнопки и полоса над яйцом заполняются (2–4 с по редкости). Отмена — нажать ещё раз или увести джойстиком прочь.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen got" style="--rc:#4c8dff">
+      <div class="stars"></div><div class="guard" style="opacity:1"></div><div class="rock"></div><div class="player"></div><div class="egg"></div>
+      <div class="tut" style="bottom:auto;top:4cqw;left:50cqw">Схватил! Неси яйцо на станцию</div>
+      <div class="stat"><span>⚡ 412</span><span>● 1.2K</span></div>
+      <div class="oxy"><i></i></div>
+      <div class="fbtn f-up">▲</div><div class="fbtn f-down">▼</div><div class="fbtn f-hit" style="filter:grayscale(1);opacity:.45">✊</div><div class="fbtn f-harpoon">➚</div><div class="fbtn f-bomb">◉</div><div class="fbtn f-slow">🐌</div>
+    </div></div>
+    <figcaption><b>3. Схватил.</b> Кнопка исчезла, яйцо в руках, тост — как сейчас. Через секунду страж просыпается.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen pc near" style="--rc:#b57bff">
+      <div class="stars"></div><div class="guard"></div><div class="rock"></div><div class="egg"></div><div class="player"></div>
+      <div class="egg-bar" style="--p:30%"><i></i></div>
+      <div class="stat"><span>⚡ 412</span><span>● 1.2K</span></div>
+      <div class="tut">Лети к стражу и укради яйцо из гнезда</div><div class="oxy"><i></i></div>
+      <div class="row">
+        <div class="act grabpc"><div class="eggico"></div><span class="key">E</span></div>
+        <div class="act" style="--mc:#ff7a3d">✊<span class="key">ЛКМ</span></div>
+        <div class="act" style="--mc:#3fd9ff">➚<span class="key">F</span></div>
+        <div class="act" style="--mc:#b57bff">◉<span class="key">G</span></div>
+        <div class="act" style="--mc:#5bdb6e">🐌<span class="key">Q</span></div>
+        <div class="act" style="--mc:#8ff4ff">▼<span class="key">Ctrl</span></div>
+        <div class="act" style="--mc:#8ff4ff">▲<span class="key">Пробел</span></div>
+      </div>
+    </div></div>
+    <figcaption><b>ПК.</b> Та же кнопка — первой в ряду действий, крупнее остальных, с клавишей E (геймпад — X). E нажимается один раз.</figcaption>
+  </figure>
+
+  <div class="notes">
+    <div><h2>Что меняется</h2><ul>
+      <li>Захват — одним нажатием, не удержанием.</li>
+      <li>Магнит тянет с 30 studs, но только после нажатия.</li>
+      <li>Подсказка на яйце — только подсветка и полоса.</li>
+    </ul></div>
+    <div><h2>Вопросы</h2><ul>
+      <li>Строка туториала «Жми кнопку с яйцом», когда кнопка появилась?</li>
+      <li>Слово «Схватить» на кнопке или только иконка яйца?</li>
+    </ul></div>
+  </div>
+</div>
+</body>
+</html>

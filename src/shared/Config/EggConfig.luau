@@ -117,6 +117,17 @@ return table.freeze({
 	-- The grab locks onto an egg this many seconds of flight away at the flyer's top speed (never
 	-- less than the reach): at 250 studs/s that is 50 studs, at the start about the reach itself.
 	LOCK_LEAD_SECONDS = 0.2,
+	-- The grab button (docs/design/screens/grab-button.md) offers an egg this close, studs (or the
+	-- lock range of a fast flyer, if farther); one press locks on and the magnet pulls the flyer
+	-- in from there.
+	GRAB_BUTTON_RANGE = 30,
+	-- A locked-on grab lets go once its egg is this many button ranges away (it moved off, or
+	-- the flyer got thrown), so a grab never pulls from across the map.
+	GRAB_RELEASE_FACTOR = 1.5,
+	-- Steering away from the egg lets go of the grab: move input at least this strong, pointing
+	-- away from the egg (its direction's dot with the way to the egg at most this).
+	GRAB_LEAVE_MOVE = 0.5,
+	GRAB_LEAVE_DOT = -0.5,
 	-- A nest grows a new egg this long after its old one was delivered to a station, seconds
 	-- (while the egg is away, the nest stays empty: Domain/NestCycle).
 	RESPAWN_SECONDS = 20,
@@ -149,6 +160,10 @@ return table.freeze({
 	-- Character attributes.
 	GRAB_PROGRESS_ATTRIBUTE = "GrabProgress",
 	GRAB_TARGET_ATTRIBUTE = "GrabTarget",
+	-- The egg the grab is locked on (pressed once; Grab.nextEngaged), and whether the grab input
+	-- was down on the last step (a press is the moment it goes down).
+	GRAB_ENGAGED_ATTRIBUTE = "GrabEngaged",
+	GRAB_PRESSED_ATTRIBUTE = "GrabPressed",
 	CARRIED_RARITY_ATTRIBUTE = "CarriedEgg",
 	CARRIED_SIZE_ATTRIBUTE = "CarriedEggSize",
 })
