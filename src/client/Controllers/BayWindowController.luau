@@ -45,7 +45,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	UnknownAlien = "notice.unknownAlien.toast",
 	InventoryFull = "notice.inventoryFull.toast",
 	NotEnoughCoins = "notice.notEnoughCoins.toast",
-	MaxPods = "notice.maxPods.toast",
+	MaxPods = "notice.maxPlaces.toast",
 	JetpackTop = "notice.jetpackTop.toast",
 	MaxIncubatorSlots = "notice.maxIncubatorSlots.toast",
 	NoSuchPod = "notice.unknownAlien.toast",
@@ -123,7 +123,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	local toast = dependencies.toasts.push
 
 	local PLACE_KEYS: { [ProfileState.Location]: Text.Key } = {
-		Pod = "place.pod.hint",
+		Pod = "place.spot.hint",
 		Inventory = "place.inventory.hint",
 		Floor = "place.floor.hint",
 	}
@@ -224,7 +224,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			local entry = records[1]
 			local name = Names.alien(locale, entry.record.id) or "?"
 			return if entry.location == "Pod"
-				then text("bay.selectedPod.hint", { name = name })
+				then text("bay.selectedPlace.hint", { name = name })
 				else text("bay.selected.hint", { name = name })
 		elseif canCrossbreed() then
 			return text("bay.crossbreedReady.hint")
@@ -415,21 +415,21 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						title = text("bay.window.title"),
 						pods = function()
 							local bay = profile.bay()
-							return `{text("bay.pods.title")} {#bay.pods - freePods()}/{#bay.pods}`
+							return `{text("bay.places.title")} {#bay.pods - freePods()}/{#bay.pods}`
 						end,
 						podsIncome = function()
 							return incomeText(podsIncome())
 						end,
 						freePods = function()
 							local free = freePods()
-							return if free > 0 then text("bay.freePods.hint", { count = free }) else ""
+							return if free > 0 then text("bay.freePlaces.hint", { count = free }) else ""
 						end,
-						podsEmpty = text("bay.podsEmpty.hint"),
+						podsEmpty = text("bay.placesEmpty.hint"),
 						autoPlace = text("bay.autoPlace.button"),
 						buyPod = function()
-							return text("bay.buyPod.button", { price = BigNum.format(podPrice()) })
+							return text("bay.buyPlace.button", { price = BigNum.format(podPrice()) })
 						end,
-						maxPods = text("notice.maxPods.toast"),
+						maxPods = text("notice.maxPlaces.toast"),
 						incubator = function()
 							local bay = profile.bay()
 							return text(
@@ -497,8 +497,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							end
 							return text("bay.sell.button")
 						end,
-						toPod = text("bay.toPod.button"),
-						fromPod = text("bay.fromPod.button"),
+						toPod = text("bay.toPlace.button"),
+						fromPod = text("bay.fromPlace.button"),
 						crossbreed = text("bay.crossbreed.button"),
 					},
 					pods = function()
@@ -630,7 +630,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 								then text("welcome.earned.hint", { time = Duration.describe(locale, current.seconds) })
 								else ""
 						end,
-						pods = text("welcome.pods.hint"),
+						pods = text("welcome.places.hint"),
 						trainer = text("welcome.trainer.hint"),
 						claim = text("welcome.claim.button"),
 						double = function()

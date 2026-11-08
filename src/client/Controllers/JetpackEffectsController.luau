@@ -78,7 +78,11 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			local ownerId = bay:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE)
 			local owner = if type(ownerId) == "number" then Players:GetPlayerByUserId(ownerId) else nil
 			local scale = if owner then standsLit[owner] else nil
-			for _, part in bay:GetChildren() do
+			local stand = bay:FindFirstChild(BayConfig.STAND_NAME)
+			if not stand then
+				continue
+			end
+			for _, part in stand:GetChildren() do
 				if not part:IsA("BasePart") then
 					continue
 				end

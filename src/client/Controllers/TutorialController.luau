@@ -205,7 +205,7 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 				return egg.Position, Text.get(locale, "tutorial.egg.title"), egg
 			end
 		elseif current == "Train" then
-			local point, trainer = bayPart(bay, BayConfig.TRAINER_NAME)
+			local point, trainer = bayPart(bay, BayConfig.STAND_NAME)
 			return point, Text.get(locale, "tutorial.trainer.title"), trainer
 		end
 		return nil, "", nil

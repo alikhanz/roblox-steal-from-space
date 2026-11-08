@@ -261,9 +261,10 @@ local Strings = {
 		ru = "Вылупить за {price}",
 		en = "Hatch for {price}",
 	},
+	-- On the owner's sign at the entrance of their island.
 	["bay.owner.title"] = {
-		ru = "Отсек {name}",
-		en = "{name}'s bay",
+		ru = "Остров {name}",
+		en = "{name}'s island",
 	},
 	["bay.open.button"] = {
 		ru = "Отсек",
@@ -277,25 +278,22 @@ local Strings = {
 		ru = "Закрыть",
 		en = "Close",
 	},
-	["bay.pods.title"] = {
-		ru = "Капсулы",
-		en = "Pods",
+	-- The spots where aliens stand on the island and earn (decision 068).
+	["bay.places.title"] = {
+		ru = "Места",
+		en = "Spots",
 	},
-	["bay.emptyPod.hint"] = {
-		ru = "Пусто",
-		en = "Empty",
-	},
-	-- One row in the pods list standing for all the empty pods.
-	["bay.freePods.hint"] = {
+	-- One row in the spots list standing for all the empty spots.
+	["bay.freePlaces.hint"] = {
 		ru = "Свободно: {count}",
 		en = "Free: {count}",
 	},
-	-- Under the pods list while the player has no aliens yet.
-	["bay.podsEmpty.hint"] = {
-		ru = "Вылупи пришельца, и он сядет в капсулу",
-		en = "Hatch an alien and it takes a pod",
+	-- Under the spots list while the player has no aliens yet.
+	["bay.placesEmpty.hint"] = {
+		ru = "Вылупи пришельца, и он встанет на место",
+		en = "Hatch an alien and it takes a spot",
 	},
-	-- Coins a second, next to a coin icon (alien rows and the pods total).
+	-- Coins a second, next to a coin icon (alien rows and the spots total).
 	["bay.income.hint"] = {
 		ru = "{income}/с",
 		en = "{income}/s",
@@ -304,38 +302,39 @@ local Strings = {
 		ru = "Пусто",
 		en = "Empty",
 	},
-	["bay.buyPod.button"] = {
-		ru = "Капсула: ●{price}",
-		en = "Pod: ●{price}",
+	["bay.buyPlace.button"] = {
+		ru = "Место: ●{price}",
+		en = "Spot: ●{price}",
 	},
 	["bay.incubatorSlots.title"] = {
 		ru = "Инкубатор · {count}/{slots}",
 		en = "Incubator · {count}/{slots}",
 	},
+	-- The incubator's pods: one egg warms in each (decision 068).
 	["bay.buySlot.button"] = {
-		ru = "+1 место ●{price}",
-		en = "+1 slot ●{price}",
+		ru = "+1 капсула ●{price}",
+		en = "+1 pod ●{price}",
 	},
 	-- {price} is store.robux.hint ("19 R$").
 	["bay.buySlotRobux.button"] = {
-		ru = "+1 место {price}",
-		en = "+1 slot {price}",
+		ru = "+1 капсула {price}",
+		en = "+1 pod {price}",
 	},
 	["bay.incubatorWaiting.hint"] = {
-		ru = "Ждут места: {count}",
-		en = "Waiting for a slot: {count}",
+		ru = "Ждут капсулы: {count}",
+		en = "Waiting for a pod: {count}",
 	},
 	["bay.incubatorFree.hint"] = {
-		ru = "Есть свободное место",
-		en = "A slot is free",
+		ru = "Есть свободная капсула",
+		en = "A pod is free",
 	},
 	["bay.incubatorFull.hint"] = {
-		ru = "Все места заняты",
-		en = "Every slot is taken",
+		ru = "Все капсулы заняты",
+		en = "Every pod is taken",
 	},
 	["egg.waiting.hint"] = {
-		ru = "Ждёт места",
-		en = "Waiting for a slot",
+		ru = "Ждёт капсулы",
+		en = "Waiting for a pod",
 	},
 	["bay.incubatorEmpty.hint"] = {
 		ru = "Пусто. Укради яйцо и принеси его сюда",
@@ -366,8 +365,8 @@ local Strings = {
 		en = { one = "{count} alien hatched!", other = "{count} aliens hatched!" },
 	},
 	["bay.autoPlace.button"] = {
-		ru = "Лучших в капсулы",
-		en = "Best to pods",
+		ru = "Лучших на места",
+		en = "Best to spots",
 	},
 	["bay.crossbreed.button"] = {
 		ru = "Скрестить 3 → 1",
@@ -385,9 +384,9 @@ local Strings = {
 		ru = "Выбран: {name}",
 		en = "Selected: {name}",
 	},
-	["bay.selectedPod.hint"] = {
-		ru = "Выбран: {name}. Он в капсуле: «Из капсулы» уберёт его в инвентарь",
-		en = "Selected: {name}. It is in a pod: “Out of the pod” moves it to the inventory",
+	["bay.selectedPlace.hint"] = {
+		ru = "Выбран: {name}. Он на месте: «Убрать с места» уберёт его в инвентарь",
+		en = "Selected: {name}. It's on a spot: “Off the spot” moves it to the inventory",
 	},
 	["bay.crossbreedPick.hint"] = {
 		ru = "Для скрещивания выбрано {count} из 3: нужны пришельцы одного стража",
@@ -405,17 +404,17 @@ local Strings = {
 		ru = "Точно? ●+{price}",
 		en = "Sure? ●+{price}",
 	},
-	["bay.toPod.button"] = {
-		ru = "В капсулу",
-		en = "To a pod",
+	["bay.toPlace.button"] = {
+		ru = "На место",
+		en = "To a spot",
 	},
 	["bay.toInventory.button"] = {
 		ru = "В инвентарь",
 		en = "To inventory",
 	},
-	["bay.fromPod.button"] = {
-		ru = "Из капсулы",
-		en = "Out of the pod",
+	["bay.fromPlace.button"] = {
+		ru = "Убрать с места",
+		en = "Off the spot",
 	},
 	["alien.hatched.toast"] = {
 		ru = "Вылупился {name} → {place}",
@@ -425,17 +424,17 @@ local Strings = {
 		ru = "Скрестили! {name} → {place}",
 		en = "Crossbred! {name} → {place}",
 	},
-	["place.pod.hint"] = {
-		ru = "в капсулу",
-		en = "to a pod",
+	["place.spot.hint"] = {
+		ru = "на место",
+		en = "to a spot",
 	},
 	["place.inventory.hint"] = {
 		ru = "в инвентарь",
 		en = "to the inventory",
 	},
 	["place.floor.hint"] = {
-		ru = "на пол отсека",
-		en = "to the bay floor",
+		ru = "на пол острова",
+		en = "to the island floor",
 	},
 	["alien.tierIncome.hint"] = {
 		ru = "{tier} · ●{income}/с",
@@ -477,13 +476,13 @@ local Strings = {
 		ru = "Не хватает монет. Подожди доход",
 		en = "Not enough coins. Wait for income",
 	},
-	["notice.maxPods.toast"] = {
-		ru = "Больше капсул не поставить",
-		en = "No room for more pods",
+	["notice.maxPlaces.toast"] = {
+		ru = "Все места уже куплены",
+		en = "You've bought every spot",
 	},
 	["notice.maxIncubatorSlots.toast"] = {
-		ru = "В инкубаторе больше нет мест",
-		en = "The incubator is fully upgraded",
+		ru = "Все капсулы уже куплены",
+		en = "You've bought every pod",
 	},
 	["notice.noSuchEgg.toast"] = {
 		ru = "Это яйцо уже готово",
@@ -518,17 +517,17 @@ local Strings = {
 		en = "You were away {time}",
 	},
 	-- Under the big numbers of the welcome-back screen.
-	["welcome.pods.hint"] = {
-		ru = "принесли капсулы",
-		en = "from your pods",
+	["welcome.places.hint"] = {
+		ru = "принесли пришельцы",
+		en = "from your aliens",
 	},
 	["welcome.trainer.hint"] = {
 		ru = "накачал тренажёр",
 		en = "from your trainer",
 	},
 	["welcome.eggsReady.hint"] = {
-		ru = "Готово яиц: {count}. Вылупи их в отсеке",
-		en = "Eggs ready: {count}. Hatch them in your bay",
+		ru = "Готово яиц: {count}. Вылупи их на острове",
+		en = "Eggs ready: {count}. Hatch them on your island",
 	},
 	["welcome.claim.button"] = {
 		ru = "Забрать",
@@ -667,7 +666,7 @@ local Strings = {
 		en = "{name} knocked the star egg loose!",
 	},
 	["serpent.delivered.announce"] = {
-		ru = "{name}: звёздное яйцо в отсеке!",
+		ru = "{name}: звёздное яйцо в инкубаторе!",
 		en = "{name} got the star egg home!",
 	},
 	["serpent.returned.announce"] = {
@@ -746,8 +745,8 @@ local Strings = {
 		en = "Index: ●+{coins}",
 	},
 	["notice.stormTeleport.toast"] = {
-		ru = "Буря! Тебя вернуло на станцию",
-		en = "Storm! Back to the station you go",
+		ru = "Буря! Тебя вернуло на остров",
+		en = "Storm! Back to your island you go",
 	},
 	["notice.indexNothing.toast"] = {
 		ru = "Здесь пока нечего забрать",
@@ -1151,10 +1150,10 @@ local Strings = {
 		ru = "Тренажёр",
 		en = "Trainer",
 	},
-	-- The pin over the player's own bay while they carry an egg home.
+	-- The pin over the player's own island while they carry an egg home.
 	["tutorial.bay.title"] = {
-		ru = "Твой отсек",
-		en = "Your bay",
+		ru = "Твой остров",
+		en = "Your island",
 	},
 	["marker.distance.hint"] = {
 		ru = "{distance} м",
@@ -1191,7 +1190,7 @@ local Strings = {
 		ru = "Сразу",
 		en = "Right now",
 	},
-	-- Incubator slots now and after buying one.
+	-- Incubator pods now and after buying one.
 	["store.slotGrow.hint"] = {
 		ru = "{from} → {to}",
 		en = "{from} → {to}",
@@ -1213,8 +1212,8 @@ local Strings = {
 		en = "Night shift",
 	},
 	["store.nightShift.hint"] = {
-		ru = "Без тебя капсулы приносят монеты {income} ч вместо {incomeBase}, тренажёр качает {training} ч вместо {trainingBase}",
-		en = "Offline, pods earn for {income} h, not {incomeBase}, and the trainer works {training} h, not {trainingBase}",
+		ru = "Без тебя пришельцы приносят монеты {income} ч вместо {incomeBase}, тренажёр качает {training} ч вместо {trainingBase}",
+		en = "Offline, aliens earn for {income} h, not {incomeBase}, and the trainer works {training} h, not {trainingBase}",
 	},
 	["store.trainingHour.title"] = {
 		ru = "Час тренировки",
@@ -1233,16 +1232,16 @@ local Strings = {
 		en = "+{speed} ⚡ right away: what your trainer gives in that time",
 	},
 	["store.slot.title"] = {
-		ru = "Место в инкубаторе",
-		en = "Incubator slot",
+		ru = "Капсула инкубатора",
+		en = "Incubator pod",
 	},
 	["store.slot.hint"] = {
-		ru = "Ещё одно место сразу, без монет. Сейчас мест: {count}",
-		en = "One more slot right away, no coins. Slots now: {count}",
+		ru = "Ещё одна капсула сразу, без монет. Сейчас капсул: {count}",
+		en = "One more pod right away, no coins. Pods now: {count}",
 	},
 	["store.slotMax.hint"] = {
-		ru = "Все места в инкубаторе уже твои",
-		en = "Every incubator slot is yours",
+		ru = "Все капсулы инкубатора уже твои",
+		en = "Every incubator pod is yours",
 	},
 	-- Next to the speed goal in the HUD: opens the shop.
 	["store.goal.button"] = {
@@ -1258,18 +1257,18 @@ local Strings = {
 		en = "Done: +{speed} ⚡",
 	},
 	["store.readyNow.toast"] = {
-		ru = "Яйцо готово! Вылупи его в отсеке",
-		en = "Egg ready! Hatch it in your bay",
+		ru = "Яйцо готово! Вылупи его на острове",
+		en = "Egg ready! Hatch it on your island",
 	},
 	["store.slot.toast"] = {
-		ru = "+1 место в инкубаторе",
-		en = "+1 incubator slot",
+		ru = "+1 капсула в инкубаторе",
+		en = "+1 incubator pod",
 	},
 	["store.double.toast"] = {
 		ru = "Ещё ●+{coins} и ⚡+{speed}",
 		en = "Another ●+{coins} and ⚡+{speed}",
 	},
-	-- The purchase found nothing to apply to (the egg hatched, every slot bought).
+	-- The purchase found nothing to apply to (the egg hatched, every pod bought).
 	["store.compensated.toast"] = {
 		ru = "Не к чему применить. Держи ●+{coins}",
 		en = "Nothing to use it on. Here's ●+{coins}",

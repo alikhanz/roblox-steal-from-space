@@ -231,20 +231,24 @@ local function standPart(name: string, size: Vector3, cframe: CFrame, color: Col
 	return part
 end
 
--- The jetpack stand on the trainer's pad (docs/design/screens/jetpack-stand.md): its platform
--- (the part the tutorial and the terminal point at), the frame behind the rider, the rail in
--- front, pilot lights and the blast grate. The simulation pulls the owner onto the platform.
-local function buildStand(origin: CFrame, parent: Instance)
+-- The jetpack stand on the trainer's pad (docs/design/screens/jetpack-stand.md), one model: its
+-- platform (the primary part), the frame behind the rider, the rail in front, pilot lights, the
+-- blast grate and the ring of its zone. The simulation pulls the owner onto the platform.
+local function buildStand(origin: CFrame, island: Instance)
 	local pad = BayConfig.TRAINER_PAD
 	local center = origin * CFrame.new(pad.x, 0, pad.z)
 	local frame = origin * CFrame.lookAt(Vector3.new(pad.x, 0, pad.z), Vector3.zero)
 	local height = StandConfig.PLATFORM_HEIGHT
+
+	local parent = Instance.new("Model")
+	parent.Name = BayConfig.STAND_NAME
 
 	local platform = disc(BayConfig.TRAINER_NAME, center * CFrame.new(0, height / 2, 0), pad.radius, height)
 	platform.Material = Enum.Material.DiamondPlate
 	platform.Color = BayLooks.STAND_COLOR
 	scenery(platform)
 	platform.Parent = parent
+	parent.PrimaryPart = platform
 
 	local pillar = BayLooks.STAND_PILLAR_SIZE
 	for _, side in { -1, 1 } do
@@ -310,6 +314,8 @@ local function buildStand(origin: CFrame, parent: Instance)
 	ring.CanCollide = false
 	scenery(ring)
 	ring.Parent = parent
+
+	parent.Parent = island
 end
 
 -- The owner's sign: a board on two posts at the entrance. The name hangs over it (the client's

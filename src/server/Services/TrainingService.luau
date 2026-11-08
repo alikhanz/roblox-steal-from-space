@@ -58,8 +58,8 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 	end
 
 	local function onBayAssigned(player: Player, model: Model)
-		if not model:FindFirstChild(BayConfig.TRAINER_NAME) then
-			warn(`[TrainingService] {model.Name} has no {BayConfig.TRAINER_NAME}; no training for {player.Name}`)
+		if not model:FindFirstChild(BayConfig.STAND_NAME) then
+			warn(`[TrainingService] {model.Name} has no {BayConfig.STAND_NAME}; no training for {player.Name}`)
 			return
 		end
 		local station: Station = { model = model }
