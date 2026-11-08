@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Питомцы-роботы в 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+/* The game's deep-space backdrop on purpose, like its concept sheets; one dark world, no light theme.
+   Layout: the list of guardians by zone on the left (below on a phone); the stage shows the
+   guardian's three kinds side by side, or one big. */
+:root {
+  --space: #0b0e22;
+  --panel: #141a3a;
+  --line: #2a3263;
+  --ink: #eaf0ff;
+  --muted: #9ba6cc;
+  --accent: #8ff4ff;
+  --gold: #ffc23d;
+  --rare: #ff9ad5;
+  --display: "Nunito", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--space); color: var(--ink); font-family: var(--display); font-weight: 600; }
+.app { height: 100%; display: grid; grid-template-columns: 290px 1fr; }
+@media (max-width: 820px) { .app { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; } }
+
+.list { overflow-y: auto; padding: 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 16px; background: var(--panel); }
+@media (max-width: 820px) { .list { order: 2; border-right: 0; border-top: 1px solid var(--line); } }
+.list h1 { font-size: 20px; font-weight: 900; margin: 0 0 4px; text-wrap: balance; }
+.list p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.zone h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin: 0 0 6px; }
+.post { width: 100%; text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 7px 10px; cursor: pointer; display: block; }
+.post small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; margin-top: 2px; }
+.post:hover { background: rgba(143, 244, 255, .06); }
+.post[aria-current="true"] { border-color: var(--accent); background: rgba(143, 244, 255, .1); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.stage { display: flex; flex-direction: column; min-height: 0; background: radial-gradient(ellipse 70% 60% at 50% 40%, #1b2257, var(--space)); }
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 6px; }
+.title b { display: block; font-size: 24px; font-weight: 900; text-wrap: balance; }
+.title span { color: var(--muted); font-size: 14px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font: inherit; font-weight: 800; font-size: 14px; color: var(--ink); background: rgba(20, 26, 58, .85); border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; cursor: pointer; min-height: 36px; }
+.pill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.pill.gold[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.pill.meteor[aria-pressed="true"] { border-color: #ff8a3d; color: #ff8a3d; }
+
+.views { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 16px 12px; }
+.views.single { grid-template-columns: 1fr; }
+@media (max-width: 820px) { .views { grid-template-columns: 1fr; } .views .cell { height: 62vh; } }
+.cell { position: relative; min-height: 300px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: rgba(11, 14, 34, .35); }
+.cell[hidden] { display: none; }
+.cell.selected { border-color: var(--accent); }
+model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
+.cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: end; gap: 8px; padding: 10px 12px; pointer-events: none; background: linear-gradient(transparent, rgba(11, 14, 34, .85)); }
+.cap b { font-size: 17px; font-weight: 900; }
+.cap span { font-size: 12px; color: var(--muted); display: block; }
+.tag { font-size: 12px; font-weight: 800; border-radius: 999px; padding: 3px 9px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.tag.rare { color: var(--rare); border-color: var(--rare); }
+.open { pointer-events: auto; font: inherit; font-size: 12px; font-weight: 800; color: var(--ink); background: rgba(20, 26, 58, .9); border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; cursor: pointer; position: absolute; top: 10px; right: 10px; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
+.loading[hidden] { display: none; }
+.help { color: var(--muted); font-size: 13px; padding: 0 16px 12px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="list" aria-label="Стражи по зонам">
+    <div>
+      <h1>Питомцы-роботы в 3D</h1>
+      <p>Черновик направления (решения 074 и 075): 24 стража, у каждого три вида; второй вид носит цвета стража наоборот, редкий — в металлике. Модели здесь упрощены для браузера: узоры инея и туманности — сплошным цветом, искры и огонь — фигурками. В игре узоры станут текстурами, эффекты — живыми частицами.</p>
+    </div>
+    <div id="zones"></div>
+  </nav>
+  <main class="stage">
+    <div class="bar">
+      <div class="title"><b id="guardian">Слизень-сторож</b><span id="zone">Пояс обломков</span></div>
+      <div class="pills" role="group" aria-label="Редкость" id="tiers"></div>
+      <div class="pills" role="group" aria-label="Вид">
+        <button class="pill" type="button" id="mode-trio" aria-pressed="true">Три вида</button>
+        <button class="pill" type="button" id="mode-one" aria-pressed="false">Один крупно</button>
+      </div>
+    </div>
+    <div class="views" id="views"></div>
+    <div class="help">Крути мышкой или пальцем, приближай колёсиком или щипком. Стрелки ↑ ↓ — следующий страж, ← → — редкость, M — метеоритный.</div>
+  </main>
+</div>
+<script src="models/manifest.js"></script>
+<script>
+const FAMILY = { slime: "Слизень", crab: "Краб", worm: "Червь", ray: "Скат", swarm: "Рой", whale: "Кит" };
+const SLOTS = ["Основной · 60%", "Второй · 30%", "Редкий · 10%"];
+const TIERS = [["0", "Обычный"], ["1", "Необычный"], ["2", "Редкий"], ["3", "Эпический"], ["4", "Легендарный", "gold"]];
+const posts = window.ROBO_POSTS;
+
+let post = 0;
+let tier = "0";
+let meteor = false;
+let single = false;
+let selected = 0;
+
+// The host serves no .glb files, so each kind's ten models (five tiers, plain and meteor: "0".."4",
+// "m0".."m4") come in one small script, gzipped and base64-encoded (models/<id>.js sets
+// window.ROBO_MODELS[id]); a model is unzipped into a blob once and handed to the viewer.
+window.ROBO_MODELS = window.ROBO_MODELS || {};
+const scripts = {};
+const blobs = {};
+function loadKind(id) {
+  if (!scripts[id]) {
+    scripts[id] = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = `models/${id}.js`;
+      script.onload = () => resolve(window.ROBO_MODELS[id]);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+  return scripts[id];
+}
+async function modelUrl(id, variant) {
+  const key = `${id}-${variant}`;
+  if (blobs[key]) return blobs[key];
+  const models = await loadKind(id);
+  const packed = Uint8Array.from(atob(models[variant]), (c) => c.charCodeAt(0));
+  const stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const bytes = await new Response(stream).arrayBuffer();
+  blobs[key] = URL.createObjectURL(new Blob([bytes], { type: "model/gltf-binary" }));
+  return blobs[key];
+}
+
+// The list.
+const zonesEl = document.getElementById("zones");
+let zoneSection = null;
+let zoneName = null;
+posts.forEach((p, index) => {
+  if (p.zone !== zoneName) {
+    zoneName = p.zone;
+    zoneSection = document.createElement("section");
+    zoneSection.className = "zone";
+    const heading = document.createElement("h2");
+    heading.textContent = p.zone;
+    zoneSection.appendChild(heading);
+    zonesEl.appendChild(zoneSection);
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "post";
+  button.id = `post-${index}`;
+  button.textContent = p.guardian;
+  const small = document.createElement("small");
+  small.textContent = p.kinds.map((k) => k.name).join(" · ");
+  button.appendChild(small);
+  button.addEventListener("click", () => { location.hash = p.kinds[0].id; });
+  zoneSection.appendChild(button);
+});
+
+// Tier pills.
+const tiersEl = document.getElementById("tiers");
+for (const [id, label, cls] of TIERS) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "pill" + (cls ? " " + cls : "");
+  b.dataset.tier = id;
+  b.textContent = label;
+  b.addEventListener("click", () => { tier = id; render(); });
+  tiersEl.appendChild(b);
+}
+// Meteor is a variant on top of any tier, not a tier of its own.
+const meteorButton = document.createElement("button");
+meteorButton.type = "button";
+meteorButton.className = "pill meteor";
+meteorButton.id = "meteor";
+meteorButton.textContent = "☄ Метеоритный";
+meteorButton.addEventListener("click", () => { meteor = !meteor; render(); });
+tiersEl.appendChild(meteorButton);
+
+// Three cells, one per slot; the camera is the same for all, so sizes compare.
+const views = document.getElementById("views");
+const cells = [0, 1, 2].map((slot) => {
+  const cell = document.createElement("div");
+  cell.className = "cell";
+  cell.innerHTML = `
+    <model-viewer camera-controls auto-rotate auto-rotate-delay="2000" rotation-per-second="18deg"
+      shadow-intensity="0.7" exposure="0.95" environment-image="neutral" tone-mapping="neutral"
+      camera-orbit="-25deg 74deg 10m" camera-target="0m 1.3m 0m" field-of-view="32deg"
+      min-camera-orbit="auto auto 3m" max-camera-orbit="auto auto 22m" interaction-prompt="none"></model-viewer>
+    <div class="loading">Загружаю…</div>
+    <button class="open" type="button">Крупно</button>
+    <div class="cap"><div><b></b><span></span></div><div class="tag"></div></div>`;
+  const viewer = cell.querySelector("model-viewer");
+  viewer.addEventListener("load", () => { cell.querySelector(".loading").hidden = true; });
+  cell.querySelector(".open").addEventListener("click", () => {
+    if (single) { single = false; } else { single = true; selected = slot; }
+    render();
+  });
+  views.appendChild(cell);
+  return { cell, viewer };
+});
+
+document.getElementById("mode-trio").addEventListener("click", () => { single = false; render(); });
+document.getElementById("mode-one").addEventListener("click", () => { single = true; render(); });
+
+function render() {
+  const p = posts[post];
+  document.getElementById("guardian").textContent = p.guardian;
+  document.getElementById("zone").textContent = `${p.zone} · страж ${post + 1} из ${posts.length}`;
+  document.querySelectorAll(".post").forEach((b, i) => b.setAttribute("aria-current", String(i === post)));
+  document.querySelectorAll("#tiers .pill[data-tier]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tier === tier)));
+  meteorButton.setAttribute("aria-pressed", String(meteor));
+  const variant = (meteor ? "m" : "") + tier;
+  document.getElementById("mode-trio").setAttribute("aria-pressed", String(!single));
+  document.getElementById("mode-one").setAttribute("aria-pressed", String(single));
+  views.classList.toggle("single", single);
+  const tierName = (meteor ? "метеоритный " : "") + TIERS.find((t) => t[0] === tier)[1].toLowerCase();
+  cells.forEach(({ cell, viewer }, slot) => {
+    const kind = p.kinds[slot];
+    cell.hidden = single && slot !== selected;
+    cell.classList.toggle("selected", single);
+    cell.querySelector(".cap b").textContent = kind.name;
+    cell.querySelector(".cap span").textContent = FAMILY[kind.family];
+    const tag = cell.querySelector(".tag");
+    tag.textContent = SLOTS[slot];
+    tag.classList.toggle("rare", slot === 2);
+    cell.querySelector(".open").textContent = single ? "Все три" : "Крупно";
+    viewer.alt = `${kind.name}, ${tierName}`;
+    const want = `${kind.id}-${variant}`;
+    cell.dataset.want = want;
+    if (viewer.dataset.shown === want) return;
+    cell.querySelector(".loading").hidden = false;
+    modelUrl(kind.id, variant).then((url) => {
+      if (cell.dataset.want !== want) return;
+      viewer.dataset.shown = want;
+      viewer.src = url;
+    }).catch(() => { cell.querySelector(".loading").textContent = "Не загрузилось"; });
+  });
+}
+
+function fromHash() {
+  const id = location.hash.slice(1);
+  posts.forEach((p, index) => p.kinds.forEach((k, slot) => {
+    if (k.id === id) { post = index; selected = slot; }
+  }));
+  render();
+}
+window.addEventListener("hashchange", fromHash);
+document.addEventListener("keydown", (event) => {
+  if (event.target.closest("model-viewer")) return;
+  const order = TIERS.map((t) => t[0]);
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    post = (post + (event.key === "ArrowDown" ? 1 : posts.length - 1)) % posts.length;
+    history.replaceState(null, "", "#" + posts[post].kinds[0].id);
+    render();
+    event.preventDefault();
+  } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+    const at = order.indexOf(tier);
+    tier = order[(at + (event.key === "ArrowRight" ? 1 : order.length - 1)) % order.length];
+    render();
+    event.preventDefault();
+  } else if (event.key === "m" || event.key === "M" || event.key === "ь" || event.key === "Ь") {
+    meteor = !meteor;
+    render();
+  }
+});
+fromHash();
+</script>
+</body>
+</html>
