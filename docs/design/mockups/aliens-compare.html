@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пришельцы и яйца</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --surface: #121733; --ink: #e9ecf7; --muted: #9aa3c2; --rule: #262d52; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+h1 { font-weight: 900; font-size: clamp(26px, 4vw, 36px); margin: 0 0 8px; }
+h2 { font-weight: 900; font-size: 22px; margin: 0 0 4px; }
+h3 { font-weight: 800; font-size: 17px; margin: 0 0 6px; }
+p { margin: 0 0 8px; color: var(--muted); max-width: 78ch; }
+p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+figure img { width: 100%; border-radius: 14px; display: block; }
+figcaption { color: var(--muted); font-size: 14px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+section { display: flex; flex-direction: column; gap: 14px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div>
+    <h1>Пришельцы и яйца: наш концепт и Toolbox</h1>
+    <p>Для выбора: что берём в игру (пользователь, 2026-11-08: «нужно, чтобы было приятно глазу»). Наше — рендер из Blender (скрипты в <b>assets/blender/</b>), Toolbox — бесплатные модели, вставлены в Studio и сняты там (свет — дневной, режим редактирования). Копии чужих игр (Adopt Me, Grow a Garden, Pet Simulator, Steal an Egg) убраны.</p>
+  </div>
+
+  <section>
+    <h2>Пришельцы</h2>
+    <figure>
+      <img src="../concepts/slime-tiers.png" alt="Наш слизень: пять ступеней и метеоритный">
+      <figcaption><b>Наш:</b> детёныш слизня. Ступень — кольцо её цвета и наряд: пятна, антенна, кристаллы, корона с искрами; метеоритный — тёмный, с трещинами и огнём. Так же получатся крабы, черви, скаты, рои и киты — 24 вида в одном стиле.</figcaption>
+    </figure>
+    <figure>
+      <img src="../concepts/toolbox-slime-pack.jpg" alt="Premium Slime Pack из Toolbox">
+      <figcaption><b>Toolbox, «Premium Slime Pack — 4 Cute Pets»</b> (Oquyomi, 126032665700479): глянцевые слизни, у теневого корона. Приятные, но это только слизни — остальные 23 вида делать всё равно, и подгонять под этот стиль. Другие слизни из поиска — куб и камень — слабые.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Яйца</h2>
+    <figure>
+      <img src="../concepts/eggs-rarities.png" alt="Наши яйца по редкостям">
+      <figcaption><b>Наше:</b> яйцо по редкостям — пятна, пояс со звёздами, кристаллы, корона; метеоритное — тёмное, с трещинами и огнём. Если берём — сделать ярче и глянцевее.</figcaption>
+    </figure>
+    <figure>
+      <img src="../concepts/toolbox-egg-kit.jpg" alt="Egg Pets KIT из Toolbox">
+      <figcaption><b>Toolbox, «Egg Pets KIT»</b> (Rrg_125, 15850322685): классические мультяшные яйца с толстой чёрной обводкой и бликом, на каменных подставках. Перекрашиваются по редкости в коде; детали по редкости (корона и т. п.) пришлось бы добавить.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Что важно для выбора</h2>
+    <p>У нас 24 вида пришельцев × 5 ступеней × 2 варианта, и пришельцы растут до 40 studs. Из Toolbox готового набора на всё нет — только отдельные слизни; остальное всё равно делать в Blender, и в одном стиле. Яйцо в игре одно (перекрашивается по редкости), его из Toolbox взять проще всего. Возможен и смешанный вариант: яйцо — из Toolbox, пришельцы — наши.</p>
+  </section>
+</div>
+</body>
+</html>
