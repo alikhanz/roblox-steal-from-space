@@ -3,8 +3,8 @@
 -- and size; a soft core light low under the body; particles by zone and signature, soft (fading in and out) and
 -- layered (a soft glow under the sparkles); fairy wings with a see-through membrane; comets with
 -- particle tails instead of orbit rings; a turning rune circle on the floor; and for a meteor a
--- smouldering basalt shell, fireball comets, a comet tail of fire, smoke and sparks and a fan of fire
--- rays behind; a legendary glows (a big soft radiance behind it) instead of the old medal rays.
+-- smouldering basalt shell, fireball comets, a comet tail of fire, smoke and sparks and a crest of
+-- fire behind its head; a legendary glows (a big soft radiance behind it) under a turning medal of rays.
 local DATA = game:GetService("HttpService"):JSONDecode(game.ServerStorage.RoboPetData.Value)
 
 local TEX = {
@@ -16,7 +16,8 @@ local TEX = {
 	ember = "rbxassetid://82123783399839",
 	flame = "rbxassetid://120732950893778",
 	halo = "rbxassetid://100306136441986",
-	rays = "rbxassetid://135408710453006",
+	rays = "rbxassetid://75268695809192",
+	crest = "rbxassetid://95745106924239",
 	smoke = "rbxasset://textures/particles/smoke_main.dds",
 }
 local SCALE = 3.3
@@ -79,6 +80,36 @@ local function attachment(parent, name, position)
 	a.Position = position
 	a.Parent = parent
 	return a
+end
+
+-- A camera-facing picture on an attachment (a BillboardGui): steady, where particle copies fading in
+-- and out of each other flicker. Its root (the point the picture fans out of, `rootY` down from its
+-- top) sits on the attachment. Layers are { colour, share of the board, transparency, "Spin" or
+-- "Sway", value }: the client turns each image (animate.luau), Spin degrees a second or a slow sway.
+-- The textures are white to the last empty pixel (assets/fx): Roblox filters them without
+-- premultiplying, and black empty pixels left a dark disc where the rays meet.
+local function board(at, name, texture, size, rootY, layers)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = name
+	gui.Size = UDim2.fromScale(size, size)
+	gui.StudsOffset = Vector3.new(0, size * (rootY - 0.5), 0)
+	gui.LightInfluence = 0
+	gui.Brightness = 1
+	gui.MaxDistance = 300
+	for _, layer in layers do
+		local image = Instance.new("ImageLabel")
+		image.BackgroundTransparency = 1
+		image.Image = texture
+		image.ImageColor3 = layer[1]
+		image.ImageTransparency = layer[3]
+		image.AnchorPoint = Vector2.new(0.5, rootY)
+		image.Position = UDim2.fromScale(0.5, rootY)
+		image.Size = UDim2.fromScale(layer[2], layer[2])
+		image:SetAttribute(layer[4], layer[5])
+		image.Parent = gui
+	end
+	gui.Parent = at
+	return gui
 end
 
 -- A comet circling the pet: a glowing head and a tail of particles left behind in the world.
@@ -236,7 +267,7 @@ return function(only: { [string]: boolean }?): string
 			elseif role == "ring" then
 				part.Transparency = 1 -- the rune circle takes its place
 			elseif role == "rays" then
-				part.Transparency = 1 -- the old medal rays; a soft radiance takes their place
+				part.Transparency = 1 -- Blender's sunburst spikes; a medal of light (particles) takes their place
 			end
 		end
 
@@ -406,9 +437,9 @@ return function(only: { [string]: boolean }?): string
 					LightEmission = 0.4,
 					Transparency = seq({ { 0, 0.6 }, { 0.15, 0.05 }, { 0.6, 0.2 }, { 1, 1 } }),
 					Color = colours({ { 0, Color3.fromRGB(255, 230, 120) }, { 0.35, Color3.fromRGB(255, 140, 30) }, { 1, Color3.fromRGB(200, 40, 15) } }),
-					Size = seq({ { 0, lift * 0.95 }, { 0.4, lift * 1.1 }, { 1, lift * 0.2 } }),
+					Size = seq({ { 0, lift * 0.66 }, { 0.4, lift * 0.77 }, { 1, lift * 0.14 } }),
 					Lifetime = NumberRange.new(0.45, 0.75),
-					Rate = 60,
+					Rate = 25,
 					Speed = NumberRange.new(lift * 1.1, lift * 1.6),
 					SpreadAngle = Vector2.new(12, 12),
 					Rotation = NumberRange.new(-20, 20),
@@ -419,9 +450,9 @@ return function(only: { [string]: boolean }?): string
 					LightEmission = 0.8,
 					Transparency = seq({ { 0, 0.6 }, { 0.15, 0.05 }, { 0.6, 0.2 }, { 1, 1 } }),
 					Color = ColorSequence.new(Color3.fromRGB(255, 245, 190)),
-					Size = seq({ { 0, lift * 0.57 }, { 0.5, lift * 0.5 }, { 1, lift * 0.1 } }),
+					Size = seq({ { 0, lift * 0.4 }, { 0.5, lift * 0.35 }, { 1, lift * 0.07 } }),
 					Lifetime = NumberRange.new(0.3, 0.45),
-					Rate = 40,
+					Rate = 15,
 					Speed = NumberRange.new(lift * 0.9, lift * 1.25),
 					SpreadAngle = Vector2.new(12, 12),
 					Rotation = NumberRange.new(-20, 20),
@@ -625,7 +656,8 @@ return function(only: { [string]: boolean }?): string
 
 		-- A legendary glows: a big soft radiance behind the body (gold; fire for a meteor) that
 		-- breathes slowly, a brighter heart in it and slow sparkles drifting out of it. The glow
-		-- moves with the pet (locked to the carrier), and sits behind it (negative ZOffset).
+		-- moves with the pet (locked to the carrier). Drawn at its own depth, just behind the body: pushed
+		-- further back (a negative ZOffset) it shows round the body more, burns brighter and washes out the medal.
 		if tier == 4 then
 			local warm = if meteor then FIRE else GOLD
 			local pale = if meteor then Color3.fromRGB(255, 200, 120) else Color3.fromRGB(255, 240, 180)
@@ -633,26 +665,26 @@ return function(only: { [string]: boolean }?): string
 			emitter(glow, "Radiance", {
 				Texture = TEX.ember,
 				Color = colours({ { 0, pale }, { 1, warm } }),
-				Transparency = seq({ { 0, 1 }, { 0.35, 0.62 }, { 0.7, 0.66 }, { 1, 1 } }),
+				Transparency = seq({ { 0, 1 }, { 0.35, 0.82 }, { 0.7, 0.85 }, { 1, 1 } }),
 				Size = seq({ { 0, radius * 2.4 }, { 1, radius * 3.2 } }),
 				Lifetime = NumberRange.new(2.5, 3.5),
-				Rate = 2.5,
+				Rate = 1, -- sparse: overlapping copies add up and wash out the medal
 				Speed = NumberRange.new(0, 0),
 				Rotation = NumberRange.new(0, 360),
 				RotSpeed = NumberRange.new(-10, 10),
 				LockedToPart = true,
-				ZOffset = -3,
+				ZOffset = 0,
 			})
 			emitter(glow, "RadianceHeart", {
 				Texture = TEX.ember,
 				Color = ColorSequence.new(pale),
-				Transparency = seq({ { 0, 1 }, { 0.4, 0.5 }, { 1, 1 } }),
+				Transparency = seq({ { 0, 1 }, { 0.4, 0.78 }, { 1, 1 } }),
 				Size = seq({ { 0, radius * 1.3 }, { 1, radius * 1.7 } }),
 				Lifetime = NumberRange.new(1.8, 2.4),
-				Rate = 2,
+				Rate = 1,
 				Speed = NumberRange.new(0, 0),
 				LockedToPart = true,
-				ZOffset = -2.5,
+				ZOffset = 0,
 			})
 			emitter(glow, "RadianceMotes", {
 				Texture = TEX.star,
@@ -668,32 +700,22 @@ return function(only: { [string]: boolean }?): string
 				RotSpeed = NumberRange.new(-60, 60),
 				ZOffset = -1,
 			})
+			-- The medal of rays from the Blender renders (its sunburst), on the glow: gold, or fire on
+			-- a meteor; two layers turning slowly against each other.
+			board(glow, "Medal", TEX.rays, radius * 2.8, 0.5, {
+				{ warm, 1, 0.3, "Spin", 4 },
+				{ pale, 0.7, 0.5, "Spin", -7 },
+			})
 		end
 
-		-- A meteor of any tier wears a fan of fire rays behind its body (in the Blender renders, its
-		-- comet tail seen from the front), growing with the tier: always facing the camera, two
-		-- layers turning slowly against each other (animate.luau spins every image with a Spin attribute).
+		-- A meteor of any tier wears a crest of fire behind its head (in the Blender renders, its comet
+		-- tail seen from the front: tongues fanning up and out), growing with the tier; it sways a little.
 		if meteor then
-			local medal = Instance.new("BillboardGui")
-			medal.Name = "Rays"
-			medal.Size = UDim2.fromScale(radius * (2.4 + tier * 0.3), radius * (2.4 + tier * 0.3))
-			medal.LightInfluence = 0
-			medal.Brightness = 1.2
-			medal.MaxDistance = 300
-			medal.Parent = attachment(fx, "Rays", Vector3.new(0, size.Y * 0.1, size.Z * 0.25))
-			-- { colour, share of the billboard, spin in degrees a second, transparency }
-			for _, layer in { { FIRE, 1, 4, 0.15 }, { Color3.fromRGB(255, 200, 120), 0.7, -7, 0.35 } } do
-				local image = Instance.new("ImageLabel")
-				image.BackgroundTransparency = 1
-				image.Image = TEX.rays
-				image.ImageColor3 = layer[1]
-				image.ImageTransparency = layer[4]
-				image.AnchorPoint = Vector2.new(0.5, 0.5)
-				image.Position = UDim2.fromScale(0.5, 0.5)
-				image.Size = UDim2.fromScale(layer[2], layer[2])
-				image:SetAttribute("Spin", layer[3])
-				image.Parent = medal
-			end
+			local root = attachment(fx, "Crest", Vector3.new(0, size.Y * 0.15, size.Z * 0.3))
+			board(root, "Crest", TEX.crest, radius * (1.6 + tier * 0.25), 0.78, {
+				{ FIRE, 1, 0.15, "Sway", 1 },
+				{ Color3.fromRGB(255, 210, 120), 0.75, 0.35, "Sway", 2 },
+			})
 		end
 
 		-- A legendary showers gold glitter.

@@ -2,7 +2,8 @@
 -- a playtest via MCP). Parts move by their Role attribute: the pet bobs and sways; the rune circle
 -- stays on the floor and turns; a rotor spins; drones circle the lead; rocks and planets orbit the
 -- centre; each fairy wing opens and folds back on its hinge; comets fly tilted orbits (their trails
--- draw the arcs); a meteor's fan of rays spins; the core light pulses. One BulkMoveTo per frame.
+-- draw the arcs); a legendary's medal of rays turns and a meteor's crest sways; the core light
+-- pulses. One BulkMoveTo per frame.
 local RunService = game:GetService("RunService")
 local folder = workspace:WaitForChild("RoboPetGame", 10)
 pcall(function()
@@ -23,7 +24,7 @@ for index, model in folder:GetChildren() do
 		hinges = {},
 		dustOpen = {},
 		dustFold = {},
-		spinning = {},
+		images = {},
 		beat = 0,
 		centre = base:PointToObjectSpace(cf.Position),
 	}
@@ -48,8 +49,8 @@ for index, model in folder:GetChildren() do
 			table.insert(pet.dustOpen, item)
 		elseif item:IsA("ParticleEmitter") and item.Name:match("^DustFold") then
 			table.insert(pet.dustFold, item)
-		elseif item:IsA("ImageLabel") and item:GetAttribute("Spin") then
-			table.insert(pet.spinning, item)
+		elseif item:IsA("ImageLabel") and (item:GetAttribute("Spin") or item:GetAttribute("Sway")) then
+			table.insert(pet.images, item)
 		end
 	end
 	for role, sum in sums do
@@ -117,9 +118,11 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 		if pet.light then
 			pet.light.Brightness = pet.brightness + math.sin(t * 3 + ph) * 0.4
 		end
-		-- The legendary medal of rays turns slowly, its two layers against each other.
-		for _, image in pet.spinning do
-			image.Rotation = t * image:GetAttribute("Spin")
+		-- A legendary's medal of rays turns (Spin, degrees a second); a meteor's crest of fire sways
+		-- slowly by a couple of degrees (Sway, its phase).
+		for _, image in pet.images do
+			local spin = image:GetAttribute("Spin")
+			image.Rotation = if spin then t * spin else math.sin(t * 0.8 + image:GetAttribute("Sway")) * 2
 		end
 	end
 	workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)

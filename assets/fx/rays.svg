@@ -8,12 +8,17 @@
       <stop offset="0.55" stop-color="#fff" stop-opacity="0.75"/>
       <stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </radialGradient>
+    <radialGradient id="core"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
     <mask id="m"><circle cx="128" cy="128" r="128" fill="url(#fade)"/></mask>
     <path id="long" d="M-4 -14 L0 -126 L4 -14 Z"/>
     <path id="short" d="M-3 -14 L0 -84 L3 -14 Z"/>
     <path id="longSoft" d="M-9 -14 L0 -122 L9 -14 Z"/>
     <path id="shortSoft" d="M-7 -14 L0 -80 L7 -14 Z"/>
   </defs>
+  <!-- Every pixel white (alpha ~1/255 where empty): Roblox filters textures without premultiplying,
+       so black transparent pixels would bleed in and leave a dark disc where the rays meet. -->
+  <rect width="256" height="256" fill="#fff" opacity="0.005"/>
+  <circle cx="128" cy="128" r="30" fill="url(#core)"/>
   <g mask="url(#m)" fill="#fff">
     <g transform="translate(128 128)" filter="url(#blur)" opacity="0.6">
       <use href="#longSoft" transform="rotate(0)"/>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A meteor pet's crest of fire: its comet tail seen from the front, tongues fanning up and out
+       from one point low in the middle (128, 200), the longest in the middle, fading to the tips. -->
+  <defs>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+    <radialGradient id="fade" cx="128" cy="200" r="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="m"><rect width="256" height="256" fill="url(#fade)"/></mask>
+  </defs>
+  <!-- Every pixel white (alpha ~1/255 where empty), so no black bleeds in where the tongues meet. -->
+  <rect width="256" height="256" fill="#fff" opacity="0.005"/>
+  <g mask="url(#m)" fill="#fff" transform="translate(128 200)">
+    <path d="M-16 0 Q-14 -47 0 -95 Q14 -47 16 0 Z" transform="rotate(-64)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-11 0 Q-10 -47 0 -95 Q10 -47 11 0 Z" transform="rotate(-64)"/>
+    <path d="M-18 0 Q-16 -62 0 -125 Q16 -62 18 0 Z" transform="rotate(-48)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-13 0 Q-12 -62 0 -125 Q12 -62 13 0 Z" transform="rotate(-48)"/>
+    <path d="M-20 0 Q-18 -75 0 -150 Q18 -75 20 0 Z" transform="rotate(-32)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-15 0 Q-14 -75 0 -150 Q14 -75 15 0 Z" transform="rotate(-32)"/>
+    <path d="M-22 0 Q-20 -86 0 -172 Q20 -86 22 0 Z" transform="rotate(-16)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-17 0 Q-16 -86 0 -172 Q16 -86 17 0 Z" transform="rotate(-16)"/>
+    <path d="M-23 0 Q-21 -95 0 -190 Q21 -95 23 0 Z" transform="rotate(0)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-18 0 Q-17 -95 0 -190 Q17 -95 18 0 Z" transform="rotate(0)"/>
+    <path d="M-22 0 Q-20 -85 0 -170 Q20 -85 22 0 Z" transform="rotate(16)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-17 0 Q-16 -85 0 -170 Q16 -85 17 0 Z" transform="rotate(16)"/>
+    <path d="M-20 0 Q-18 -74 0 -148 Q18 -74 20 0 Z" transform="rotate(32)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-15 0 Q-14 -74 0 -148 Q14 -74 15 0 Z" transform="rotate(32)"/>
+    <path d="M-18 0 Q-16 -61 0 -122 Q16 -61 18 0 Z" transform="rotate(48)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-13 0 Q-12 -61 0 -122 Q12 -61 13 0 Z" transform="rotate(48)"/>
+    <path d="M-16 0 Q-14 -46 0 -92 Q14 -46 16 0 Z" transform="rotate(64)" filter="url(#blur)" opacity="0.55"/>
+    <path d="M-11 0 Q-10 -46 0 -92 Q10 -46 11 0 Z" transform="rotate(64)"/>
+  </g>
+</svg>
