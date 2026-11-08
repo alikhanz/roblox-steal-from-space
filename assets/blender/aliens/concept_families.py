@@ -73,7 +73,8 @@ def crab(x, z, color):
         if vertex.co.y > 0.0:
             vertex.co.y = 0.0
     toon.no_outline(smile)
-    return {"top": z + 1.38, "width": 1.5,
+    # Its crown sits small and tilted on the right eye: on the shell the eyes would hide it.
+    return {"top": z + 2.04, "crown_dx": 0.32, "crown_dy": -0.3, "crown_scale": 0.78, "crown_tilt": -12, "width": 1.5,
             "spots": [(-0.55, -0.55, 1.1, 0.1), (0.5, -0.58, 1.05, 0.12), (0.0, -0.45, 1.25, 0.1)]}
 
 
@@ -92,25 +93,27 @@ def worm(x, z, color):
 
 def ray(x, z, color):
     # A flat diamond of a body tilted to show its back, wing tips curling up, a long thin tail.
-    # A plump diamond tilted a little to show its back, wing tips curling up; the face on its
-    # rounded front, the tail straight back.
-    tilt = math.radians(-18)
-    body = toon.sphere("Body", (x, 0.15, z + 0.92), (1.5, 1.0, 0.46), color, 56)
-    body.rotation_euler = (tilt, 0, 0)
-    for vertex in body.data.vertices:
-        reach = abs(vertex.co.x)
-        vertex.co.z += 0.5 * reach ** 3
-        if vertex.co.y > 0:
-            vertex.co.y *= 1 - 0.3 * reach
-    # Pale star dots on the back.
-    for dx, dy, dz in ((-0.75, 0.3, 1.3), (0.7, 0.32, 1.32), (0.0, 0.55, 1.42), (-0.35, -0.05, 1.3), (0.38, -0.02, 1.32)):
-        toon.no_outline(toon.sphere("Star", (x + dx, dy, z + dz), (0.06, 0.06, 0.06), lighter(color, 0.75), 12, emission=0.6))
-    toon.cone("Tail", (x, 1.65, z + 1.1), 0.07, 1.3, darker(color, 0.15), (math.radians(-82), 0, 0), 12)
+    # A plush baby manta: a round dome of a body with the face on its front, and two soft wings
+    # out to the sides, swept back with their tips curling up, so it reads from the front.
+    toon.sphere("Body", (x, 0.1, z + 0.85), (0.78, 0.82, 0.58), color, 48)
     for side in (-1, 1):
-        toon.cone("Horn", (x + side * 0.45, -0.72, z + 1.12), 0.1, 0.3, darker(color, 0.1), (math.radians(65), 0, math.radians(side * 15)), 12)
-    toon.face((x, -0.74, z + 1.2), 0.28, 0.85, smile=False)
-    return {"top": z + 1.42, "width": 1.7,
-            "spots": [(-0.95, -0.2, 1.15, 0.1), (0.9, -0.2, 1.12, 0.1), (-0.5, 0.3, 1.1, 0.08), (0.55, 0.32, 1.08, 0.08)]}
+        wing = toon.sphere("Wing", (x + side * 1.05, 0.25, z + 0.95), (0.95, 0.7, 0.2), color, 40)
+        for vertex in wing.data.vertices:
+            reach = vertex.co.x * side
+            if reach > 0:
+                vertex.co.z += 0.9 * reach ** 2
+        # Tilted toward the viewer, so the wing shows its top, not its edge.
+        wing.rotation_euler = (math.radians(-32), 0, math.radians(side * -14))
+        # Pale star dots on each wing.
+        for dx, dy, dz in ((0.85, 0.2, 1.12), (1.3, 0.35, 1.3), (1.05, 0.55, 1.12)):
+            toon.no_outline(toon.sphere("Star", (x + side * dx, dy, z + dz), (0.06, 0.06, 0.06), lighter(color, 0.75), 12, emission=0.6))
+        # Little head fins, like a manta's.
+        toon.cone("Horn", (x + side * 0.38, -0.55, z + 1.35), 0.09, 0.3, darker(color, 0.1), (math.radians(20), 0, math.radians(side * -25)), 12)
+    toon.sphere("Belly", (x, -0.25, z + 0.62), (0.55, 0.5, 0.3), lighter(color, 0.4), 32)
+    toon.cone("Tail", (x, 1.45, z + 0.75), 0.06, 1.2, darker(color, 0.15), (math.radians(-80), 0, 0), 12)
+    toon.face((x, -0.7, z + 0.98), 0.26, 0.85)
+    return {"top": z + 1.42, "width": 1.9,
+            "spots": [(-0.42, -0.55, 1.2, 0.08), (0.45, -0.52, 1.18, 0.08), (0.0, -0.3, 1.38, 0.08)]}
 
 
 def swarm(x, z, color):
@@ -167,16 +170,28 @@ def ring(x, z, width, color):
     toon.torus("Ring", (x, 0, z + 0.03), width, 0.07, color, emission=0.3)
 
 
-def legendary_outfit(x, z, info, color):
-    spot = lighter(color, 0.55)
-    for dx, dy, dz, size in info["spots"]:
-        toon.no_outline(toon.sphere("Spot", (x + dx, dy, z + dz), (size, size * 0.6, size * 0.9), spot, 16))
-    top = info["top"]
-    toon.cylinder("Crown", (x, 0.0, top), 0.38, 0.16, GOLD)
+def crown(cx, cy, top, scale, tilt):
+    """A gold crown with six tips and a gem, `scale` times the usual size, leaning `tilt` degrees."""
+    before = set(bpy.data.objects)
+    toon.cylinder("Crown", (cx, cy, top), 0.38 * scale, 0.16 * scale, GOLD)
     for index in range(6):
         angle = math.radians(index * 60 + 90)
-        toon.cone("CrownTip", (x + 0.34 * math.cos(angle), 0.34 * math.sin(angle), top + 0.2), 0.08, 0.24, GOLD)
-    toon.sphere("Gem", (x, -0.38, top), (0.08, 0.05, 0.08), (0.95, 0.15, 0.4), 16)
+        toon.cone("CrownTip", (cx + 0.34 * scale * math.cos(angle), cy + 0.34 * scale * math.sin(angle), top + 0.2 * scale), 0.08 * scale, 0.24 * scale, GOLD)
+    toon.sphere("Gem", (cx, cy - 0.38 * scale, top), (0.08 * scale, 0.05 * scale, 0.08 * scale), (0.95, 0.15, 0.4), 16)
+    if tilt:
+        # New objects' matrices only include their scale once the scene is updated.
+        bpy.context.view_layer.update()
+        pivot = Matrix.Translation(Vector((cx, cy, top)))
+        lean = pivot @ Matrix.Rotation(math.radians(tilt), 4, "Y") @ pivot.inverted()
+        for obj in set(bpy.data.objects) - before:
+            obj.matrix_world = lean @ obj.matrix_world
+
+
+def legendary_outfit(x, z, info, color):
+    # Gold spots, like the crown.
+    for dx, dy, dz, size in info["spots"]:
+        toon.no_outline(toon.sphere("Spot", (x + dx, dy, z + dz), (size, size * 0.6, size * 0.9), GOLD, 16, emission=0.15))
+    crown(x + info.get("crown_dx", 0.0), info.get("crown_dy", 0.0), info["top"], info.get("crown_scale", 1.0), info.get("crown_tilt", 0))
     for px, pz, size in ((-1.55, 1.7, 0.13), (1.6, 1.9, 0.15), (-1.7, 0.75, 0.1), (1.65, 0.6, 0.11)):
         for spin in (0, 45):
             toon.cone("Sparkle", (x + px, -0.9, z + pz), size, size * 0.2, GOLD, (math.radians(90), 0, math.radians(spin)), 4, emission=1.5)
@@ -187,6 +202,8 @@ def turned(x, z, make):
     camera sees it three-quarter while the rows stay level."""
     before = set(bpy.data.objects)
     info = make()
+    # New objects' matrices only include their scale once the scene is updated.
+    bpy.context.view_layer.update()
     pivot = Matrix.Translation(Vector((x, 0, z)))
     turn = pivot @ Matrix.Rotation(math.radians(YAW), 4, "Z") @ pivot.inverted()
     for obj in set(bpy.data.objects) - before:
