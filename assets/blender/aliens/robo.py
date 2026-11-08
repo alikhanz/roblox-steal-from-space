@@ -488,39 +488,43 @@ def pack(info, color, armour):
         info["shells"].append(pill((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
 
 
-# A fairy wing in its own plane: x runs out from the hinge, y up. A big upper lobe and a small
-# lower one, so it reads as a wing and not a fan.
-WING_OUTLINE = [(0.0, 0.0), (0.25, 0.4), (0.7, 0.9), (1.2, 1.15), (1.55, 1.05), (1.62, 0.75), (1.4, 0.4), (0.95, 0.14), (0.75, 0.04),
-                (1.05, -0.12), (1.2, -0.42), (1.05, -0.7), (0.7, -0.68), (0.35, -0.4), (0.1, -0.12)]
-# Veins from the hinge to the lobes' tips.
-WING_VEINS = [[(0.05, 0.02), (0.6, 0.55), (1.35, 0.95)], [(0.05, 0.0), (0.7, 0.3), (1.45, 0.55)], [(0.05, -0.03), (0.6, -0.25), (1.0, -0.55)]]
+# A fairy wing, traced from the user's reference (2026-11-08) in its image pixels: x right, y down,
+# the root at WING_ROOT. A narrow upper lobe, a big forewing with a sharp tip swept up and out, and
+# two hind lobes with tails.
+WING_ROOT = (15, 745)
+# Low-poly: only the key points, joined by straight edges, like the rest of the pets' hard shapes.
+WING_TRACE = [(15, 745), (45, 520), (140, 280), (228, 215), (240, 330), (222, 430), (350, 220), (560, 50), (690, 15), (590, 150),
+              (525, 400), (500, 640), (330, 760), (460, 860), (490, 950), (400, 975), (320, 930), (290, 1080), (140, 1190),
+              (110, 1050), (30, 830)]
+# Veins from the root out into each lobe, as in the reference.
+WING_VEIN_TRACES = [
+    [(15, 745), (120, 420), (205, 235)],
+    [(15, 745), (80, 500), (135, 320)],
+    [(15, 745), (250, 520), (420, 300), (610, 80)],
+    [(15, 745), (280, 600), (450, 420), (525, 330)],
+    [(15, 745), (260, 660), (420, 620), (505, 570)],
+    [(15, 745), (250, 800), (400, 880), (475, 945)],
+    [(15, 745), (180, 880), (250, 1020), (200, 1140)],
+    [(15, 745), (110, 860), (145, 1060)],
+]
+# Nested contours inside the edge (the reference's cells), as fractions of the outline towards the root.
+WING_CELLS = [0.8, 0.6]
 
 
-# The eye spots of the wing pattern: (centre, radius) in the upper and the lower lobe.
-WING_EYES = [((1.12, 0.72), 0.2), ((0.82, -0.36), 0.13)]
+def _from_trace(points):
+    """Reference pixels to wing units: the root at (0, 0), y up; the forewing reaches about 1 out."""
+    rx, ry = WING_ROOT
+    return [((x - rx) / 680.0, (ry - y) / 680.0) for x, y in points]
 
 
-def _scaled_towards(points, factor):
-    """The outline shrunk towards its centre: an inner contour for the pattern."""
-    cx = sum(x for x, _ in points) / len(points)
-    cy = sum(y for _, y in points) / len(points)
+WING_OUTLINE = _from_trace(WING_TRACE)
+WING_VEINS = [_from_trace(vein) for vein in WING_VEIN_TRACES]
+
+
+def _scaled_towards(points, factor, centre=None):
+    """The outline shrunk towards `centre` (its own centre by default): a contour inside it."""
+    cx, cy = centre or (sum(x for x, _ in points) / len(points), sum(y for _, y in points) / len(points))
     return [(cx + (x - cx) * factor, cy + (y - cy) * factor) for x, y in points]
-
-
-def _smoothed(points, closed, rounds=3):
-    """Chaikin corner cutting: the outline's straight segments become soft curves."""
-    for _ in range(rounds):
-        out = []
-        count = len(points) if closed else len(points) - 1
-        if not closed:
-            out.append(points[0])
-        for index in range(count):
-            (x0, y0), (x1, y1) = points[index], points[(index + 1) % len(points)]
-            out += [(0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1), (0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1)]
-        if not closed:
-            out.append(points[-1])
-        points = out
-    return points
 
 
 def _wing_mesh(points, hinge, side, tilt, size, mat):
@@ -569,23 +573,24 @@ def wings(info, color, size, gold=False):
     r = info["radius"]
     membrane = real.iridescent("GoldWing", GOLD, transmission=0.5, glow=1.5) if gold else real.iridescent("EnergyWing", color, transmission=0.6, glow=1.5)
     edge = glow(GOLD if gold else color, 10.0)
-    span = (0.8 + 0.25 * r) * size
+    span = (0.8 + 0.25 * r) * size * 1.6
     for side in (-1, 1):
         hinge = (cx + side * r * 0.35, cy + r * 0.5, cz + 0.35)
-        outline = _smoothed(WING_OUTLINE, True)
-        with role("wingL" if side < 0 else "wingR"):
+        outline = WING_OUTLINE
+        name = "wingL" if side < 0 else "wingR"
+        with role(name):
             _wing_mesh(outline, hinge, side, 22, span, membrane)
-            _wing_line(outline + [outline[0]], hinge, side, 22, span, edge, 0.025)
+            _wing_line(outline + [outline[0]], hinge, side, 22, span, edge, 0.022)
             for vein in WING_VEINS:
-                _wing_line(_smoothed(vein, False, 2), hinge, side, 22, span, edge, 0.012)
-            # The pattern: an inner contour and an "eye" in each lobe, like a butterfly's.
-            inner = _scaled_towards(outline, 0.62)
-            _wing_line(inner + [inner[0]], hinge, side, 22, span, edge, 0.011)
-            for (ex, ey), radius in WING_EYES:
-                ring = [(ex + math.cos(a / 24 * math.tau) * radius, ey + math.sin(a / 24 * math.tau) * radius) for a in range(24)]
-                _wing_line(ring + [ring[0]], hinge, side, 22, span, edge, 0.014)
-                dot = [(ex + math.cos(a / 16 * math.tau) * radius * 0.38, ey + math.sin(a / 16 * math.tau) * radius * 0.38) for a in range(16)]
-                _wing_mesh(dot, hinge, side, 22, span, edge)
+                _wing_line(vein, hinge, side, 22, span, edge, 0.01)
+            # The cells: contours nested inside the edge, drawn towards the root.
+            for factor in WING_CELLS:
+                cell = _scaled_towards(outline, factor, (0.0, 0.0))
+                _wing_line(cell + [cell[0]], hinge, side, 22, span, edge, 0.008)
+        # The hinge marker: the exact root, so the game turns the wing about it (the root stays put,
+        # the edge sweeps the most). Invisible in game.
+        with role("hinge" + name[-1]):
+            sphere(hinge, (0.03, 0.03, 0.03), edge, 8)
 
 
 @in_role("fx")  # In game, orbiting comets with trails take the rings' place.

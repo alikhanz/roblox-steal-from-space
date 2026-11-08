@@ -34,13 +34,9 @@ for index, model in folder:GetChildren() do
 			sums[role] = sums[role] or { Vector3.zero, 0 }
 			sums[role][1] += offset.Position
 			sums[role][2] += 1
-			-- A wing's hinge: its inner edge (towards the body), at the root height.
-			if role == "wingL" or role == "wingR" then
-				local inner = if role == "wingL" then offset.X + item.Size.X / 2 else offset.X - item.Size.X / 2
-				local hinge = pet.hinges[role]
-				if not hinge or (role == "wingL" and inner > hinge.X) or (role == "wingR" and inner < hinge.X) then
-					pet.hinges[role] = Vector3.new(inner, offset.Y - item.Size.Y * 0.15, offset.Z)
-				end
+			-- A wing's hinge: the marker Blender puts at its exact root.
+			if role == "hingeL" or role == "hingeR" then
+				pet.hinges["wing" .. role:sub(-1)] = offset.Position
 			end
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
