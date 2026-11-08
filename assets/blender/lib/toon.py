@@ -14,6 +14,13 @@ BLACK = (0.04, 0.04, 0.07)
 CHEEK = (1.0, 0.5, 0.55)
 # A font with Cyrillic for labels (Blender's own has none).
 LABEL_FONT = "C:/Windows/Fonts/segoeuib.ttf"
+# How finely round shapes are divided: 1 for renders; an export for the game or the web lowers
+# it to keep the files small (a cartoon surface stays smooth with far fewer faces).
+DETAIL = 1.0
+
+
+def _segments(segments):
+    return max(8, int(round(segments * DETAIL / 2)) * 2)
 
 
 def reset():
@@ -55,6 +62,7 @@ def no_outline(obj):
 
 
 def sphere(name, location, scale, color, segments=40, **look):
+    segments = _segments(segments)
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=segments // 2, location=location)
     obj = bpy.context.active_object
     obj.name = name
@@ -74,7 +82,7 @@ def cone(name, location, radius, depth, color, rotation=(0, 0, 0), vertices=6, r
 
 
 def cylinder(name, location, radius, depth, color, rotation=(0, 0, 0), vertices=24, **look):
-    bpy.ops.mesh.primitive_cylinder_add(radius=radius, depth=depth, location=location, rotation=rotation, vertices=vertices)
+    bpy.ops.mesh.primitive_cylinder_add(radius=radius, depth=depth, location=location, rotation=rotation, vertices=_segments(vertices))
     obj = bpy.context.active_object
     obj.name = name
     obj.data.materials.append(material(name, color, **look))
@@ -82,7 +90,14 @@ def cylinder(name, location, radius, depth, color, rotation=(0, 0, 0), vertices=
 
 
 def torus(name, location, major, minor, color, rotation=(0, 0, 0), **look):
-    bpy.ops.mesh.primitive_torus_add(location=location, major_radius=major, minor_radius=minor, rotation=rotation)
+    bpy.ops.mesh.primitive_torus_add(
+        location=location,
+        major_radius=major,
+        minor_radius=minor,
+        rotation=rotation,
+        major_segments=_segments(48),
+        minor_segments=_segments(12),
+    )
     obj = bpy.context.active_object
     obj.name = name
     obj.data.materials.append(material(name, color, **look))

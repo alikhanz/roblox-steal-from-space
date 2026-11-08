@@ -25,3 +25,6 @@
 # OS / editor noise
 .DS_Store
 Thumbs.db
+
+# 3D exported from the Blender scripts in assets/blender (rebuilt by them)
+/out/
