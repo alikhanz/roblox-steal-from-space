@@ -24,11 +24,13 @@ local PRESSED_LIGHTEN = 0.3
 -- A disabled button: how see-through its glass and its word get.
 local DISABLED_TRANSPARENCY = 0.5
 local PADDING_X = 10
--- Vertical padding by size: a large button is a big, easy target.
-local PADDING_Y: { [string]: number } = { Small = 3, Normal = 5, Large = 9 }
-local TEXT_SIZE: { [string]: number } = { Small = NEON.TEXT_SMALL, Normal = NEON.TEXT_BODY, Large = NEON.TEXT_SECTION }
+-- Vertical padding by size: a large button is a big, easy target. Huge is for screens in the
+-- world (terminals), read from a few steps away on a phone: a big word on a full-width button.
+local PADDING_Y: { [string]: number } = { Small = 3, Normal = 5, Large = 9, Huge = 6 }
+local TEXT_SIZE: { [string]: number } =
+	{ Small = NEON.TEXT_SMALL, Normal = NEON.TEXT_BODY, Large = NEON.TEXT_SECTION, Huge = NEON.TEXT_RESOURCE }
 
-export type Size = "Small" | "Normal" | "Large"
+export type Size = "Small" | "Normal" | "Large" | "Huge"
 
 export type Props = {
 	name: string,

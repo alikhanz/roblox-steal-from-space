@@ -2,7 +2,8 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The screen of a terminal on a player's island (docs/design/screens/terminals.md): a SurfaceGui
 -- on the terminal's screen part with a title in the zone's colour, a big number, a hint, and for
--- the owner a button with the price (or a line once everything is bought).
+-- the owner a full-width button with just the price (or a line once everything is bought): the
+-- title already says what it buys, and a big price reads on a phone from a few steps away.
 --
 -- The canvas is laid out at screen size and scaled up to the part (UIScale), so the neon
 -- components (ActionButton, IconText) keep their own sizes and proportions.
@@ -24,8 +25,8 @@ local CANVAS = Vector2.new(160, 120)
 local PIXELS_PER_STUD = 100
 -- Screens fade out beyond this distance, as the signs before them, studs.
 local MAX_DISTANCE = 80
-local TITLE_SIZE = 18
-local VALUE_SIZE = 30
+local TITLE_SIZE = 16
+local VALUE_SIZE = 26
 local HINT_SIZE = 12
 local SCREEN_TOP = Color3.fromRGB(22, 32, 96)
 local SCREEN_BOTTOM = Color3.fromRGB(10, 13, 44)
@@ -136,6 +137,8 @@ local function TerminalScreen(props: Props): SurfaceGui
 					name = "Buy",
 					layoutOrder = 4,
 					text = button.text,
+					size = "Huge",
+					width = 1,
 					color = NEON.ACTION.Coins,
 					enabled = button.enabled,
 					onClick = button.onClick,

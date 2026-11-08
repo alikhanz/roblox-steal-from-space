@@ -572,13 +572,10 @@ local Strings = {
 		ru = "+{rate} ⚡/с на тренажёре",
 		en = "+{rate} ⚡/s on the trainer",
 	},
-	["terminal.buy.button"] = {
-		ru = "Купить ●{price}",
-		en = "Buy ●{price}",
-	},
-	["terminal.upgrade.button"] = {
-		ru = "Улучшить ●{price}",
-		en = "Upgrade ●{price}",
+	-- The buy button on a terminal: just the price, the terminal's title says what it buys.
+	["terminal.price.button"] = {
+		ru = "●{price}",
+		en = "●{price}",
 	},
 	["terminal.maxed.hint"] = {
 		ru = "Всё куплено",

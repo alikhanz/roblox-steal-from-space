@@ -222,7 +222,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				button = if isOwn(bay)
 					then {
 						text = function()
-							return Text.get(locale, "terminal.buy.button", { price = BigNum.format(price()) })
+							return Text.get(locale, "terminal.price.button", { price = BigNum.format(price()) })
 						end,
 						enabled = function()
 							return not full() and canAfford(price())
@@ -280,7 +280,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					button = if isOwn(bay)
 						then {
 							text = function()
-								return Text.get(locale, "bay.buySlot.button", { price = BigNum.format(price()) })
+								return Text.get(locale, "terminal.price.button", { price = BigNum.format(price()) })
 							end,
 							enabled = function()
 								return not full() and canAfford(price())
@@ -349,7 +349,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				button = if own
 					then {
 						text = function()
-							return Text.get(locale, "terminal.upgrade.button", { price = BigNum.format(price()) })
+							return Text.get(locale, "terminal.price.button", { price = BigNum.format(price()) })
 						end,
 						enabled = function()
 							return canAfford(price())
