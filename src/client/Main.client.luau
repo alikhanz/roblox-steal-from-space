@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AbilityState = require(script.Parent.State.AbilityState)
 local AimController = require(script.Parent.Controllers.AimController)
+local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
@@ -68,6 +69,8 @@ local eventController = EventController.new()
 local tutorialController = TutorialController.new({ speed = speedState.speed, grab = grabState })
 
 Lifecycle.run({
+	-- First: every GUI made after it keeps Roblox's auto-translation off (decision 071).
+	AutoLocalizeGuard.new(),
 	profileState,
 	purchaseState,
 	abilityState,
