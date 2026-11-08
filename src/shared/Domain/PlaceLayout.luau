@@ -49,12 +49,27 @@ type Row = {
 
 -- Rows for `order` (indices into `widths`, smallest first) with spacing times `squeeze`. A row's
 -- places stand on one arc, as far out as its widest needs to keep clear of the row inside.
+-- Spacing shrinks with the squeeze, the aliens do not: the horseshoe's own edges (the first row's
+-- inner edge, the ends of each row, the last row's outer edge) hold for their true size; only
+-- neighbours move into each other.
 local function rowsFor(widths: { number }, order: { number }, options: Options, squeeze: number): ({ Row }, number)
 	local rows: { Row } = {}
 	local next = 1
 	-- Where the next row's inner edge may start.
 	local base = options.inner
 	local reach = 0
+	-- How far from its row's center line a place stands out on each side, studs, past its squeezed
+	-- half: at the ends of a row and inside the first row.
+	local function overhang(width: number): number
+		return width * (1 - squeeze) / 2
+	end
+	local function radiusFor(widest: number): number
+		local radius = base + widest * squeeze / 2
+		if #rows == 0 then
+			radius += overhang(widest)
+		end
+		return radius
+	end
 	while next <= #order do
 		local members: { number } = {}
 		local used = 0
@@ -64,19 +79,19 @@ local function rowsFor(widths: { number }, order: { number }, options: Options, 
 			local index = order[next]
 			local width = widths[index]
 			local length = width * squeeze + options.gap
-			local radius = base + math.max(widest, width) * squeeze / 2
+			local wider = math.max(widest, width)
+			local room = radiusFor(wider) * options.arc - 2 * overhang(wider)
 			-- A row holds at least one place, however wide.
-			if #members > 0 and (used + length > radius * options.arc or width > narrowest * options.rowSpread) then
+			if #members > 0 and (used + length > room or width > narrowest * options.rowSpread) then
 				break
 			end
 			table.insert(members, index)
 			used += length
-			widest = math.max(widest, width)
+			widest = wider
 			next += 1
 		end
-		local radius = base + widest * squeeze / 2
+		local radius = radiusFor(widest)
 		table.insert(rows, { radius = radius, members = members })
-		-- Spacing shrinks with the squeeze, the aliens do not: the true outer edge is their own.
 		reach = radius + widest / 2
 		base = radius + widest * squeeze / 2 + options.gap
 	end

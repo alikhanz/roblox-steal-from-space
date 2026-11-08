@@ -104,10 +104,15 @@ describe("PlaceLayout.arrange", function()
 		local tight = PlaceLayout.arrange(repeated(30, 30), OPTIONS)
 		expect(tight.squeeze < 1).toBe(true)
 		expect(tight.squeeze >= OPTIONS.minSqueeze - 1e-9).toBe(true)
-		-- The aliens keep their size: their own edges stay within the island.
+		-- The aliens keep their size: their own edges stay within the horseshoe, inside and out and
+		-- at the ends of the rows; only neighbours move into each other.
 		expect(tight.reach <= OPTIONS.outer).toBe(true)
 		for _, spot in tight.spots do
-			expect(radiusOf(spot) + 15 <= OPTIONS.outer + 1e-6).toBe(true)
+			local radius = radiusOf(spot)
+			expect(radius + 15 <= OPTIONS.outer + 1e-6).toBe(true)
+			expect(radius - 15 >= OPTIONS.inner - 1e-6).toBe(true)
+			local edge = math.abs(math.atan2(spot.x, spot.z)) + math.asin(15 / radius)
+			expect(edge <= OPTIONS.arc / 2 + 1e-6).toBe(true)
 		end
 
 		local huge = PlaceLayout.arrange(repeated(80, 30), OPTIONS)
