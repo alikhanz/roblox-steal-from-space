@@ -496,6 +496,17 @@ WING_OUTLINE = [(0.0, 0.0), (0.25, 0.4), (0.7, 0.9), (1.2, 1.15), (1.55, 1.05), 
 WING_VEINS = [[(0.05, 0.02), (0.6, 0.55), (1.35, 0.95)], [(0.05, 0.0), (0.7, 0.3), (1.45, 0.55)], [(0.05, -0.03), (0.6, -0.25), (1.0, -0.55)]]
 
 
+# The eye spots of the wing pattern: (centre, radius) in the upper and the lower lobe.
+WING_EYES = [((1.12, 0.72), 0.2), ((0.82, -0.36), 0.13)]
+
+
+def _scaled_towards(points, factor):
+    """The outline shrunk towards its centre: an inner contour for the pattern."""
+    cx = sum(x for x, _ in points) / len(points)
+    cy = sum(y for _, y in points) / len(points)
+    return [(cx + (x - cx) * factor, cy + (y - cy) * factor) for x, y in points]
+
+
 def _smoothed(points, closed, rounds=3):
     """Chaikin corner cutting: the outline's straight segments become soft curves."""
     for _ in range(rounds):
@@ -567,6 +578,14 @@ def wings(info, color, size, gold=False):
             _wing_line(outline + [outline[0]], hinge, side, 22, span, edge, 0.025)
             for vein in WING_VEINS:
                 _wing_line(_smoothed(vein, False, 2), hinge, side, 22, span, edge, 0.012)
+            # The pattern: an inner contour and an "eye" in each lobe, like a butterfly's.
+            inner = _scaled_towards(outline, 0.62)
+            _wing_line(inner + [inner[0]], hinge, side, 22, span, edge, 0.011)
+            for (ex, ey), radius in WING_EYES:
+                ring = [(ex + math.cos(a / 24 * math.tau) * radius, ey + math.sin(a / 24 * math.tau) * radius) for a in range(24)]
+                _wing_line(ring + [ring[0]], hinge, side, 22, span, edge, 0.014)
+                dot = [(ex + math.cos(a / 16 * math.tau) * radius * 0.38, ey + math.sin(a / 16 * math.tau) * radius * 0.38) for a in range(16)]
+                _wing_mesh(dot, hinge, side, 22, span, edge)
 
 
 @in_role("fx")  # In game, orbiting comets with trails take the rings' place.
@@ -619,7 +638,8 @@ def meteor_fire(info, tier):
         _comet(cx, cy, cz, r, tier)
     # Burning rocks circling, each with its own little tail.
     rock = real.molten("MeteorRock")
-    with role("orbit"):
+    # In game, fireball comets with flame tails take the rocks' place.
+    with role("fx"):
         for index in range(2 + tier):
             angle = index / (2 + tier) * math.tau + 0.7
             where = Vector((cx + math.cos(angle) * (r + 0.55), cy + math.sin(angle) * (r + 0.2), cz + 0.35 + 0.35 * math.sin(index * 2.3)))

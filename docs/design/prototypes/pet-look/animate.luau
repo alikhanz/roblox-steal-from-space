@@ -1,7 +1,7 @@
 -- Client-side motion of the dressed robot pets in workspace.RoboPetGame (preview prototype, run in
 -- a playtest via MCP). Parts move by their Role attribute: the pet bobs and sways; the rune circle
 -- stays on the floor and turns; a rotor spins; drones circle the lead; rocks and planets orbit the
--- centre; rays turn about the facing axis; each fairy wing flaps on its hinge; comets fly tilted
+-- centre; rays turn about the facing axis; each fairy wing opens and folds back on its hinge; comets fly tilted
 -- orbits (their trails draw the arcs); the core light pulses. One BulkMoveTo per frame.
 local RunService = game:GetService("RunService")
 local folder = workspace:WaitForChild("RoboPetGame", 10)
@@ -62,7 +62,9 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 			* CFrame.Angles(math.sin(t * 1.1 + ph) * 0.05, math.sin(t * 0.6 + ph) * 0.14, math.sin(t * 1.4 + ph) * 0.05)
 		local c = CFrame.new(pet.centre)
 		local cInv = c:Inverse()
-		local flap = math.sin(t * 6 + ph) * 0.45
+		-- Wings open and fold back like a book on their hinges (a butterfly's beat), with a slight lift.
+		local beat = math.sin(t * 5 + ph)
+		local swing = 0.55 + 0.45 * beat
 		for i, part in pet.parts do
 			local role, offset = pet.roles[i], pet.offsets[i]
 			local frame
@@ -80,10 +82,10 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 			elseif role == "wingL" or role == "wingR" then
 				local hinge = CFrame.new(pet.hinges[role])
 				local side = if role == "wingL" then -1 else 1
-				frame = bob * hinge * CFrame.Angles(0, side * 0.15 * flap, side * flap) * hinge:Inverse() * offset
+				frame = bob * hinge * CFrame.Angles(0, side * swing, side * 0.12 * beat) * hinge:Inverse() * offset
 			elseif role == "wisp" then
 				local tilt = part:GetAttribute("Tilt")
-				local angle = t * 1.6 + part:GetAttribute("Phase")
+				local angle = t * (part:GetAttribute("Speed") or 1.6) + part:GetAttribute("Phase")
 				frame = bob * c * CFrame.Angles(tilt, 0, tilt * 0.5) * CFrame.Angles(0, angle, 0) * CFrame.new(part:GetAttribute("Orbit"), 0, 0)
 			elseif role:match("^drone%d") then
 				local n = tonumber(role:match("%d+"))
