@@ -1,8 +1,8 @@
 -- Client-side motion of the dressed robot pets in workspace.RoboPetGame (preview prototype, run in
--- a playtest via MCP). Parts move by their Role attribute (from the Blender export): the pet bobs
--- and sways, the ring stays on the floor, a rotor spins, drones circle the lead, orbits and rocks
--- turn round the centre, rays turn about the facing axis, beam wings flap by moving their tip
--- attachments, and the core light pulses. One BulkMoveTo per frame.
+-- a playtest via MCP). Parts move by their Role attribute: the pet bobs and sways; the rune circle
+-- stays on the floor and turns; a rotor spins; drones circle the lead; rocks and planets orbit the
+-- centre; rays turn about the facing axis; each fairy wing flaps on its hinge; comets fly tilted
+-- orbits (their trails draw the arcs); the core light pulses. One BulkMoveTo per frame.
 local RunService = game:GetService("RunService")
 local folder = workspace:WaitForChild("RoboPetGame", 10)
 pcall(function()
@@ -20,7 +20,7 @@ for index, model in folder:GetChildren() do
 		offsets = {},
 		roles = {},
 		groups = {},
-		tips = {},
+		hinges = {},
 		centre = base:PointToObjectSpace(cf.Position),
 	}
 	local sums = {}
@@ -34,8 +34,14 @@ for index, model in folder:GetChildren() do
 			sums[role] = sums[role] or { Vector3.zero, 0 }
 			sums[role][1] += offset.Position
 			sums[role][2] += 1
-		elseif item:IsA("Attachment") and item:GetAttribute("Flap") then
-			table.insert(pet.tips, { item, item.CFrame, item:GetAttribute("Flap") })
+			-- A wing's hinge: its inner edge (towards the body), at the root height.
+			if role == "wingL" or role == "wingR" then
+				local inner = if role == "wingL" then offset.X + item.Size.X / 2 else offset.X - item.Size.X / 2
+				local hinge = pet.hinges[role]
+				if not hinge or (role == "wingL" and inner > hinge.X) or (role == "wingR" and inner < hinge.X) then
+					pet.hinges[role] = Vector3.new(inner, offset.Y - item.Size.Y * 0.15, offset.Z)
+				end
+			end
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
 		end
@@ -56,11 +62,14 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 			* CFrame.Angles(math.sin(t * 1.1 + ph) * 0.05, math.sin(t * 0.6 + ph) * 0.14, math.sin(t * 1.4 + ph) * 0.05)
 		local c = CFrame.new(pet.centre)
 		local cInv = c:Inverse()
+		local flap = math.sin(t * 6 + ph) * 0.45
 		for i, part in pet.parts do
 			local role, offset = pet.roles[i], pet.offsets[i]
 			local frame
 			if role == "ring" then
 				frame = pet.base * offset
+			elseif role == "halo" then
+				frame = pet.base * CFrame.new(offset.Position) * CFrame.Angles(0, t * 0.35, 0)
 			elseif role == "rotor" then
 				local rc = CFrame.new(pet.groups.rotor)
 				frame = bob * rc * CFrame.Angles(0, t * 14, 0) * rc:Inverse() * offset
@@ -68,6 +77,14 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 				frame = bob * c * CFrame.Angles(0, t * 0.9, 0) * cInv * offset
 			elseif role == "rays" then
 				frame = bob * c * CFrame.Angles(0, 0, t * 0.5) * cInv * offset
+			elseif role == "wingL" or role == "wingR" then
+				local hinge = CFrame.new(pet.hinges[role])
+				local side = if role == "wingL" then -1 else 1
+				frame = bob * hinge * CFrame.Angles(0, side * 0.15 * flap, side * flap) * hinge:Inverse() * offset
+			elseif role == "wisp" then
+				local tilt = part:GetAttribute("Tilt")
+				local angle = t * 1.6 + part:GetAttribute("Phase")
+				frame = bob * c * CFrame.Angles(tilt, 0, tilt * 0.5) * CFrame.Angles(0, angle, 0) * CFrame.new(part:GetAttribute("Orbit"), 0, 0)
 			elseif role:match("^drone%d") then
 				local n = tonumber(role:match("%d+"))
 				frame = bob * c * CFrame.Angles(0, t * 1.3, 0) * cInv * CFrame.new(0, math.sin(t * 4 + n) * 0.35, 0) * offset
@@ -76,10 +93,6 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 			end
 			table.insert(parts, part)
 			table.insert(frames, frame)
-		end
-		for _, tip in pet.tips do
-			local flap = math.sin(t * 7 + ph + tip[3] * 0.6)
-			tip[1].CFrame = tip[2] * CFrame.new(0, flap * 0.9, flap * 0.3)
 		end
 		if pet.light then
 			pet.light.Brightness = pet.brightness + math.sin(t * 3 + ph) * 0.4

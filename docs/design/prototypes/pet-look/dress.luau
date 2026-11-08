@@ -5,7 +5,7 @@ local DATA = game:GetService("HttpService"):JSONDecode(game.ServerStorage.RoboPe
 local TEX = {
 	star = "rbxassetid://113891832030197", spark = "rbxassetid://97606944575232", bolt = "rbxassetid://108158096824089",
 	drop = "rbxassetid://72681449255345", bubble = "rbxassetid://86123911810039", ember = "rbxassetid://82123783399839",
-	flame = "rbxassetid://120732950893778", wing = "rbxassetid://93963522989438",
+	flame = "rbxassetid://120732950893778", wing = "rbxassetid://93963522989438", halo = "rbxassetid://100306136441986",
 	smoke = "rbxasset://textures/particles/smoke_main.dds",
 }
 local SCALE = 3.3
@@ -58,7 +58,7 @@ for name, entry in DATA do
 	local model = game.ServerStorage.RoboPet2:FindFirstChild(name)
 	if not model then table.insert(report, "missing " .. name) continue end
 	for _, d in model:GetDescendants() do
-		if d:IsA("PackageLink") or d.Name == "Fx" then d:Destroy() end
+		if d:IsA("PackageLink") or d.Name == "Fx" or d.Name == "Halo" or d.Name:match("^Wisp") or d.Name == "Tip" then d:Destroy() end
 	end
 	local zone, family, tier, meteor, signature, glow, core, tierColor, shell = entry[1]:match("^(%a+)|(%a+)|(%d)|(%a+)|([%a%+]*)|([%d,]+)|([%d,]+)|([%d,]+)|([%d,]+)$")
 	tier = tonumber(tier)
@@ -105,13 +105,13 @@ for name, entry in DATA do
 			part.Color = boost(core, 1.2, 1.2)
 			part.Transparency = 0
 			table.insert(cores, part)
-		elseif role == "wing" then
+		elseif role == "wingL" or role == "wingR" then
 			table.insert(wingParts, part)
-			part.Transparency = 1 -- beams take their place
-		elseif role == "ring" then
-			part.Transparency = 0.15
+			part.Transparency = 0
+		elseif role == "ring" then -- the rune circle takes its place
+			part.Transparency = 1
 		elseif role == "rays" then
-			part.Transparency = 0.3
+			part.Transparency = 0.45
 		end
 	end
 
@@ -136,10 +136,12 @@ for name, entry in DATA do
 	local light = Instance.new("PointLight")
 	light.Name = "CoreLight"
 	light.Color = if meteor then FIRE elseif tier == 4 then GOLD else boost(core, 1.2, 1)
-	light.Brightness = 2.5 + tier * 0.5
-	light.Range = 8 + radius * 1.5
+	light.Brightness = 0.9 + tier * 0.15
+	light.Range = (8 + radius * 1.5) * 0.75
 	light.Shadows = false
-	light.Parent = cores[1] or fx
+	-- Low under the body: it lights the floor round the pet more than the pet itself (a bright
+	-- light on the body burns its colours to white under Bloom).
+	light.Parent = attachment(fx, "LightLow", Vector3.new(0, -fx.Size.Y * 0.6, 0))
 
 	local k = 1 + tier * 0.7
 	-- Every pet: twinkling stars in the tier colour, more with each tier.
@@ -270,42 +272,110 @@ for name, entry in DATA do
 		})
 	end
 
-	-- Beam wings where the outfit has wings: two glowing fans a side, with a bright leading edge
-	-- and sparkles off the tips. The client flaps them by moving the tip attachments.
-	if #wingParts > 0 then
-		local wingColour = if meteor then FIRE elseif tier == 4 then GOLD else tierColor
-		local span = 0
+	local accent = if meteor then FIRE elseif tier == 4 then GOLD else tierColor
+
+	-- Fairy wings (modelled in Blender, a role a side): the biggest part of a wing is its membrane,
+	-- see-through glass in the tier colour; the rest is its glowing edge and veins. Sparkles trail
+	-- off the tip. The client flaps each side on its hinge.
+	for _, side in { "wingL", "wingR" } do
+		local membrane, area = nil, 0
 		for _, part in wingParts do
-			span = math.max(span, part.Size.X / 2)
-		end
-		for _, side in { -1, 1 } do
-			local root = attachment(fx, "WingRoot" .. side, Vector3.new(side * radius * 0.25, size.Y * 0.12, -size.Z * 0.18))
-			for index, shape in { { 1.0, 0.5, 0.95 }, { 0.8, -0.05, 0.7 } } do
-				local tip = attachment(fx, "WingTip" .. side .. "_" .. index, Vector3.new(side * span * shape[1], size.Y * 0.12 + span * shape[2], -size.Z * 0.35))
-				tip:SetAttribute("Flap", index)
-				local beam = Instance.new("Beam")
-				beam.Name = "Wing"
-				beam.Attachment0, beam.Attachment1 = root, tip
-				beam.Texture = TEX.wing
-				beam.TextureMode = Enum.TextureMode.Stretch
-				beam.TextureSpeed = 0.5
-				beam.FaceCamera = true
-				beam.LightEmission = 1
-				beam.LightInfluence = 0
-				beam.Width0, beam.Width1 = 0.4, span * 0.55 * shape[3]
-				beam.CurveSize0, beam.CurveSize1 = span * 0.25, -span * 0.15
-				beam.Segments = 16
-				beam.Color = colours({ { 0, Color3.new(1, 1, 1) }, { 0.4, wingColour }, { 1, boost(wingColour, 1.3, 1) } })
-				beam.Transparency = seq({ { 0, 0.05 }, { 1, 0.25 } })
-				beam.Parent = fx
-				emitter(tip, "TipSparkles", {
-					Texture = TEX.star, Color = colours({ { 0, Color3.new(1, 1, 1) }, { 1, wingColour } }),
-					Size = seq({ { 0, 0 }, { 0.3, 0.35 }, { 1, 0 } }), Lifetime = NumberRange.new(0.4, 0.8), Rate = 10,
-					Speed = NumberRange.new(0.5, 1.5), SpreadAngle = Vector2.new(180, 180),
-				})
+			if part:GetAttribute("Role") == side and part.Size.X * part.Size.Y > area then
+				membrane, area = part, part.Size.X * part.Size.Y
 			end
 		end
+		if membrane then
+			for _, part in wingParts do
+				if part:GetAttribute("Role") == side then
+					part.Material = Enum.Material.Neon
+					part.Color = boost(accent, 1.2, 1.1)
+					part.Transparency = 0
+				end
+			end
+			membrane.Material = Enum.Material.Glass
+			membrane.Color = boost(accent, 1.1, 1.15)
+			membrane.Transparency = 0.45
+			local sign = if side == "wingL" then -1 else 1
+			local tip = attachment(membrane, "Tip", Vector3.new(sign * membrane.Size.X * 0.42, membrane.Size.Y * 0.3, 0))
+			emitter(tip, "TipSparkles", {
+				Texture = TEX.star, Color = colours({ { 0, Color3.new(1, 1, 1) }, { 1, accent } }),
+				Size = seq({ { 0, 0 }, { 0.3, 0.4 }, { 1, 0 } }), Lifetime = NumberRange.new(0.5, 0.9), Rate = 14,
+				Speed = NumberRange.new(0.3, 1), SpreadAngle = Vector2.new(180, 180),
+			})
+		end
 	end
+
+	-- Comets instead of orbit rings (tier 3+): glowing wisps circling the pet on tilted orbits,
+	-- each drawing a fading trail. The client flies them.
+	if tier >= 3 then
+		for index = 1, tier - 1 do
+			local wisp = Instance.new("Part")
+			wisp.Name = "Wisp" .. index
+			wisp.Shape = Enum.PartType.Ball
+			wisp.Size = Vector3.one * (0.35 + 0.1 * tier)
+			wisp.Material = Enum.Material.Neon
+			wisp.Color = boost(accent, 0.6, 1.2)
+			wisp.Anchored, wisp.CanCollide, wisp.CanQuery, wisp.CanTouch, wisp.CastShadow = true, false, false, false, false
+			wisp.CFrame = cf
+			wisp:SetAttribute("Role", "wisp")
+			wisp:SetAttribute("Orbit", radius * 1.15)
+			wisp:SetAttribute("Tilt", (index - 1) * 1.1 - 0.5)
+			wisp:SetAttribute("Phase", index * 2.1)
+			local a0 = attachment(wisp, "TrailTop", Vector3.new(0, wisp.Size.Y * 0.45, 0))
+			local a1 = attachment(wisp, "TrailBottom", Vector3.new(0, -wisp.Size.Y * 0.45, 0))
+			local trail = Instance.new("Trail")
+			trail.Attachment0, trail.Attachment1 = a0, a1
+			trail.Lifetime = 0.7
+			trail.LightEmission = 1
+			trail.LightInfluence = 0
+			trail.FaceCamera = true
+			trail.Color = colours({ { 0, Color3.new(1, 1, 1) }, { 0.3, accent }, { 1, accent } })
+			trail.Transparency = seq({ { 0, 0 }, { 1, 1 } })
+			trail.WidthScale = seq({ { 0, 1 }, { 1, 0 } })
+			trail.Parent = wisp
+			emitter(wisp, "WispSparks", {
+				Texture = TEX.star, Color = ColorSequence.new(accent), Size = seq({ { 0, 0.25 }, { 1, 0 } }),
+				Lifetime = NumberRange.new(0.3, 0.6), Rate = 12, Speed = NumberRange.new(0.2, 0.6),
+			})
+			wisp.Parent = model
+		end
+	end
+
+	-- A rune circle on the floor instead of the plain tier ring: it glows in the tier colour, turns
+	-- slowly, and motes rise from its rim.
+	local floorY = cf.Position.Y - size.Y / 2
+	local halo = Instance.new("Part")
+	halo.Name = "Halo"
+	halo.Anchored, halo.CanCollide, halo.CanQuery, halo.CanTouch, halo.CastShadow = true, false, false, false, false
+	halo.Transparency = 1
+	local haloSize = math.max(size.X, size.Z) * 0.95
+	halo.Size = Vector3.new(haloSize, 0.05, haloSize)
+	halo.CFrame = CFrame.new(cf.Position.X, floorY + 0.08, cf.Position.Z)
+	halo:SetAttribute("Role", "halo")
+	for _, layer in { { TEX.halo, accent, 0, "Rune" }, { TEX.ember, accent, 0.55, "Glow" } } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = layer[4]
+		gui.Face = Enum.NormalId.Top
+		gui.LightInfluence = 0
+		gui.Brightness = 2
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+		gui.CanvasSize = Vector2.new(256, 256)
+		local image = Instance.new("ImageLabel")
+		image.Size = UDim2.fromScale(1, 1)
+		image.BackgroundTransparency = 1
+		image.Image = layer[1]
+		image.ImageColor3 = layer[2]
+		image.ImageTransparency = layer[3]
+		image.Parent = gui
+		gui.Parent = halo
+	end
+	emitter(halo, "RimMotes", {
+		Texture = TEX.star, Color = colours({ { 0, Color3.new(1, 1, 1) }, { 1, accent } }),
+		Size = seq({ { 0, 0 }, { 0.2, 0.3 }, { 1, 0 } }), Lifetime = NumberRange.new(1, 1.6), Rate = 4 + tier * 4,
+		Speed = NumberRange.new(1.5, 2.5), EmissionDirection = Enum.NormalId.Top,
+		Shape = Enum.ParticleEmitterShape.Disc, ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface,
+	})
+	halo.Parent = model
 	table.insert(report, string.format("%s: %d emitters, wings %d", name, #fx:GetDescendants(), #wingParts))
 end
 return table.concat(report, "\n")

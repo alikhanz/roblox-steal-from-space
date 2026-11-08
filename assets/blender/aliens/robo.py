@@ -488,23 +488,88 @@ def pack(info, color, armour):
         info["shells"].append(pill((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
 
 
-@in_role("wing")
+# A fairy wing in its own plane: x runs out from the hinge, y up. A big upper lobe and a small
+# lower one, so it reads as a wing and not a fan.
+WING_OUTLINE = [(0.0, 0.0), (0.25, 0.4), (0.7, 0.9), (1.2, 1.15), (1.55, 1.05), (1.62, 0.75), (1.4, 0.4), (0.95, 0.14), (0.75, 0.04),
+                (1.05, -0.12), (1.2, -0.42), (1.05, -0.7), (0.7, -0.68), (0.35, -0.4), (0.1, -0.12)]
+# Veins from the hinge to the lobes' tips.
+WING_VEINS = [[(0.05, 0.02), (0.6, 0.55), (1.35, 0.95)], [(0.05, 0.0), (0.7, 0.3), (1.45, 0.55)], [(0.05, -0.03), (0.6, -0.25), (1.0, -0.55)]]
+
+
+def _smoothed(points, closed, rounds=3):
+    """Chaikin corner cutting: the outline's straight segments become soft curves."""
+    for _ in range(rounds):
+        out = []
+        count = len(points) if closed else len(points) - 1
+        if not closed:
+            out.append(points[0])
+        for index in range(count):
+            (x0, y0), (x1, y1) = points[index], points[(index + 1) % len(points)]
+            out += [(0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1), (0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1)]
+        if not closed:
+            out.append(points[-1])
+        points = out
+    return points
+
+
+def _wing_mesh(points, hinge, side, tilt, size, mat):
+    """A flat wing polygon at `hinge`, mirrored by `side`, swept back by `tilt` degrees."""
+    import bmesh
+
+    mesh = bpy.data.meshes.new("Wing")
+    bm = bmesh.new()
+    verts = [bm.verts.new((side * x * size, 0.0, y * size)) for x, y in points]
+    bm.faces.new(verts if side > 0 else list(reversed(verts)))
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new("Wing", mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.location = hinge
+    obj.rotation_euler = (math.radians(-10), 0, math.radians(side * -tilt))
+    solid = obj.modifiers.new("Thickness", "SOLIDIFY")
+    solid.thickness = 0.03
+    solid.offset = 0
+    return _tag(real.assign(obj, mat))
+
+
+def _wing_line(points, hinge, side, tilt, size, mat, radius):
+    """A glowing tube along `points` in the wing's plane: its edge or a vein."""
+    curve = bpy.data.curves.new("WingLine", "CURVE")
+    curve.dimensions = "3D"
+    curve.bevel_depth = radius
+    curve.bevel_resolution = 2
+    spline = curve.splines.new("POLY")
+    spline.points.add(len(points) - 1)
+    for point, (x, y) in zip(spline.points, points):
+        point.co = (side * x * size, 0.0, y * size, 1.0)
+    obj = bpy.data.objects.new("WingLine", curve)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.location = hinge
+    obj.rotation_euler = (math.radians(-10), 0, math.radians(side * -tilt))
+    obj.data.materials.append(mat)
+    return _tag(obj)
+
+
 def wings(info, color, size, gold=False):
-    """Tier 3+: two pairs of swept energy wings behind the pet."""
+    """Tier 3+: a pair of fairy wings behind the pet: a see-through membrane in the tier colour
+    with a glowing edge and veins. Each side is its own role (wingL, wingR) and is hinged at its
+    root, so the game can flap it."""
     cx, cy, cz = info["center"]
     r = info["radius"]
-    mat = real.iridescent("GoldWing", GOLD, transmission=0.5, glow=3.0) if gold else real.iridescent("EnergyWing", color, transmission=0.6, glow=2.5)
+    membrane = real.iridescent("GoldWing", GOLD, transmission=0.5, glow=1.5) if gold else real.iridescent("EnergyWing", color, transmission=0.6, glow=1.5)
     edge = glow(GOLD if gold else color, 10.0)
+    span = (0.8 + 0.25 * r) * size
     for side in (-1, 1):
-        for index, (lift, length) in enumerate(((0.45, 1.0), (0.0, 0.75))):
-            wx = cx + side * (r * 0.55 + 0.75 * length * size)
-            wz = cz + lift * size + 0.3
-            rotation = (0, math.radians(side * -(28 - index * 18)), math.radians(side * -18))
-            sphere((wx, cy + r * 0.55, wz), (0.85 * length * size, 0.04, 0.26 * size), mat, 32, rotation)
-            sphere((wx, cy + r * 0.55, wz), (0.86 * length * size, 0.02, 0.05 * size), edge, 24, rotation)
+        hinge = (cx + side * r * 0.35, cy + r * 0.5, cz + 0.35)
+        outline = _smoothed(WING_OUTLINE, True)
+        with role("wingL" if side < 0 else "wingR"):
+            _wing_mesh(outline, hinge, side, 22, span, membrane)
+            _wing_line(outline + [outline[0]], hinge, side, 22, span, edge, 0.025)
+            for vein in WING_VEINS:
+                _wing_line(_smoothed(vein, False, 2), hinge, side, 22, span, edge, 0.012)
 
 
-@in_role("orbit")
+@in_role("fx")  # In game, orbiting comets with trails take the rings' place.
 def orbit(info, color, tilt, extra=0.45, thickness=0.02):
     cx, cy, cz = info["center"]
     torus((cx, cy, cz), info["radius"] + extra, thickness, real.glow("Orbit", color, 8.0), (math.radians(tilt), math.radians(-tilt * 0.6), 0))
