@@ -28,3 +28,6 @@ Thumbs.db
 
 # 3D exported from the Blender scripts in assets/blender (rebuilt by them)
 /out/
+
+# Python bytecode from the Blender scripts
+__pycache__/
