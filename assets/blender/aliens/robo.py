@@ -492,7 +492,7 @@ def pack(info, color, armour):
 # the root at WING_ROOT. A narrow upper lobe, a big forewing with a sharp tip swept up and out, and
 # two hind lobes with tails.
 WING_ROOT = (15, 745)
-# Low-poly: only the key points, joined by straight edges, like the rest of the pets' hard shapes.
+# Key points only (low poly); the wing softens them a little when it is built.
 WING_TRACE = [(15, 745), (45, 520), (140, 280), (228, 215), (240, 330), (222, 430), (350, 220), (560, 50), (690, 15), (590, 150),
               (525, 400), (500, 640), (330, 760), (460, 860), (490, 950), (400, 975), (320, 930), (290, 1080), (140, 1190),
               (110, 1050), (30, 830)]
@@ -519,6 +519,18 @@ def _from_trace(points):
 
 WING_OUTLINE = _from_trace(WING_TRACE)
 WING_VEINS = [_from_trace(vein) for vein in WING_VEIN_TRACES]
+
+
+def _smoothed(points, closed, rounds):
+    """Chaikin corner cutting: the low-poly edges soften into curves, a little per round."""
+    for _ in range(rounds):
+        out = [] if closed else [points[0]]
+        count = len(points) if closed else len(points) - 1
+        for index in range(count):
+            (x0, y0), (x1, y1) = points[index], points[(index + 1) % len(points)]
+            out += [(0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1), (0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1)]
+        points = out if closed else out + [points[-1]]
+    return points
 
 
 def _scaled_towards(points, factor, centre=None):
@@ -573,20 +585,21 @@ def wings(info, color, size, gold=False):
     r = info["radius"]
     membrane = real.iridescent("GoldWing", GOLD, transmission=0.5, glow=1.5) if gold else real.iridescent("EnergyWing", color, transmission=0.6, glow=1.5)
     edge = glow(GOLD if gold else color, 10.0)
-    span = (0.8 + 0.25 * r) * size * 1.6
+    span = (0.8 + 0.25 * r) * size * 2.0
     for side in (-1, 1):
         hinge = (cx + side * r * 0.35, cy + r * 0.5, cz + 0.35)
-        outline = WING_OUTLINE
+        # Softened: two rounds of corner cutting keep the lobes and the sharp tip but round the edges.
+        outline = _smoothed(WING_OUTLINE, True, 2)
         name = "wingL" if side < 0 else "wingR"
         with role(name):
             _wing_mesh(outline, hinge, side, 22, span, membrane)
-            _wing_line(outline + [outline[0]], hinge, side, 22, span, edge, 0.022)
+            _wing_line(outline + [outline[0]], hinge, side, 22, span, edge, 0.017)
             for vein in WING_VEINS:
-                _wing_line(vein, hinge, side, 22, span, edge, 0.01)
+                _wing_line(_smoothed(vein, False, 2), hinge, side, 22, span, edge, 0.008)
             # The cells: contours nested inside the edge, drawn towards the root.
             for factor in WING_CELLS:
                 cell = _scaled_towards(outline, factor, (0.0, 0.0))
-                _wing_line(cell + [cell[0]], hinge, side, 22, span, edge, 0.008)
+                _wing_line(cell + [cell[0]], hinge, side, 22, span, edge, 0.006)
         # The hinge marker: the exact root, so the game turns the wing about it (the root stays put,
         # the edge sweeps the most). Invisible in game.
         with role("hinge" + name[-1]):

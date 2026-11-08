@@ -146,7 +146,7 @@ return function(only: { [string]: boolean }?): string
 			continue
 		end
 		for _, d in model:GetDescendants() do
-			if d.Parent and (d:IsA("PackageLink") or d.Name == "Fx" or d.Name == "Halo" or d.Name:match("^Wisp") or d.Name == "Tip") then
+			if d.Parent and (d:IsA("PackageLink") or d.Name == "Fx" or d.Name == "Halo" or d.Name:match("^Wisp") or d.Name == "Tip" or d.Name == "Tail") then
 				d:Destroy()
 			end
 		end
@@ -581,6 +581,22 @@ return function(only: { [string]: boolean }?): string
 					Acceleration = Vector3.new(0, -1.5, 0),
 					SpreadAngle = Vector2.new(180, 180),
 				})
+				-- A burst flies off the tip and the hind tail on every stroke (the client fires it).
+				local tail = attachment(membrane, "Tail", Vector3.new(sign * membrane.Size.X * 0.15, -membrane.Size.Y * 0.45, 0))
+				for _, at in { tip, tail } do
+					emitter(at, "FlapBurst", {
+						Texture = TEX.star,
+						Color = colours({ { 0, WHITE }, { 1, accent } }),
+						Size = seq({ { 0, 0.5 }, { 1, 0 } }),
+						Lifetime = NumberRange.new(0.5, 0.9),
+						Rate = 0,
+						Speed = NumberRange.new(3, 6),
+						Drag = 3,
+						SpreadAngle = Vector2.new(70, 70),
+						Rotation = NumberRange.new(0, 360),
+						RotSpeed = NumberRange.new(-200, 200),
+					})
+				end
 			end
 		end
 

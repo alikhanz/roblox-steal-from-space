@@ -21,6 +21,8 @@ for index, model in folder:GetChildren() do
 		roles = {},
 		groups = {},
 		hinges = {},
+		bursts = {},
+		beat = 0,
 		centre = base:PointToObjectSpace(cf.Position),
 	}
 	local sums = {}
@@ -40,6 +42,8 @@ for index, model in folder:GetChildren() do
 			end
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
+		elseif item:IsA("ParticleEmitter") and item.Name == "FlapBurst" then
+			table.insert(pet.bursts, item)
 		end
 	end
 	for role, sum in sums do
@@ -61,6 +65,14 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 		-- Wings open and fold back like a book on their hinges (a butterfly's beat), with a slight lift.
 		local beat = math.sin(t * 5 + ph)
 		local swing = 0.55 + 0.45 * beat
+		-- On each opening stroke (the beat falls through zero, the wings sweeping out fastest)
+		-- a burst of sparkles flies off the tips and tails.
+		if pet.beat > 0 and beat <= 0 then
+			for _, burst in pet.bursts do
+				burst:Emit(7)
+			end
+		end
+		pet.beat = beat
 		for i, part in pet.parts do
 			local role, offset = pet.roles[i], pet.offsets[i]
 			local frame
