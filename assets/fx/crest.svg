@@ -12,7 +12,9 @@
   </defs>
   <!-- Every pixel white (alpha ~1/255 where empty), so no black bleeds in where the tongues meet. -->
   <rect width="256" height="256" fill="#fff" opacity="0.005"/>
-  <g mask="url(#m)" fill="#fff" transform="translate(128 200)">
+  <!-- The mask sits on an untransformed group: on the translated one its rect and gradient moved
+       with it and cut the tongues away. -->
+  <g mask="url(#m)"><g fill="#fff" transform="translate(128 200)">
     <path d="M-16 0 Q-14 -47 0 -95 Q14 -47 16 0 Z" transform="rotate(-64)" filter="url(#blur)" opacity="0.55"/>
     <path d="M-11 0 Q-10 -47 0 -95 Q10 -47 11 0 Z" transform="rotate(-64)"/>
     <path d="M-18 0 Q-16 -62 0 -125 Q16 -62 18 0 Z" transform="rotate(-48)" filter="url(#blur)" opacity="0.55"/>
@@ -31,5 +33,5 @@
     <path d="M-13 0 Q-12 -61 0 -122 Q12 -61 13 0 Z" transform="rotate(48)"/>
     <path d="M-16 0 Q-14 -46 0 -92 Q14 -46 16 0 Z" transform="rotate(64)" filter="url(#blur)" opacity="0.55"/>
     <path d="M-11 0 Q-10 -46 0 -92 Q10 -46 11 0 Z" transform="rotate(64)"/>
-  </g>
+  </g></g>
 </svg>

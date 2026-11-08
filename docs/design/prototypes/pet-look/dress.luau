@@ -17,7 +17,7 @@ local TEX = {
 	flame = "rbxassetid://120732950893778",
 	halo = "rbxassetid://100306136441986",
 	rays = "rbxassetid://75268695809192",
-	crest = "rbxassetid://95745106924239",
+	crest = "rbxassetid://73996927875354",
 	smoke = "rbxasset://textures/particles/smoke_main.dds",
 }
 local SCALE = 3.3
@@ -29,8 +29,13 @@ local WHITE = Color3.new(1, 1, 1)
 local STAND_INS = { Flame = true, FlameCore = true, Tongue = true, Ray = true, RayShort = true }
 -- Ice and glass that glow a little in Blender: clear tinted glass here, never a solid Neon spike.
 local CRYSTALS = { Shard = true, IceSpike = true, Icicle = true, Fringe = true, Spout = true, Bubble = true, Brood = true }
+-- Gold in Blender (the legendary's crown, gold armour, a circlet, a badge): bright gold here.
+local GOLDS = { Gold = true, GoldArmour = true, Crown = true, Circlet = true, Badge = true }
 -- Faint see-through glows (a hover field, a smoke wisp): barely-there Neon.
 local AURAS = { Hover = true, Smoke = true }
+-- Soft pastel light in Blender (the aurora's ribbons): half see-through Neon in a richer colour, or
+-- Bloom burns the pale colours to white squares.
+local RIBBONS = { Aurora = true }
 -- Polished metal for the pets' gold and chrome: a material variant of flat maps (white colour, about
 -- 0.6 metalness, 0.3 roughness; assets/fx/pbr-*.svg). Under Realistic lighting (decision 076) it
 -- catches highlights; plastic with reflectance stays flat.
@@ -202,7 +207,7 @@ return function(only: { [string]: boolean }?): string
 			end
 		end
 		local zone, _family, tier, meteor, signature, _glow, core, tierColor =
-			entry[1]:match("^(%a+)|(%a+)|(%d)|(%a+)|([%a%+]*)|([%d,]+)|([%d,]+)|([%d,]+)|([%d,]+)$")
+			entry[1]:match("^(%a+)|(%a+)|(%d)|(%a+)|([%w_%+]*)|([%d,]+)|([%d,]+)|([%d,]+)|([%d,]+)$")
 		tier = tonumber(tier)
 		meteor = meteor == "true"
 		core, tierColor = rgb(core), rgb(tierColor)
@@ -230,13 +235,13 @@ return function(only: { [string]: boolean }?): string
 			end
 			local kind, colour, transparency = p[1], p[2], p[3]
 			if kind == "S" and p[4] >= 0.3 then
-				-- Metal in Blender (gold, chrome): polished metal here (the PetMetal variant). Metal
-				-- shows only what it reflects, and space is dark, so it is partly metal and gold is a
-				-- bright, saturated gold, or it turns olive.
+				-- Metal in Blender (gold, chrome, brass, a rare kind's candy paint): polished metal here
+				-- (the PetMetal variant). Metal shows only what it reflects, and space is dark, so it is
+				-- partly metal and gold is a bright, saturated gold, or it turns olive; other metals keep
+				-- their own colour, a touch richer.
 				part.Material = Enum.Material.SmoothPlastic
 				part.MaterialVariant = METAL.Name
-				local _, saturation = colour:ToHSV()
-				part.Color = if saturation > 0.3 then Color3.fromRGB(255, 190, 45) else colour
+				part.Color = if GOLDS[p[5]] then Color3.fromRGB(255, 190, 45) else boost(colour, 1.15, 1.05)
 				part.Reflectance = 0
 				part.Transparency = 0
 			elseif kind == "S" then
@@ -268,6 +273,10 @@ return function(only: { [string]: boolean }?): string
 			elseif AURAS[source] then
 				part.Material = Enum.Material.Neon
 				part.Transparency = 0.8
+			elseif RIBBONS[source] then
+				part.Material = Enum.Material.Neon
+				part.Color = boost(colour, 1.8, 1)
+				part.Transparency = 0.45
 			elseif source == "Galaxy" then
 				-- A lilac nebula in Blender: lilac here (glass turned it magenta), its stars are particles.
 				part.Material = Enum.Material.SmoothPlastic
