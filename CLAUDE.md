@@ -7,6 +7,7 @@ Roblox-игра (рабочее название «Укради у Космос�
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — слои, папки, запуск, данные, сеть.
 - [docs/DECISIONS.md](docs/DECISIONS.md) — что уже решено и почему. Не переигрывай решения без обсуждения.
 - [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) — геймдизайн и этапы.
+- [docs/IDEAS.md](docs/IDEAS.md) — идеи на далёкое будущее (после запуска): пользователь накидывает их по ходу, сюда и записывай такие; без обсуждения не делаются.
 - [docs/STYLE_TEXT.md](docs/STYLE_TEXT.md), [docs/GLOSSARY.md](docs/GLOSSARY.md) — тексты для игроков.
 - [docs/design/DESIGN.md](docs/design/DESIGN.md) — стиль интерфейса; экран меняется только по брифу из `docs/design/screens/` со статусом `approved` (решение 066).
 
