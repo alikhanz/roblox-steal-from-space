@@ -38,13 +38,15 @@ def rotor(info, theme):
     """A drone's propeller on a mast."""
     tx, ty, tz = info["top"]
     cylinder((tx, ty, tz - 0.2), 0.04, 0.55, real.gloss("Mast", (0.15, 0.16, 0.18), 0.3))
-    blade = real.gloss("Blade", (0.92, 0.93, 0.96), 0.2)
-    for spin in (20, 110):
-        b = pill((tx, ty, tz + 0.1), (0.7, 0.07, 0.02), blade)
-        b.rotation_euler = (math.radians(4), 0, math.radians(spin))
-    sphere((tx, ty, tz + 0.12), (0.09, 0.09, 0.06), glow(theme["accent"], 10.0), 16)
+    with robo.role("rotor"):
+        blade = real.gloss("Blade", (0.92, 0.93, 0.96), 0.2)
+        for spin in (20, 110):
+            b = pill((tx, ty, tz + 0.1), (0.7, 0.07, 0.02), blade)
+            b.rotation_euler = (math.radians(4), 0, math.radians(spin))
+        sphere((tx, ty, tz + 0.12), (0.09, 0.09, 0.06), glow(theme["accent"], 10.0), 16)
 
 
+@robo.in_role("fx")
 def bubbles(info, theme):
     """Acid bubbling up, and a hazard-striped belt."""
     tx, ty, tz = info["top"]
@@ -121,6 +123,7 @@ def flake(x, y, z, size):
         pill((x, y, z), (size, 0.02, 0.018), mat, (0, math.radians(spin * 60), 0))
 
 
+@robo.in_role("fx")
 def flakes(info, theme):
     """Snowflakes drifting round the pet."""
     cx, cy, cz = info["center"]
@@ -264,6 +267,7 @@ def stars(info, theme):
     star(tx, ty, tz + 0.15, 0.14, gold)
 
 
+@robo.in_role("flame")
 def flames(info, theme):
     """Flames licking up from the top, like a candle."""
     tx, ty, tz = info["top"]
@@ -296,6 +300,7 @@ def lightning(info, theme):
     _bolt([(cx - r, cy - 0.3, cz + 0.3), (cx - r - 0.25, cy - 0.3, cz), (cx - r - 0.1, cy - 0.3, cz - 0.1), (cx - r - 0.35, cy - 0.3, cz - 0.4)], bolt)
 
 
+@robo.in_role("drone")
 def minions(info, theme):
     """Three tiny drones buzzing round the pet."""
     cx, cy, cz = info["center"]
@@ -328,8 +333,9 @@ def smoke(info, theme):
     """Glowing dots and a wisp of shadow behind."""
     dots(info, theme)
     cx, cy, cz = info["center"]
-    for index in range(4):
-        sphere((cx + 0.3 + 0.15 * index, cy + 0.9 + index * 0.35, cz - 0.1 + 0.1 * index), (0.22 + 0.06 * index,) * 3, real.aura("Smoke", (0.35, 0.2, 0.6), 0.8, 0.08), 20)
+    with robo.role("fx"):
+        for index in range(4):
+            sphere((cx + 0.3 + 0.15 * index, cy + 0.9 + index * 0.35, cz - 0.1 + 0.1 * index), (0.22 + 0.06 * index,) * 3, real.aura("Smoke", (0.35, 0.2, 0.6), 0.8, 0.08), 20)
 
 
 def star_dots(info, theme):
@@ -355,6 +361,7 @@ def gravity(info, theme):
     torus((cx, cy, max(base, cz - 1.2)), r + 0.25, 0.03, pad)
 
 
+@robo.in_role("fx")
 def spout(info, theme):
     """A spout of glowing bubbles."""
     tx, ty, tz = info["top"]

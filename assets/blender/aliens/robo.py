@@ -6,6 +6,8 @@
 #   shells — the ceramic parts (a legendary turns them gold);
 #   top    — where the halo goes; center, radius — for effects round it; width — the tier ring.
 
+import contextlib
+import functools
 import math
 
 import bpy
@@ -21,6 +23,42 @@ DETAIL = 1.0
 
 def _detail(count, least=6):
     return max(least, int(round(count * DETAIL)))
+
+
+# --- Roles --------------------------------------------------------------------------------------
+#
+# Every part is tagged with what it is for (obj["role"]), so a game export can treat parts apart:
+# move them (wings flap, a rotor spins, drones and rocks circle, rays turn), or drop the ones that
+# only stand in for effects ("fx": motes, sparkles, embers, tails) and play particles there instead.
+# Parts are "body" unless built inside a role; a glowing core is "core".
+
+_ROLES = ["body"]
+
+
+@contextlib.contextmanager
+def role(name):
+    _ROLES.append(name)
+    try:
+        yield
+    finally:
+        _ROLES.pop()
+
+
+def in_role(name):
+    """Decorator: everything the function builds is in `name`."""
+    def wrap(function):
+        @functools.wraps(function)
+        def run(*args, **kwargs):
+            with role(name):
+                return function(*args, **kwargs)
+        return run
+    return wrap
+
+
+def _tag(obj):
+    material = obj.data.materials[0].name if obj.data.materials and obj.data.materials[0] else ""
+    obj["role"] = "core" if _ROLES[-1] == "body" and material.startswith("Core") else _ROLES[-1]
+    return obj
 
 
 # --- Zone finishes and kind colours -------------------------------------------------------------
@@ -99,7 +137,7 @@ def sphere(location, scale, mat, segments=32, rotation=(0, 0, 0)):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=_detail(segments), ring_count=max(_detail(segments) // 2, 4), location=location, rotation=rotation)
     obj = bpy.context.active_object
     obj.scale = scale
-    return real.assign(_smooth(obj, 0), mat)
+    return _tag(real.assign(_smooth(obj, 0), mat))
 
 
 def gem(location, scale, mat, rotation=(0, 0, 0)):
@@ -107,7 +145,7 @@ def gem(location, scale, mat, rotation=(0, 0, 0)):
     bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, location=location, rotation=rotation)
     obj = bpy.context.active_object
     obj.scale = scale
-    return real.assign(obj, mat)
+    return _tag(real.assign(obj, mat))
 
 
 def cylinder(location, radius, depth, mat, rotation=(0, 0, 0), vertices=32):
@@ -116,12 +154,12 @@ def cylinder(location, radius, depth, mat, rotation=(0, 0, 0), vertices=32):
     bevel = obj.modifiers.new("Bevel", "BEVEL")
     bevel.width = min(radius, depth) * 0.3
     bevel.segments = _detail(4, 1)
-    return real.assign(_smooth(obj, 0), mat)
+    return _tag(real.assign(_smooth(obj, 0), mat))
 
 
 def torus(location, major, minor, mat, rotation=(0, 0, 0)):
     bpy.ops.mesh.primitive_torus_add(location=location, major_radius=major, minor_radius=minor, rotation=rotation, major_segments=_detail(64), minor_segments=_detail(16))
-    return real.assign(_smooth(bpy.context.active_object, 0), mat)
+    return _tag(real.assign(_smooth(bpy.context.active_object, 0), mat))
 
 
 def pill(location, size, mat, rotation=(0, 0, 0), roundness=0.8):
@@ -132,7 +170,7 @@ def pill(location, size, mat, rotation=(0, 0, 0), roundness=0.8):
     bevel.width = min(size) * roundness
     bevel.segments = _detail(6, 2)
     bevel.limit_method = "NONE"
-    return real.assign(_smooth(obj, 0), mat)
+    return _tag(real.assign(_smooth(obj, 0), mat))
 
 
 def visor(location, width, height, eyes, rotation=(0, 0, 0)):
@@ -187,7 +225,7 @@ def slime(x, z, theme, p=None):
     core = [(0, 0, 0.0, 0.72 * w), (0, 0.02, 0.42 * h, 0.45 * w)]
     if h > 1.2:
         core.append((0, 0.0, 0.85 * h, 0.26 * w))
-    real.blob(core, theme["core"](), (x, 0, dome_z - 0.1), 0.045 / DETAIL)
+    _tag(real.blob(core, theme["core"](), (x, 0, dome_z - 0.1), 0.045 / DETAIL))
     tint = tuple(0.75 + 0.25 * c for c in theme["colours"]["core"])
     sphere((x, 0, dome_z), (0.78 * w, 0.78 * w, 0.9 * h), shell_glass("Dome", tint), 48)
     visor((x, -0.72 * w, dome_z), 0.42 * min(w, 1.15), 0.18, theme["eyes"])
@@ -337,8 +375,10 @@ def swarm(x, z, theme, p=None):
     lead_z = z + 0.2 + 0.65 * main_size
     main = drone(x, 0, lead_z, main_size, theme, shell_mat)
     small = []
-    for dx, dy, dz, size in SWARM_SPOTS[:p.get("count", 2)]:
-        small.append(drone(x + dx * (0.6 + 0.35 * main_size), dy, z + dz * (0.55 + 0.35 * main_size), size, theme, shell_mat))
+    for index, (dx, dy, dz, size) in enumerate(SWARM_SPOTS[:p.get("count", 2)]):
+        # Each little drone is a role of its own, so the game can fly it round the lead.
+        with role(f"drone{index + 1}"):
+            small.append(drone(x + dx * (0.6 + 0.35 * main_size), dy, z + dz * (0.55 + 0.35 * main_size), size, theme, shell_mat))
     info = {"shells": [main] + small, "top": (x, 0, lead_z + 0.65 * main_size), "center": (x, 0, lead_z), "radius": 0.8 * main_size, "width": 1.0 * main_size,
             "lead": (x, 0, lead_z), "lead_size": main_size, "drones": [(s.location.copy(), s.scale.x / 0.55) for s in small]}
     return info
@@ -390,13 +430,15 @@ def cone(location, radius, depth, mat, direction=(0, 0, 1)):
     bpy.ops.mesh.primitive_cone_add(radius1=radius, radius2=0, depth=depth, location=tuple(centre), vertices=24)
     obj = bpy.context.active_object
     obj.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
-    return real.assign(_smooth(obj, 0), mat)
+    return _tag(real.assign(_smooth(obj, 0), mat))
 
 
+@in_role("ring")
 def tier_ring(x, z, width, tier):
     torus((x, 0, z + 0.03), width, 0.045 + 0.01 * tier, real.glow("TierRing", TIER_COLORS[tier], 1.5 + tier * 1.5))
 
 
+@in_role("fx")
 def motes(info, color, count, strength=10.0, spread=0.55, size=0.04):
     cx, cy, cz = info["center"]
     radius = info["radius"] + spread
@@ -446,6 +488,7 @@ def pack(info, color, armour):
         info["shells"].append(pill((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
 
 
+@in_role("wing")
 def wings(info, color, size, gold=False):
     """Tier 3+: two pairs of swept energy wings behind the pet."""
     cx, cy, cz = info["center"]
@@ -461,6 +504,7 @@ def wings(info, color, size, gold=False):
             sphere((wx, cy + r * 0.55, wz), (0.86 * length * size, 0.02, 0.05 * size), edge, 24, rotation)
 
 
+@in_role("orbit")
 def orbit(info, color, tilt, extra=0.45, thickness=0.02):
     cx, cy, cz = info["center"]
     torus((cx, cy, cz), info["radius"] + extra, thickness, real.glow("Orbit", color, 8.0), (math.radians(tilt), math.radians(-tilt * 0.6), 0))
@@ -481,6 +525,7 @@ def crown(info):
         sphere(tuple(base + out * height), (0.055, 0.055, 0.055), real.glow("Gem", gem, 12.0), 12)
 
 
+@in_role("rays")
 def sunburst(info, long_colour=(1.0, 0.78, 0.3), short_colour=(1.0, 0.92, 0.6)):
     """Tier 4: rays fanning out behind the pet, like a medal (golden, or fire on a meteor)."""
     cx, cy, cz = info["center"]
@@ -505,6 +550,23 @@ def meteor_fire(info, tier):
     it and embers. Each grows with the tier, like the outfit."""
     cx, cy, cz = info["center"]
     r = info["radius"]
+    with role("fx"):
+        _comet(cx, cy, cz, r, tier)
+    # Burning rocks circling, each with its own little tail.
+    rock = real.molten("MeteorRock")
+    with role("orbit"):
+        for index in range(2 + tier):
+            angle = index / (2 + tier) * math.tau + 0.7
+            where = Vector((cx + math.cos(angle) * (r + 0.55), cy + math.sin(angle) * (r + 0.2), cz + 0.35 + 0.35 * math.sin(index * 2.3)))
+            size = 0.13 + 0.03 * (index % 2)
+            gem(tuple(where), (size, size * 0.85, size * 0.9), rock, (index, index * 0.7, 0))
+            heading = Vector((-math.sin(angle), math.cos(angle), 0)).normalized()
+            cone(tuple(where - heading * size * 0.4), size * 0.8, 0.45, real.glow("RockTail", FIRE, 3.5), tuple(-heading))
+    motes(info, (1.0, 0.5, 0.1), 14 + tier * 4, 12.0, 0.5, 0.05)
+
+
+def _comet(cx, cy, cz, r, tier):
+    """A meteor's comet tail and the flame tongues over its back."""
     # The comet tail: tapered flames streaming back, longest in the middle.
     count = 5 + tier
     for index in range(count):
@@ -519,16 +581,6 @@ def meteor_fire(info, tier):
         angle = math.pi * (0.15 + 0.7 * index / max(2 + tier, 1))
         base = (cx + math.cos(angle) * r * 0.7, cy + 0.2, cz + math.sin(angle) * r * 0.55)
         cone(base, 0.1, 0.35 + 0.08 * tier, real.glow("Tongue", (1.0, 0.55, 0.12), 4.0), (math.cos(angle) * 0.6, 0.4, 1))
-    # Burning rocks circling, each with its own little tail.
-    rock = real.molten("MeteorRock")
-    for index in range(2 + tier):
-        angle = index / (2 + tier) * math.tau + 0.7
-        where = Vector((cx + math.cos(angle) * (r + 0.55), cy + math.sin(angle) * (r + 0.2), cz + 0.35 + 0.35 * math.sin(index * 2.3)))
-        size = 0.13 + 0.03 * (index % 2)
-        gem(tuple(where), (size, size * 0.85, size * 0.9), rock, (index, index * 0.7, 0))
-        heading = Vector((-math.sin(angle), math.cos(angle), 0)).normalized()
-        cone(tuple(where - heading * size * 0.4), size * 0.8, 0.45, real.glow("RockTail", FIRE, 3.5), tuple(-heading))
-    motes(info, (1.0, 0.5, 0.1), 14 + tier * 4, 12.0, 0.5, 0.05)
 
 
 # --- Zone flair: the harder the zone, the richer ------------------------------------------------
@@ -566,6 +618,7 @@ def flair_ice(info, theme, tier):
 PLANETS = [(0.95, 0.55, 0.3), (0.4, 0.8, 1.0), (0.85, 0.4, 1.0), (1.0, 0.85, 0.45), (0.5, 1.0, 0.7)]
 
 
+@in_role("fx")
 def twinkle(location, size, colour, strength=12.0):
     """A four-pointed sparkle facing the viewer."""
     mat = real.glow("Twinkle", colour, strength)
@@ -576,6 +629,7 @@ def twinkle(location, size, colour, strength=12.0):
     sphere(location, (size * 0.22,) * 3, mat, 12)
 
 
+@in_role("fx")
 def flair_nebula(info, theme, tier):
     """Red Nebula: embers and sparks rising off the pet like heat, more with each tier."""
     cx, cy, cz = info["center"]
@@ -594,6 +648,7 @@ def flair_nebula(info, theme, tier):
         twinkle((cx + math.cos(angle) * r * 0.9, cy - 0.3, cz + 0.6 + 0.35 * index), 0.18, (1.0, 0.7, 0.4))
 
 
+@in_role("fx")
 def flair_horizon(info, theme, tier):
     """Event Horizon: a little spiral galaxy of stars turning round the pet, with twinkles."""
     cx, cy, cz = info["center"]
@@ -613,10 +668,11 @@ def flair_horizon(info, theme, tier):
         reach = r * (1.0 + 0.25 * (index % 2))
         twinkle((cx + math.cos(angle) * reach, cy - 0.4, cz + 0.2 + 0.5 * math.sin(index * 1.7)), 0.16 + 0.03 * (index % 3), colours[index % 4], 14.0)
     if tier >= 2:
-        for index in range(tier - 1):
-            angle = 2.0 + index * 2.6
-            colour = PLANETS[index % len(PLANETS)]
-            sphere((cx + math.cos(angle) * r * 1.35, cy + math.sin(angle) * r * 0.8, cz + 0.45), (0.1,) * 3, real.gloss("Planet", colour, 0.3), 16)
+        with role("orbit"):
+            for index in range(tier - 1):
+                angle = 2.0 + index * 2.6
+                colour = PLANETS[index % len(PLANETS)]
+                sphere((cx + math.cos(angle) * r * 1.35, cy + math.sin(angle) * r * 0.8, cz + 0.45), (0.1,) * 3, real.gloss("Planet", colour, 0.3), 16)
 
 
 FLAIR = {"debris": flair_debris, "ice": flair_ice, "nebula": flair_nebula, "horizon": flair_horizon}

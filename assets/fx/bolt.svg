@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter></defs>
+  <polyline points="150,8 104,96 150,112 92,180 128,190 84,250" fill="none" stroke="#fff" stroke-width="22" stroke-linejoin="round" stroke-linecap="round" opacity="0.6" filter="url(#glow)"/>
+  <polyline points="150,8 104,96 150,112 92,180 128,190 84,250" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+  <polyline points="104,96 60,120 40,108" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+  <polyline points="150,112 196,140 214,132" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+</svg>

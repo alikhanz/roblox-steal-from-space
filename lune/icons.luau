@@ -1,6 +1,7 @@
 --!strict
--- `lune run icons`: renders the UI icons and sprites (assets/ui/icons, assets/ui/sprites, white
--- SVG) to PNG in build/icons with headless Chrome, the same renderer as the HTML mockups.
+-- `lune run icons`: renders the UI icons and sprites (assets/ui/icons, assets/ui/sprites) and the
+-- effect textures (assets/fx), all white SVG, to PNG in build/icons with headless Chrome, the same
+-- renderer as the HTML mockups.
 -- `lune run icons serve`: serves build/icons on localhost so Studio can upload the PNGs
 -- (Studio MCP upload_image); the asset ids then go into src/client/UI/Icons.luau.
 
@@ -16,6 +17,8 @@ local SOURCES = {
 	-- Icons get a soft glow of their own colour (it is tinted with the icon in game).
 	{ dir = "assets/ui/icons", glow = true },
 	{ dir = "assets/ui/sprites", glow = false },
+	-- Particle and beam textures for the aliens' effects: white, tinted by the emitter in game.
+	{ dir = "assets/fx", glow = false },
 }
 local SIZE = 256
 local GLOW = "drop-shadow(0 0 7px rgba(255, 255, 255, 0.45))"
