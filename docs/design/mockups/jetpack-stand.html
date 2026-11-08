@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Стенд джетпака</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark;
+  --metal: #3a4370; --metal-dark: #222849; --floor: #2c3248; --trainer: #FFD34A; --flame: #ff9a3c; --flame-hot: #ffe08a; --pilot: #5fd4ff; --speed: #FFD34A; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 74ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.panel { background: #0d1130; border: 1px solid #2a3156; border-radius: 22px; padding: 14px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 760px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+.cap { font-size: 14px; color: var(--muted-page); text-align: center; margin-top: 6px; }
+.cap b { color: var(--ink); }
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: "Nunito", sans-serif; font-weight: 900; }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul, .notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff2b0"/><stop offset=".35" stop-color="#ffb04a"/><stop offset="1" stop-color="#ff5a1e" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="grate" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#ffb04a" stop-opacity=".9"/><stop offset="1" stop-color="#ff5a1e" stop-opacity="0"/>
+    </radialGradient>
+    <!-- The stand seen from the side, 1 unit = 1 stud, floor at y = 0; the player faces right
+         (the island's center). Flame length is set per use with a scale. -->
+    <g id="stand-side">
+      <rect x="-3.6" y="-.25" width="2.6" height=".25" fill="#1b2140" stroke="#ff9a3c" stroke-opacity=".5" stroke-width=".05"/>
+      <ellipse cx="0" cy="-.3" rx="3" ry=".3" fill="var(--metal-dark)"/>
+      <rect x="-3" y="-.6" width="6" height=".6" fill="var(--metal)"/>
+      <rect x="-1.7" y="-5" width=".35" height="4.4" fill="var(--metal)"/>
+      <rect x="-1.9" y="-4.6" width="1.1" height=".35" fill="var(--metal)"/>
+      <rect x="1.2" y="-3" width=".25" height="2.4" fill="var(--metal)"/>
+      <rect x=".4" y="-3.1" width="1.2" height=".22" rx=".1" fill="#5a648f"/>
+    </g>
+    <g id="player-side">
+      <rect x="-.45" y="-5.6" width=".9" height="1" rx=".3" fill="#f2f2f2"/>
+      <rect x="-.5" y="-4.6" width="1" height="1.9" rx=".25" fill="#7a9a6a"/>
+      <rect x="-.45" y="-2.7" width=".9" height="2.1" rx=".2" fill="#4b6cb0"/>
+      <rect x="-1.25" y="-4.5" width=".7" height="1.7" rx=".3" fill="#9aa3c2"/>
+      <path d="M.2 -4.3 L1 -3.1" stroke="#f2f2f2" stroke-width=".35" stroke-linecap="round"/>
+    </g>
+    <g id="flame-side">
+      <path d="M-1.1 -2.8 q-.45 .9 -.25 1.9 q.25 -.9 .5 -1.9z" fill="url(#flame)" transform="rotate(18 -1 -2.8)"/>
+    </g>
+  </defs>
+</svg>
+<div class="page">
+  <section class="intro">
+    <h1>Стенд джетпака</h1>
+    <p>Тренажёр становится <b>испытательным стендом</b>: подошёл — игра сама ставит тебя на площадку и пристёгивает джетпак к раме. Ты держишься за поручни, джетпак ревёт, тебя потряхивает, ⚡ растёт. Шагнул или прыгнул — сошёл.</p>
+    <p>В масштабе (1 клетка — 1 stud). Грейбокс: настоящая модель стенда — на арт-проходе.</p>
+  </section>
+
+  <figure>
+    <div class="grid2">
+      <div class="panel">
+        <svg viewBox="-6 -7 12 7.6" role="img" aria-label="Стенд сбоку, игрок на нём">
+          <g stroke="#151a3a" stroke-width=".02">
+            <line x1="-6" y1="-1" x2="6" y2="-1"/><line x1="-6" y1="-2" x2="6" y2="-2"/><line x1="-6" y1="-3" x2="6" y2="-3"/><line x1="-6" y1="-4" x2="6" y2="-4"/><line x1="-6" y1="-5" x2="6" y2="-5"/><line x1="-6" y1="-6" x2="6" y2="-6"/>
+          </g>
+          <rect x="-6" y="0" width="12" height=".6" fill="var(--floor)"/>
+          <ellipse cx="-2.3" cy="-.1" rx="1.6" ry=".35" fill="url(#grate)"/>
+          <use href="#stand-side"/>
+          <g transform="translate(0 -.6)">
+            <use href="#flame-side" transform="translate(-.2 0) scale(1.6) translate(.4 1.2)"/>
+            <use href="#player-side"/>
+          </g>
+          <text x="3.6" y="-3.1" font-size=".42" fill="var(--muted-page)">поручни</text>
+          <text x="-4.9" y="-5.2" font-size=".42" fill="var(--muted-page)">рама</text>
+          <text x="-5.6" y="-.45" font-size=".42" fill="#ffb04a">решётка</text>
+          <text x="1.5" y="-6.6" font-size=".42" fill="var(--muted-page)">к центру острова →</text>
+          <g font-size=".5" fill="var(--speed)"><text x="-.9" y="-6.4">+6 ⚡</text></g>
+        </svg>
+        <div class="cap"><b>Сбоку.</b> Площадка радиусом 3; рама за спиной держит джетпак; поручни спереди; пламя бьёт в решётку на полу, она светится.</div>
+      </div>
+      <div class="panel">
+        <svg viewBox="-4 -7 8 7.6" role="img" aria-label="Стенд спереди, игрок на нём">
+          <rect x="-4" y="0" width="8" height=".6" fill="var(--floor)"/>
+          <rect x="-3" y="-.6" width="6" height=".6" fill="var(--metal)"/>
+          <!-- Frame behind: two pillars and a bar. -->
+          <rect x="-1.6" y="-5.6" width=".35" height="5" fill="var(--metal)"/>
+          <rect x="1.25" y="-5.6" width=".35" height="5" fill="var(--metal)"/>
+          <rect x="-1.6" y="-4.9" width="3.2" height=".3" fill="var(--metal)"/>
+          <!-- Flames under the jetpack, behind the legs. -->
+          <path d="M-.55 -2.9 q-.35 1.2 0 2.3 q.35 -1.1 0 -2.3z" fill="url(#flame)"/>
+          <path d="M.55 -2.9 q-.35 1.2 0 2.3 q.35 -1.1 0 -2.3z" fill="url(#flame)"/>
+          <!-- Player facing us. -->
+          <rect x="-.45" y="-6.2" width=".9" height="1" rx=".3" fill="#f2f2f2"/>
+          <rect x="-.6" y="-5.2" width="1.2" height="1.9" rx=".25" fill="#7a9a6a"/>
+          <rect x="-.6" y="-3.3" width=".55" height="2.7" rx=".2" fill="#4b6cb0"/>
+          <rect x=".05" y="-3.3" width=".55" height="2.7" rx=".2" fill="#4b6cb0"/>
+          <path d="M-.6 -5 L-1.2 -3.4 M.6 -5 L1.2 -3.4" stroke="#f2f2f2" stroke-width=".3" stroke-linecap="round"/>
+          <!-- Rails in front, at the hands. -->
+          <rect x="-1.5" y="-3.5" width="3" height=".2" rx=".1" fill="#5a648f"/>
+          <rect x="-1.45" y="-3.4" width=".2" height="2.8" fill="var(--metal)"/>
+          <rect x="1.25" y="-3.4" width=".2" height="2.8" fill="var(--metal)"/>
+          <!-- Shake marks. -->
+          <g stroke="var(--muted-page)" stroke-width=".07" stroke-linecap="round" opacity=".8">
+            <path d="M-1.1 -6 l-.35 -.15 M-1.15 -5.6 l-.4 0 M1.1 -6 l.35 -.15 M1.15 -5.6 l.4 0"/>
+          </g>
+        </svg>
+        <div class="cap"><b>Спереди.</b> Руки на поручнях, джетпак пристёгнут к раме, пламя вниз за ногами; персонажа мелко трясёт (по кругу).</div>
+      </div>
+    </div>
+    <figcaption><b>1. Стенд с игроком.</b> Стоит на месте жёлтого кольца (слева от спавна, рядом с терминалом тренажёра). Игрок — лицом к центру острова: видит своих пришельцев, камера сзади видит пламя.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="grid3">
+      <div class="panel">
+        <svg viewBox="-4 -7 7 7.6"><rect x="-4" y="0" width="7" height=".6" fill="var(--floor)"/><use href="#stand-side"/>
+          <circle cx="-1.25" cy="-4.4" r=".18" fill="var(--pilot)"/><circle cx="-1.25" cy="-4.4" r=".45" fill="var(--pilot)" opacity=".25"/></svg>
+        <div class="cap"><b>Пустой.</b> Дежурный синий огонёк, решётка тёмная.</div>
+      </div>
+      <div class="panel">
+        <svg viewBox="-4 -7 7 7.6"><rect x="-4" y="0" width="7" height=".6" fill="var(--floor)"/>
+          <ellipse cx="-2.3" cy="-.1" rx="1" ry=".25" fill="url(#grate)" opacity=".6"/><use href="#stand-side"/>
+          <g transform="translate(0 -.6)"><use href="#flame-side"/><use href="#player-side"/></g></svg>
+        <div class="cap"><b>Уровень 0.</b> Пламя короткое, как в полёте на малой скорости.</div>
+      </div>
+      <div class="panel">
+        <svg viewBox="-4 -7 7 7.6"><rect x="-4" y="0" width="7" height=".6" fill="var(--floor)"/>
+          <ellipse cx="-2.3" cy="-.1" rx="1.9" ry=".45" fill="url(#grate)"/><use href="#stand-side"/>
+          <g transform="translate(0 -.6)"><use href="#flame-side" transform="translate(-.2 0) scale(2.2) translate(.55 1.5)"/><use href="#player-side"/></g></svg>
+        <div class="cap"><b>Уровень 20+.</b> Пламя ×3, решётка светится ярко.</div>
+      </div>
+    </div>
+    <figcaption><b>2. Пламя по уровню тренажёра.</b> Растёт плавно (по логарифму уровня) до ×3 к 20-му уровню: улучшение видно не только цифрой на терминале.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="grid3">
+      <div class="panel">
+        <svg viewBox="-5 -7 9 7.6"><rect x="-5" y="0" width="9" height=".6" fill="var(--floor)"/><use href="#stand-side"/>
+          <g transform="translate(3 0)"><use href="#player-side"/></g>
+          <path d="M2.2 -2.6 L1 -2.6" stroke="#fff" stroke-width=".12" marker-end="url(#)"/><path d="M1.1 -2.85 L.8 -2.6 L1.1 -2.35" fill="none" stroke="#fff" stroke-width=".12"/></svg>
+        <div class="cap"><b>Подошёл.</b> Хозяин заходит в зону стенда — кнопок не надо.</div>
+      </div>
+      <div class="panel">
+        <svg viewBox="-5 -7 9 7.6"><rect x="-5" y="0" width="9" height=".6" fill="var(--floor)"/>
+          <ellipse cx="-2.3" cy="-.1" rx="1.3" ry=".3" fill="url(#grate)"/><use href="#stand-side"/>
+          <g transform="translate(0 -.6)"><use href="#flame-side" transform="translate(-.2 0) scale(1.3) translate(.25 .7)"/><use href="#player-side"/></g>
+          <text x="-.2" y="-6.4" font-size=".5" fill="var(--speed)">+6 ⚡</text></svg>
+        <div class="cap"><b>Пристегнуло.</b> Плавно встал на площадку (0,3 с), пламя, тряска, «+N ⚡».</div>
+      </div>
+      <div class="panel">
+        <svg viewBox="-5 -7 9 7.6"><rect x="-5" y="0" width="9" height=".6" fill="var(--floor)"/><use href="#stand-side"/>
+          <g transform="translate(3.2 -.8)"><use href="#player-side"/></g>
+          <path d="M1.3 -1.6 q1 -1.4 1.8 -.6" fill="none" stroke="#fff" stroke-width=".1"/></svg>
+        <div class="cap"><b>Сошёл.</b> Прыжок или шаг — сходит вперёд. Снова пристегнёт, только когда выйдет из зоны и зайдёт опять.</div>
+      </div>
+    </div>
+    <figcaption><b>3. Как встать и сойти.</b> Пристёгивает только хозяина: гость на чужом стенде просто стоит рядом.</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Что меняется</h2>
+      <ul>
+        <li>Вместо жёлтого кольца — стенд; кольцо и зона на полу остаются ориентиром.</li>
+        <li>⚡ растёт, только пока игрок пристёгнут к стенду.</li>
+        <li>Анимацию стенда загружаю сам (Save to Roblox), как полёт и удар.</li>
+        <li>Звук рёва — на арт-проходе.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Вопросы</h2>
+      <ol>
+        <li>Сходить — прыжком и шагом, или только прыжком? Предлагаю и то, и другое.</li>
+        <li>Лицом к центру острова (видишь пришельцев, камера видит пламя) или к спавну?</li>
+      </ol>
+    </div>
+  </section>
+</div>
+</body>
+</html>

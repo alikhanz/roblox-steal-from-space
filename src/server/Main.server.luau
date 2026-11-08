@@ -137,7 +137,6 @@ trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
 trainingDependencies.scheduler = scheduler
 trainingDependencies.bayAssigned = bayService.assigned
-trainingDependencies.getBayOrigin = bayService.getOrigin
 trainingDependencies.publishSpeed = speedService.publish
 trainingDependencies.trainerUpgraded = economyService.trainerUpgraded
 local jetpackService = JetpackService.new({

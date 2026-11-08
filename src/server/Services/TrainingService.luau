@@ -1,7 +1,8 @@
 --!strict
--- The trainer pad in every bay: while the owner stands on it, their trained speed grows a few
--- times a second. The profile holds the level; the bay model carries it as an attribute for
--- the sign over the pad, whose button buys the next level (an UpgradeTrainer command).
+-- The trainer in every bay, the jetpack stand (docs/design/screens/jetpack-stand.md): while it
+-- holds its owner, their trained speed grows a few times a second. The simulation pulls the
+-- owner on and lets them off (Domain/Stand). The profile holds the level; the bay model carries
+-- it for the trainer's terminal, whose button buys the next level (an UpgradeTrainer command).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,7 +15,8 @@ local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
-local Trainer = require(ReplicatedStorage.Shared.Domain.Trainer)
+local Stand = require(ReplicatedStorage.Shared.Domain.Stand)
+local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 
@@ -24,7 +26,6 @@ export type Dependencies = {
 	scheduler: Scheduler.Scheduler,
 	-- A player got their bay (its model holds the trainer pad).
 	bayAssigned: Signal.Signal<Player, Model>,
-	getBayOrigin: (player: Player) -> CFrame?,
 	-- Re-publishes the speed stat after the trained speed changed.
 	publishSpeed: (player: Player) -> (),
 	trainerUpgraded: Signal.Signal<Player>,
@@ -47,10 +48,13 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 	local stations: { [Player]: Station } = {}
 	local trained = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number>
 
-	-- The level on the bay model: the sign over the pad reads it.
+	-- The level on the bay model (the trainer's terminal reads it) and on the player (the
+	-- stand's flame grows with it).
 	local function describe(player: Player, station: Station)
 		local data = dependencies.getData(player)
-		station.model:SetAttribute(BayConfig.TRAINER_LEVEL_ATTRIBUTE, if data then data.trainerLevel else 0)
+		local level = if data then data.trainerLevel else 0
+		station.model:SetAttribute(BayConfig.TRAINER_LEVEL_ATTRIBUTE, level)
+		player:SetAttribute(StandConfig.TRAINER_LEVEL_ATTRIBUTE, level)
 	end
 
 	local function onBayAssigned(player: Player, model: Model)
@@ -67,19 +71,13 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 		stations[player] = nil
 	end
 
-	-- True while the owner's character stands on their pad (not flying, not jumping over it).
+	-- True while the owner's jetpack stand holds them (the simulation decides it: Domain/Stand).
 	local function isTraining(player: Player): boolean
-		local origin = dependencies.getBayOrigin(player)
 		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if not origin or not character or not root or not root:IsA("BasePart") then
+		if not character or character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true then
 			return false
 		end
-		if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true then
-			return false
-		end
-		local local_ = origin:PointToObjectSpace(root.Position)
-		return Trainer.isOnPad(local_.X, local_.Y, local_.Z, BayConfig.TRAINER_PAD, BayConfig.TRAINER_TOLERANCE)
+		return Stand.isTraining(Stand.parse(character:GetAttribute(StandConfig.STATE_ATTRIBUTE)))
 	end
 
 	local function tick(deltaTime: number)

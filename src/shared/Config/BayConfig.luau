@@ -82,6 +82,9 @@ return table.freeze({
 	INCUBATOR_TERMINAL_NAME = "IncubatorTerminal",
 	TRAINER_TERMINAL_NAME = "TrainerTerminal",
 	TERMINAL_SCREEN_NAME = "Screen",
+	-- The jetpack stand's parts the client lights up (docs/design/screens/jetpack-stand.md).
+	STAND_GRATE_NAME = "StandGrate",
+	STAND_PILOT_NAME = "StandPilot",
 	-- On the bay model: the owner's trainer level and pod count, for the terminals.
 	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
 	POD_COUNT_ATTRIBUTE = "PodCount",

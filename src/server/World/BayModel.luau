@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local PlaceLayout = require(ReplicatedStorage.Shared.Domain.PlaceLayout)
+local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 
 local BayModel = {}
@@ -217,23 +218,86 @@ function BayModel.floorCFrame(origin: CFrame, index: number): CFrame
 	return origin * CFrame.lookAt(at, Vector3.new(0, 0, 0))
 end
 
--- The trainer zone: an outline on the floor (a dark disc inside a glowing ring), nothing to
--- climb. The prompt and the sign hang on the disc.
-local function buildTrainer(origin: CFrame, parent: Instance)
+-- A box of the stand at `cframe`.
+local function standPart(name: string, size: Vector3, cframe: CFrame, color: Color3, parent: Instance): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = cframe
+	part.Material = Enum.Material.Metal
+	part.Color = color
+	scenery(part)
+	part.Parent = parent
+	return part
+end
+
+-- The jetpack stand on the trainer's pad (docs/design/screens/jetpack-stand.md): its platform
+-- (the part the tutorial and the terminal point at), the frame behind the rider, the rail in
+-- front, pilot lights and the blast grate. The simulation pulls the owner onto the platform.
+local function buildStand(origin: CFrame, parent: Instance)
 	local pad = BayConfig.TRAINER_PAD
 	local center = origin * CFrame.new(pad.x, 0, pad.z)
+	local frame = origin * CFrame.lookAt(Vector3.new(pad.x, 0, pad.z), Vector3.zero)
+	local height = StandConfig.PLATFORM_HEIGHT
 
-	local plate = disc(
-		BayConfig.TRAINER_NAME,
-		center * CFrame.new(0, BayLooks.TRAINER_HEIGHT / 2, 0),
-		pad.radius,
-		BayLooks.TRAINER_HEIGHT
+	local platform = disc(BayConfig.TRAINER_NAME, center * CFrame.new(0, height / 2, 0), pad.radius, height)
+	platform.Material = Enum.Material.DiamondPlate
+	platform.Color = BayLooks.STAND_COLOR
+	scenery(platform)
+	platform.Parent = parent
+
+	local pillar = BayLooks.STAND_PILLAR_SIZE
+	for _, side in { -1, 1 } do
+		local x = side * BayLooks.STAND_PILLAR_X
+		standPart(
+			"StandPillar",
+			pillar,
+			frame * CFrame.new(x, height + pillar.Y / 2, BayLooks.STAND_FRAME_Z),
+			BayLooks.STAND_COLOR,
+			parent
+		)
+		local pilot = standPart(
+			BayConfig.STAND_PILOT_NAME,
+			Vector3.one * BayLooks.STAND_PILOT_SIZE,
+			frame * CFrame.new(x, height + BayLooks.STAND_PILOT_HEIGHT, BayLooks.STAND_FRAME_Z - pillar.Z),
+			BayLooks.STAND_PILOT_COLOR,
+			parent
+		)
+		pilot.Shape = Enum.PartType.Ball
+		pilot.Material = Enum.Material.Neon
+		pilot.CanCollide = false
+
+		local post = BayLooks.STAND_RAIL_THICKNESS
+		local postHeight = BayLooks.STAND_RAIL_HEIGHT
+		local postAt = CFrame.new(side * BayLooks.STAND_RAIL_X, height + postHeight / 2, BayLooks.STAND_RAIL_Z)
+		standPart("StandRailPost", Vector3.new(post, postHeight, post), frame * postAt, BayLooks.STAND_COLOR, parent)
+	end
+	standPart(
+		"StandBar",
+		Vector3.new(BayLooks.STAND_PILLAR_X * 2 + pillar.X, pillar.X, pillar.Z),
+		frame * CFrame.new(0, height + BayLooks.STAND_BAR_HEIGHT, BayLooks.STAND_FRAME_Z),
+		BayLooks.STAND_COLOR,
+		parent
 	)
-	plate.Material = Enum.Material.SmoothPlastic
-	plate.Color = BayLooks.TRAINER_COLOR
-	plate.CanCollide = false
-	scenery(plate)
-	plate.Parent = parent
+	local rail = BayLooks.STAND_RAIL_THICKNESS
+	standPart(
+		"StandRail",
+		Vector3.new(BayLooks.STAND_RAIL_X * 2 + rail, rail, rail),
+		frame * CFrame.new(0, height + BayLooks.STAND_RAIL_HEIGHT, BayLooks.STAND_RAIL_Z),
+		BayLooks.STAND_RAIL_COLOR,
+		parent
+	)
+
+	local grate = BayLooks.STAND_GRATE_SIZE
+	local blast = standPart(
+		BayConfig.STAND_GRATE_NAME,
+		grate,
+		frame * CFrame.new(0, grate.Y / 2, BayLooks.STAND_GRATE_Z),
+		BayLooks.STAND_GRATE_COLOR,
+		parent
+	)
+	blast.Material = Enum.Material.Neon
+	blast.CanCollide = false
 
 	local ring = disc(
 		"TrainerRing",
@@ -424,7 +488,7 @@ function BayModel.build(slot: number, origin: CFrame): Model
 	scenery(incubator)
 	incubator.Parent = model
 
-	buildTrainer(origin, model)
+	buildStand(origin, model)
 
 	local places = BayLooks.PLACES_TERMINAL_POSITION
 	local hatchery = BayLooks.INCUBATOR_TERMINAL_POSITION

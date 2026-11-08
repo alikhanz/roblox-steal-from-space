@@ -105,16 +105,38 @@ return table.freeze({
 	WAITING_RING_SLOTS = 24,
 	WAITING_RING_STEP = 2,
 
-	-- The trainer zone (its place and size are in BayConfig.TRAINER_PAD): an outline on the
-	-- floor, a dark disc inside a glowing ring. Placeholder: the real trainer comes with the art
-	-- pass.
-	TRAINER_HEIGHT = 0.1,
-	TRAINER_COLOR = Color3.fromRGB(44, 50, 72),
+	-- The trainer zone (its place and size are in BayConfig.TRAINER_PAD): a glowing ring round
+	-- the jetpack stand's platform, and its zone line.
 	TRAINER_RING_WIDTH = 0.35,
 	TRAINER_RING_HEIGHT = 0.06,
 	TRAINER_RING_COLOR = Color3.fromRGB(255, 214, 90),
 	-- The trainer's zone line, this far around the pad.
 	TRAINER_ZONE_MARGIN = 2,
+
+	-- The jetpack stand on the trainer's pad (docs/design/screens/jetpack-stand.md), in its own
+	-- frame: -Z toward the island's center (where its rider faces), +Z behind. The platform is
+	-- the pad (BayConfig.TRAINER_PAD), StandConfig.PLATFORM_HEIGHT high. Greybox.
+	STAND_COLOR = Color3.fromRGB(58, 67, 112),
+	STAND_RAIL_COLOR = Color3.fromRGB(90, 100, 143),
+	-- The frame behind the rider: two pillars and a bar at back height.
+	STAND_PILLAR_SIZE = Vector3.new(0.35, 4.8, 0.35),
+	STAND_PILLAR_X = 1.4,
+	STAND_FRAME_Z = 1.2,
+	STAND_BAR_HEIGHT = 4.3,
+	-- The rail in front, at the rider's hands.
+	STAND_RAIL_X = 1.3,
+	STAND_RAIL_Z = -1.3,
+	STAND_RAIL_HEIGHT = 2.6,
+	STAND_RAIL_THICKNESS = 0.24,
+	-- The pilot lights at the foot of the pillars: lit while the stand is empty.
+	STAND_PILOT_SIZE = 0.35,
+	STAND_PILOT_HEIGHT = 0.9,
+	STAND_PILOT_COLOR = Color3.fromRGB(95, 212, 255),
+	-- The blast grate on the floor behind the stand: glows while the jetpack fires into it.
+	STAND_GRATE_SIZE = Vector3.new(3.2, 0.08, 2.2),
+	STAND_GRATE_Z = 3.4,
+	STAND_GRATE_COLOR = Color3.fromRGB(40, 30, 30),
+	STAND_GRATE_HOT_COLOR = Color3.fromRGB(255, 140, 50),
 
 	-- The floor: a tray on the right of a player who walks in from the spawn, where aliens with no
 	-- place stand, all small (the first guardian's size) until placed, in a grid filled from the

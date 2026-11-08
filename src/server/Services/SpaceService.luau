@@ -20,6 +20,7 @@ local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local RigPose = require(script.Parent.Parent.Character.RigPose)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
+local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 
 local PART_WAIT_TIMEOUT = 10
 -- Parts the jetpack attaches to; the character is only equipped once all of them exist.
@@ -155,6 +156,13 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 			local animation = Instance.new("Animation")
 			animation.Name = PvpConfig.STRIKE_ANIMATION_INSTANCE_NAME
 			animation.AnimationId = PvpConfig.STRIKE_ANIMATION_ID
+			animation.Parent = character
+		end
+		-- The jetpack stand's training pose; without it the player trains in the default pose.
+		if StandConfig.ANIMATION_ID ~= "" then
+			local animation = Instance.new("Animation")
+			animation.Name = StandConfig.ANIMATION_INSTANCE_NAME
+			animation.AnimationId = StandConfig.ANIMATION_ID
 			animation.Parent = character
 		end
 	end

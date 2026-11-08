@@ -26,6 +26,7 @@ local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationC
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Tutorial = require(ReplicatedStorage.Shared.Domain.Tutorial)
 local TutorialConfig = require(ReplicatedStorage.Shared.Config.TutorialConfig)
@@ -378,6 +379,8 @@ function BayService.new(dependencies: Dependencies): BayService
 		end
 		slotOwners[slot] = player
 		reserved[player] = slot
+		-- The simulation finds the player's own jetpack stand by it (Domain/Stand).
+		player:SetAttribute(StandConfig.ISLAND_ATTRIBUTE, slot)
 		local spawn = dependencies.getIslandSpawn(slot)
 		if spawn then
 			player.RespawnLocation = spawn
@@ -411,6 +414,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	local function release(player: Player)
+		player:SetAttribute(StandConfig.ISLAND_ATTRIBUTE, nil)
 		local slot = reserved[player]
 		if slot then
 			reserved[player] = nil

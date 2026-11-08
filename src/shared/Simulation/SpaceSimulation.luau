@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Abilities = require("../Domain/Abilities")
+local BayConfig = require("../Config/BayConfig")
 local Bounds = require("../Domain/Bounds")
 local DevConfig = require("../Config/DevConfig")
 local EggConfig = require("../Config/EggConfig")
@@ -23,8 +24,11 @@ local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
 local PvpConfig = require("../Config/PvpConfig")
 local Speed = require("../Domain/Speed")
+local Stand = require("../Domain/Stand")
+local StandConfig = require("../Config/StandConfig")
 local StationConfig = require("../Config/StationConfig")
 local TopSpeed = require("./TopSpeed")
+local Trainer = require("../Domain/Trainer")
 local WorldConfig = require("../Config/WorldConfig")
 local Zones = require("../Domain/Zones")
 
@@ -275,6 +279,46 @@ local function walk(rig: Rig)
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 end
 
+-- The jetpack stand on the player's own island (docs/design/screens/jetpack-stand.md,
+-- Domain/Stand): pulls its owner onto the platform and holds them there facing the island's
+-- center until they jump or step away. True while it holds them (and they train).
+local function stand(player: Player, rig: Rig, context: Instance, inSpace: boolean): boolean
+	local character = rig.character
+	local previous = character:GetAttribute(StandConfig.STATE_ATTRIBUTE)
+	local island = player:GetAttribute(StandConfig.ISLAND_ATTRIBUTE)
+	local frame = if type(island) == "number" then StationConfig.ISLAND_FRAMES[island] else nil
+	local pad = BayConfig.TRAINER_PAD
+	local inZone = false
+	if frame and not inSpace then
+		local spot = frame:PointToObjectSpace(rig.root.Position)
+		inZone = Trainer.isOnPad(spot.X, spot.Y, spot.Z, pad, BayConfig.TRAINER_TOLERANCE)
+	end
+	local state = Stand.next(Stand.parse(previous), {
+		inZone = inZone,
+		moving = rig.humanoid.MoveDirection.Magnitude > StandConfig.LEAVE_MOVE_THRESHOLD,
+		jumping = rig.humanoid.Jump or FlightInputs.isPressed(context, FlightInputs.ASCEND),
+	})
+	if state ~= previous then
+		character:SetAttribute(StandConfig.STATE_ATTRIBUTE, state)
+	end
+	if not frame or not Stand.isTraining(state) then
+		return false
+	end
+
+	local platform = frame * Vector3.new(pad.x, StandConfig.PLATFORM_HEIGHT, pad.z)
+	local target = platform + Vector3.yAxis * (rig.humanoid.HipHeight + rig.root.Size.Y / 2)
+	if rig.velocity.MaxForce == 0 then
+		rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	end
+	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
+	rig.velocity.VectorVelocity =
+		Stand.pullVelocity(rig.root.Position, target, StandConfig.PULL_SECONDS, StandConfig.PULL_MAX_SPEED)
+	local toCenter = frame.Position - platform
+	rig.align.CFrame = CFrame.lookAlong(Vector3.zero, Vector3.new(toCenter.X, 0, toCenter.Z))
+	rig.align.MaxTorque = FlightConfig.MAX_FORCE
+	return true
+end
+
 local function breathe(player: Player, rig: Rig, inSpace: boolean, deltaTime: number)
 	local current = rig.character:GetAttribute(OxygenConfig.ATTRIBUTE)
 	local oxygen = if type(current) == "number" then current else OxygenConfig.CAPACITY
@@ -335,12 +379,14 @@ local function step(deltaTime: number)
 		-- Hands full with an egg: no strike.
 		local lunge = strike(rig, context, inSpace and hit == nil and not carrying, deltaTime)
 
+		local onStand = stand(player, rig, context, inSpace)
 		if inSpace then
 			fly(rig, context, deltaTime, target, hit, lunge)
-		else
+		elseif not onStand then
 			walk(rig)
 		end
 		setAnimation(rig, JetpackConfig.ANIMATION_INSTANCE_NAME, inSpace, JetpackConfig.ANIMATION_FADE_SECONDS)
+		setAnimation(rig, StandConfig.ANIMATION_INSTANCE_NAME, onStand, StandConfig.ANIMATION_FADE_SECONDS)
 		-- The punch starts with the lunge and plays out by itself.
 		setAnimation(
 			rig,
