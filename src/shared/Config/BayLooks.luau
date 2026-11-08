@@ -63,11 +63,13 @@ return table.freeze({
 	INCUBATOR_TERMINAL_POSITION = Vector3.new(0, 0, -17.5),
 	TRAINER_TERMINAL_POSITION = Vector3.new(17, 0, -46),
 	TERMINAL_FACES = Vector3.new(0, 0, -StationSize.ISLAND_SPAWN_DISTANCE),
-	TERMINAL_BASE_SIZE = Vector3.new(2.8, 0.3, 2.8),
-	TERMINAL_COLUMN_SIZE = Vector3.new(0.7, 3.1, 0.7),
-	TERMINAL_SCREEN_SIZE = Vector3.new(4, 3, 0.3),
-	-- The screen's center above the floor (a player's chest), and its tilt back, degrees.
-	TERMINAL_SCREEN_HEIGHT = 4.5,
+	TERMINAL_BASE_SIZE = Vector3.new(3.4, 0.3, 3.4),
+	TERMINAL_COLUMN_SIZE = Vector3.new(0.8, 3.4, 0.8),
+	-- Wide and big: on a phone the price must read from a few steps away (user, 2026-11-08). Its
+	-- width to height is the screen canvas's (UI/TerminalScreen).
+	TERMINAL_SCREEN_SIZE = Vector3.new(6, 4, 0.3),
+	-- The screen's center above the floor (a player's head), and its tilt back, degrees.
+	TERMINAL_SCREEN_HEIGHT = 5,
 	TERMINAL_SCREEN_TILT = 15,
 	-- The glowing frame round the screen and the glow under the base, studs past their part.
 	TERMINAL_FRAME_MARGIN = 0.15,

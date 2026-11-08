@@ -19,15 +19,15 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 local create = Vide.create
 
 local NEON = Theme.NEON
--- The canvas in screen pixels, as wide and high as the screen part (4 x 3 studs), scaled up to
--- fill it.
-local CANVAS = Vector2.new(160, 120)
+-- The canvas in screen pixels, in the screen part's proportions (BayLooks.TERMINAL_SCREEN_SIZE,
+-- 6 x 4 studs), scaled up to fill it.
+local CANVAS = Vector2.new(180, 120)
 local PIXELS_PER_STUD = 100
 -- Screens fade out beyond this distance, as the signs before them, studs.
 local MAX_DISTANCE = 80
-local TITLE_SIZE = 16
+local TITLE_SIZE = 17
 local VALUE_SIZE = 26
-local HINT_SIZE = 12
+local HINT_SIZE = 13
 local SCREEN_TOP = Color3.fromRGB(22, 32, 96)
 local SCREEN_BOTTOM = Color3.fromRGB(10, 13, 44)
 local DONE_COLOR = NEON.SHIELD
