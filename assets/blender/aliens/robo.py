@@ -231,7 +231,8 @@ def slime(x, z, theme, p=None):
     visor((x, -0.72 * w, dome_z), 0.42 * min(w, 1.15), 0.18, theme["eyes"])
     feet = [pill((x + side * 0.55 * w, -0.15, z + 0.1), (0.18, 0.28, 0.1), theme["accent_shell"]()) for side in (-1, 1)]
     top = dome_z + 0.9 * h + 0.05
-    return {"shells": [base] + feet, "top": (x, 0, top), "center": (x, 0, dome_z - 0.1), "radius": 0.9 * w, "width": 1.1 * w}
+    return {"shells": [base] + feet, "top": (x, 0, top), "center": (x, 0, dome_z - 0.1), "radius": 0.9 * w, "width": 1.1 * w,
+            "hull": ((x, 0, dome_z), (0.78 * w, 0.78 * w, 0.9 * h))}
 
 
 def crab(x, z, theme, p=None):
@@ -275,7 +276,8 @@ def crab(x, z, theme, p=None):
         pill((ccx, ccy - 0.39 * size, ccz - 0.15 * size), (0.1 * size, 0.2 * size, 0.07 * size), shell_mat, (math.radians(15), 0, 0))
         torus((ccx, ccy, ccz), 0.3 * size, 0.025, glow(theme["accent"]), (math.radians(90), 0, 0))
         shells += [arm, claw]
-    return {"shells": shells, "top": (x, 0.1, z + 1.75), "center": (x, 0, z + 0.85), "radius": 1.1 * w, "width": 1.65 * w}
+    return {"shells": shells, "top": (x, 0.1, z + 1.75), "center": (x, 0, z + 0.85), "radius": 1.1 * w, "width": 1.65 * w,
+            "hull": ((x, 0, z + 0.85), (1.0 * w, 0.8, 0.48))}
 
 
 def worm(x, z, theme, p=None):
@@ -350,7 +352,7 @@ def ray(x, z, theme, p=None):
     sphere((x, 0.92, z + 0.92 + lift), (0.1, 0.04, 0.1), glow(theme["accent"], 12.0), 24)
     sphere((x, 0.1, z + 0.12), (0.7 * span, 0.55, 0.02), real.aura("Hover", theme["accent"], 3.0, 0.3), 32)
     return {"shells": shells, "top": (x, 0.05, z + 1.6 + lift), "center": (x, 0.1, z + 0.85 + lift), "radius": 1.2 * span, "width": 1.75 * span,
-            "span": span, "lift": lift}
+            "span": span, "lift": lift, "hull": ((x, 0.05, z + 0.8 + lift), (0.62, 0.75, 0.32)), "shoulders": False}
 
 
 def drone(x, y, z, size, theme, shell_mat):
@@ -406,7 +408,8 @@ def whale(x, z, theme, p=None):
     sphere((x, 0.35 * s, cz + 0.6 * s), (0.4 * s, 0.45 * s, 0.12 * s), theme["core"](), 32)
     cylinder((x, 1.35 * s, cz + 0.1 * s), 0.22 * s, 0.25, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3), (math.radians(90), 0, 0))
     sphere((x, 1.5 * s, cz + 0.1 * s), (0.16 * s, 0.05, 0.16 * s), glow(theme["accent"], 12.0), 24)
-    return {"shells": [body], "top": (x, 0.15 * s, cz + 1.1 * s), "center": (x, 0.15 * s, cz), "radius": 1.2 * s, "width": 1.5 * s, "size": s}
+    return {"shells": [body], "top": (x, 0.15 * s, cz + 1.1 * s), "center": (x, 0.15 * s, cz), "radius": 1.2 * s, "width": 1.5 * s, "size": s,
+            "hull": ((x, 0.15 * s, cz), (0.95 * s, 1.2 * s, 0.85 * s))}
 
 
 FAMILIES = {"slime": slime, "crab": crab, "worm": worm, "ray": ray, "swarm": swarm, "whale": whale}
