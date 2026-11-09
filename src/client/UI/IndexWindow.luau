@@ -4,7 +4,7 @@
 -- the switch of the sections (the usual aliens, the meteor ones) and the four zones with how much
 -- of each is found. Middle: the six guardians of the picked zone, with their set's count and a
 -- dot where a reward waits. Right: the picked guardian's set, a row per kind (its name and a cell
--- per tier: an unknown alien is a dark "?", a found one is drawn in its tier's colour, a new one
+-- per tier; three rows fill the panel, a guardian with more kinds scrolls them: an unknown alien is a dark "?", a found one is drawn in its tier's colour, a new one
 -- glows gold until tapped for its reward) and the set's count, claim button or done mark under
 -- them. The footer counts the section and holds "Claim all". Data and texts come in ready from
 -- the controller; claims are requests to the server.
@@ -44,6 +44,9 @@ local ROW_GAP = 4
 local CELL_SIZE = 36
 local CELL_COLUMN = 39
 local SET_HEIGHT = 34
+-- Kind rows the panel shows at once; more scroll.
+local ROWS_SHOWN = 3
+local SCROLL_BAR = 4
 local ROW_PADDING = 8
 local CELL_CORNER = UDim.new(0, 9)
 -- The alien in a cell: a ball in its tier's colour with two dark eyes (like the greybox alien
@@ -598,8 +601,15 @@ local function cellsWidth(props: Props): number
 	return CELL_COLUMN * #props.tiers
 end
 
--- A kind of the picked guardian: its name, then a cell per tier.
-local function KindRowView(row: () -> KindRow?, order: number, props: Props): Frame
+-- A kind of the picked guardian: its name, then a cell per tier. `height` is a row's height in
+-- the window's pixels; `scrolls` is whether the list has a scroll bar to keep clear of.
+local function KindRowView(
+	row: () -> KindRow?,
+	order: number,
+	height: () -> number,
+	scrolls: () -> boolean,
+	props: Props
+): Frame
 	local cells = {}
 	for index = 1, #props.tiers do
 		table.insert(
@@ -619,8 +629,10 @@ local function KindRowView(row: () -> KindRow?, order: number, props: Props): Fr
 	name.TextWrapped = true
 	return create("Frame")({
 		Name = `Kind{order}`,
-		LayoutOrder = order + 1,
-		Size = UDim2.new(1, 0, 1 / 3, -(HEAD_HEIGHT + SET_HEIGHT + ROW_GAP * 4) / 3),
+		LayoutOrder = order,
+		Size = function()
+			return UDim2.new(1, if scrolls() then -(SCROLL_BAR + 2) else 0, 0, height())
+		end,
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = GLASS_TRANSPARENCY,
 		create("UICorner")({ CornerRadius = UDim.new(0, 9) }),
@@ -742,17 +754,63 @@ local function SetEnd(props: Props): Frame
 	}) :: Frame
 end
 
-local function SetPanel(props: Props): Frame
-	local rows = {}
-	for order = 1, 3 do
-		table.insert(
-			rows,
-			KindRowView(function()
-				local current = props.set()
-				return if current then current.kinds[order] else nil
-			end, order, props)
-		)
+-- The guardian's kinds, a row each: ROWS_SHOWN of them fill the space between the tier names and
+-- the set, more scroll. The rows' height is measured from the list's own: a canvas in scale
+-- units counts the window's UIScale twice (the rows came out a third too tall).
+local function Kinds(props: Props): ScrollingFrame
+	local function kinds(): { KindRow }
+		local current = props.set()
+		return if current then current.kinds else {}
 	end
+	local function scrolls(): boolean
+		return #kinds() > ROWS_SHOWN
+	end
+	local height = Vide.source(0)
+	local frame = create("ScrollingFrame")({
+		Name = "Kinds",
+		LayoutOrder = 2,
+		Size = UDim2.new(1, 0, 1, -(HEAD_HEIGHT + SET_HEIGHT + ROW_GAP * 2)),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		-- Three rows fill the list to the pixel's rounding: no bar or scrolling for them.
+		ScrollBarThickness = function()
+			return if scrolls() then SCROLL_BAR else 0
+		end,
+		ScrollingEnabled = scrolls,
+		ScrollBarImageColor3 = NEON.LINE,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Vertical,
+			Padding = UDim.new(0, ROW_GAP),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		indexes(kinds, function(row: () -> KindRow, order: number)
+			return KindRowView(row, order, height, scrolls, props)
+		end),
+	}) :: ScrollingFrame
+	-- AbsoluteSize counts the window's UIScale; the rows' offsets are in the window's own pixels.
+	local function measure()
+		local scale = 1
+		local ancestor = frame.Parent
+		while ancestor do
+			local uiScale = ancestor:FindFirstChildOfClass("UIScale")
+			if uiScale then
+				scale *= uiScale.Scale
+			end
+			ancestor = ancestor.Parent
+		end
+		height(math.max(0, math.floor((frame.AbsoluteSize.Y / scale - ROW_GAP * (ROWS_SHOWN - 1)) / ROWS_SHOWN)))
+	end
+	local connection = frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(measure)
+	Vide.cleanup(function()
+		connection:Disconnect()
+	end)
+	return frame
+end
+
+local function SetPanel(props: Props): Frame
 	return create("Frame")({
 		Name = "SetPanel",
 		AnchorPoint = Vector2.new(1, 0),
@@ -768,7 +826,7 @@ local function SetPanel(props: Props): Frame
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 		ColumnHeads(props),
-		rows,
+		Kinds(props),
 		SetEnd(props),
 	}) :: Frame
 end

@@ -390,9 +390,9 @@ function DevService.new(dependencies: Dependencies): DevService
 			return `added {BigNum.format(BigNum.fromNumber(amount))} coins`
 		end,
 		-- Gives the first player an alien of `grade` (guardian post number), `tier`, `variant` and
-		-- `kind`: its slot ("Main", "Second", "Rare") or a kind id ("droneRay"); the main kind by
-		-- default.
-		GiveAlien = function(grade: number?, tier: string?, variant: string?, kind: string?): string
+		-- `kind`: its place among the guardian's kinds (1 is the main one, 2 the second…) or a kind
+		-- id ("droneRay"); the main kind by default.
+		GiveAlien = function(grade: number?, tier: string?, variant: string?, kind: (number | string)?): string
 			local player = firstPlayerRoot()
 			if not player then
 				return "no player"
@@ -402,8 +402,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				gradeConfig.variants[(variant or "Normal") :: AlienConfig.VariantId],
 				`Unknown variant {variant}`
 			)
-			local slot = table.find(AlienConfig.KIND_SLOT_ORDER, (kind or "Main") :: AlienConfig.KindSlot)
-			local kindId = if slot then gradeConfig.kinds[slot] else kind :: string
+			local kindId = if typeof(kind) == "number" then gradeConfig.kinds[kind] else kind or gradeConfig.kinds[1]
 			local aliens = assert(byKind[kindId], `Unknown kind {kind} for grade {gradeConfig.index}`)
 			local alienId = assert(aliens[(tier or "Common") :: AlienConfig.TierId], `Unknown tier {tier}`)
 			local location = dependencies.addAlien(player, alienId)

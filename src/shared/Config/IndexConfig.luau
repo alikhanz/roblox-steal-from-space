@@ -20,8 +20,8 @@ local REWARD_MINUTES: { [AlienConfig.TierId]: number } = {
 }
 
 -- Every guardian's set in every variant, built from the one alien registry (AlienConfig): the
--- usual ones first, by grade, then the meteor ones. A set lists its kinds in slot order (main,
--- second, rare), each lowest tier first.
+-- usual ones first, by grade, then the meteor ones. A set lists its guardian's kinds in their order
+-- (the main one first), each lowest tier first; a guardian with more kinds has a bigger set.
 local SETS: { AlienIndex.Set } = {}
 local SETS_BY_ID: { [string]: AlienIndex.Set } = {}
 for _, variant in AlienConfig.VARIANT_ORDER do

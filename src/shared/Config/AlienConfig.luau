@@ -1,7 +1,7 @@
 --!strict
--- Aliens: what hatches from eggs. Every guardian post has a grade with three kinds of alien (its
--- baby, a second and a rare kind, decision 075), each in five tiers, that hatch only from its
--- eggs. Tiers differ in income and odds; kinds of one grade earn the same (they are for the
+-- Aliens: what hatches from eggs. Every guardian post has a grade with its own kinds of alien
+-- (its baby first, then the others, each with its own hatch odds: decisions 075, 080), each in
+-- five tiers, that hatch only from its eggs. Tiers differ in income and odds; kinds of one grade earn the same (they are for the
 -- collection); grades earn more the farther their guardian is from the station.
 
 local BigNum = require("../Domain/BigNum")
@@ -17,18 +17,27 @@ export type VariantId = "Normal" | "Meteor"
 export type AlienId = string
 -- A kind's id is the model's id (assets/blender/aliens/robo_kinds.py): "crabDrone".
 export type KindId = string
--- Which of its guardian's three kinds: its baby, the second one or the rare one.
-export type KindSlot = "Main" | "Second" | "Rare"
 -- The body a kind is built on (the model's family).
 export type FamilyId = "slime" | "crab" | "worm" | "ray" | "swarm" | "whale"
 
 export type Kind = {
 	read id: KindId,
 	read grade: number,
-	read slot: KindSlot,
+	-- Its place among its guardian's kinds: 1 is the guardian's own baby (the main kind).
+	read position: number,
 	read family: FamilyId,
-	-- A main kind is named after its guardian, so it reuses the guardian's name.
+	-- The main kind is named after its guardian, so it reuses the guardian's name.
 	read nameKey: keyof<typeof(Strings)>,
+	-- Its share of the guardian's hatches, against the weights of the guardian's other kinds.
+	read weight: number,
+}
+
+-- A row of POST_KINDS.
+type KindRow = {
+	id: KindId,
+	family: FamilyId,
+	nameKey: keyof<typeof(Strings)>,
+	weight: number,
 }
 
 export type Tier = {
@@ -68,9 +77,9 @@ export type Alien = {
 export type Grade = {
 	read index: number,
 	read zone: ZoneConfig.ZoneId,
-	-- Its kinds in slot order: main, second, rare.
+	-- Its kinds in order, the main one first.
 	read kinds: { KindId },
-	-- Hatch odds of its kinds (Loot entries in slot order).
+	-- Hatch odds of its kinds (Loot entries in the same order).
 	read kindEntries: { Loot.Entry<KindId> },
 	-- The guardian's own aliens by tier: the usual variant of its main kind.
 	read aliens: { [TierId]: AlienId },
@@ -146,136 +155,138 @@ local VARIANTS: { [VariantId]: Variant } = {
 	},
 }
 
--- Kind slots in order, with their hatch odds (decision 075): the guardian's baby most often.
-local KIND_SLOT_ORDER: { KindSlot } = { "Main", "Second", "Rare" }
-local KIND_WEIGHTS: { [KindSlot]: number } = { Main = 60, Second = 30, Rare = 10 }
+-- Hatch weights of a guardian's usual three kinds (decision 075): its baby most often, the rare
+-- one seldom. A post may have more kinds, each with a weight of its own (decision 080).
+local MAIN_WEIGHT = 60
+local SECOND_WEIGHT = 30
+local RARE_WEIGHT = 10
 
--- Each post's kinds in slot order: id, family and name. Ids and order match the models
+-- Each post's kinds, its main kind (the guardian's baby) first. Ids and order match the models
 -- (assets/blender/aliens/robo_kinds.py POSTS; a test keeps them in step). Part of the save
--- format: never rename an id.
-local POST_KINDS: { { { any } } } = {
+-- format: never rename an id; a new kind goes at the end of its post's list.
+local POST_KINDS: { { KindRow } } = {
 	{
-		{ "slimeWarden", "slime", "guardian.slimeWarden.title" },
-		{ "patrolSwarm", "swarm", "kind.patrolSwarm.title" },
-		{ "patrolRay", "ray", "kind.patrolRay.title" },
+		{ id = "slimeWarden", family = "slime", nameKey = "guardian.slimeWarden.title", weight = MAIN_WEIGHT },
+		{ id = "patrolSwarm", family = "swarm", nameKey = "kind.patrolSwarm.title", weight = SECOND_WEIGHT },
+		{ id = "patrolRay", family = "ray", nameKey = "kind.patrolRay.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "crabDrone", "crab", "guardian.crabDrone.title" },
-		{ "droneRay", "ray", "kind.droneRay.title" },
-		{ "blimpWhale", "whale", "kind.blimpWhale.title" },
+		{ id = "crabDrone", family = "crab", nameKey = "guardian.crabDrone.title", weight = MAIN_WEIGHT },
+		{ id = "droneRay", family = "ray", nameKey = "kind.droneRay.title", weight = SECOND_WEIGHT },
+		{ id = "blimpWhale", family = "whale", nameKey = "kind.blimpWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "violetCrab", "crab", "guardian.violetCrab.title" },
-		{ "violetWorm", "worm", "kind.violetWorm.title" },
-		{ "violetRay", "ray", "kind.violetRay.title" },
+		{ id = "violetCrab", family = "crab", nameKey = "guardian.violetCrab.title", weight = MAIN_WEIGHT },
+		{ id = "violetWorm", family = "worm", nameKey = "kind.violetWorm.title", weight = SECOND_WEIGHT },
+		{ id = "violetRay", family = "ray", nameKey = "kind.violetRay.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "acidSlime", "slime", "guardian.acidSlime.title" },
-		{ "acidWorm", "worm", "kind.acidWorm.title" },
-		{ "acidWhale", "whale", "kind.acidWhale.title" },
+		{ id = "acidSlime", family = "slime", nameKey = "guardian.acidSlime.title", weight = MAIN_WEIGHT },
+		{ id = "acidWorm", family = "worm", nameKey = "kind.acidWorm.title", weight = SECOND_WEIGHT },
+		{ id = "acidWhale", family = "whale", nameKey = "kind.acidWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "rustyCrab", "crab", "guardian.rustyCrab.title" },
-		{ "rustySwarm", "swarm", "kind.rustySwarm.title" },
-		{ "rustyWhale", "whale", "kind.rustyWhale.title" },
+		{ id = "rustyCrab", family = "crab", nameKey = "guardian.rustyCrab.title", weight = MAIN_WEIGHT },
+		{ id = "rustySwarm", family = "swarm", nameKey = "kind.rustySwarm.title", weight = SECOND_WEIGHT },
+		{ id = "rustyWhale", family = "whale", nameKey = "kind.rustyWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "slimeKing", "slime", "guardian.slimeKing.title" },
-		{ "royalSwarm", "swarm", "kind.royalSwarm.title" },
-		{ "royalRay", "ray", "kind.royalRay.title" },
+		{ id = "slimeKing", family = "slime", nameKey = "guardian.slimeKing.title", weight = MAIN_WEIGHT },
+		{ id = "royalSwarm", family = "swarm", nameKey = "kind.royalSwarm.title", weight = SECOND_WEIGHT },
+		{ id = "royalRay", family = "ray", nameKey = "kind.royalRay.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "iceWorm", "worm", "guardian.iceWorm.title" },
-		{ "iceSwarm", "swarm", "kind.iceSwarm.title" },
-		{ "iceCrab", "crab", "kind.iceCrab.title" },
+		{ id = "iceWorm", family = "worm", nameKey = "guardian.iceWorm.title", weight = MAIN_WEIGHT },
+		{ id = "iceSwarm", family = "swarm", nameKey = "kind.iceSwarm.title", weight = SECOND_WEIGHT },
+		{ id = "iceCrab", family = "crab", nameKey = "kind.iceCrab.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "snowCrab", "crab", "guardian.snowCrab.title" },
-		{ "snowSlime", "slime", "kind.snowSlime.title" },
-		{ "snowWhale", "whale", "kind.snowWhale.title" },
+		{ id = "snowCrab", family = "crab", nameKey = "guardian.snowCrab.title", weight = MAIN_WEIGHT },
+		{ id = "snowSlime", family = "slime", nameKey = "kind.snowSlime.title", weight = SECOND_WEIGHT },
+		{ id = "snowWhale", family = "whale", nameKey = "kind.snowWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "frostSlime", "slime", "guardian.frostSlime.title" },
-		{ "flakeSwarm", "swarm", "kind.flakeSwarm.title" },
-		{ "frostRay", "ray", "kind.frostRay.title" },
+		{ id = "frostSlime", family = "slime", nameKey = "guardian.frostSlime.title", weight = MAIN_WEIGHT },
+		{ id = "flakeSwarm", family = "swarm", nameKey = "kind.flakeSwarm.title", weight = SECOND_WEIGHT },
+		{ id = "frostRay", family = "ray", nameKey = "kind.frostRay.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "crystalWorm", "worm", "guardian.crystalWorm.title" },
-		{ "crystalSlime", "slime", "kind.crystalSlime.title" },
-		{ "crystalWhale", "whale", "kind.crystalWhale.title" },
+		{ id = "crystalWorm", family = "worm", nameKey = "guardian.crystalWorm.title", weight = MAIN_WEIGHT },
+		{ id = "crystalSlime", family = "slime", nameKey = "kind.crystalSlime.title", weight = SECOND_WEIGHT },
+		{ id = "crystalWhale", family = "whale", nameKey = "kind.crystalWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "iceRay", "ray", "guardian.iceRay.title" },
-		{ "icebreakerCrab", "crab", "kind.icebreakerCrab.title" },
-		{ "auroraSwarm", "swarm", "kind.auroraSwarm.title" },
+		{ id = "iceRay", family = "ray", nameKey = "guardian.iceRay.title", weight = MAIN_WEIGHT },
+		{ id = "icebreakerCrab", family = "crab", nameKey = "kind.icebreakerCrab.title", weight = SECOND_WEIGHT },
+		{ id = "auroraSwarm", family = "swarm", nameKey = "kind.auroraSwarm.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "wormMother", "worm", "guardian.wormMother.title" },
-		{ "motherWhale", "whale", "kind.motherWhale.title" },
-		{ "nannyRay", "ray", "kind.nannyRay.title" },
+		{ id = "wormMother", family = "worm", nameKey = "guardian.wormMother.title", weight = MAIN_WEIGHT },
+		{ id = "motherWhale", family = "whale", nameKey = "kind.motherWhale.title", weight = SECOND_WEIGHT },
+		{ id = "nannyRay", family = "ray", nameKey = "kind.nannyRay.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "devourerSwarm", "swarm", "guardian.devourerSwarm.title" },
-		{ "devourerCrab", "crab", "kind.devourerCrab.title" },
-		{ "devourerWorm", "worm", "kind.devourerWorm.title" },
+		{ id = "devourerSwarm", family = "swarm", nameKey = "guardian.devourerSwarm.title", weight = MAIN_WEIGHT },
+		{ id = "devourerCrab", family = "crab", nameKey = "kind.devourerCrab.title", weight = SECOND_WEIGHT },
+		{ id = "devourerWorm", family = "worm", nameKey = "kind.devourerWorm.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "starRay", "ray", "guardian.starRay.title" },
-		{ "starSlime", "slime", "kind.starSlime.title" },
-		{ "starWhale", "whale", "kind.starWhale.title" },
+		{ id = "starRay", family = "ray", nameKey = "guardian.starRay.title", weight = MAIN_WEIGHT },
+		{ id = "starSlime", family = "slime", nameKey = "kind.starSlime.title", weight = SECOND_WEIGHT },
+		{ id = "starWhale", family = "whale", nameKey = "kind.starWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "fireSlime", "slime", "guardian.fireSlime.title" },
-		{ "fireWorm", "worm", "kind.fireWorm.title" },
-		{ "fireWhale", "whale", "kind.fireWhale.title" },
+		{ id = "fireSlime", family = "slime", nameKey = "guardian.fireSlime.title", weight = MAIN_WEIGHT },
+		{ id = "fireWorm", family = "worm", nameKey = "kind.fireWorm.title", weight = SECOND_WEIGHT },
+		{ id = "fireWhale", family = "whale", nameKey = "kind.fireWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "redSwarm", "swarm", "guardian.redSwarm.title" },
-		{ "redCrab", "crab", "kind.redCrab.title" },
-		{ "redRay", "ray", "kind.redRay.title" },
+		{ id = "redSwarm", family = "swarm", nameKey = "guardian.redSwarm.title", weight = MAIN_WEIGHT },
+		{ id = "redCrab", family = "crab", nameKey = "kind.redCrab.title", weight = SECOND_WEIGHT },
+		{ id = "redRay", family = "ray", nameKey = "kind.redRay.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "lightningRay", "ray", "guardian.lightningRay.title" },
-		{ "stormSlime", "slime", "kind.stormSlime.title" },
-		{ "stormWhale", "whale", "kind.stormWhale.title" },
+		{ id = "lightningRay", family = "ray", nameKey = "guardian.lightningRay.title", weight = MAIN_WEIGHT },
+		{ id = "stormSlime", family = "slime", nameKey = "kind.stormSlime.title", weight = SECOND_WEIGHT },
+		{ id = "stormWhale", family = "whale", nameKey = "kind.stormWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "devourerQueen", "swarm", "guardian.devourerQueen.title" },
-		{ "guardCrab", "crab", "kind.guardCrab.title" },
-		{ "empressWorm", "worm", "kind.empressWorm.title" },
+		{ id = "devourerQueen", family = "swarm", nameKey = "guardian.devourerQueen.title", weight = MAIN_WEIGHT },
+		{ id = "guardCrab", family = "crab", nameKey = "kind.guardCrab.title", weight = SECOND_WEIGHT },
+		{ id = "empressWorm", family = "worm", nameKey = "kind.empressWorm.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "shadowWorm", "worm", "guardian.shadowWorm.title" },
-		{ "shadowSlime", "slime", "kind.shadowSlime.title" },
-		{ "shadowCrab", "crab", "kind.shadowCrab.title" },
+		{ id = "shadowWorm", family = "worm", nameKey = "guardian.shadowWorm.title", weight = MAIN_WEIGHT },
+		{ id = "shadowSlime", family = "slime", nameKey = "kind.shadowSlime.title", weight = SECOND_WEIGHT },
+		{ id = "shadowCrab", family = "crab", nameKey = "kind.shadowCrab.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "blackRay", "ray", "guardian.blackRay.title" },
-		{ "eclipseSwarm", "swarm", "kind.eclipseSwarm.title" },
-		{ "eclipseWhale", "whale", "kind.eclipseWhale.title" },
+		{ id = "blackRay", family = "ray", nameKey = "guardian.blackRay.title", weight = MAIN_WEIGHT },
+		{ id = "eclipseSwarm", family = "swarm", nameKey = "kind.eclipseSwarm.title", weight = SECOND_WEIGHT },
+		{ id = "eclipseWhale", family = "whale", nameKey = "kind.eclipseWhale.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "voidSwarm", "swarm", "guardian.voidSwarm.title" },
-		{ "voidSlime", "slime", "kind.voidSlime.title" },
-		{ "voidRay", "ray", "kind.voidRay.title" },
+		{ id = "voidSwarm", family = "swarm", nameKey = "guardian.voidSwarm.title", weight = MAIN_WEIGHT },
+		{ id = "voidSlime", family = "slime", nameKey = "kind.voidSlime.title", weight = SECOND_WEIGHT },
+		{ id = "voidRay", family = "ray", nameKey = "kind.voidRay.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "gravityCrab", "crab", "guardian.gravityCrab.title" },
-		{ "gravityWorm", "worm", "kind.gravityWorm.title" },
-		{ "gravitySwarm", "swarm", "kind.gravitySwarm.title" },
+		{ id = "gravityCrab", family = "crab", nameKey = "guardian.gravityCrab.title", weight = MAIN_WEIGHT },
+		{ id = "gravityWorm", family = "worm", nameKey = "kind.gravityWorm.title", weight = SECOND_WEIGHT },
+		{ id = "gravitySwarm", family = "swarm", nameKey = "kind.gravitySwarm.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "whaleCalf", "whale", "guardian.whaleCalf.title" },
-		{ "rayCalf", "ray", "kind.rayCalf.title" },
-		{ "stargazerCrab", "crab", "kind.stargazerCrab.title" },
+		{ id = "whaleCalf", family = "whale", nameKey = "guardian.whaleCalf.title", weight = MAIN_WEIGHT },
+		{ id = "rayCalf", family = "ray", nameKey = "kind.rayCalf.title", weight = SECOND_WEIGHT },
+		{ id = "stargazerCrab", family = "crab", nameKey = "kind.stargazerCrab.title", weight = RARE_WEIGHT },
 	},
 	{
-		{ "spaceWhale", "whale", "guardian.spaceWhale.title" },
-		{ "spaceWorm", "worm", "kind.spaceWorm.title" },
-		{ "galaxySlime", "slime", "kind.galaxySlime.title" },
+		{ id = "spaceWhale", family = "whale", nameKey = "guardian.spaceWhale.title", weight = MAIN_WEIGHT },
+		{ id = "spaceWorm", family = "worm", nameKey = "kind.spaceWorm.title", weight = SECOND_WEIGHT },
+		{ id = "galaxySlime", family = "slime", nameKey = "kind.galaxySlime.title", weight = RARE_WEIGHT },
 	},
 }
-assert(#POST_KINDS == ZoneConfig.POST_COUNT, "AlienConfig needs three kinds for every guardian post")
+assert(#POST_KINDS == ZoneConfig.POST_COUNT, "AlienConfig needs the kinds of every guardian post")
 
 -- One grade per guardian post, in post order (six per zone). Ids name the zone and the post's
 -- number within it, then the kind, the tier, and the variant unless it is the usual one:
@@ -289,14 +300,22 @@ for index = 1, ZoneConfig.POST_COUNT do
 	local baseIncome = BigNum.mul(INCOME_BASE, BigNum.pow(INCOME_GROWTH, index - 1))
 	local kinds: { KindId } = {}
 	local kindEntries: { Loot.Entry<KindId> } = {}
-	for position, slot in KIND_SLOT_ORDER do
-		local row = POST_KINDS[index][position]
-		local kindId: KindId = row[1]
+	for position, row in POST_KINDS[index] do
+		local kindId = row.id
 		assert(KINDS[kindId] == nil, `kind {kindId} is listed twice`)
-		KINDS[kindId] = table.freeze({ id = kindId, grade = index, slot = slot, family = row[2], nameKey = row[3] })
+		assert(row.weight > 0, `kind {kindId} needs a positive hatch weight`)
+		KINDS[kindId] = table.freeze({
+			id = kindId,
+			grade = index,
+			position = position,
+			family = row.family,
+			nameKey = row.nameKey,
+			weight = row.weight,
+		})
 		table.insert(kinds, kindId)
-		table.insert(kindEntries, table.freeze({ id = kindId, weight = KIND_WEIGHTS[slot] }))
+		table.insert(kindEntries, table.freeze({ id = kindId, weight = row.weight }))
 	end
+	assert(#kinds > 0, `guardian post {index} needs at least one kind`)
 	local variants: { [VariantId]: { [KindId]: { [TierId]: AlienId } } } = {}
 	for _, variant in VARIANT_ORDER do
 		local byKind: { [KindId]: { [TierId]: AlienId } } = {}
@@ -346,7 +365,6 @@ return table.freeze({
 	INCOME_GROWTH = INCOME_GROWTH,
 	VARIANT_ORDER = table.freeze(VARIANT_ORDER),
 	VARIANTS = table.freeze(VARIANTS),
-	KIND_SLOT_ORDER = table.freeze(KIND_SLOT_ORDER),
 	GRADES = table.freeze(GRADES),
 	KINDS = table.freeze(KINDS),
 	ALIENS = table.freeze(ALIENS),

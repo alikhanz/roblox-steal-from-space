@@ -52,7 +52,7 @@ describe("AlienConfig", function()
 		expect(AlienConfig.ALIENS[meteorRare].scale).toBe(AlienConfig.ALIENS[grade.aliens.Rare].scale)
 	end)
 
-	it("has one grade per guardian post with three kinds, an alien per kind and tier", function()
+	it("has one grade per guardian post with its kinds, an alien per kind and tier", function()
 		expect(#AlienConfig.GRADES).toBe(#GuardianConfig.POSTS)
 		expect(#AlienConfig.GRADES).toBe(ZoneConfig.POST_COUNT)
 		-- Ids are part of the save format.
@@ -62,13 +62,15 @@ describe("AlienConfig", function()
 		expect(AlienConfig.GRADES[24].aliens.Legendary).toBe("EventHorizon6.spaceWhale.Legendary")
 		for _, grade in AlienConfig.GRADES do
 			expect(grade.zone).toBe((ZoneConfig.zoneOfPost(grade.index)))
-			expect(#grade.kinds).toBe(#AlienConfig.KIND_SLOT_ORDER)
+			expect(#grade.kinds >= 1).toBe(true)
 			expect(grade.aliens).toBe(grade.variants.Normal[grade.kinds[1]])
 			for position, kindId in grade.kinds do
 				local kind = AlienConfig.KINDS[kindId]
 				expect(kind.grade).toBe(grade.index)
-				expect(kind.slot).toBe(AlienConfig.KIND_SLOT_ORDER[position])
+				expect(kind.position).toBe(position)
 				expect(grade.kindEntries[position].id).toBe(kindId)
+				expect(grade.kindEntries[position].weight).toBe(kind.weight)
+				expect(kind.weight > 0).toBe(true)
 				for _, tier in AlienConfig.TIER_ORDER do
 					local alien = AlienConfig.ALIENS[grade.variants.Normal[kindId][tier]]
 					expect(alien).toBeTruthy()
@@ -95,11 +97,15 @@ describe("AlienConfig", function()
 			count += 1
 			expect(kind.id).toBe(kindId)
 			expect((Strings :: { [string]: any })[kind.nameKey]).toBeTruthy()
-			if kind.slot == "Main" then
+			if kind.position == 1 then
 				expect(kind.nameKey).toBe(GuardianConfig.POSTS[kind.grade].nameKey)
 			end
 		end
-		expect(count).toBe(#AlienConfig.GRADES * #AlienConfig.KIND_SLOT_ORDER)
+		local listed = 0
+		for _, grade in AlienConfig.GRADES do
+			listed += #grade.kinds
+		end
+		expect(count).toBe(listed)
 	end)
 
 	it("lists the kinds as the models do, post by post (robo_kinds.py)", function()
@@ -286,7 +292,7 @@ describe("IndexConfig", function()
 		for _, set in IndexConfig.SETS do
 			expect(IndexConfig.SETS_BY_ID[set.id]).toBe(set)
 			expect(set.id).toBe(AlienIndex.setId(set.grade, set.variant))
-			expect(#set.aliens).toBe(#AlienConfig.KIND_SLOT_ORDER * #AlienConfig.TIER_ORDER)
+			expect(#set.aliens).toBe(#AlienConfig.GRADES[set.grade].kinds * #AlienConfig.TIER_ORDER)
 			for _, alienId in set.aliens do
 				local alien = AlienConfig.ALIENS[alienId]
 				expect(alien.grade).toBe(set.grade)
