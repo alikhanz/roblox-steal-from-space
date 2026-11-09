@@ -2,10 +2,10 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The alien index on the client: the HUD menu tile with how many rewards wait, the index window
 -- and the toasts for a new find and a taken reward. The window shows one section (the usual
--- aliens, the meteor ones) and one zone at a time; it opens where a reward waits, else at the
--- farthest guardian the player has aliens of (AlienIndex.openingSet). Rows are built from the
--- one alien registry (AlienConfig through IndexConfig.SETS) and the profile copy; rewards shown
--- use the formula the server pays with (Pace).
+-- aliens, the meteor ones), one zone and one guardian's set at a time; it opens where a reward
+-- waits, else at the farthest guardian the player has aliens of (AlienIndex.openingSet). Rows
+-- are built from the one alien registry (AlienConfig through IndexConfig.SETS) and the profile
+-- copy; rewards shown use the formula the server pays with (Pace).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -82,6 +82,8 @@ function IndexController.new(dependencies: Dependencies): IndexController
 	local isOpen = dependencies.windows.slot("Index")
 	local section = source("Normal" :: AlienConfig.VariantId)
 	local zone = source(ZoneConfig.ZONE_ORDER[1])
+	-- The picked guardian: its place among the zone's guardians, from the station outwards.
+	local pick = source(1)
 	local locale: Text.Locale = "en"
 
 	local function text(key: Text.Key, args: Text.Args?): string
@@ -105,7 +107,29 @@ function IndexController.new(dependencies: Dependencies): IndexController
 		}
 	end
 
-	local function guardianOf(set: AlienIndex.Set): IndexWindow.Guardian
+	-- The picked zone's guardians in the open section, from the station outwards.
+	local function guardians(): { IndexWindow.Guardian }
+		local index = profile.index()
+		local result: { IndexWindow.Guardian } = {}
+		for position, set in zoneSets(section(), zone()) do
+			table.insert(result, {
+				title = Names.guardian(locale, set.grade) or "?",
+				count = `{AlienIndex.foundOf(index, set.aliens)}/{#set.aliens}`,
+				waiting = AlienIndex.waiting(index, { set }) > 0,
+				done = AlienIndex.isSetClaimed(index, set),
+				selected = position == pick(),
+			})
+		end
+		return result
+	end
+
+	-- The picked guardian's set: a row per kind (IndexConfig lists a set's aliens kind by kind,
+	-- each lowest tier first), and the set's state.
+	local function setView(): IndexWindow.SetView?
+		local set = zoneSets(section(), zone())[pick()]
+		if not set then
+			return nil
+		end
 		local index = profile.index()
 		local found = AlienIndex.foundOf(index, set.aliens)
 		local setState: IndexWindow.SetState = if AlienIndex.isSetClaimed(index, set)
@@ -117,26 +141,26 @@ function IndexController.new(dependencies: Dependencies): IndexController
 			local coins = Pace.reward(profile, IndexConfig.SET_REWARD_MINUTES, IndexConfig.MIN_REWARD_COINS, false)
 			setText = text("index.setClaim.button", { coins = BigNum.format(coins) })
 		end
-		local cells = {}
-		for _, alienId in set.aliens do
-			table.insert(cells, cellOf(alienId))
+		local tierCount = #AlienConfig.TIER_ORDER
+		local kinds: { IndexWindow.KindRow } = {}
+		for position, kindId in AlienConfig.GRADES[set.grade].kinds do
+			local cells = {}
+			for tier = 1, tierCount do
+				table.insert(cells, cellOf(set.aliens[(position - 1) * tierCount + tier]))
+			end
+			table.insert(kinds, { title = nameOf(AlienConfig.KINDS[kindId].nameKey), cells = cells })
 		end
-		return {
-			title = Names.guardian(locale, set.grade) or "?",
-			setId = set.id,
-			cells = cells,
-			setState = setState,
-			setText = setText,
-		}
+		return { setId = set.id, kinds = kinds, setState = setState, setText = setText }
 	end
 
-	-- The picked zone's guardians in the open section, from the station outwards.
-	local function guardians(): { IndexWindow.Guardian }
-		local result: { IndexWindow.Guardian } = {}
-		for _, set in zoneSets(section(), zone()) do
-			table.insert(result, guardianOf(set))
+	-- The guardian to show in a zone: the first with a reward waiting, else the nearest.
+	local function firstWaiting(zoneId: ZoneConfig.ZoneId): number
+		for position, set in zoneSets(section(), zoneId) do
+			if AlienIndex.waiting(profile.index(), { set }) > 0 then
+				return position
+			end
 		end
-		return result
+		return 1
 	end
 
 	local function zones(): { IndexWindow.Zone }
@@ -179,7 +203,11 @@ function IndexController.new(dependencies: Dependencies): IndexController
 	end
 
 	local function sectionSize(): number
-		return #SECTION_SETS[section()] * #AlienConfig.TIER_ORDER
+		local count = 0
+		for _, set in SECTION_SETS[section()] do
+			count += #set.aliens
+		end
+		return count
 	end
 
 	-- The line under the count: where the rewards are, or where meteor aliens come from.
@@ -230,9 +258,11 @@ function IndexController.new(dependencies: Dependencies): IndexController
 		if set then
 			section(set.variant :: AlienConfig.VariantId)
 			zone(zoneOf(set))
+			pick(table.find(zoneSets(set.variant, zoneOf(set)), set) or 1)
 		else
 			section("Normal")
 			zone(ZoneConfig.ZONE_ORDER[1])
+			pick(1)
 		end
 	end
 
@@ -293,7 +323,6 @@ function IndexController.new(dependencies: Dependencies): IndexController
 					end,
 					texts = {
 						title = text("index.window.title"),
-						guardian = text("index.guardian.title"),
 						setDone = text("index.setDone.hint"),
 						claimAll = text("index.claimAll.button"),
 						found = function()
@@ -305,8 +334,14 @@ function IndexController.new(dependencies: Dependencies): IndexController
 					zones = zones,
 					tiers = tiers(),
 					guardians = guardians,
+					set = setView,
 					onZone = function(position)
-						zone(ZoneConfig.ZONE_ORDER[position])
+						local zoneId = ZoneConfig.ZONE_ORDER[position]
+						zone(zoneId)
+						pick(firstWaiting(zoneId))
+					end,
+					onGuardian = function(position)
+						pick(position)
 					end,
 					onClaimAlien = function(alienId)
 						Remotes.ClaimIndexAlien.Fire(alienId)

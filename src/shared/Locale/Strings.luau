@@ -772,10 +772,6 @@ local Strings = {
 		en = "Done",
 	},
 	-- Over the column of guardian names.
-	["index.guardian.title"] = {
-		ru = "Страж",
-		en = "Guardian",
-	},
 	-- Under the count while the meteor section has no finds.
 	["index.meteorSource.hint"] = {
 		ru = "Метеоритных выводят из метеоритных яиц",
