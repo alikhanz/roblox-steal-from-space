@@ -67,11 +67,36 @@ local MODELS = table.freeze({
 	LAVA_SKIN = "Lava",
 })
 
+-- The pets' living motion on the client (AlienMotionController), as the gallery had it. Lengths
+-- in studs are at the dressing scale and grow with the pet.
+local MOTION = table.freeze({
+	-- Only pets this close to the camera move, studs (plus the pet's own size): far ones stand.
+	RADIUS = 160,
+	-- The whole pet bobs this high, studs.
+	BOB = 0.45,
+	-- A little drone bobs on its loop this high, studs.
+	DRONE_BOB = 0.35,
+	-- A slime's jelly at rest squashes and stretches this much (a share of its height); a hop lifts
+	-- it this high (a share of its height) every few seconds.
+	JELLY_REST = 0.035,
+	HOP_HEIGHT = 0.12,
+	-- Seconds between a slime's hops, between blinks, between a jaw's snaps.
+	HOP_EVERY = table.freeze({ 5, 10 }),
+	BLINK_EVERY = table.freeze({ 2, 6 }),
+	JAW_EVERY = table.freeze({ 1.8, 4.5 }),
+	-- A crab's jaws open this far before they snap shut, radians.
+	JAW_OPEN = 0.45,
+	-- A pet turns to a player this close (studs past its own size), at most this far (degrees).
+	LOOK_RADIUS = 40,
+	LOOK_LIMIT_DEGREES = 70,
+})
+
 return table.freeze({
 	TIERS = table.freeze(TIERS),
 	BODY_SIZE = BODY_SIZE,
 	widthOf = widthOf,
 	MODELS = MODELS,
+	MOTION = MOTION,
 	EYE_SIZE = Vector3.new(0.35, 0.5, 0.2),
 	EYE_COLOR = Color3.fromRGB(20, 20, 30),
 })

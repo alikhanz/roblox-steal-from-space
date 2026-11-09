@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AbilityState = require(script.Parent.State.AbilityState)
 local AimController = require(script.Parent.Controllers.AimController)
+local AlienMotionController = require(script.Parent.Controllers.AlienMotionController)
 local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
@@ -100,6 +101,7 @@ Lifecycle.run({
 	EggPurchaseController.new({ purchases = purchaseState }),
 	GuardianViewController.new({ speed = speedState.speed }),
 	BayViewController.new({ profile = profileState }),
+	AlienMotionController.new(),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({
