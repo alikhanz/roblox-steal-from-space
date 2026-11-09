@@ -150,6 +150,26 @@ local function rebuild()
 		for role, sum in sums do
 			pet.groups[role] = sum[1] / sum[2]
 		end
+		-- Each little drone flies a loop of its own round the pet: a smooth closed curve through six
+		-- points starting where it rests, each a little nearer or farther and higher or lower.
+		pet.paths = {}
+		for role, home in pet.groups do
+			local n = tonumber(role:match("^drone(%d+)$"))
+			if n then
+				local away = Vector3.new(home.X - pet.centre.X, 0, home.Z - pet.centre.Z)
+				local reach = away.Magnitude
+				local start = math.atan2(away.Z, away.X)
+				local points = {}
+				for i = 0, 5 do
+					local angle = start + i * math.pi / 3
+					-- Never nearer than its rest spot: closer in, a drone grazes the lead.
+					local radius = if i == 0 then reach else reach * random:NextNumber(1.0, 1.3)
+					local rise = if i == 0 then 0 else reach * random:NextNumber(-0.3, 0.3)
+					table.insert(points, Vector3.new(pet.centre.X + math.cos(angle) * radius, home.Y + rise, pet.centre.Z + math.sin(angle) * radius))
+				end
+				pet.paths[n] = { points = points, home = home, period = random:NextNumber(5, 8) }
+			end
+		end
 		table.insert(pets, pet)
 	end
 	-- Many new meshes at once: ask for them all, or some stay unloaded (half a pet missing).
@@ -256,6 +276,21 @@ local function jelly(pet, t: number): (number, number)
 		pet.hopStart = t
 	end
 	return stretch, lift
+end
+
+-- A point on a closed Catmull-Rom loop through `points` (a chain of cubic Bézier curves that passes
+-- through every point), `u` from 0 to 1 round the loop.
+local function loop(points: { Vector3 }, u: number): Vector3
+	local count = #points
+	local at = (u % 1) * count
+	local i = math.floor(at)
+	local f = at - i
+	local p0 = points[(i - 1) % count + 1]
+	local p1 = points[i % count + 1]
+	local p2 = points[(i + 1) % count + 1]
+	local p3 = points[(i + 2) % count + 1]
+	return 0.5
+		* (2 * p1 + (p2 - p0) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f + (3 * p1 - p0 - 3 * p2 + p3) * f * f * f)
 end
 
 -- A frame squashed about the jelly's floor: up and down by `sy`, sideways by `sxz` round the
@@ -428,9 +463,20 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 					* CFrame.Angles(0, angle, 0)
 					* CFrame.new(part:GetAttribute("Orbit"), 0, 0)
 			elseif role:match("^drone%d") then
-				-- A little drone circles the lead, bobbing; its jaws (drone1MandL…) snap on the way.
+				-- A little drone flies its own loop round the pet, nose first, bobbing; its jaws
+				-- (drone1MandL…) snap on the way.
 				local n = tonumber(role:match("%d+"))
-				local fly = c * CFrame.Angles(0, t * 1.3, 0) * cInv * CFrame.new(0, math.sin(t * 4 + n) * 0.35, 0)
+				local fly = CFrame.new(0, math.sin(t * 4 + n) * 0.35, 0)
+				local path = pet.paths[n]
+				if path then
+					local u = t / path.period + n * 0.37
+					local here0 = loop(path.points, u)
+					local ahead = loop(path.points, u + 0.01) - here0
+					local heading = math.atan2(-ahead.X, -ahead.Z)
+					fly = CFrame.new(here0 + Vector3.new(0, math.sin(t * 4 + n) * 0.35, 0))
+						* CFrame.Angles(0, heading, 0)
+						* CFrame.new(-path.home)
+				end
 				local hinge = pet.hinges[role]
 				local centre = pet.groups["drone" .. n]
 				if role:match("Mand[LR]$") and hinge and centre then
