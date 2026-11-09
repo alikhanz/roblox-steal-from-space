@@ -13,6 +13,7 @@ import math
 import bpy
 import real
 from mathutils import Euler, Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
 GOLD = (1.0, 0.72, 0.18)
 TIER_COLORS = [(0.7, 0.72, 0.78), (0.35, 0.95, 0.45), (0.25, 0.6, 1.0), (0.75, 0.3, 1.0), (1.0, 0.72, 0.15)]
@@ -227,12 +228,12 @@ def slime(x, z, theme, p=None):
         core.append((0, 0.0, 0.85 * h, 0.26 * w))
     _tag(real.blob(core, theme["core"](), (x, 0, dome_z - 0.1), 0.045 / DETAIL))
     tint = tuple(0.75 + 0.25 * c for c in theme["colours"]["core"])
-    sphere((x, 0, dome_z), (0.78 * w, 0.78 * w, 0.9 * h), shell_glass("Dome", tint), 48)
+    dome = sphere((x, 0, dome_z), (0.78 * w, 0.78 * w, 0.9 * h), shell_glass("Dome", tint), 48)
     visor((x, -0.72 * w, dome_z), 0.42 * min(w, 1.15), 0.18, theme["eyes"])
     feet = [pill((x + side * 0.55 * w, -0.15, z + 0.1), (0.18, 0.28, 0.1), theme["accent_shell"]()) for side in (-1, 1)]
     top = dome_z + 0.9 * h + 0.05
     return {"shells": [base] + feet, "top": (x, 0, top), "center": (x, 0, dome_z - 0.1), "radius": 0.9 * w, "width": 1.1 * w,
-            "hull": ((x, 0, dome_z), (0.78 * w, 0.78 * w, 0.9 * h))}
+            "hull": ((x, 0, dome_z), (0.78 * w, 0.78 * w, 0.9 * h)), "hull_obj": dome}
 
 
 def crab(x, z, theme, p=None):
@@ -268,16 +269,21 @@ def crab(x, z, theme, p=None):
         if size <= 0:
             continue
         cx = x + side * (0.8 * w + 0.35 * (size - 1))
-        sphere((x + side * 0.8 * w, -0.55, z + 0.88), (0.13, 0.13, 0.13), joint, 16)
-        arm = cylinder((x + side * (0.98 * w), -0.78, z + 1.0), 0.1, 0.42, shell_mat, (math.radians(-55), math.radians(side * -40), 0))
+        shoulder = Vector((x + side * 0.8 * w, -0.55, z + 0.88))
+        sphere(tuple(shoulder), (0.13, 0.13, 0.13), joint, 16)
         claw = sphere((cx + side * 0.35, -1.05 - 0.15 * (size - 1), z + 1.15 + 0.2 * (size - 1)), (0.36 * size, 0.4 * size, 0.32 * size), shell_mat, 32)
+        # The arm runs from the shoulder joint into the claw, whatever the crab's width and the
+        # claw's size (a fixed arm once fell short of a wide crab's claws).
+        reach = Vector(claw.location) - shoulder
+        arm = cylinder(tuple(shoulder + reach / 2), 0.1, reach.length, shell_mat)
+        arm.rotation_euler = reach.to_track_quat("Z", "Y").to_euler()
         ccx, ccy, ccz = claw.location
         pill((ccx + side * 0.02, ccy - 0.43 * size, ccz + 0.13 * size), (0.12 * size, 0.24 * size, 0.08 * size), theme["accent_shell"](), (math.radians(-15), 0, 0))
         pill((ccx, ccy - 0.39 * size, ccz - 0.15 * size), (0.1 * size, 0.2 * size, 0.07 * size), shell_mat, (math.radians(15), 0, 0))
         torus((ccx, ccy, ccz), 0.3 * size, 0.025, glow(theme["accent"]), (math.radians(90), 0, 0))
         shells += [arm, claw]
     return {"shells": shells, "top": (x, 0.1, z + 1.75), "center": (x, 0, z + 0.85), "radius": 1.1 * w, "width": 1.65 * w,
-            "hull": ((x, 0, z + 0.85), (1.0 * w, 0.8, 0.48))}
+            "hull": ((x, 0, z + 0.85), (1.0 * w, 0.8, 0.48)), "hull_obj": shell}
 
 
 def worm(x, z, theme, p=None):
@@ -289,9 +295,11 @@ def worm(x, z, theme, p=None):
     shell_mat = theme["shell"]()
     shells = []
     previous = None
+    # A thin worm's segments sit closer, so they still touch.
+    close = min(1.0, rs * 0.95)
     for index in range(count):
-        px = 0.2 + 0.24 * index + 0.06 * math.sin(index * 1.3)
-        py = 0.15 + 0.3 * index
+        px = 0.2 + (0.24 * index + 0.06 * math.sin(index * 1.3)) * close
+        py = 0.15 + 0.3 * index * close
         pz = max(0.24, 0.58 - 0.11 * index)
         r = max(0.16, 0.4 - 0.045 * index) * rs
         if faceted:
@@ -321,7 +329,7 @@ def worm(x, z, theme, p=None):
     top = head_z + head_r + 0.45
     return {"shells": shells + [head], "top": (x, -0.1, top), "center": (x + 0.3, 0.3, z + 0.75), "radius": 0.95 * max(rs, 1.0), "width": 1.35 * max(rs, 1.0),
             "head": (x, -0.1, head_z), "head_r": head_r,
-            "hull": ((x, -0.1, head_z), (head_r, head_r * 0.95, head_r * 0.95)), "flank": (x, -0.1, head_z - 0.1), "flank_r": head_r * 1.2}
+            "hull": ((x, -0.1, head_z), (head_r, head_r * 0.95, head_r * 0.95)), "flank": (x, -0.1, head_z - 0.1), "flank_r": head_r * 1.2, "hull_obj": head}
 
 
 def ray(x, z, theme, p=None):
@@ -339,20 +347,25 @@ def ray(x, z, theme, p=None):
                        (0, math.radians(side * -droop * 0.4), math.radians(side * -14)))
         outer = sphere((x + side * 1.55 * span, 0.42, z + 1.0 + lift), (0.45 * span, 0.32, 0.07), shell_mat, 48,
                        (0, math.radians(side * -droop * 2.2), math.radians(side * -28)))
-        pill((x + side * 1.9 * span, 0.58, z + 1.18 + lift), (0.16, 0.1, 0.035), theme["accent_shell"](),
-             (0, math.radians(side * -droop * 2.6), math.radians(side * -32)))
-        torus((x + side * 0.85 * span, 0.2, z + 0.84 + lift), 0.45 * span, 0.015, glow(theme["accent"]), (0, math.radians(side * -droop * 0.4), 0))
+        # The tip plate on the outer wing's top, the glow ring lying on the inner wing (both turned
+        # with their wing, so they stay on it).
+        tip = stick({}, (x + side * 1.9 * span, 0.58, z + 1.18 + lift), 0.02, [outer])
+        pill(tip, (0.16, 0.1, 0.035), theme["accent_shell"](), (0, math.radians(side * -droop * 2.6), math.radians(side * -32)))
+        turn = Euler((0, math.radians(side * -droop * 0.4), math.radians(side * -14)))
+        up = turn.to_matrix() @ Vector((0, 0, 1))
+        torus(tuple(Vector((x + side * 0.85 * span, 0.2, z + 0.82 + lift)) + up * 0.06), 0.45 * span, 0.015, glow(theme["accent"]), tuple(turn))
         shells += [inner, outer]
     sphere((x, 0.15, z + 1.0 + lift), (0.32, 0.4, 0.14), theme["core"](), 32)
     visor((x, -0.68, z + 0.85 + lift), 0.32, 0.1, theme["eyes"], (math.radians(-12), 0, 0))
     if p.get("tail", True):
-        for step in range(4):
-            sphere((x, 0.85 + step * 0.32, z + 0.78 + lift - step * 0.06), (0.1 - step * 0.018,) * 3, shell_mat if step < 3 else glow(theme["accent"], 10.0), 16)
+        # A chain of beads, each touching the next, ending in a glowing one.
+        for step in range(6):
+            sphere((x, 0.85 + step * 0.11, z + 0.78 + lift - step * 0.025), (0.1 - step * 0.008,) * 3, shell_mat if step < 5 else glow(theme["accent"], 10.0), 16)
     cylinder((x, 0.8, z + 0.92 + lift), 0.12, 0.2, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3), (math.radians(90), 0, 0))
     sphere((x, 0.92, z + 0.92 + lift), (0.1, 0.04, 0.1), glow(theme["accent"], 12.0), 24)
     sphere((x, 0.1, z + 0.12), (0.7 * span, 0.55, 0.02), real.aura("Hover", theme["accent"], 3.0, 0.3), 32)
     return {"shells": shells, "top": (x, 0.05, z + 1.6 + lift), "center": (x, 0.1, z + 0.85 + lift), "radius": 1.2 * span, "width": 1.75 * span,
-            "span": span, "lift": lift, "hull": ((x, 0.05, z + 0.8 + lift), (0.62, 0.75, 0.32)), "shoulders": False}
+            "span": span, "lift": lift, "hull": ((x, 0.05, z + 0.8 + lift), (0.62, 0.75, 0.32)), "shoulders": False, "hull_obj": body}
 
 
 def drone(x, y, z, size, theme, shell_mat):
@@ -383,8 +396,10 @@ def swarm(x, z, theme, p=None):
         with role(f"drone{index + 1}"):
             small.append(drone(x + dx * (0.6 + 0.35 * main_size), dy, z + dz * (0.55 + 0.35 * main_size), size, theme, shell_mat))
     info = {"shells": [main] + small, "top": (x, 0, lead_z + 0.65 * main_size), "center": (x, 0, lead_z), "radius": 0.8 * main_size, "width": 1.0 * main_size,
+            # Thrusters low on the lead drone's back, under its little wings.
+            "engine_z": -0.05 * main_size,
             "lead": (x, 0, lead_z), "lead_size": main_size, "drones": [(s.location.copy(), s.scale.x / 0.55) for s in small],
-            "hull": ((x, 0, lead_z), (0.55 * main_size, 0.5 * main_size, 0.5 * main_size)), "shoulders": False}
+            "hull": ((x, 0, lead_z), (0.55 * main_size, 0.5 * main_size, 0.5 * main_size)), "shoulders": False, "hull_obj": main}
     return info
 
 
@@ -400,16 +415,23 @@ def whale(x, z, theme, p=None):
     torus((x, 0.15 * s, cz), 0.93 * s, 0.025, glow(theme["accent"]), (math.radians(90), 0, math.radians(90)))
     # A round porthole of a visor with the core glowing behind it.
     torus((x, -0.98 * s, cz + 0.12 * s), 0.36 * s, 0.06 * s, real.chrome("Rim", (0.7, 0.72, 0.76)), (math.radians(90), 0, 0))
-    sphere((x, -0.95 * s, cz + 0.12 * s), (0.34 * s, 0.08 * s, 0.34 * s), real.gloss("Glass", (0.015, 0.02, 0.03), 0.04), 32)
+    sphere((x, -0.95 * s, cz + 0.12 * s), (0.34 * s, 0.08 * s, 0.34 * s), real.gloss("Porthole", (0.015, 0.02, 0.03), 0.04), 32)
+    hull = {"hull": ((x, 0.15 * s, cz), (0.95 * s, 1.2 * s, 0.85 * s)), "hull_obj": body, "center": (x, 0.15 * s, cz), "radius": 1.2 * s}
+    snap = _flank(hull)[2]
     for side in (-1, 1):
         sphere((x + side * 0.13 * s, -1.03 * s, cz + 0.14 * s), (0.06 * s, 0.02, 0.1 * s), real.glow("EyeLight", theme["eyes"], 10.0), 16)
         pill((x + side * 0.95 * s, -0.05, cz - 0.4 * s), (0.32 * s * fins, 0.18 * s, 0.06), shell_mat, (0, math.radians(side * 25), 0))
-        pill((x + side * 0.35 * s, 1.45 * s, cz + 0.55 * s), (0.3 * s * fins, 0.14 * s, 0.06), theme["accent_shell"](), (math.radians(30), math.radians(side * 20), 0))
+        # The tail flukes grow out of the back (they once hung clear of it).
+        root = Vector(snap((x + side * 0.35 * s, 1.45 * s, cz + 0.55 * s)))
+        out = (root - Vector((x, 0.15 * s, cz))).normalized()
+        pill(tuple(root + out * 0.12 * s), (0.3 * s * fins, 0.14 * s, 0.06), theme["accent_shell"](), (math.radians(30), math.radians(side * 20), 0))
     sphere((x, 0.35 * s, cz + 0.6 * s), (0.4 * s, 0.45 * s, 0.12 * s), theme["core"](), 32)
-    cylinder((x, 1.35 * s, cz + 0.1 * s), 0.22 * s, 0.25, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3), (math.radians(90), 0, 0))
-    sphere((x, 1.5 * s, cz + 0.1 * s), (0.16 * s, 0.05, 0.16 * s), glow(theme["accent"], 12.0), 24)
+    # The thruster grows with the whale, its glow on its end (a fixed-length one left the glow
+    # hanging behind a big whale).
+    cylinder((x, 1.35 * s, cz + 0.1 * s), 0.22 * s, 0.25 * s, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3), (math.radians(90), 0, 0))
+    sphere((x, 1.46 * s, cz + 0.1 * s), (0.16 * s, 0.05, 0.16 * s), glow(theme["accent"], 12.0), 24)
     return {"shells": [body], "top": (x, 0.15 * s, cz + 1.1 * s), "center": (x, 0.15 * s, cz), "radius": 1.2 * s, "width": 1.5 * s, "size": s,
-            "hull": ((x, 0.15 * s, cz), (0.95 * s, 1.2 * s, 0.85 * s))}
+            "hull": ((x, 0.15 * s, cz), (0.95 * s, 1.2 * s, 0.85 * s)), "hull_obj": body}
 
 
 FAMILIES = {"slime": slime, "crab": crab, "worm": worm, "ray": ray, "swarm": swarm, "whale": whale}
@@ -454,13 +476,37 @@ def motes(info, color, count, strength=10.0, spread=0.55, size=0.04):
         sphere((cx + math.cos(angle) * radius, cy + math.sin(angle) * radius * 0.55, cz + 0.15 + 0.8 * math.sin(index * 1.7)), (s, s, s), mat, 10)
 
 
+# --- Placing parts on the body ------------------------------------------------------------------
+#
+# Parts were once placed from a pet's centre, radius and info["top"]; those only roughly match the
+# body (a worm's centre sits back towards its tail, a swarm's radius spans its little drones, the
+# top stands well clear of most heads), so parts floated off the body or sank into it. Now a family
+# names its hull (info["hull_obj"], the main shell, and info["hull"], its centre and rough radii)
+# and parts are put on its real surface.
+
+
+def _tree(obj):
+    """A part's evaluated surface (modifiers applied) in world space, for placing other parts."""
+    bpy.context.view_layer.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    evaluated = obj.evaluated_get(depsgraph)
+    mesh = evaluated.to_mesh()
+    verts = [obj.matrix_world @ v.co for v in mesh.vertices]
+    polys = [tuple(p.vertices) for p in mesh.polygons]
+    evaluated.to_mesh_clear()
+    return BVHTree.FromPolygons(verts, polys)
+
+
+def _hull_tree(info):
+    if "_hull_tree" not in info:
+        info["_hull_tree"] = _tree(info["hull_obj"]) if "hull_obj" in info else None
+    return info["_hull_tree"]
+
+
 def _flank(info):
-    """Where hull parts on the sides and back sit: a centre, a half-width and a snap that puts a
-    point on the hull. A pet whose body is not one round shell names its hull, an ellipsoid
-    (info["hull"]: centre, radii): a worm's head (its body centre sits back towards the curled
-    tail), a swarm's lead drone (its radius spans the little ones). Without the snap, parts placed
-    from the centre sank into the hull on one side and floated in the air on the other. Other pets
-    place parts as they are."""
+    """Where hull parts on the sides and back sit: a centre, a half-width and a snap that moves a
+    point onto the hull, straight out from the hull's centre (`lift` further out, or in when
+    negative). Parts are laid out round the centre as before, then snapped."""
     hull = info.get("hull")
     if hull is None:
         return info["center"], info["radius"], lambda point, lift=0.0: point
@@ -468,10 +514,54 @@ def _flank(info):
 
     def snap(point, lift=0.0):
         offset = Vector(point) - centre
+        out = offset.normalized()
+        tree = _hull_tree(info)
+        if tree is not None:
+            # From outside inwards: the first hit is the outer surface, whatever the shape.
+            hit = tree.ray_cast(centre + out * 20.0, -out)
+            if hit[0] is not None:
+                return tuple(hit[0] + out * lift)
         reach = math.sqrt(sum((offset[axis] / radii[axis]) ** 2 for axis in range(3)))
-        return tuple(centre + offset / reach + offset.normalized() * lift)
+        return tuple(centre + offset / reach + out * lift)
 
     return info.get("flank", info["center"]), info.get("flank_r", info["radius"]), snap
+
+
+def _crown_spot(info):
+    """Where things standing on the pet's head sit: the middle of its hull's top (x, y), and the
+    height of the hull straight above a point (x, y)."""
+    hull = info.get("hull")
+    if hull is None:
+        tx, ty, tz = info["top"]
+        return tx, ty, lambda x, y: tz - 0.05
+    (cx, cy, cz), (a, b, c) = hull
+
+    def height(x, y):
+        tree = _hull_tree(info)
+        if tree is not None:
+            hit = tree.ray_cast(Vector((x, y, cz + 20.0)), Vector((0, 0, -1)))
+            if hit[0] is not None:
+                return hit[0].z
+        inside = 1.0 - ((x - cx) / a) ** 2 - ((y - cy) / b) ** 2
+        return cz + c * math.sqrt(max(inside, 0.0))
+
+    return cx, cy, height
+
+
+def stick(info, point, lift=0.0, shells=None):
+    """`point` moved to the nearest spot on the pet's body shells (a ray's wings, a crab's claws,
+    the hull), `lift` out along the surface. For parts that belong on a wing or a fin, not the hull."""
+    trees = info.setdefault("_shell_trees", {})
+    best = None
+    for shell in shells if shells is not None else info["shells"]:
+        if shell.name not in trees:
+            trees[shell.name] = _tree(shell)
+        hit = trees[shell.name].find_nearest(Vector(point))
+        if hit[0] is not None and (best is None or hit[3] < best[3]):
+            best = hit
+    if best is None:
+        return tuple(point)
+    return tuple(best[0] + best[1] * lift)
 
 
 def details(info, theme):
@@ -495,9 +585,14 @@ def details(info, theme):
 
 def beacon(info, color, strength):
     """Tiers 1-3: an antenna with a light in the tier colour."""
-    tx, ty, tz = info["top"]
-    cylinder((tx + 0.18, ty + 0.12, tz - 0.05), 0.022, 0.42, real.chrome("Mast", (0.75, 0.77, 0.8)), (0, math.radians(12), 0))
-    sphere((tx + 0.23, ty + 0.12, tz + 0.18), (0.075, 0.075, 0.075), real.glow("Beacon", color, strength), 16)
+    tx, ty, height = _crown_spot(info)
+    # A kind wearing something on top (a siren, a star) moves the antenna clear of it.
+    dx, dy = info.get("beacon_at", (0.18, 0.12))
+    fx, fy = tx + dx, ty + dy
+    # The mast's foot a little inside the hull, the mast leaning out from it.
+    fz = height(fx, fy)
+    cylinder((fx, fy, fz + 0.15), 0.022, 0.42, real.chrome("Mast", (0.75, 0.77, 0.8)), (0, math.radians(12), 0))
+    sphere((fx + 0.05, fy, fz + 0.39), (0.075, 0.075, 0.075), real.glow("Beacon", color, strength), 16)
 
 
 def pack(info, color, armour):
@@ -507,7 +602,7 @@ def pack(info, color, armour):
     for side in (-1, 1):
         ex = cx + side * 0.32
         # The engine's middle on the back of the hull (a worm's: the back of its head).
-        ex, ey, ez = snap((ex, cy + r * 0.85, cz + 0.2), 0.05)
+        ex, ey, ez = snap((ex, cy + r * 0.85, cz + info.get("engine_z", 0.2)), 0.05)
         cylinder((ex, ey, ez), 0.13, 0.4, engine, (math.radians(90), 0, 0))
         torus((ex, ey + 0.2, ez), 0.12, 0.025, glow(color, 8.0), (math.radians(90), 0, 0))
         sphere((ex, ey + 0.24, ez), (0.1, 0.04, 0.1), glow(color, 14.0), 16)
@@ -657,20 +752,23 @@ def orbit(info, color, tilt, extra=0.45, thickness=0.02):
 
 def crown(info):
     """Tier 4: a gold crown of gem-tipped spikes instead of the antenna."""
-    tx, ty, tz = info["top"]
-    if "head" in info:
-        # On a worm's head, not hovering over its feelers.
-        tz = info["head"][2] + info["head_r"] + 0.03
+    tx, ty, height = _crown_spot(info)
+    # A kind wearing something on top widens the band round it (info["crown_r"]) or lifts the crown
+    # onto it (info["crown_lift"], a snow cap).
+    radius = info.get("crown_r", 0.32)
+    # The band rests on the head: its height where the band meets the hull, the lowest round it.
+    tz = min(height(tx + math.cos(a) * radius, ty + math.sin(a) * radius) for a in (0, math.pi / 2, math.pi, 1.5 * math.pi))
+    tz += 0.08 + info.get("crown_lift", 0.0)
     gold = real.chrome("Crown", GOLD, 0.2)
-    torus((tx, ty, tz - 0.05), 0.32, 0.06, gold)
+    torus((tx, ty, tz - 0.05), radius, 0.06, gold)
     for index in range(5):
         angle = index / 5 * math.tau - math.pi / 2
         out = Vector((math.cos(angle) * 0.25, math.sin(angle) * 0.25, 1)).normalized()
-        base = Vector((tx + math.cos(angle) * 0.3, ty + math.sin(angle) * 0.3, tz - 0.02))
-        height = 0.42 if index == 0 else 0.3
-        cone(tuple(base), 0.08, height, gold, tuple(out))
+        base = Vector((tx + math.cos(angle) * (radius - 0.02), ty + math.sin(angle) * (radius - 0.02), tz - 0.02))
+        spike = 0.42 if index == 0 else 0.3
+        cone(tuple(base), 0.08, spike, gold, tuple(out))
         gem = (1.0, 0.3, 0.5) if index == 0 else (0.4, 0.9, 1.0)
-        sphere(tuple(base + out * height), (0.055, 0.055, 0.055), real.glow("Gem", gem, 12.0), 12)
+        sphere(tuple(base + out * spike), (0.055, 0.055, 0.055), real.glow("Gem", gem, 12.0), 12)
 
 
 @in_role("rays")
@@ -748,18 +846,30 @@ def _back_arc(info, count, spread=1.0):
 
 def flair_debris(info, theme, tier):
     """Debris Belt: plain hull bits, a striped hazard plate."""
-    tx, ty, tz = info["top"]
+    # Low on the back, under the thrusters and clear of what a kind wears on top.
+    (cx, cy, cz), r, snap = _flank(info)
     stripe = real.gloss("Hazard", (0.08, 0.08, 0.09), 0.25)
     for step in range(min(tier, 3)):
-        pill((tx - 0.25 + step * 0.25, ty + 0.4, tz - 0.42), (0.09, 0.05, 0.03), stripe if step % 2 else theme["accent_shell"]())
+        pill(snap((cx - 0.12 + step * 0.12, cy + r, cz - 0.6 * r), 0.01), (0.09, 0.05, 0.03), stripe if step % 2 else theme["accent_shell"]())
 
 
 def flair_ice(info, theme, tier):
     """Ice Rings: crystal shards on the back, more and bigger with each tier."""
     crystal = real.crystal("Shard", (0.7, 0.92, 1.0), 1.2 + tier * 0.6)
-    for t, base, out in _back_arc(info, 2 + tier * 2, 1.3):
+    (cx, cy, cz), r, snap = _flank(info)
+    # A row down the spine, between the top of the head and the thrusters lower on the back. When
+    # the top is taken (the crown, a kind's ice ring or snow cap), a shorter row further back.
+    crowded = tier >= 4 or info.get("crowded_top", False)
+    count = min(6, 2 + tier * 2) if crowded else 2 + tier * 2
+    for t, _, out in _back_arc(info, count, 1.3):
         height = (0.35 + 0.12 * tier) * (1.0 - abs(t) * 0.45)
-        cone(tuple(base), 0.09 + 0.015 * tier, height, crystal, tuple(out))
+        # Rooted in the hull, a little sunk so the foot does not show.
+        if crowded:
+            base = snap((cx + t * r * 0.15, cy + r * 0.8, cz + r * 0.4), -0.03)
+        else:
+            base = snap((cx + t * r * 0.25, cy + r * 0.6, cz + r * 0.55), -0.03)
+        # Standing up, not leaning back over the thrusters.
+        cone(base, 0.07 + 0.01 * tier, height, crystal, (out.x, 0.15, 1.0))
     if tier >= 2:
         motes(info, (0.6, 0.95, 1.0), 4 + tier * 3, 8.0, 0.4, 0.035)
 
@@ -847,6 +957,8 @@ def build(family, zone, tier, x, z, meteor=False, look=None, shape=None, signatu
     before = set(bpy.data.objects)
     info = FAMILIES[family](x, z, paint, shape)
 
+    # A signature may wear something on top only below the crown's tier, or move the crown for it.
+    info["tier"] = tier
     for part in signature:
         part(info, paint)
     # A meteor pet keeps its tier's whole outfit and burns on top of it: the outfit's light turns to

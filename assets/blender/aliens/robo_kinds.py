@@ -9,7 +9,7 @@ import math
 
 import real
 import robo
-from mathutils import Vector
+from mathutils import Euler, Vector
 from robo import cone, cylinder, gem, glow, pill, sphere, torus
 
 WHITE = (0.97, 0.98, 1.0)
@@ -31,24 +31,37 @@ def _lead(info):
 
 def siren(info, theme):
     """A warden's light bar: red and blue lamps on top, and a gold badge."""
-    tx, ty, tz = info["top"]
-    pill((tx, ty, tz - 0.02), (0.3, 0.1, 0.06), real.gloss("Bar", (0.12, 0.13, 0.15), 0.3))
+    tx, ty, height = robo._crown_spot(info)
+    big = info.get("hull", (None, (1.0,)))[1][0] > 0.7
+    # On top; on a small head (a lead drone, a ray) the crown needs the top, so at the crown's
+    # tier the bar moves to the back of the head.
+    back = 0.0 if big or info.get("tier", 0) < 4 else (0.4 if "span" in info else 0.5)
+    by = ty + back
+    tz = height(tx, by)
+    pill((tx, by, tz + 0.03), (0.3, 0.1, 0.06), real.gloss("Bar", (0.12, 0.13, 0.15), 0.3))
     for side, colour in ((-1, (1.0, 0.15, 0.15)), (1, (0.2, 0.45, 1.0))):
-        sphere((tx + side * 0.16, ty, tz + 0.08), (0.11, 0.09, 0.09), real.glow("Siren", colour, 12.0), 16)
+        sphere((tx + side * 0.16, by, tz + 0.13), (0.11, 0.09, 0.09), real.glow("Siren", colour, 12.0), 16)
+    # On a big head the crown goes round the bar. The antenna stands behind it.
+    if big:
+        info["crown_r"] = 0.44
+    info["beacon_at"] = (0.0, 0.32)
     (cx, cy, cz), r, snap = robo._flank(info)
-    pill(snap((cx, cy - r * 0.86, cz - 0.3), 0.02), (0.16, 0.04, 0.12), real.chrome("Badge", robo.GOLD, 0.25))
+    # The badge low on the front; off to one side on a ray, whose visor fills its narrow front.
+    side = 0.35 * r if "span" in info else 0.0
+    pill(snap((cx + side, cy - r * 0.86, cz - 0.45 * r), 0.02), (0.16, 0.04, 0.12), real.chrome("Badge", robo.GOLD, 0.25))
 
 
 def rotor(info, theme):
-    """A drone's propeller on a mast."""
-    tx, ty, tz = info["top"]
-    cylinder((tx, ty, tz - 0.2), 0.04, 0.55, real.gloss("Mast", (0.15, 0.16, 0.18), 0.3))
+    """A drone's propeller on a mast, high enough to spin over the antenna and the crown."""
+    tx, ty, height = robo._crown_spot(info)
+    tz = height(tx, ty)
+    cylinder((tx, ty, tz + 0.28), 0.04, 0.7, real.gloss("Mast", (0.15, 0.16, 0.18), 0.3))
     with robo.role("rotor"):
         blade = real.gloss("Blade", (0.92, 0.93, 0.96), 0.2)
         for spin in (20, 110):
-            b = pill((tx, ty, tz + 0.1), (0.7, 0.07, 0.02), blade)
+            b = pill((tx, ty, tz + 0.62), (0.7, 0.07, 0.02), blade)
             b.rotation_euler = (math.radians(4), 0, math.radians(spin))
-        sphere((tx, ty, tz + 0.12), (0.09, 0.09, 0.06), glow(theme["accent"], 10.0), 16)
+        sphere((tx, ty, tz + 0.64), (0.09, 0.09, 0.06), glow(theme["accent"], 10.0), 16)
 
 
 @robo.in_role("fx")
@@ -72,24 +85,36 @@ def exhausts(info, theme):
     (cx, cy, cz), r, snap = robo._flank(info)
     pipe = real.chrome("Pipe", (0.45, 0.42, 0.4), 0.35)
     for side in (-1, 1):
-        # The pipe's foot on the hull, the pipe rising from it.
-        fx, fy, fz = snap((cx + side * 0.4, cy + r * 0.55, cz + 0.2))
+        # The pipe's foot on the back, close to the spine: behind the crown, above the thrusters,
+        # clear of a lead drone's little wings.
+        fx, fy, fz = snap((cx + side * 0.22, cy + r * 0.6, cz + r * 0.35))
         cylinder((fx, fy, fz + 0.35), 0.09, 0.7, pipe, (math.radians(-15), 0, 0))
         sphere((fx, fy + 0.08, fz + 0.72), (0.07, 0.07, 0.03), glow((1.0, 0.45, 0.1), 8.0), 12)
     rivet = real.chrome("Rivet", (0.3, 0.28, 0.27), 0.3)
+    # A row over the brow, above the visor.
     for dx in (-0.6, -0.36, -0.12, 0.12, 0.36, 0.6):
-        sphere(snap((cx + dx * r, cy - r * 0.68, cz + 0.22)), (0.045, 0.03, 0.045), rivet, 12)
+        sphere(snap((cx + dx * r, cy - r * 0.68, cz + 0.5 * r)), (0.045, 0.03, 0.045), rivet, 12)
 
 
 def circlet(info, theme):
-    """A royal band with a jewel."""
-    tx, ty, tz = info["top"]
+    """A royal band with a jewel, round the top of the head."""
+    tx, ty, height = robo._crown_spot(info)
+    a = info["hull"][1][0] if "hull" in info else 0.75
+    # Snug on the head: narrower on a small head, so it stays above a drone's little wings.
+    band = min(0.45, a * 0.5)
+    tz = min(height(tx + math.cos(t) * band, ty + math.sin(t) * band) for t in (0, math.pi / 2, math.pi, 1.5 * math.pi)) + 0.02
     gold = real.chrome("Circlet", robo.GOLD, 0.22)
-    torus((tx, ty, tz - 0.3), 0.45, 0.06, gold)
-    sphere((tx, ty - 0.45, tz - 0.28), (0.1, 0.06, 0.1), real.glow("Jewel", (0.4, 0.8, 1.0), 10.0), 16)
+    torus((tx, ty, tz), band, 0.06, gold)
+    # The jewel hangs on the band's front, below the crown that rests on the band.
+    sphere((tx, ty - band, tz - 0.04), (0.1, 0.06, 0.1), real.glow("Jewel", (0.4, 0.8, 1.0), 10.0), 16)
+    # At the crown's tier the crown rests on the band.
+    info["crown_r"] = band
+    info["crown_lift"] = 0.1
     (cx, cy, cz), r, snap = robo._flank(info)
     for side in (-1, 1):
-        sphere(snap((cx + side * r * 0.85, cy, cz + 0.15)), (0.2, 0.18, 0.07), gold, 24)
+        # Gold studs low on the flanks, under the side lights and the emblem (the shoulder plates
+        # take the space above).
+        sphere(snap((cx + side * r * 0.85, cy - 0.35, cz - 0.4)), (0.2, 0.18, 0.07), gold, 24)
 
 
 def pincers(info, theme):
@@ -99,10 +124,15 @@ def pincers(info, theme):
     if "head" in info:
         hx, hy, hz = info["head"]
         r = info["head_r"]
-        bases = [Vector((hx + side * r * 0.78, hy - r * 0.68, hz - r * 0.55)) for side in (-1, 1)]
+        # Low under the chin, below the emblems on the cheeks.
+        snap = robo._flank(info)[2]
+        bases = [Vector(snap((hx + side * r * 0.6, hy - r * 0.6, hz - r * 0.9))) for side in (-1, 1)]
     else:
         (lx, ly, lz), size = _lead(info)
-        bases = [Vector((lx + side * 0.35 * size, ly - 0.55 * size, lz - 0.05)) for side in (-1, 1)]
+        # Held at the front of the body, rooted in it.
+        hull = [info["hull_obj"]] if "hull_obj" in info else None
+        # Wide and low, clear of the visor.
+        bases = [Vector(robo.stick(info, (lx + side * 0.55 * size, ly - 0.55 * size, lz - 0.25), 0.0, hull)) for side in (-1, 1)]
     for side, base in zip((-1, 1), bases):
         sphere(tuple(base), (0.16, 0.2, 0.14), shell, 24)
         pill(tuple(base + Vector((side * 0.05, -0.2, 0.08))), (0.06, 0.13, 0.04), shell, (math.radians(-20), 0, 0))
@@ -111,22 +141,30 @@ def pincers(info, theme):
 
 def icicles(info, theme):
     """Icicles hanging from the belly."""
-    cx, cy, cz = info["center"]
-    r = info["radius"]
+    (cx, cy, cz), r, snap = robo._flank(info)
     ice = real.crystal("Icicle", (0.75, 0.95, 1.0), 1.5)
     for index in range(5):
-        base = (cx - r * 0.5 + index * r * 0.25, cy - 0.1, cz - r * 0.35)
+        # Rooted in the underside, a little sunk.
+        base = snap((cx - r * 0.5 + index * r * 0.25, cy - 0.1, cz - r), -0.02)
         cone(base, 0.06, 0.22 + 0.05 * (index % 2), ice, (0, 0, -1))
 
 
 def snowcap(info, theme):
     """A fluffy snow cap and a snowflake badge."""
-    tx, ty, tz = info["top"]
+    tx, ty, height = robo._crown_spot(info)
+    tz = height(tx, ty - 0.1) - 0.05
     snow = real.frost("Snow", WHITE, 0.6)
-    sphere((tx, ty - 0.1, tz - 0.4), (0.62, 0.5, 0.2), snow, 32)
-    for dx, dz in ((-0.42, -0.45), (0.38, -0.47), (0.0, -0.27)):
+    sphere((tx, ty - 0.1, tz), (0.62, 0.5, 0.2), snow, 32)
+    for dx, dz in ((-0.42, -0.05), (0.38, -0.07), (0.0, 0.05)):
         sphere((tx + dx, ty - 0.2, tz + dz), (0.18, 0.18, 0.14), snow, 20)
-    flake(info["center"][0], info["center"][1] - info["radius"] * 0.9, info["center"][2] + 0.1, 0.13)
+    # The crown sits on the snow; the antenna stands behind the cap.
+    info["crown_lift"] = 0.22
+    info["beacon_at"] = (-0.4, 0.5)
+    # Ice shards on the back keep clear of the cap.
+    info["crowded_top"] = True
+    (cx, cy, cz), r, snap = robo._flank(info)
+    # The snowflake badge low on the front, off to one side: clear of the face.
+    flake(*snap((cx + r * 0.35, cy - r, cz - 0.45 * r), 0.02), 0.13)
 
 
 def flake(x, y, z, size):
@@ -146,13 +184,21 @@ def flakes(info, theme):
 
 
 def ice_crown(info, theme):
-    """A ring of ice spikes on top."""
-    tx, ty, tz = info["top"]
+    """A ring of ice spikes on top, wide enough for the crown to sit inside it."""
+    tx, ty, height = robo._crown_spot(info)
+    # Inside the head's edge on a flat ray, where the side lights sit.
+    ring = min(0.52, info["hull"][1][0] * 0.6) if "hull" in info else 0.52
+    if ring < 0.52:
+        # A smaller crown inside a smaller ring.
+        info["crown_r"] = max(0.22, ring - 0.2)
+    # Ice shards on the back keep clear of the ring.
+    info["crowded_top"] = True
     ice = real.crystal("IceSpike", (0.75, 0.95, 1.0), 2.0)
     for index in range(9):
         angle = index / 9 * math.tau
         out = Vector((math.cos(angle) * 0.35, math.sin(angle) * 0.35, 1.0))
-        cone((tx + math.cos(angle) * 0.38, ty + math.sin(angle) * 0.38, tz - 0.3), 0.08, 0.32 + 0.12 * (index % 2), ice, tuple(out))
+        x, y = tx + math.cos(angle) * ring, ty + math.sin(angle) * ring
+        cone((x, y, height(x, y) - 0.03), 0.08, 0.32 + 0.12 * (index % 2), ice, tuple(out))
 
 
 def ice_fringe(info, theme):
@@ -163,7 +209,9 @@ def ice_fringe(info, theme):
     for side in (-1, 1):
         for index in range(4):
             reach = 0.5 + index * 0.38
-            cone((cx + side * reach * span, cy + 0.6 + index * 0.06, cz + 0.05 + index * 0.08), 0.05, 0.2, ice, (0, 0.4, -1))
+            # Hanging from the wing's (or body's) edge, rooted in it.
+            base = robo.stick(info, (cx + side * reach * span, cy + 0.6 + index * 0.06, cz + 0.05 + index * 0.08), -0.01)
+            cone(base, 0.05, 0.2, ice, (0, 0.4, -1))
 
 
 def plow(info, theme):
@@ -195,11 +243,14 @@ def frill(info, theme):
     else:
         hx, hy, hz = info["center"]
         r = info["radius"] * 0.7
+    snap = robo._flank(info)[2]
     fan = real.iridescent("Frill", theme["colours"]["trim"], transmission=0.5, glow=1.5)
     for index in range(7):
         angle = math.radians(-70 + index * 23)
         out = Vector((math.sin(angle), 0.35, math.cos(angle)))
-        f = sphere(tuple(Vector((hx, hy + 0.25, hz)) + out * (r + 0.15)), (0.14, 0.04, 0.32), fan, 24)
+        # Each petal rooted in the hull, fanning out from it.
+        root = Vector(snap(tuple(Vector((hx, hy + 0.25, hz)) + out * r)))
+        f = sphere(tuple(root + out.normalized() * 0.22), (0.14, 0.04, 0.32), fan, 24)
         f.rotation_euler = out.to_track_quat("Z", "Y").to_euler()
 
 
@@ -221,20 +272,22 @@ def mandibles(info, theme):
     jaw = real.chrome("Jaw", (0.85, 0.85, 0.9), 0.2)
     for side in (-1, 1):
         cone((lx + side * 0.22 * size, ly - 0.42 * size, lz - 0.2 * size), 0.07 * size, 0.42 * size, jaw, (-side * 0.6, -1, -0.3))
-    for location, s in info.get("drones", []):
-        for side in (-1, 1):
-            cone((location.x + side * 0.1 * s, location.y - 0.4 * s, location.z - 0.15 * s), 0.04 * s, 0.22 * s, jaw, (-side * 0.6, -1, -0.3))
+    for index, (location, s) in enumerate(info.get("drones", [])):
+        # A little drone's jaws fly with it.
+        with robo.role(f"drone{index + 1}"):
+            for side in (-1, 1):
+                cone((location.x + side * 0.1 * s, location.y - 0.4 * s, location.z - 0.15 * s), 0.04 * s, 0.22 * s, jaw, (-side * 0.6, -1, -0.3))
 
 
 def crest(info, theme):
-    """A crest of spines on the head."""
+    """A crest of spines down the back of the head (behind the crown's place)."""
     (lx, ly, lz), size = _lead(info)
-    # On a worm's head, not above its feelers.
-    top = info["head"][2] + info["head_r"] + 0.15 if "head" in info else info["top"][2]
+    tx, ty, height = robo._crown_spot(info)
     spine = theme["accent_shell"]()
     for index in range(5):
         angle = math.radians(-40 + index * 20)
-        cone((lx + math.sin(angle) * 0.3 * size, ly + 0.15 * size, top - 0.25), 0.07, 0.35 + 0.15 * (index == 2), spine, (math.sin(angle) * 0.6, 0.3, 1))
+        x, y = lx + math.sin(angle) * 0.3 * size, ty + 0.35 * size
+        cone((x, y, height(x, y) - 0.04), 0.07, 0.35 + 0.15 * (index == 2), spine, (math.sin(angle) * 0.6, 0.3, 1))
 
 
 def queen(info, theme):
@@ -242,9 +295,11 @@ def queen(info, theme):
     mandibles(info, theme)
     crest(info, theme)
     (lx, ly, lz), size = _lead(info)
+    snap = robo._flank(info)[2]
     pod = real.jelly("Brood", theme["colours"]["core"], glow=3.0, clear=True)
     for dx, dy in ((-0.35, 0.1), (0.0, 0.25), (0.35, 0.1)):
-        sphere((lx + dx * size, ly + dy, lz - 0.75 * size), (0.14, 0.14, 0.18), pod, 20)
+        # Hanging from her belly, half in it.
+        sphere(snap((lx + dx * size, ly + dy, lz - 0.75 * size), 0.06), (0.14, 0.14, 0.18), pod, 20)
 
 
 def guard(info, theme):
@@ -269,15 +324,18 @@ def stars(info, theme):
         span = info["span"]
         for side in (-1, 1):
             for reach, dz in ((0.7, 0.08), (1.25, 0.2), (1.7, 0.33)):
-                star(cx + side * reach * span, cy + 0.25 + reach * 0.12, cz + dz + 0.06, 0.08, gold)
-        star(cx, cy + 1.95, cz - 0.15, 0.12, gold)
+                # On the wing's top, a little out of it.
+                star(*robo.stick(info, (cx + side * reach * span, cy + 0.25 + reach * 0.12, cz + dz + 0.06), 0.03), 0.08, gold)
         return
-    r = info["radius"]
+    (cx, cy, cz), r, snap = robo._flank(info)
     for index in range(5):
         angle = index / 5 * math.tau + 0.3
-        star(cx + math.cos(angle) * r * 0.7, cy - r * 0.6, cz + 0.2 + math.sin(angle) * r * 0.45, 0.09, gold)
-    tx, ty, tz = info["top"]
-    star(tx, ty, tz + 0.15, 0.14, gold)
+        star(*snap((cx + math.cos(angle) * r * 0.7, cy - r * 0.6, cz + 0.2 + math.sin(angle) * r * 0.45), 0.02), 0.09, gold)
+    # A big star on top; at the crown's tier the crown takes the top.
+    if info.get("tier", 0) < 4:
+        tx, ty, height = robo._crown_spot(info)
+        star(tx, ty, height(tx, ty) + 0.12, 0.14, gold)
+        info["beacon_at"] = (0.0, 0.32)
 
 
 @robo.in_role("flame")
@@ -304,13 +362,16 @@ def lightning(info, theme):
         span = info["span"]
         for side in (-1, 1):
             zig = [(0.45, 0.0), (0.85, 0.22), (1.15, 0.05), (1.55, 0.3), (1.9, 0.12)]
-            _bolt([(cx + side * a * span, cy + 0.2, cz + 0.12 + z) for a, z in zig], bolt)
+            # Crackling along the wing's top, each kink on it.
+            _bolt([robo.stick(info, (cx + side * a * span, cy + 0.2, cz + 0.12 + z), 0.03) for a, z in zig], bolt)
         return
-    tx, ty, tz = info["top"]
+    # Two bolts leaping up off the sides of the head, clear of the crown (a third one down a flank
+    # had no room among the lights, plates and thrusters).
+    tx, ty, height = robo._crown_spot(info)
     for side in (-1, 1):
-        _bolt([(tx + side * 0.15, ty, tz - 0.2), (tx + side * 0.4, ty, tz + 0.1), (tx + side * 0.28, ty, tz + 0.25), (tx + side * 0.55, ty, tz + 0.6)], bolt)
-    r = info["radius"]
-    _bolt([(cx - r, cy - 0.3, cz + 0.3), (cx - r - 0.25, cy - 0.3, cz), (cx - r - 0.1, cy - 0.3, cz - 0.1), (cx - r - 0.35, cy - 0.3, cz - 0.4)], bolt)
+        x0 = tx + side * 0.42
+        z0 = height(x0, ty) - 0.03
+        _bolt([(x0, ty, z0), (x0 + side * 0.25, ty, z0 + 0.3), (x0 + side * 0.13, ty, z0 + 0.45), (x0 + side * 0.4, ty, z0 + 0.8)], bolt)
 
 
 @robo.in_role("drone")
@@ -327,7 +388,9 @@ def minions(info, theme):
 def void_core(info, theme):
     """A tiny black hole over the pet: a dark sphere in a burning ring."""
     (lx, ly, lz), size = _lead(info)
-    where = (lx, ly + 0.2, info["top"][2] + 0.35)
+    # Hovering over the head, high enough to clear the antenna and the crown.
+    height = robo._crown_spot(info)[2]
+    where = (lx, ly + 0.2, height(lx, ly + 0.2) + 0.95)
     sphere(where, (0.22,) * 3, real.gloss("Void", (0.0, 0.0, 0.0), 0.05), 32)
     torus(where, 0.36, 0.05, real.glow("Horizon", (1.0, 0.6, 0.95), 8.0), (math.radians(70), 0, 0))
     torus(where, 0.5, 0.015, real.glow("HorizonOuter", (0.6, 0.5, 1.0), 6.0), (math.radians(70), 0, 0))
@@ -335,11 +398,11 @@ def void_core(info, theme):
 
 def dots(info, theme):
     """Glowing dots over the body, like stars in the dark."""
-    cx, cy, cz = info["center"]
-    r = info["radius"]
+    (cx, cy, cz), r, snap = robo._flank(info)
     mat = real.glow("Dot", theme["accent"], 10.0)
     for index in range(9):
-        sphere((cx - 0.4 * r + index * 0.1 * r + 0.1 * math.sin(index), cy - 0.35 * r + index * 0.12 * r, cz + 0.2 + 0.25 * math.cos(index * 2)), (0.04,) * 3, mat, 10)
+        # Over the back half, clear of the face.
+        sphere(snap((cx - 0.25 * r + index * 0.0625 * r + 0.05 * math.sin(index), cy + 0.5 * r, cz + 0.6 * r + 0.1 * math.cos(index * 2))), (0.04,) * 3, mat, 10)
 
 
 def smoke(info, theme):
@@ -358,7 +421,8 @@ def star_dots(info, theme):
     mat = real.glow("StarDot", theme["accent"], 12.0)
     for side in (-1, 1):
         for reach, dy in ((0.5, 0.0), (0.9, 0.25), (1.3, 0.1), (1.65, 0.4), (1.1, 0.5)):
-            sphere((cx + side * reach * span, cy + 0.15 + dy - 0.5, cz + 0.12 + reach * 0.12), (0.035,) * 3, mat, 10)
+            # Studs on the wing or the back, half in it.
+            sphere(robo.stick(info, (cx + side * reach * span, cy + 0.15 + dy - 0.5, cz + 0.12 + reach * 0.12)), (0.035,) * 3, mat, 10)
 
 
 def gravity(info, theme):
@@ -384,24 +448,30 @@ def spout(info, theme):
 
 
 def telescope(info, theme):
-    """A stargazer's brass telescope pointed at the sky."""
-    tx, ty, tz = info["top"]
+    """A stargazer's brass telescope pointed at the sky, standing on its back (clear of the crown)."""
+    tx, ty, height = robo._crown_spot(info)
     brass = real.chrome("Brass", (0.85, 0.62, 0.3), 0.25)
-    tube = cylinder((tx + 0.15, ty + 0.1, tz + 0.05), 0.09, 0.7, brass, (math.radians(-35), math.radians(25), 0))
-    end = Vector(tube.location) + Vector((0.15, -0.2, 0.3))
-    sphere(tuple(end), (0.1, 0.1, 0.1), real.glow("Lens", (0.6, 0.85, 1.0), 6.0), 16)
-    flake(tx - 0.4, ty - 0.2, tz + 0.5, 0.08)
+    turn = Euler((math.radians(-35), math.radians(25), 0)).to_matrix()
+    axis = turn @ Vector((0, 0, 1))
+    # The tube's lower end rests on the hull, a little sunk.
+    fx, fy = tx + 0.3, ty + 0.4
+    foot = Vector((fx, fy, height(fx, fy) - 0.03))
+    centre = foot + axis * 0.35
+    cylinder(tuple(centre), 0.09, 0.7, brass, (math.radians(-35), math.radians(25), 0))
+    sphere(tuple(foot + axis * 0.72), (0.1, 0.1, 0.1), real.glow("Lens", (0.6, 0.85, 1.0), 6.0), 16)
 
 
 def galaxy(info, theme):
     """A galaxy across the body and star dots over it."""
-    cx, cy, cz = info["center"]
-    s = info.get("size", info["radius"] / 1.2)
-    sphere((cx, cy - 0.3 * s, cz - 0.28 * s), (0.78 * s, 0.88 * s, 0.52 * s), real.nebula("Galaxy", (0.05, 0.02, 0.15), (0.6, 0.3, 0.9), (1.0, 0.9, 0.95), 10.0), 48)
+    (cx, cy, cz), r, snap = robo._flank(info)
+    s = info.get("size", r / 1.2)
+    # A belly patch, kept below and behind the face.
+    sphere((cx, cy - 0.2 * s, cz - 0.28 * s), (0.78 * s, 0.7 * s, 0.5 * s), real.nebula("Galaxy", (0.05, 0.02, 0.15), (0.6, 0.3, 0.9), (1.0, 0.9, 0.95), 10.0), 48)
     mat = real.glow("BackStar", (1.0, 0.95, 0.85), 12.0)
     for index in range(10):
         angle = index * 2.4
-        sphere((cx + math.cos(angle) * 0.55 * s, cy + 0.2 * s + math.sin(angle) * 0.6 * s, cz + 0.75 * s), (0.03,) * 3, mat, 10)
+        # Over the back, behind the crown's place.
+        sphere(snap((cx + math.cos(angle) * 0.45 * s, cy + 0.5 * s + math.sin(angle) * 0.15 * s, cz + 0.5 * s)), (0.03,) * 3, mat, 10)
 
 
 # --- The posts and their kinds ---------------------------------------------------------------------
