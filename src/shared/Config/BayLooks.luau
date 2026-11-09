@@ -27,6 +27,19 @@ local PLACES = table.freeze({
 	squeezeStep = 0.02,
 })
 
+-- The places' terminal stands at the horseshoe's end on the right of a player walking in (-X),
+-- its back to the places and its screen across the entrance's path (user, 2026-11-10): it reads
+-- as the places' own. This far from the island's center along the horseshoe's edge, and its middle
+-- this far off the edge, into the entrance's wedge (the stand's half depth and a little air).
+local PLACES_TERMINAL_ALONG = 26
+local PLACES_TERMINAL_OFF_EDGE = 2.5
+-- Half the entrance's wedge, radians: the horseshoe's edge runs this far from the entrance's line.
+local WEDGE = (2 * math.pi - PLACES.arc) / 2
+-- The edge's direction from the center, and its normal into the wedge (toward the path).
+local PLACES_EDGE = Vector3.new(-math.sin(WEDGE), 0, -math.cos(WEDGE))
+local PLACES_EDGE_INWARD = Vector3.new(math.cos(WEDGE), 0, -math.sin(WEDGE))
+local PLACES_TERMINAL_POSITION = PLACES_EDGE * PLACES_TERMINAL_ALONG + PLACES_EDGE_INWARD * PLACES_TERMINAL_OFF_EDGE
+
 -- The incubator in the island's center: a low stand with up to 12 capsules round it.
 local CAPSULE_RING_RADIUS = 8.5
 local CAPSULE_RADIUS = 1.6
@@ -63,11 +76,12 @@ return table.freeze({
 	MIN_PLACE_WIDTH = 6,
 
 	-- Terminals (docs/design/screens/terminals.md): a stand with a tilted screen beside each zone,
-	-- in the entrance's wedge, the screen toward the spawn. The places' one stands beside the
-	-- incubator's, on its right for a player walking in (user, 2026-11-10): the two screens a
-	-- couple of studs apart.
-	PLACES_TERMINAL_POSITION = Vector3.new(-8, 0, -18),
-	INCUBATOR_TERMINAL_POSITION = Vector3.new(0, 0, -17.5),
+	-- in the entrance's wedge, the screen toward the spawn (the places' one: across the path, see
+	-- PLACES_TERMINAL_ALONG). The incubator's stands a little to the left of the path for a player
+	-- walking in, so the incubator shows past it (user, 2026-11-10).
+	PLACES_TERMINAL_POSITION = PLACES_TERMINAL_POSITION,
+	PLACES_TERMINAL_FACES = PLACES_TERMINAL_POSITION + PLACES_EDGE_INWARD,
+	INCUBATOR_TERMINAL_POSITION = Vector3.new(5, 0, -17.5),
 	TRAINER_TERMINAL_POSITION = Vector3.new(17, 0, -46),
 	TERMINAL_FACES = Vector3.new(0, 0, -StationSize.ISLAND_SPAWN_DISTANCE),
 	TERMINAL_BASE_SIZE = Vector3.new(3.4, 0.3, 3.4),

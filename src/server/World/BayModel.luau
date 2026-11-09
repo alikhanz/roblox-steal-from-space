@@ -364,10 +364,11 @@ end
 -- A terminal beside a zone (docs/design/screens/terminals.md): a base with a glow in the zone's
 -- `color`, a column and a tilted screen in a glowing frame, the screen toward the spawn. The
 -- client draws the screen (the part named BayConfig.TERMINAL_SCREEN_NAME, its front face).
-local function buildTerminal(origin: CFrame, name: string, position: Vector3, color: Color3): Model
+-- `faces`: the point its screen turns to, in the island's frame (the spawn by default).
+local function buildTerminal(origin: CFrame, name: string, position: Vector3, color: Color3, faces: Vector3?): Model
 	local model = Instance.new("Model")
 	model.Name = name
-	local facing = BayLooks.TERMINAL_FACES
+	local facing = faces or BayLooks.TERMINAL_FACES
 	local frame = origin * CFrame.lookAt(position, Vector3.new(facing.X, position.Y, facing.Z))
 
 	local function piece(pieceName: string, size: Vector3, cframe: CFrame, pieceColor: Color3, material: Enum.Material)
@@ -501,7 +502,8 @@ function BayModel.build(slot: number, origin: CFrame): Model
 	local places = BayLooks.PLACES_TERMINAL_POSITION
 	local hatchery = BayLooks.INCUBATOR_TERMINAL_POSITION
 	local training = BayLooks.TRAINER_TERMINAL_POSITION
-	buildTerminal(origin, BayConfig.PLACES_TERMINAL_NAME, places, BayLooks.PLACES_COLOR).Parent = model
+	buildTerminal(origin, BayConfig.PLACES_TERMINAL_NAME, places, BayLooks.PLACES_COLOR, BayLooks.PLACES_TERMINAL_FACES).Parent =
+		model
 	buildTerminal(origin, BayConfig.INCUBATOR_TERMINAL_NAME, hatchery, BayLooks.INCUBATOR_COLOR).Parent = model
 	buildTerminal(origin, BayConfig.TRAINER_TERMINAL_NAME, training, BayLooks.TRAINER_RING_COLOR).Parent = model
 
