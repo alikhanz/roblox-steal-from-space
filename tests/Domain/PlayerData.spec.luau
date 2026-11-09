@@ -23,7 +23,7 @@ local function savedTemplate(): { [string]: any }
 end
 
 local function alien(uid: number, id: string?): { [string]: any }
-	return { uid = uid, id = id or "DebrisBelt1.Common" }
+	return { uid = uid, id = id or "DebrisBelt1.slimeWarden.Common" }
 end
 
 local function expectCorrupted(saved: unknown, detail: string)
@@ -76,7 +76,7 @@ describe("PlayerData.load", function()
 
 	it("keeps the bay as saved", function()
 		local saved = savedTemplate()
-		saved.pods = { { alien = alien(1) }, {}, { alien = alien(2, "DebrisBelt2.Rare") }, {} }
+		saved.pods = { { alien = alien(1) }, {}, { alien = alien(2, "DebrisBelt2.droneRay.Rare") }, {} }
 		saved.inventory = { alien(3) }
 		saved.floor = { alien(4) }
 		saved.incubator = { { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000 } }
@@ -416,7 +416,7 @@ describe("PlayerData migration v9 -> v10", function()
 		if outcome.ok then
 			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(outcome.data.index.sets).toEqual({ "1", "4" })
-			expect(outcome.data.index.found).toEqual({ ["DebrisBelt1.Common"] = true })
+			expect(outcome.data.index.found).toEqual({ ["DebrisBelt1.slimeWarden.Common"] = true })
 		end
 	end)
 
@@ -506,9 +506,9 @@ describe("PlayerData migration v8 -> v9", function()
 		if outcome.ok then
 			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(outcome.data.index.found).toEqual({
-				["DebrisBelt1.Common"] = true,
-				["IceRings2.Epic"] = true,
-				["DebrisBelt1.Rare"] = true,
+				["DebrisBelt1.slimeWarden.Common"] = true,
+				["IceRings2.snowCrab.Epic"] = true,
+				["DebrisBelt1.slimeWarden.Rare"] = true,
 			})
 			expect(outcome.data.index.sets).toEqual({})
 		end
@@ -521,6 +521,46 @@ describe("PlayerData migration v8 -> v9", function()
 		local other = savedTemplate()
 		other.index = { found = {}, sets = { 0 } }
 		expectCorrupted(other, "index sets is invalid")
+	end)
+end)
+
+describe("PlayerData migration v15 -> v16", function()
+	local function v15Save(): { [string]: any }
+		local saved = savedTemplate()
+		saved.schemaVersion = 15
+		saved.pods =
+			{ { alien = alien(1, "DebrisBelt2.Rare") }, {}, { alien = alien(2, "EventHorizon6.Legendary.Meteor") } }
+		saved.inventory = { alien(3, "IceRings1.Common") }
+		saved.floor = { alien(4, "RedNebula4.Epic") }
+		saved.index = { found = { ["DebrisBelt2.Rare"] = true, ["IceRings1.Common"] = false }, sets = { "2" } }
+		saved.nextUid = 5
+		return saved
+	end
+
+	it("makes every alien from before its guardian's main kind", function()
+		local outcome = load(v15Save())
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			local data = outcome.data
+			expect(data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect((data.pods[1].alien :: any).id).toBe("DebrisBelt2.crabDrone.Rare")
+			expect((data.pods[3].alien :: any).id).toBe("EventHorizon6.spaceWhale.Legendary.Meteor")
+			expect(data.inventory[1].id).toBe("IceRings1.iceWorm.Common")
+			expect(data.floor[1].id).toBe("RedNebula4.redSwarm.Epic")
+			expect(data.index.found).toEqual({
+				["DebrisBelt2.crabDrone.Rare"] = true,
+				["IceRings1.iceWorm.Common"] = false,
+			})
+			expect(data.index.sets).toEqual({ "2" })
+		end
+	end)
+
+	it("leaves ids that already name a kind, so running it twice changes nothing", function()
+		local saved = v15Save()
+		PlayerData.MIGRATIONS[15](saved)
+		local once = Tables.deepCopy(saved)
+		PlayerData.MIGRATIONS[15](saved)
+		expect(saved).toEqual(once)
 	end)
 end)
 

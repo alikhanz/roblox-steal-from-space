@@ -130,10 +130,11 @@ local function recommendedFor(post: number): number
 end
 
 -- Aliens come only from the one registry, AlienConfig: no made-up ones, so the calculator can
--- never count an alien the game does not have.
+-- never count an alien the game does not have. Kinds of a grade earn the same (decision 075), so
+-- its main kind stands for all of them.
 local function alienIdFor(grade: number, tier: AlienConfig.TierId, variant: AlienConfig.VariantId): string
 	local configured = assert(AlienConfig.GRADES[grade], `no grade {grade} in AlienConfig`)
-	return configured.variants[variant][tier]
+	return configured.variants[variant][configured.kinds[1]][tier]
 end
 local function incomeOf(id: string): BigNum.BigNum
 	return assert(AlienConfig.ALIENS[id], `unknown alien {id}`).income

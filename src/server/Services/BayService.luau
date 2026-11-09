@@ -22,6 +22,7 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
+local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
@@ -483,7 +484,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		return written
 	end
 
-	-- An egg hatches into a tier of its grade, with the odds tilted by the egg's luck.
+	-- An egg hatches into a kind of its grade, by the kinds' own odds, and a tier, with the tier's
+	-- odds tilted by the egg's luck (luck never touches the kind: it is for the collection,
+	-- decision 075).
 	local function hatchEgg(
 		data: PlayerData.PlayerData,
 		egg: PlayerData.EggRecord
@@ -497,8 +500,9 @@ function BayService.new(dependencies: Dependencies): BayService
 			return nil, nil
 		end
 		local luck = EggConfig.luckOf(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
+		local kind = Loot.pick(grade.kindEntries, random:NextNumber())
 		local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, luck, random:NextNumber())
-		local alienId = variant[tier]
+		local alienId = variant[kind][tier]
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end
 

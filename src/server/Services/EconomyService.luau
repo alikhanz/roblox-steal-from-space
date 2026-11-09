@@ -174,13 +174,17 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			-- The check passed: every parent shares the first one's grade and variant.
 			local first = AlienConfig.ALIENS[(Bay.find(data, uids[1]) :: PlayerData.AlienRecord).id]
 			local positions = {}
+			local kinds: { AlienConfig.KindId } = {}
 			for _, uid in uids do
 				local record = Bay.remove(data, uid) :: PlayerData.AlienRecord
-				table.insert(positions, AlienConfig.TIER_POSITIONS[AlienConfig.ALIENS[record.id].tier])
+				local parent = AlienConfig.ALIENS[record.id]
+				table.insert(positions, AlienConfig.TIER_POSITIONS[parent.tier])
+				table.insert(kinds, parent.kind)
 			end
 			local entries = Crossbreed.resultEntries(AlienConfig.HATCH_ENTRIES, positions, BayConfig.CROSSBREED_LUCK)
 			local tier = Loot.pick(entries, random:NextNumber())
-			resultId = AlienConfig.GRADES[first.grade].variants[first.variant][tier]
+			local kind = Crossbreed.resultKind(kinds, random:NextNumber())
+			resultId = AlienConfig.GRADES[first.grade].variants[first.variant][kind][tier]
 			resultLocation =
 				Bay.addCrossbred(data, { uid = Bay.newUid(data), id = resultId :: string }, BayConfig.INVENTORY_SLOTS)
 		end)

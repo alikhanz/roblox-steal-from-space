@@ -1,7 +1,6 @@
 --!strict
--- Player-facing names of things that have no name of their own yet: an alien is "<tier> · <its
--- guardian>", an egg is "<rarity> egg", a jetpack is its jetpack's name and mark. Pure, so the names are
--- testable in Lune.
+-- Player-facing names made of parts: an alien is "<tier> · <its kind>", an egg is "<rarity> egg",
+-- a jetpack is its jetpack's name and mark. Pure, so the names are testable in Lune.
 
 local AlienConfig = require("../Config/AlienConfig")
 local EggConfig = require("../Config/EggConfig")
@@ -17,26 +16,26 @@ local function withVariant(locale: Text.Locale, name: string, variantKey: any): 
 	return if variantKey then `{Text.get(locale, variantKey)} · {name}` else name
 end
 
--- The two halves of an alien's name: its tier (with its variant) and its guardian. Nil for an
--- alien this build does not know.
+-- The two halves of an alien's name: its tier (with its variant) and its kind ("Crab Drone",
+-- "Drone Ray"). Nil for an alien this build does not know.
 function Names.alienParts(locale: Text.Locale, alienId: string): (string?, string?)
 	local alien = AlienConfig.ALIENS[alienId]
-	local post = alien and GuardianConfig.POSTS[alien.grade]
-	if not alien or not post then
+	local kind = alien and AlienConfig.KINDS[alien.kind]
+	if not alien or not kind then
 		return nil, nil
 	end
 	-- Keys from the configs are already checked at their definition; they pass through `any`
 	-- because the union of every string key is too much for the type checker here.
 	local tierKey: any = AlienConfig.TIERS[alien.tier].nameKey
-	local postKey: any = post.nameKey
+	local kindKey: any = kind.nameKey
 	local tier = withVariant(locale, Text.get(locale, tierKey), AlienConfig.VARIANTS[alien.variant].nameKey)
-	return tier, Text.get(locale, postKey)
+	return tier, Text.get(locale, kindKey)
 end
 
--- "<tier> · <guardian>", or nil for an unknown alien.
+-- "<tier> · <kind>", or nil for an unknown alien.
 function Names.alien(locale: Text.Locale, alienId: string): string?
-	local tier, guardian = Names.alienParts(locale, alienId)
-	return if tier and guardian then `{tier} · {guardian}` else nil
+	local tier, kind = Names.alienParts(locale, alienId)
+	return if tier and kind then `{tier} · {kind}` else nil
 end
 
 -- The guardian whose eggs hatch into grade `grade`, or nil for an unknown grade.

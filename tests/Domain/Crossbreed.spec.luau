@@ -81,3 +81,18 @@ describe("Crossbreed.resultEntries", function()
 		end).toThrow("out of range")
 	end)
 end)
+
+describe("Crossbreed.resultKind", function()
+	it("gives the kind of one of the parents, each parent as likely", function()
+		local kinds = { "crabDrone", "droneRay", "crabDrone" }
+		expect(Crossbreed.resultKind(kinds, 0)).toBe("crabDrone")
+		expect(Crossbreed.resultKind(kinds, 0.4)).toBe("droneRay")
+		expect(Crossbreed.resultKind(kinds, 0.99)).toBe("crabDrone")
+	end)
+
+	it("needs a parent", function()
+		expect(function()
+			Crossbreed.resultKind({}, 0.5)
+		end).toThrow("at least one parent")
+	end)
+end)

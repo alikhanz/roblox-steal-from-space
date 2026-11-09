@@ -24,6 +24,7 @@ local Test = require("../../lune/lib/Test")
 local WorldConfig = require("../../src/shared/Config/WorldConfig")
 local ZoneConfig = require("../../src/shared/Config/ZoneConfig")
 local describe, it, expect = Test.describe, Test.it, Test.expect
+local fs = require("@lune/fs")
 
 describe("AlienConfig", function()
 	it("grows aliens to about eight players tall at the last guardian's legendary (decision 068)", function()
@@ -47,39 +48,90 @@ describe("AlienConfig", function()
 				true
 			)
 		end
-		expect(AlienConfig.ALIENS[grade.variants.Meteor.Rare].scale).toBe(AlienConfig.ALIENS[grade.aliens.Rare].scale)
+		local meteorRare = grade.variants.Meteor[grade.kinds[1]].Rare
+		expect(AlienConfig.ALIENS[meteorRare].scale).toBe(AlienConfig.ALIENS[grade.aliens.Rare].scale)
 	end)
 
-	it("has one grade per guardian post with an alien per tier", function()
+	it("has one grade per guardian post with three kinds, an alien per kind and tier", function()
 		expect(#AlienConfig.GRADES).toBe(#GuardianConfig.POSTS)
 		expect(#AlienConfig.GRADES).toBe(ZoneConfig.POST_COUNT)
 		-- Ids are part of the save format.
-		expect(AlienConfig.GRADES[1].aliens.Common).toBe("DebrisBelt1.Common")
-		expect(AlienConfig.GRADES[7].aliens.Rare).toBe("IceRings1.Rare")
-		expect(AlienConfig.GRADES[24].aliens.Legendary).toBe("EventHorizon6.Legendary")
+		expect(AlienConfig.GRADES[1].aliens.Common).toBe("DebrisBelt1.slimeWarden.Common")
+		expect(AlienConfig.GRADES[7].aliens.Rare).toBe("IceRings1.iceWorm.Rare")
+		expect(AlienConfig.GRADES[2].variants.Normal.droneRay.Epic).toBe("DebrisBelt2.droneRay.Epic")
+		expect(AlienConfig.GRADES[24].aliens.Legendary).toBe("EventHorizon6.spaceWhale.Legendary")
 		for _, grade in AlienConfig.GRADES do
 			expect(grade.zone).toBe((ZoneConfig.zoneOfPost(grade.index)))
-			for _, tier in AlienConfig.TIER_ORDER do
-				local alien = AlienConfig.ALIENS[grade.aliens[tier]]
-				expect(alien).toBeTruthy()
-				expect(alien.grade).toBe(grade.index)
-				expect(alien.tier).toBe(tier)
+			expect(#grade.kinds).toBe(#AlienConfig.KIND_SLOT_ORDER)
+			expect(grade.aliens).toBe(grade.variants.Normal[grade.kinds[1]])
+			for position, kindId in grade.kinds do
+				local kind = AlienConfig.KINDS[kindId]
+				expect(kind.grade).toBe(grade.index)
+				expect(kind.slot).toBe(AlienConfig.KIND_SLOT_ORDER[position])
+				expect(grade.kindEntries[position].id).toBe(kindId)
+				for _, tier in AlienConfig.TIER_ORDER do
+					local alien = AlienConfig.ALIENS[grade.variants.Normal[kindId][tier]]
+					expect(alien).toBeTruthy()
+					expect(alien.grade).toBe(grade.index)
+					expect(alien.kind).toBe(kindId)
+					expect(alien.tier).toBe(tier)
+					-- Kinds of a guardian earn the same: they are for the collection (decision 075).
+					expect(BigNum.equals(alien.income, AlienConfig.ALIENS[grade.aliens[tier]].income)).toBe(true)
+				end
 			end
 		end
 	end)
 
-	it("has a meteor alien for every usual one, earning twice as much", function()
-		expect(AlienConfig.GRADES[7].variants.Meteor.Rare).toBe("IceRings1.Rare.Meteor")
+	it("hatches the guardian's own kind most often, the rare one seldom (decision 075)", function()
+		local chances = Loot.chances(AlienConfig.GRADES[1].kindEntries)
+		expect(chances.slimeWarden).toBeCloseTo(0.6)
+		expect(chances.patrolSwarm).toBeCloseTo(0.3)
+		expect(chances.patrolRay).toBeCloseTo(0.1)
+	end)
+
+	it("names every kind; a main kind by its guardian's name", function()
+		local count = 0
+		for kindId, kind in AlienConfig.KINDS do
+			count += 1
+			expect(kind.id).toBe(kindId)
+			expect((Strings :: { [string]: any })[kind.nameKey]).toBeTruthy()
+			if kind.slot == "Main" then
+				expect(kind.nameKey).toBe(GuardianConfig.POSTS[kind.grade].nameKey)
+			end
+		end
+		expect(count).toBe(#AlienConfig.GRADES * #AlienConfig.KIND_SLOT_ORDER)
+	end)
+
+	it("lists the kinds as the models do, post by post (robo_kinds.py)", function()
+		local source = fs.readFile("assets/blender/aliens/robo_kinds.py")
+		local posts = assert(string.match(source, "\nPOSTS = %[(.-)\n%]"), "robo_kinds.py has no POSTS")
+		local modelled: { string } = {}
+		for kindId, family in string.gmatch(posts, '%("(%w+)", "[^"]+", "(%a+)"') do
+			table.insert(modelled, `{kindId}/{family}`)
+		end
+		local listed: { string } = {}
 		for _, grade in AlienConfig.GRADES do
-			expect(grade.variants.Normal).toBe(grade.aliens)
-			for _, tier in AlienConfig.TIER_ORDER do
-				local usual = AlienConfig.ALIENS[grade.variants.Normal[tier]]
-				local meteor = AlienConfig.ALIENS[grade.variants.Meteor[tier]]
-				expect(meteor.variant).toBe("Meteor")
-				expect(meteor.grade).toBe(usual.grade)
-				expect(meteor.tier).toBe(tier)
-				local factor = AlienConfig.VARIANTS.Meteor.incomeFactor
-				expect(BigNum.toNumber(meteor.income) / BigNum.toNumber(usual.income)).toBeCloseTo(factor)
+			for _, kindId in grade.kinds do
+				table.insert(listed, `{kindId}/{AlienConfig.KINDS[kindId].family}`)
+			end
+		end
+		expect(listed).toEqual(modelled)
+	end)
+
+	it("has a meteor alien for every usual one, earning twice as much", function()
+		expect(AlienConfig.GRADES[7].variants.Meteor.iceWorm.Rare).toBe("IceRings1.iceWorm.Rare.Meteor")
+		for _, grade in AlienConfig.GRADES do
+			for _, kindId in grade.kinds do
+				for _, tier in AlienConfig.TIER_ORDER do
+					local usual = AlienConfig.ALIENS[grade.variants.Normal[kindId][tier]]
+					local meteor = AlienConfig.ALIENS[grade.variants.Meteor[kindId][tier]]
+					expect(meteor.variant).toBe("Meteor")
+					expect(meteor.grade).toBe(usual.grade)
+					expect(meteor.kind).toBe(kindId)
+					expect(meteor.tier).toBe(tier)
+					local factor = AlienConfig.VARIANTS.Meteor.incomeFactor
+					expect(BigNum.toNumber(meteor.income) / BigNum.toNumber(usual.income)).toBeCloseTo(factor)
+				end
 			end
 		end
 	end)
@@ -234,7 +286,7 @@ describe("IndexConfig", function()
 		for _, set in IndexConfig.SETS do
 			expect(IndexConfig.SETS_BY_ID[set.id]).toBe(set)
 			expect(set.id).toBe(AlienIndex.setId(set.grade, set.variant))
-			expect(#set.aliens).toBe(#AlienConfig.TIER_ORDER)
+			expect(#set.aliens).toBe(#AlienConfig.KIND_SLOT_ORDER * #AlienConfig.TIER_ORDER)
 			for _, alienId in set.aliens do
 				local alien = AlienConfig.ALIENS[alienId]
 				expect(alien.grade).toBe(set.grade)

@@ -344,11 +344,11 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		local rows: { BayWindow.Row } = {}
 		for _, record in sorted do
 			local alien = AlienConfig.ALIENS[record.id]
-			local _, guardian = Names.alienParts(locale, record.id)
+			local _, kindName = Names.alienParts(locale, record.id)
 			local row: BayWindow.Row = {
 				uid = record.uid,
 				alienId = record.id,
-				name = guardian or "?",
+				name = kindName or "?",
 				income = incomeText(incomeOf(record)),
 				color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
 				variant = nil,
@@ -473,8 +473,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 								return ""
 							end
 							-- Not an if-expression: it would keep only the first of the two names.
-							local _, guardian = Names.alienParts(locale, entry.record.id)
-							return guardian or ""
+							local _, kindName = Names.alienParts(locale, entry.record.id)
+							return kindName or ""
 						end,
 						selectedLine = function()
 							local entry = single()

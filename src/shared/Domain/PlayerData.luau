@@ -116,7 +116,48 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 15
+PlayerData.SCHEMA_VERSION = 16
+
+-- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
+-- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
+-- guardian's main kind. Fixed: the main kinds when v16 came, by the id's guardian part.
+local MAIN_KINDS_V16: { [string]: string } = {
+	DebrisBelt1 = "slimeWarden",
+	DebrisBelt2 = "crabDrone",
+	DebrisBelt3 = "violetCrab",
+	DebrisBelt4 = "acidSlime",
+	DebrisBelt5 = "rustyCrab",
+	DebrisBelt6 = "slimeKing",
+	IceRings1 = "iceWorm",
+	IceRings2 = "snowCrab",
+	IceRings3 = "frostSlime",
+	IceRings4 = "crystalWorm",
+	IceRings5 = "iceRay",
+	IceRings6 = "wormMother",
+	RedNebula1 = "devourerSwarm",
+	RedNebula2 = "starRay",
+	RedNebula3 = "fireSlime",
+	RedNebula4 = "redSwarm",
+	RedNebula5 = "lightningRay",
+	RedNebula6 = "devourerQueen",
+	EventHorizon1 = "shadowWorm",
+	EventHorizon2 = "blackRay",
+	EventHorizon3 = "voidSwarm",
+	EventHorizon4 = "gravityCrab",
+	EventHorizon5 = "whaleCalf",
+	EventHorizon6 = "spaceWhale",
+}
+
+-- A v15 alien id with its guardian's main kind put in; any other id as it was.
+local function withMainKind(id: string): string
+	local guardian, rest = string.match(id, "^(%a+%d+)%.(.+)$")
+	local kind = guardian and MAIN_KINDS_V16[guardian]
+	-- A v16 id already names its kind (the step may run twice): its second part is not a tier.
+	if not kind or not rest or not string.match(rest, "^%u") then
+		return id
+	end
+	return `{guardian}.{kind}.{rest}`
+end
 
 -- MIGRATIONS[N] upgrades version N to N + 1.
 PlayerData.MIGRATIONS = {
@@ -200,6 +241,33 @@ PlayerData.MIGRATIONS = {
 	[14] = function(data: { [string]: any })
 		local bestPost = if type(data.bestPost) == "number" then data.bestPost else 0
 		data.tutorialStep = Tutorial.fromBestPost(bestPost, 2)
+	end,
+	-- v16: alien ids name their kind; an alien from before is its guardian's main kind, in the
+	-- bay, the inventory, on the floor and in the index.
+	[15] = function(data: { [string]: any })
+		local function fix(record: any)
+			if type(record) == "table" and type(record.id) == "string" then
+				record.id = withMainKind(record.id)
+			end
+		end
+		for _, pod in if type(data.pods) == "table" then data.pods else {} do
+			if type(pod) == "table" then
+				fix(pod.alien)
+			end
+		end
+		for _, field in { "inventory", "floor" } do
+			for _, alien in if type(data[field]) == "table" then data[field] else {} do
+				fix(alien)
+			end
+		end
+		local index = data.index
+		if type(index) == "table" and type(index.found) == "table" then
+			local found = {}
+			for alienId, taken in index.found do
+				found[if type(alienId) == "string" then withMainKind(alienId) else alienId] = taken
+			end
+			index.found = found
+		end
 	end,
 } :: { [number]: Migrations.Step }
 

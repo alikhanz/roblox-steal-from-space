@@ -5,11 +5,14 @@ local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 describe("Names.alien", function()
-	it("names an alien by its tier and guardian in both languages", function()
-		expect(Names.alien("ru", "DebrisBelt1.Rare")).toBe("Редкий · Слизень-сторож")
-		expect(Names.alien("en", "DebrisBelt2.Legendary")).toBe("Legendary · Crab Drone")
-		expect(Names.alien("en", "IceRings1.Common")).toBe("Common · Ice Worm")
-		expect(Names.alien("ru", "EventHorizon6.Epic")).toBe("Эпический · Космический Кит")
+	it("names an alien by its tier and kind in both languages", function()
+		expect(Names.alien("ru", "DebrisBelt1.slimeWarden.Rare")).toBe("Редкий · Слизень-сторож")
+		expect(Names.alien("en", "DebrisBelt2.crabDrone.Legendary")).toBe("Legendary · Crab Drone")
+		expect(Names.alien("en", "DebrisBelt2.droneRay.Legendary")).toBe("Legendary · Drone Ray")
+		expect(Names.alien("en", "IceRings1.iceWorm.Common")).toBe("Common · Ice Worm")
+		expect(Names.alien("ru", "EventHorizon6.galaxySlime.Epic")).toBe(
+			"Эпический · Галактический слизень"
+		)
 	end)
 
 	it("returns nil for an unknown alien", function()
@@ -18,16 +21,19 @@ describe("Names.alien", function()
 	end)
 
 	it("gives the halves apart and names a grade's guardian", function()
-		expect({ Names.alienParts("ru", "DebrisBelt2.Epic") }).toEqual({ "Эпический", "Краб-дрон" })
+		expect({ Names.alienParts("ru", "DebrisBelt2.blimpWhale.Epic") }).toEqual({
+			"Эпический",
+			"Кит-дирижабль",
+		})
 		expect(Names.guardian("en", 24)).toBe("Space Whale")
 		expect(Names.guardian("en", 99)).toBeNil()
 	end)
 
 	it("puts the variant in front of a meteor alien's tier", function()
-		expect(Names.alien("ru", "DebrisBelt1.Rare.Meteor")).toBe(
+		expect(Names.alien("ru", "DebrisBelt1.slimeWarden.Rare.Meteor")).toBe(
 			"Метеоритный · Редкий · Слизень-сторож"
 		)
-		expect(Names.alien("en", "DebrisBelt1.Rare.Meteor")).toBe("Meteor · Rare · Slime Warden")
+		expect(Names.alien("en", "DebrisBelt1.patrolRay.Rare.Meteor")).toBe("Meteor · Rare · Patrol Ray")
 	end)
 end)
 
