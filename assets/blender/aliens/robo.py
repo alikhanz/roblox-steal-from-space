@@ -610,7 +610,8 @@ def pack(info, color, armour):
         torus((ex, ey, ez + 0.06), 0.112, 0.02, glow(color, 8.0))
         # The nozzle flares at the bottom, the flame licks down and a little back.
         cone((ex, ey, ez - 0.34), 0.12, 0.15, engine, (0, 0, 1))
-        cone((ex, ey, ez - 0.33), 0.07, 0.32, glow(color, 12.0), (0, 0.3, -1))
+        # Its own material: in game a jet of particles takes the solid cone's place (a spike there).
+        cone((ex, ey, ez - 0.33), 0.07, 0.32, real.glow("Jet", color, 12.0), (0, 0.3, -1))
         # A swarm's lead drone has its own little wings on its shoulders: no room for plates.
         if info.get("shoulders", True):
             info["shells"].append(pill(snap((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), 0.03), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
@@ -683,7 +684,7 @@ def _wing_mesh(points, hinge, side, tilt, size, mat):
     obj = bpy.data.objects.new("Wing", mesh)
     bpy.context.scene.collection.objects.link(obj)
     obj.location = hinge
-    obj.rotation_euler = (math.radians(-10), 0, math.radians(side * -tilt))
+    obj.rotation_euler = (math.radians(-10), 0, math.radians(side * tilt))
     solid = obj.modifiers.new("Thickness", "SOLIDIFY")
     solid.thickness = 0.03
     solid.offset = 0
@@ -703,14 +704,15 @@ def _wing_line(points, hinge, side, tilt, size, mat, radius):
     obj = bpy.data.objects.new("WingLine", curve)
     bpy.context.scene.collection.objects.link(obj)
     obj.location = hinge
-    obj.rotation_euler = (math.radians(-10), 0, math.radians(side * -tilt))
+    obj.rotation_euler = (math.radians(-10), 0, math.radians(side * tilt))
     obj.data.materials.append(mat)
     return _tag(obj)
 
 
 # How far the wings sweep back at rest, in degrees. Flat across the back (a small sweep), a wing is
 # a thin line seen from the side; swept back it shows its face from the side and from the front.
-# The game's flap (animate.luau) swings it further back from here.
+# The back is +Y, so a wing (out along side * X) turns by +side * WING_SWEEP about Z. The game's
+# flap (animate.luau) swings it further back from here.
 WING_SWEEP = 38
 
 
@@ -720,7 +722,7 @@ def wings(info, color, size, gold=False):
     root, so the game can flap it."""
     # Hinged behind the head of a worm (symmetric), behind the body of anything else; the span still
     # follows the whole pet.
-    (cx, cy, cz), _, _ = _flank(info)
+    (cx, cy, cz), _, snap = _flank(info)
     if "head" in info:
         cz += 0.1
     r = info["radius"]
@@ -728,7 +730,9 @@ def wings(info, color, size, gold=False):
     edge = glow(GOLD if gold else color, 10.0)
     span = (0.8 + 0.25 * r) * size * 2.0
     for side in (-1, 1):
-        hinge = (cx + side * r * 0.35, cy + r * 0.5, cz + 0.35)
+        # On the hull itself, its root a little sunk: a point set off the centre hung in the air
+        # behind a flat ray or a worm's head, and swept back, the wing no longer touched the body.
+        hinge = snap((cx + side * r * 0.35, cy + r * 0.5, cz + 0.35), -0.03)
         # Softened: two rounds of corner cutting keep the lobes and the sharp tip but round the edges.
         outline = _smoothed(WING_OUTLINE, True, 2)
         name = "wingL" if side < 0 else "wingR"
@@ -748,7 +752,7 @@ def wings(info, color, size, gold=False):
         # Dust markers along part of the outer edge (the forewing from its tip down, the hind lobe):
         # in game, fairy dust flies off them with each stroke. Each is a role of its own so it stays
         # a separate point; the game turns them into emitters and drops the markers.
-        turn = Euler((math.radians(-10), 0, math.radians(side * -WING_SWEEP))).to_matrix()
+        turn = Euler((math.radians(-10), 0, math.radians(side * WING_SWEEP))).to_matrix()
         for index, (x, y) in enumerate(_from_trace(WING_DUST_TRACE)):
             point = Vector(hinge) + turn @ Vector((side * x * span, 0.0, y * span))
             with role(f"dust{name[-1]}{index + 1}"):

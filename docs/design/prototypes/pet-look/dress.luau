@@ -229,7 +229,7 @@ return function(only: { [string]: boolean }?): string
 
 		-- Paint. Opaque hull a touch richer than in Blender (Roblox's light is flatter); a meteor's
 		-- molten parts wear the lava crack texture, its heat also shown by light and embers.
-		local wingParts, flameParts = {}, {}
+		local wingParts, flameParts, jetParts = {}, {}, {}
 		for _, part in model:GetDescendants() do
 			if not part:IsA("MeshPart") then
 				continue
@@ -298,6 +298,10 @@ return function(only: { [string]: boolean }?): string
 				part.Material = Enum.Material.Neon
 				part.Color = boost(colour, 1.8, 1)
 				part.Transparency = 0.45
+			elseif source == "Jet" then
+				-- A jetpack's flame: a solid cone reads as a spike; a jet of particles fires from its base.
+				part.Transparency = 1
+				table.insert(jetParts, part)
 			elseif source == "Galaxy" then
 				-- A lilac nebula in Blender: lilac here (glass turned it magenta), its stars are particles.
 				part.Material = Enum.Material.SmoothPlastic
@@ -339,6 +343,45 @@ return function(only: { [string]: boolean }?): string
 		local top = attachment(fx, "Top", Vector3.new(0, size.Y * 0.5, 0))
 		-- The back of the pet: the imported model faces -Z, so its back is +Z (a meteor's tail streams from here).
 		local back = attachment(fx, "Back", Vector3.new(0, size.Y * 0.05, size.Z * 0.45))
+
+		-- The jetpack's flames (tier 2+): from each nozzle (the top of Blender's hidden flame cone), a
+		-- short jet down and a little back, in the colour Blender gave it with a pale core; it streams
+		-- behind as the pet bobs. The cone's length sets the jet's.
+		for index, part in jetParts do
+			-- The cone stands almost upright, its base half its length above its middle.
+			local length = math.max(part.Size.X, part.Size.Y, part.Size.Z)
+			local nozzle = attachment(fx, "Jet" .. index, fx.CFrame:PointToObjectSpace(part.Position + Vector3.new(0, length * 0.45, 0)))
+			nozzle.CFrame *= CFrame.Angles(-0.29, 0, 0) -- Bottom leans to +Z, the pet's back
+			local colour = paints[part.Name][2]
+			emitter(nozzle, "JetFlame", {
+				Texture = TEX.flame,
+				EmissionDirection = Enum.NormalId.Bottom,
+				LightEmission = 0.6,
+				Color = colours({ { 0, WHITE }, { 0.25, boost(colour, 1, 1.2) }, { 1, colour } }),
+				Transparency = seq({ { 0, 0.2 }, { 0.5, 0.35 }, { 1, 1 } }),
+				Size = seq({ { 0, length * 0.4 }, { 0.3, length * 0.5 }, { 1, length * 0.1 } }),
+				Lifetime = NumberRange.new(0.26, 0.36),
+				Rate = 50,
+				Speed = NumberRange.new(length * 5, length * 6.5),
+				SpreadAngle = Vector2.new(8, 8),
+				Rotation = NumberRange.new(0, 360),
+				RotSpeed = NumberRange.new(-90, 90),
+			})
+			emitter(nozzle, "JetCore", {
+				Texture = TEX.flame,
+				EmissionDirection = Enum.NormalId.Bottom,
+				LightEmission = 0.9,
+				Color = ColorSequence.new(WHITE),
+				Transparency = seq({ { 0, 0.1 }, { 1, 1 } }),
+				Size = seq({ { 0, length * 0.24 }, { 1, length * 0.05 } }),
+				Lifetime = NumberRange.new(0.14, 0.22),
+				Rate = 30,
+				Speed = NumberRange.new(length * 3.5, length * 4.5),
+				SpreadAngle = Vector2.new(5, 5),
+				Rotation = NumberRange.new(0, 360),
+				ZOffset = 0.6,
+			})
+		end
 
 		-- Light low under the body: it lights the floor round the pet (a bright light on the body
 		-- burns its colours to white under Bloom).
