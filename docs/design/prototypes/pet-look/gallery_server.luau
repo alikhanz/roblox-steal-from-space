@@ -117,6 +117,9 @@ local function show(index: number, player: Player)
 		local hit = workspace:Raycast(spot + Vector3.new(0, 80, 0), Vector3.new(0, -160, 0), params)
 		local floor = if hit then hit.Position.Y else 0
 		local model = pet:Clone()
+		-- Streaming is always on (Server Authority): without this a pet reaches the client part by
+		-- part, and the client's motion would be built from half a pet.
+		model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 		local cf, size = model:GetBoundingBox()
 		local at = Vector3.new(spot.X, floor + 0.3 + size.Y / 2, spot.Z)
 		local facing = CFrame.lookAt(at, Vector3.new(centre.X, at.Y, centre.Z))

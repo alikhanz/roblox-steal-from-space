@@ -128,7 +128,12 @@ local function soon()
 		rebuild()
 	end)
 end
-folder.ChildAdded:Connect(soon)
+-- Parts may still stream in after their pet (a pet left out of Atomic streaming): rebuild then too.
+folder.DescendantAdded:Connect(function(item)
+	if item:IsA("Model") or item:IsA("BasePart") then
+		soon()
+	end
+end)
 folder.ChildRemoved:Connect(soon)
 rebuild()
 
@@ -171,7 +176,7 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 				frame = bob * c * CFrame.Angles(0, t * 0.9, 0) * cInv * offset
 			elseif role == "rays" then
 				frame = bob * c * CFrame.Angles(0, 0, t * 0.5) * cInv * offset
-			elseif role == "wingL" or role == "wingR" then
+			elseif (role == "wingL" or role == "wingR") and pet.hinges[role] then
 				local hinge = CFrame.new(pet.hinges[role])
 				local side = if pet.hinges[role].X > 0 then 1 else -1
 				frame = bob * hinge * CFrame.Angles(0, -side * swing, side * 0.12 * beat) * hinge:Inverse() * offset
