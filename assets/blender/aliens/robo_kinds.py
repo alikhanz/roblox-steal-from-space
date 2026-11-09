@@ -17,8 +17,13 @@ SLOTS = ["Основной", "Второй", "Редкий"]
 
 
 def _lead(info):
-    """The body a part sits on: a swarm's lead drone, or the whole pet."""
-    return info.get("lead", info["center"]), info.get("lead_size", info["radius"] / 0.8)
+    """The body a part sits on: a swarm's lead drone, a worm's head (its body centre sits back
+    towards the tail), or the whole pet."""
+    if "lead" in info:
+        return info["lead"], info["lead_size"]
+    if "head" in info:
+        return info["head"], info["head_r"] / 0.58
+    return info["center"], info["radius"] / 0.8
 
 
 # --- Signature parts ------------------------------------------------------------------------------
@@ -87,11 +92,17 @@ def circlet(info, theme):
 
 
 def pincers(info, theme):
-    """Two little claws held up in front."""
-    lead, size = _lead(info)
+    """Two little claws held up in front: under the chin of a pet with a head (a worm, whose body
+    centre sits back towards its tail), at the front of the body otherwise."""
     shell = theme["accent_shell"]()
-    for side in (-1, 1):
-        base = Vector((lead[0] + side * 0.35 * size, lead[1] - 0.55 * size, lead[2] - 0.05))
+    if "head" in info:
+        hx, hy, hz = info["head"]
+        r = info["head_r"]
+        bases = [Vector((hx + side * r * 0.78, hy - r * 0.68, hz - r * 0.55)) for side in (-1, 1)]
+    else:
+        (lx, ly, lz), size = _lead(info)
+        bases = [Vector((lx + side * 0.35 * size, ly - 0.55 * size, lz - 0.05)) for side in (-1, 1)]
+    for side, base in zip((-1, 1), bases):
         sphere(tuple(base), (0.16, 0.2, 0.14), shell, 24)
         pill(tuple(base + Vector((side * 0.05, -0.2, 0.08))), (0.06, 0.13, 0.04), shell, (math.radians(-20), 0, 0))
         pill(tuple(base + Vector((0, -0.18, -0.07))), (0.05, 0.11, 0.035), shell, (math.radians(20), 0, 0))
@@ -217,7 +228,8 @@ def mandibles(info, theme):
 def crest(info, theme):
     """A crest of spines on the head."""
     (lx, ly, lz), size = _lead(info)
-    top = info["top"][2]
+    # On a worm's head, not above its feelers.
+    top = info["head"][2] + info["head_r"] + 0.15 if "head" in info else info["top"][2]
     spine = theme["accent_shell"]()
     for index in range(5):
         angle = math.radians(-40 + index * 20)
