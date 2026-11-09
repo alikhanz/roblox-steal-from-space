@@ -5,6 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local ActivityService = require(script.Parent.Services.ActivityService)
+local AlienModel = require(script.Parent.World.AlienModel)
+local AlienModels = require(script.Parent.World.AlienModels) :: { [string]: string }
 local BayService = require(script.Parent.Services.BayService)
 local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
@@ -34,6 +36,9 @@ local StormService = require(script.Parent.Services.StormService)
 local TrainingService = require(script.Parent.Services.TrainingService)
 local TutorialService = require(script.Parent.Services.TutorialService)
 local WorldService = require(script.Parent.Services.WorldService)
+
+-- In Studio: say if the place's alien models lag behind the repo (lune/aliens.luau).
+AlienModel.checkPlace(AlienModels)
 
 -- One Heartbeat drives every periodic server job (see CONVENTIONS, performance).
 local scheduler = Scheduler.new()

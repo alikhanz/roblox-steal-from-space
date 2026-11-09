@@ -62,8 +62,28 @@ Incident: code and comment said "wings swept 38° back", but the rotation sign w
    Blender is not on Git Bash's PATH — run it by full path from PowerShell. System Python is a Microsoft Store stub; use Blender's Python only.
 2. **Upload:** Open Cloud `POST /assets/v1/assets` (Model, GLB file), then poll `GET /assets/v1/operations/{id}` until `done`. On `Unknown Error`, upload again.
 3. **Insert:** MCP `insert_asset` into `ServerStorage.RoboPackIn`. On "Failed to load package asset: Request Failed", re-upload the GLB (new asset) and insert that. An inserted model is a package: remove its `PackageLink`.
-4. **Unpack and dress:** `PetUnpack` and `PetDress` in `ServerStorage`. Dressing is idempotent: it first deletes what it created last time (Fx, Halo, comets).
-5. **Studio modules are verified against files** by length + polynomial hash after every change. Patch by string replacement in `Source` from Edit. `require` caches — require a fresh `Clone()`.
+4. **Into the repo and the game:** see 5a.
+
+(The prototype gallery unpacked and dressed in Studio with `PetUnpack`/`PetDress` modules; the game does it in code now — 5a.)
+
+## 5a. Into the game
+
+The game keeps **bare models in the repo** and **dresses them in code**.
+
+- **Bare models:** `assets/aliens/<kind>.rbxm`, a Folder `<kind>` with its ten pets `<kind>-<variant>` (variants `0`–`4`, `m0`–`m4`). A pet holds only what Blender made: MeshParts named `<role>_<n>` with a `Paint` attribute, the pet's data in attributes (`Zone`, `Family`, `Tier`, `Meteor`, `Signature`, `Glow`, `Core`, `TierColor`, `Shell`), the wings' `Dust` points.
+- **Dressing:** `src/server/World/AlienDress.luau` (paint, metal, lava, lights, particles, wings, comets, rune, medal); `World/AlienModel.luau` dresses each kind and variant once, then clones, scales and places it. A change in looks is a code change: no re-export, no re-upload.
+- **Getting a kind in:**
+  1. Export, upload, insert (steps 1–3 of section 5). The pack lands in `ServerStorage.RoboPackIn`.
+  2. Select `RoboPackIn` → right click → Save / Export → **Save to File** → `out/RoboPackIn.rbxm`.
+  3. `lune run aliens out/RoboPackIn.rbxm` — unpacks each pack (a Model `pack-<kind>` or `<kind>`; a Folder of unpacked pets works too, dressed ones are stripped), writes `assets/aliens/<kind>.rbxm`, the fingerprints in `src/server/World/AlienModels.json` and the bundle `out/Aliens.rbxm` (every kind). Output is byte-for-byte stable.
+  4. **Into the place by hand:** delete `ServerStorage.Aliens`, select `ServerStorage`, **File → Import Roblox Model** → `out/Aliens.rbxm`. For one kind: delete its folder in `Aliens`, select `Aliens`, import `assets/aliens/<kind>.rbxm`. The file dialog takes one file at a time (a typed list of names is cut off). Save the place.
+  5. In Studio the server warns at start about kinds missing from the place or out of date (`ModelHash` attribute against `AlienModels.json`). A kind without a model stands as the greybox ball.
+- **Not through Rojo:** live sync drops the meshes of MeshParts (`MeshContent` empty; [rojo#1221](https://github.com/rojo-rbx/rojo/issues/1221), open in 7.7.1). `rojo build` would be fine; live sync is not.
+- **No collision data:** the script sets `CollisionFidelity = Box` and clears `PhysicalConfigData` — the hull data was ~90% of the files (55 MB → 4.7 MB for 72 kinds). Pets collide with nothing.
+- **A game server can't set texture maps:** `SurfaceAppearance.ColorMap`, `MaterialVariant` maps → "lacking capability Plugin". They are made in `default.project.json` (Rojo's plugin can write them): `MaterialService.PetMetal`, `ServerStorage.AlienSkins.Lava`; the dressing uses the variant by name and clones the skin. A `Content` property in a project file: `{"Content": {"Uri": "rbxassetid://…"}}`.
+- **Size:** Blender grows a pet with its tier (`GROWTH` in `robo.py`); the game divides it out (`AlienLooks.MODELS.TIER_GROWTH`, a test keeps them equal) and applies its own growth (`alien.scale`, decision 068). Dressing is made at `DRESS_SCALE` 3.3 (where it was tuned), then the pet is scaled; particles and pictures scale with it, light range doesn't (set again, clamped).
+- **Facing:** a pet faces its pivot's −Z (look vector). `AlienModel.build` puts the lowest visible point on the frame's origin, facing the frame's look vector.
+- **`Model.Scale` survives Lune** (property `Scale`), so `ScaleTo` stays absolute after the round trip.
 
 ## 6. Studio gotchas
 

@@ -149,4 +149,7 @@ return table.freeze({
 	PILE_SPACING = 2.3,
 	PILE_COLOR = Color3.fromRGB(154, 163, 194),
 	PILE_ALIEN_SCALE = 1,
+	-- A floor alien wider than this share of the grid's step is made smaller to fit (wings and
+	-- claws would reach into its neighbours).
+	PILE_ALIEN_FILL = 0.9,
 })

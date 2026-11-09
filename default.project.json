@@ -18,6 +18,34 @@
 		"ServerStorage": {
 			"ServerPackages": {
 				"$path": "ServerPackages"
+			},
+			"AlienSkins": {
+				"$className": "Folder",
+				"Lava": {
+					"$className": "SurfaceAppearance",
+					"$properties": {
+						"ColorMap": "rbxassetid://76302202190340",
+						"EmissiveMaskContent": {
+							"Content": {
+								"Uri": "rbxassetid://107726084185062"
+							}
+						},
+						"EmissiveStrength": 4,
+						"EmissiveTint": [1, 0.4706, 0.1373]
+					}
+				}
+			}
+		},
+		"MaterialService": {
+			"PetMetal": {
+				"$className": "MaterialVariant",
+				"$properties": {
+					"BaseMaterial": "SmoothPlastic",
+					"ColorMap": "rbxassetid://100769285128033",
+					"MetalnessMap": "rbxassetid://98590861543766",
+					"RoughnessMap": "rbxassetid://118069329022679",
+					"StudsPerTile": 10
+				}
 			}
 		},
 		"StarterPlayer": {

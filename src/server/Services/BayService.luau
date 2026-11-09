@@ -12,7 +12,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
-local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local AlienModel = require(script.Parent.Parent.World.AlienModel)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
@@ -131,6 +130,16 @@ function BayService.new(dependencies: Dependencies): BayService
 
 	local function contentsOf(bay: PlayerBay): Instance
 		return bay.model:FindFirstChild(BayConfig.CONTENTS_NAME) or bay.model
+	end
+
+	-- A floor alien's size: all small, and no wider than its step in the floor's grid.
+	local function floorScale(alienId: AlienConfig.AlienId): number
+		if not AlienConfig.ALIENS[alienId] then
+			return BayLooks.PILE_ALIEN_SCALE
+		end
+		local room = BayLooks.PILE_SPACING * BayLooks.PILE_ALIEN_FILL
+		local width = AlienModel.widthOf(alienId, BayLooks.PILE_ALIEN_SCALE)
+		return BayLooks.PILE_ALIEN_SCALE * math.min(1, room / math.max(width, 1e-3))
 	end
 
 	-- `scale` overrides the alien's own size (the small ones on the floor).
@@ -300,7 +309,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		local widths: { number } = {}
 		for index, pod in data.pods do
 			local alien = if pod.alien then AlienConfig.ALIENS[pod.alien.id] else nil
-			widths[index] = if alien then AlienLooks.widthOf(alien.scale) else BayLooks.EMPTY_PLACE_WIDTH
+			widths[index] = if alien then AlienModel.widthOf(alien.id) else BayLooks.EMPTY_PLACE_WIDTH
 		end
 		local placeFrames = BayModel.placeFrames(bay.origin, widths)
 		for index, pod in data.pods do
@@ -344,8 +353,7 @@ function BayService.new(dependencies: Dependencies): BayService
 			if index > BayConfig.FLOOR_SHOWN_MAX then
 				break
 			end
-			local model =
-				placeAlien(alien, BayModel.floorCFrame(bay.origin, index), contents, BayLooks.PILE_ALIEN_SCALE)
+			local model = placeAlien(alien, BayModel.floorCFrame(bay.origin, index), contents, floorScale(alien.id))
 			if model and hasRoom then
 				addPickUpPrompt(player, model, alien.uid)
 			end
