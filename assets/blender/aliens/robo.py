@@ -316,18 +316,21 @@ def worm(x, z, theme, p=None):
         py = 0.15 + 0.3 * index * close
         pz = max(0.24, 0.58 - 0.11 * index)
         r = max(0.16, 0.4 - 0.045 * index) * rs
-        if faceted:
-            segment = gem((x + px, py, z + pz), (r * 1.1, r, r * 1.15), shell_mat, (0.3 * index, 0.5, 0.2 * index))
-            sphere((x + px, py, z + pz), (r * 0.45,) * 3, theme["core"](), 16)
-        else:
-            segment = sphere((x + px, py, z + pz), (r, r, r), shell_mat, 32)
-            sphere((x + px, py - r * 0.55, z + pz + r * 0.2), (r * 0.42, r * 0.3, r * 0.42), theme["core"](), 24)
+        # Each segment (with its core and the glow ring before it) is a role of its own, segA at
+        # the head to the tail's end, so the game can run a wave down the worm.
+        with role("seg" + "ABCDEFGH"[index]):
+            if faceted:
+                segment = gem((x + px, py, z + pz), (r * 1.1, r, r * 1.15), shell_mat, (0.3 * index, 0.5, 0.2 * index))
+                sphere((x + px, py, z + pz), (r * 0.45,) * 3, theme["core"](), 16)
+            else:
+                segment = sphere((x + px, py, z + pz), (r, r, r), shell_mat, 32)
+                sphere((x + px, py - r * 0.55, z + pz + r * 0.2), (r * 0.42, r * 0.3, r * 0.42), theme["core"](), 24)
+            if previous and not faceted:
+                mid = Vector(((previous[0] + px) / 2 + x, (previous[1] + py) / 2, (previous[2] + pz) / 2 + z))
+                direction = Vector((px - previous[0], py - previous[1], pz - previous[2]))
+                ring = torus(tuple(mid), r * 0.75, 0.035, glow(theme["accent"]))
+                ring.rotation_euler = direction.to_track_quat("Z", "Y").to_euler()
         shells.append(segment)
-        if previous and not faceted:
-            mid = Vector(((previous[0] + px) / 2 + x, (previous[1] + py) / 2, (previous[2] + pz) / 2 + z))
-            direction = Vector((px - previous[0], py - previous[1], pz - previous[2]))
-            ring = torus(tuple(mid), r * 0.75, 0.035, glow(theme["accent"]))
-            ring.rotation_euler = direction.to_track_quat("Z", "Y").to_euler()
         previous = (px, py, pz)
     head_r = 0.58 * min(rs, 1.25)
     head_z = z + 0.5 + head_r
@@ -335,6 +338,9 @@ def worm(x, z, theme, p=None):
         head = gem((x, -0.1, head_z), (head_r * 1.05, head_r, head_r), shell_mat, (0.2, 0.4, 0.1))
     else:
         head = sphere((x, -0.1, head_z), (head_r, head_r * 0.95, head_r * 0.95), shell_mat, 48)
+    # The neck: the head (and all it wears) turns about its centre as the worm looks around.
+    with role("hingeHead"):
+        sphere((x, -0.1, head_z), (0.03, 0.03, 0.03), shell_mat, 8)
     pill((x, 0.02, head_z + head_r * 0.8), (0.3, 0.22, 0.08), theme["accent_shell"]())
     visor((x, -0.1 - head_r * 0.88, head_z + 0.03), 0.36 * head_r / 0.58, 0.13, theme["eyes"], (math.radians(-5), 0, 0))
     for side in (-1, 1):
@@ -357,24 +363,35 @@ def ray(x, z, theme, p=None):
     shells = [body]
     for side in (-1, 1):
         # An inner wing and an outer one curled up: the wing reads as a flexing fin, not a plank.
-        inner = sphere((x + side * 0.85 * span, 0.2, z + 0.82 + lift), (0.75 * span, 0.55, 0.1), shell_mat, 48,
-                       (0, math.radians(side * -droop * 0.4), math.radians(side * -14)))
-        outer = sphere((x + side * 1.55 * span, 0.42, z + 1.0 + lift), (0.45 * span, 0.32, 0.07), shell_mat, 48,
-                       (0, math.radians(side * -droop * 2.2), math.radians(side * -28)))
-        # The tip plate on the outer wing's top, the glow ring lying on the inner wing (both turned
-        # with their wing, so they stay on it).
-        tip = stick({}, (x + side * 1.9 * span, 0.58, z + 1.18 + lift), 0.02, [outer])
-        pill(tip, (0.16, 0.1, 0.035), theme["accent_shell"](), (0, math.radians(side * -droop * 2.6), math.radians(side * -32)))
-        turn = Euler((0, math.radians(side * -droop * 0.4), math.radians(side * -14)))
-        up = turn.to_matrix() @ Vector((0, 0, 1))
-        torus(tuple(Vector((x + side * 0.85 * span, 0.2, z + 0.82 + lift)) + up * 0.06), 0.45 * span, 0.015, glow(theme["accent"]), tuple(turn))
+        # Each is a role of its own (finL, finOuterL…) hinged where it starts, so the game can beat
+        # the fin as a wave: the inner one from the body, the outer one a little later.
+        name = "L" if side < 0 else "R"
+        with role("fin" + name):
+            inner = sphere((x + side * 0.85 * span, 0.2, z + 0.82 + lift), (0.75 * span, 0.55, 0.1), shell_mat, 48,
+                           (0, math.radians(side * -droop * 0.4), math.radians(side * -14)))
+            # The glow ring lying on the inner wing, turned with it.
+            turn = Euler((0, math.radians(side * -droop * 0.4), math.radians(side * -14)))
+            up = turn.to_matrix() @ Vector((0, 0, 1))
+            torus(tuple(Vector((x + side * 0.85 * span, 0.2, z + 0.82 + lift)) + up * 0.06), 0.45 * span, 0.015, glow(theme["accent"]), tuple(turn))
+        with role("finOuter" + name):
+            outer = sphere((x + side * 1.55 * span, 0.42, z + 1.0 + lift), (0.45 * span, 0.32, 0.07), shell_mat, 48,
+                           (0, math.radians(side * -droop * 2.2), math.radians(side * -28)))
+            # The tip plate on the outer wing's top.
+            tip = stick({}, (x + side * 1.9 * span, 0.58, z + 1.18 + lift), 0.02, [outer])
+            pill(tip, (0.16, 0.1, 0.035), theme["accent_shell"](), (0, math.radians(side * -droop * 2.6), math.radians(side * -32)))
+        with role("hingeFin" + name):
+            sphere((x + side * 0.45, 0.2, z + 0.82 + lift), (0.03, 0.03, 0.03), shell_mat, 8)
+        with role("hingeFinOuter" + name):
+            sphere((x + side * 1.2 * span, 0.35, z + 0.95 + lift), (0.03, 0.03, 0.03), shell_mat, 8)
         shells += [inner, outer]
     sphere((x, 0.15, z + 1.0 + lift), (0.32, 0.4, 0.14), theme["core"](), 32)
     visor((x, -0.68, z + 0.85 + lift), 0.32, 0.1, theme["eyes"], (math.radians(-12), 0, 0))
     if p.get("tail", True):
-        # A chain of beads, each touching the next, ending in a glowing one.
+        # A chain of beads, each touching the next, ending in a glowing one. Each bead is a role of
+        # its own (tailA at the body to tailF), so the game can wag the tail as a wave.
         for step in range(6):
-            sphere((x, 0.85 + step * 0.11, z + 0.78 + lift - step * 0.025), (0.1 - step * 0.008,) * 3, shell_mat if step < 5 else glow(theme["accent"], 10.0), 16)
+            with role("tail" + "ABCDEF"[step]):
+                sphere((x, 0.85 + step * 0.11, z + 0.78 + lift - step * 0.025), (0.1 - step * 0.008,) * 3, shell_mat if step < 5 else glow(theme["accent"], 10.0), 16)
     cylinder((x, 0.8, z + 0.92 + lift), 0.12, 0.2, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3), (math.radians(90), 0, 0))
     sphere((x, 0.92, z + 0.92 + lift), (0.1, 0.04, 0.1), glow(theme["accent"], 12.0), 24)
     sphere((x, 0.1, z + 0.12), (0.7 * span, 0.55, 0.02), real.aura("Hover", theme["accent"], 3.0, 0.3), 32)
@@ -382,13 +399,20 @@ def ray(x, z, theme, p=None):
             "span": span, "lift": lift, "hull": ((x, 0.05, z + 0.8 + lift), (0.62, 0.75, 0.32)), "shoulders": False, "hull_obj": body}
 
 
-def drone(x, y, z, size, theme, shell_mat):
+def drone(x, y, z, size, theme, shell_mat, buzz=False):
+    """A drone; with `buzz` (the lead) its little wings are roles of their own (buzzL, buzzR),
+    hinged at their roots, so the game can make them buzz."""
     body = sphere((x, y, z), (0.55 * size, 0.5 * size, 0.5 * size), shell_mat, 32)
     pill((x, y + 0.1 * size, z + 0.38 * size), (0.22 * size, 0.18 * size, 0.06 * size), theme["accent_shell"]())
     visor((x, y - 0.46 * size, z + 0.03 * size), 0.3 * size, 0.11 * size, theme["eyes"])
     for side in (-1, 1):
-        sphere((x + side * 0.55 * size, y + 0.15 * size, z + 0.35 * size), (0.4 * size, 0.2 * size, 0.03 * size),
-               real.iridescent("Wing", (0.8, 0.9, 1.0), transmission=0.85), 24, (0, math.radians(side * -20), 0))
+        name = "L" if side < 0 else "R"
+        with role("buzz" + name) if buzz else contextlib.nullcontext():
+            sphere((x + side * 0.55 * size, y + 0.15 * size, z + 0.35 * size), (0.4 * size, 0.2 * size, 0.03 * size),
+                   real.iridescent("Wing", (0.8, 0.9, 1.0), transmission=0.85), 24, (0, math.radians(side * -20), 0))
+        if buzz:
+            with role("hingeBuzz" + name):
+                sphere((x + side * 0.2 * size, y + 0.15 * size, z + 0.35 * size), (0.03, 0.03, 0.03), shell_mat, 8)
     sphere((x, y, z - 0.5 * size), (0.15 * size, 0.15 * size, 0.06 * size), glow(theme["accent"], 10.0), 16)
     return body
 
@@ -403,7 +427,7 @@ def swarm(x, z, theme, p=None):
     main_size = p.get("main", 1.25)
     shell_mat = theme["shell"]()
     lead_z = z + 0.2 + 0.65 * main_size
-    main = drone(x, 0, lead_z, main_size, theme, shell_mat)
+    main = drone(x, 0, lead_z, main_size, theme, shell_mat, buzz=True)
     small = []
     for index, (dx, dy, dz, size) in enumerate(SWARM_SPOTS[:p.get("count", 2)]):
         # Each little drone is a role of its own, so the game can fly it round the lead.
@@ -433,12 +457,21 @@ def whale(x, z, theme, p=None):
     hull = {"hull": ((x, 0.15 * s, cz), (0.95 * s, 1.2 * s, 0.85 * s)), "hull_obj": body, "center": (x, 0.15 * s, cz), "radius": 1.2 * s}
     snap = _flank(hull)[2]
     for side in (-1, 1):
+        name = "L" if side < 0 else "R"
         sphere((x + side * 0.13 * s, -1.03 * s, cz + 0.14 * s), (0.06 * s, 0.02, 0.1 * s), real.glow("EyeLight", theme["eyes"], 10.0), 16)
-        pill((x + side * 0.95 * s, -0.05, cz - 0.4 * s), (0.32 * s * fins, 0.18 * s, 0.06), shell_mat, (0, math.radians(side * 25), 0))
+        # The side flippers row (flipperL, flipperR, hinged at their roots); the tail flukes beat
+        # together (one role, flukes, hinged between their roots).
+        with role("flipper" + name):
+            pill((x + side * 0.95 * s, -0.05, cz - 0.4 * s), (0.32 * s * fins, 0.18 * s, 0.06), shell_mat, (0, math.radians(side * 25), 0))
+        with role("hingeFlipper" + name):
+            sphere((x + side * (0.95 - 0.3 * fins) * s, -0.05, cz - 0.4 * s), (0.03, 0.03, 0.03), shell_mat, 8)
         # The tail flukes grow out of the back (they once hung clear of it).
         root = Vector(snap((x + side * 0.35 * s, 1.45 * s, cz + 0.55 * s)))
         out = (root - Vector((x, 0.15 * s, cz))).normalized()
-        pill(tuple(root + out * 0.12 * s), (0.3 * s * fins, 0.14 * s, 0.06), theme["accent_shell"](), (math.radians(30), math.radians(side * 20), 0))
+        with role("flukes"):
+            pill(tuple(root + out * 0.12 * s), (0.3 * s * fins, 0.14 * s, 0.06), theme["accent_shell"](), (math.radians(30), math.radians(side * 20), 0))
+    with role("hingeFlukes"):
+        sphere((x, root.y, root.z), (0.03, 0.03, 0.03), shell_mat, 8)
     sphere((x, 0.35 * s, cz + 0.6 * s), (0.4 * s, 0.45 * s, 0.12 * s), theme["core"](), 32)
     # The thruster grows with the whale, its glow on its end (a fixed-length one left the glow
     # hanging behind a big whale).
@@ -560,6 +593,37 @@ def _crown_spot(info):
         return cz + c * math.sqrt(max(inside, 0.0))
 
     return cx, cy, height
+
+
+# Roles of the parts the game moves on a hinge (living motion, ALIEN_MODELS plan step 2a).
+MOVING_ROLES = ("seg", "fin", "tail", "leg", "flipper", "flukes", "buzz")
+
+
+def _carry_riders(objects, info):
+    """A small body part sitting on a moving one (a star on a ray's fin, an icicle on a worm's
+    segment) takes that part's role, so it moves with it instead of hanging in the air when the
+    fin beats. A part rides the moving part it is nearest to, if that is nearer than the hull."""
+    movers = [o for o in objects if o.type == "MESH" and o.get("role", "").startswith(MOVING_ROLES)]
+    if not movers:
+        return
+    trees = [(_tree(o), o["role"]) for o in movers]
+    hull = _hull_tree(info)
+    bpy.context.view_layer.update()
+    for obj in objects:
+        if obj.type != "MESH" or obj.get("role") != "body" or obj is info.get("hull_obj") or obj in info.get("shells", ()):
+            continue
+        corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+        centre = sum(corners, Vector()) / 8
+        if max((a - b).length for a in corners for b in corners) > 0.8:
+            continue
+        best, role_of = None, None
+        for tree, role_name in trees:
+            hit = tree.find_nearest(centre)
+            if hit[0] is not None and (best is None or hit[3] < best):
+                best, role_of = hit[3], role_name
+        to_hull = hull.find_nearest(centre)[3] if hull is not None else math.inf
+        if best is not None and best < 0.15 and best < to_hull:
+            obj["role"] = role_of
 
 
 def stick(info, point, lift=0.0, shells=None):
@@ -1015,6 +1079,7 @@ def build(family, zone, tier, x, z, meteor=False, look=None, shape=None, signatu
         for shell in info["shells"]:
             real.assign(shell, molten)
         meteor_fire(info, tier)
+    _carry_riders(set(bpy.data.objects) - before, info)
     _grow(set(bpy.data.objects) - before, x, z, GROWTH[tier])
     tier_ring(x, z, info["width"] * GROWTH[tier], tier)
     return info

@@ -129,11 +129,10 @@ local function rebuild()
 				sums[role][2] += 1
 				if role == "hingeL" or role == "hingeR" then
 					pet.hinges["wing" .. role:sub(-1)] = offset.Position
-				elseif role == "hingeJawL" or role == "hingeJawR" then
-					pet.hinges["jaw" .. role:sub(-1)] = offset.Position
-				elseif role:match("^hingeLeg[LR]%u$") then
-					-- A crab leg's hip, under the leg's own role name (hingeLegLA → legLA).
-					pet.hinges["leg" .. role:sub(9)] = offset.Position
+				elseif role:match("^hinge%u") then
+					-- Any other hinge, under the name of what turns on it: hingeJawL → jawL,
+					-- hingeLegLA → legLA, hingeFinOuterR → finOuterR, hingeHead → head.
+					pet.hinges[role:sub(6, 6):lower() .. role:sub(7)] = offset.Position
 				end
 				if item:IsA("MeshPart") then
 					table.insert(meshes, item)
@@ -328,6 +327,13 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 			L = if pet.hinges.jawL then jawOpen(pet, pet.jaws.L, t) else 0,
 			R = if pet.hinges.jawR then jawOpen(pet, pet.jaws.R, t) else 0,
 		}
+		local headTurn: CFrame? = nil
+		if pet.family == "worm" and pet.hinges.head then
+			local neck = pet.hinges.head
+			local yaw = 0.2 * math.sin(t * 0.8 + ph) + 0.08 * math.sin(t * 2.1 + ph * 2)
+			local pitch = 0.07 * math.sin(t * 1.3 + ph)
+			headTurn = CFrame.new(neck) * CFrame.Angles(pitch, yaw, 0) * CFrame.new(-neck)
+		end
 		for i, part in pet.parts do
 			if not part.Parent then
 				continue
@@ -368,6 +374,47 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 				local step = 0.16 * math.sin(phase)
 				local raise = 0.07 * (1 + math.cos(phase))
 				here = hinge * CFrame.Angles(0, step, side * raise) * hinge:Inverse() * offset
+			elseif role:match("^seg%u$") then
+				-- A worm crawls through the air: a wave runs from the head down the segments, wider
+				-- towards the tail.
+				local k = string.byte(role, 4) - 64
+				-- Neighbours stay touching: a small step in phase and size from one segment to the next.
+				local wave = t * 2.2 + ph - k * 0.6
+				local amp = pet.height * 0.018 * k
+				here = CFrame.new(amp * math.sin(wave), amp * 0.4 * math.sin(wave + 1.2), 0) * offset
+			elseif (role == "finL" or role == "finR" or role == "finOuterL" or role == "finOuterR") and pet.hinges["fin" .. role:sub(-1)] then
+				-- A ray beats its fins slow and wide, as in water: the inner part from the body, the
+				-- outer one following a little later, so the fin bends like a wave.
+				local root = pet.hinges["fin" .. role:sub(-1)]
+				local side = if root.X > 0 then 1 else -1
+				local beatPhase = t * 1.8 + ph
+				local rootTurn = CFrame.new(root) * CFrame.Angles(0, 0, side * 0.22 * math.sin(beatPhase)) * CFrame.new(-root)
+				here = rootTurn * offset
+				local joint = pet.hinges["finOuter" .. role:sub(-1)]
+				if role:sub(1, 8) == "finOuter" and joint then
+					local tipTurn = CFrame.new(joint) * CFrame.Angles(0, 0, side * 0.28 * math.sin(beatPhase - 0.9)) * CFrame.new(-joint)
+					here = rootTurn * tipTurn * offset
+				end
+			elseif role:match("^tail%u$") then
+				-- A ray's tail of beads wags as a wave, wider towards its end.
+				local k = string.byte(role, 5) - 64
+				-- The beads are small and close: a wide wag would pull the chain apart.
+				here = CFrame.new(pet.height * 0.005 * k * math.sin(t * 3 + ph - k * 0.4), 0, 0) * offset
+			elseif (role == "buzzL" or role == "buzzR") and pet.hinges[role] then
+				-- The lead drone's little wings buzz.
+				local hinge = pet.hinges[role]
+				local side = if hinge.X > 0 then 1 else -1
+				here = CFrame.new(hinge) * CFrame.Angles(0, 0, side * 0.45 * math.sin(t * 28 + ph)) * CFrame.new(-hinge) * offset
+			elseif (role == "flipperL" or role == "flipperR") and pet.hinges[role] then
+				-- A whale rows with its side flippers, the two a little out of step.
+				local hinge = pet.hinges[role]
+				local side = if hinge.X > 0 then 1 else -1
+				local row = t * 1.6 + ph + (if side > 0 then 0 else 0.5)
+				here = CFrame.new(hinge) * CFrame.Angles(0.35 * math.sin(row), 0, side * 0.1 * math.cos(row)) * CFrame.new(-hinge) * offset
+			elseif role == "flukes" and pet.hinges.flukes then
+				-- The tail flukes beat up and down, slowly.
+				local hinge = pet.hinges.flukes
+				here = CFrame.new(hinge) * CFrame.Angles(0.3 * math.sin(t * 1.3 + ph), 0, 0) * CFrame.new(-hinge) * offset
 			elseif role == "wisp" then
 				local tilt = part:GetAttribute("Tilt")
 				local angle = t * (part:GetAttribute("Speed") or 1.6) + part:GetAttribute("Phase")
@@ -382,6 +429,10 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 				here = offset
 			end
 			local size = pet.sizes[i]
+			-- A worm's head (and all it wears) looks around on its neck; the segments wave apart.
+			if here and headTurn and not role:match("^seg%u$") and role ~= "orbit" and role ~= "wisp" then
+				here = headTurn * here
+			end
 			if here then
 				-- The jelly squashes everything above its floor: the dome, the face, what rides on top.
 				if stretch ~= 0 and offset.Position.Y > pet.jellyFloor then
