@@ -131,6 +131,9 @@ local function rebuild()
 					pet.hinges["wing" .. role:sub(-1)] = offset.Position
 				elseif role == "hingeJawL" or role == "hingeJawR" then
 					pet.hinges["jaw" .. role:sub(-1)] = offset.Position
+				elseif role:match("^hingeLeg[LR]%u$") then
+					-- A crab leg's hip, under the leg's own role name (hingeLegLA → legLA).
+					pet.hinges["leg" .. role:sub(9)] = offset.Position
 				end
 				if item:IsA("MeshPart") then
 					table.insert(meshes, item)
@@ -217,26 +220,38 @@ local function jawOpen(pet, jaw, t: number): number
 	return math.max(once(s), if jaw.twice then once(s - 0.6) else 0)
 end
 
+-- 0 to 1 with a gentle start and end.
+local function smooth(u: number): number
+	u = math.clamp(u, 0, 1)
+	return u * u * (3 - 2 * u)
+end
+
 -- A slime's jelly this frame: how much taller than at rest it is (negative: squashed), and how
--- high its hop has lifted it. A hop crouches, flies stretched, lands with a wobble that dies away.
+-- high its hop has lifted it. A hop crouches, pushes off stretched, rounds out in the air and lands
+-- with a wobble that grows from nothing and dies away. Every phase starts where the last one ended:
+-- a jump in the curve shows as a jerk.
 local function jelly(pet, t: number): (number, number)
 	local stretch = JELLY_REST * math.sin(t * 2.6 + pet.phase)
 	local lift = 0
 	if pet.hopStart then
 		local s = t - pet.hopStart
-		if s < 0.15 then
-			stretch -= 0.12 * (s / 0.15)
-		elseif s < 0.65 then
-			local u = (s - 0.15) / 0.5
-			lift = HOP_HEIGHT * pet.height * 4 * u * (1 - u)
-			stretch += 0.1 * (1 - u) - 0.12 * math.max(0, 1 - u * 4)
+		if s < 0.2 then
+			stretch -= 0.12 * smooth(s / 0.2)
+		elseif s < 0.35 then
+			stretch += -0.12 + 0.22 * smooth((s - 0.2) / 0.15)
+		elseif s < 0.8 then
+			stretch += 0.1 * (1 - smooth((s - 0.35) / 0.45))
 		else
-			local d = s - 0.65
-			stretch -= 0.16 * math.exp(-d * 4) * math.cos(d * 15)
-			if d > 1.5 then
+			local d = s - 0.8
+			stretch -= 0.15 * math.exp(-d * 3.5) * math.sin(d * 13)
+			if d > 1.8 then
 				pet.hopStart = nil
 				pet.hopAt = t + pet.random:NextNumber(5, 10)
 			end
+		end
+		if s > 0.28 and s < 0.8 then
+			local u = (s - 0.28) / 0.52
+			lift = HOP_HEIGHT * pet.height * 4 * u * (1 - u)
 		end
 	elseif t >= pet.hopAt then
 		pet.hopStart = t
@@ -343,6 +358,16 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 				local hinge = CFrame.new(pet.hinges["jaw" .. role:sub(-1)])
 				local angle = jaws[role:sub(-1)] * (if role:sub(4, 6) == "Top" then 1 else -0.6)
 				here = hinge * CFrame.Angles(angle, 0, 0) * hinge:Inverse() * offset
+			elseif role:match("^leg[LR]%u$") and pet.hinges[role] then
+				-- A crab steps in the air: each leg swings forward and back on its hip, lifting as it
+				-- swings forward; every other leg in step, the two sides opposite (as crabs walk).
+				local hinge = CFrame.new(pet.hinges[role])
+				local side = if pet.hinges[role].X > 0 then 1 else -1
+				local index = string.byte(role, 5) - 64 + (if role:sub(4, 4) == "L" then 0 else 1)
+				local phase = t * 4 + pet.phase + index * math.pi
+				local step = 0.16 * math.sin(phase)
+				local raise = 0.07 * (1 + math.cos(phase))
+				here = hinge * CFrame.Angles(0, step, side * raise) * hinge:Inverse() * offset
 			elseif role == "wisp" then
 				local tilt = part:GetAttribute("Tilt")
 				local angle = t * (part:GetAttribute("Speed") or 1.6) + part:GetAttribute("Phase")

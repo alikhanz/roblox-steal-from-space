@@ -255,14 +255,20 @@ def crab(x, z, theme, p=None):
     shells = [shell, plate]
     spots = [0.3, 0.0, -0.3][:legs] if legs <= 3 else [0.36, 0.12, -0.12, -0.36]
     for side in (-1, 1):
-        # Short sturdy legs: a thick thigh out to the side, a shin down to a glowing foot.
-        for y in spots:
+        # Short sturdy legs: a thick thigh out to the side, a shin down to a glowing foot. Each leg
+        # is a role of its own (legLA, legLB… from back to front), hinged at its hip joint, so the
+        # game can make the crab step; the hip joint stays on the body.
+        for index, y in enumerate(spots):
             hip = 0.9 * w
+            name = ("L" if side < 0 else "R") + "ABCD"[index]
             sphere((x + side * hip, y, z + 0.72), (0.13, 0.13, 0.13), joint, 16)
-            upper = cylinder((x + side * (hip + 0.18), y, z + 0.78), 0.09, 0.38, shell_mat, (0, math.radians(side * -70), 0))
-            sphere((x + side * (hip + 0.35), y, z + 0.8), (0.11, 0.11, 0.11), joint, 16)
-            lower = cylinder((x + side * (hip + 0.4), y, z + 0.45), 0.08, 0.6, shell_mat, (0, math.radians(side * 10), 0))
-            sphere((x + side * (hip + 0.44), y, z + 0.12), (0.09, 0.09, 0.07), glow(theme["accent"], 8.0), 12)
+            with role("leg" + name):
+                upper = cylinder((x + side * (hip + 0.18), y, z + 0.78), 0.09, 0.38, shell_mat, (0, math.radians(side * -70), 0))
+                sphere((x + side * (hip + 0.35), y, z + 0.8), (0.11, 0.11, 0.11), joint, 16)
+                lower = cylinder((x + side * (hip + 0.4), y, z + 0.45), 0.08, 0.6, shell_mat, (0, math.radians(side * 10), 0))
+                sphere((x + side * (hip + 0.44), y, z + 0.12), (0.09, 0.09, 0.07), glow(theme["accent"], 8.0), 12)
+            with role("hingeLeg" + name):
+                sphere((x + side * hip, y, z + 0.72), (0.03, 0.03, 0.03), joint, 8)
             shells += [upper, lower]
         # Claws held up in front; a kind may grow one much bigger.
         size = left if side < 0 else right
