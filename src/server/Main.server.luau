@@ -8,6 +8,7 @@ local ActivityService = require(script.Parent.Services.ActivityService)
 local AlienModel = require(script.Parent.World.AlienModel)
 local AlienModels = require(script.Parent.World.AlienModels) :: { [string]: string }
 local BayService = require(script.Parent.Services.BayService)
+local BenchService = require(script.Parent.Services.BenchService)
 local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
@@ -67,6 +68,12 @@ local bayService = BayService.new({
 	getIslandSpawn = worldService.getIslandSpawn,
 })
 local economyService = EconomyService.new({
+	getData = profile.getData,
+	update = profile.update,
+	refresh = bayService.refresh,
+})
+-- The pet bench for measuring on a phone (decision 082).
+local benchService = BenchService.new({
 	getData = profile.getData,
 	update = profile.update,
 	refresh = bayService.refresh,
@@ -137,6 +144,7 @@ local netService = NetService.new({
 	purchased = purchaseService.purchased,
 	notePrompt = purchaseService.notePrompt,
 	markActive = activityService.touch,
+	bench = benchService.run,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -385,6 +393,7 @@ Lifecycle.run({
 	-- After the net service, so the snapshot goes out before the settlement's deltas.
 	offlineService,
 	devService,
+	benchService,
 }, function(callback)
 	task.spawn(callback)
 end)

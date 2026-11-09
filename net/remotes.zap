@@ -508,3 +508,12 @@ event RequestSnapshot = {
 	type: Reliable,
 	call: SingleSync,
 }
+
+-- The pet bench for measuring on a phone (BenchService, decision 082): true fills the island
+-- with 30 aliens, false takes them away. The server ignores anyone not allowed.
+event Bench = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: boolean,
+}

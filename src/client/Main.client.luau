@@ -9,6 +9,7 @@ local AlienMotionController = require(script.Parent.Controllers.AlienMotionContr
 local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
+local BenchController = require(script.Parent.Controllers.BenchController)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
 local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseController)
@@ -102,6 +103,7 @@ Lifecycle.run({
 	GuardianViewController.new({ speed = speedState.speed }),
 	BayViewController.new({ profile = profileState }),
 	AlienMotionController.new(),
+	BenchController.new(),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({

@@ -64,6 +64,8 @@ export type Dependencies = {
 	) -> PurchaseService.Notice?,
 	-- Every command a player sends counts as them playing (ActivityService).
 	markActive: (player: Player) -> (),
+	-- The pet bench: fill the island or clear it (BenchService.run; checks who may).
+	bench: (player: Player, fill: boolean) -> (),
 }
 
 export type Notice =
@@ -309,6 +311,10 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.BuyPod.SetCallback(guarded(function(player)
 			return economy.buyPod(player)
+		end))
+		Remotes.Bench.SetCallback(guarded(function(player, fill: boolean)
+			dependencies.bench(player, fill)
+			return nil
 		end))
 		Remotes.BuyIncubatorSlot.SetCallback(guarded(function(player)
 			return economy.buyIncubatorSlot(player)
