@@ -70,8 +70,29 @@ local MODELS = table.freeze({
 -- The pets' living motion on the client (AlienMotionController), as the gallery had it. Lengths
 -- in studs are at the dressing scale and grow with the pet.
 local MOTION = table.freeze({
-	-- Only pets this close to the camera move, studs (plus the pet's own size): far ones stand.
-	RADIUS = 160,
+	-- Detail by distance from the camera, studs past the pet's own half width (PetMotion.detail):
+	-- within NEAR all of it; within FAR the main effects (MAIN_EFFECTS), no light, motion every
+	-- other frame; beyond, the pet stands still with no particles, light or pictures. Leaving a
+	-- detail takes DETAIL_MARGIN more, so nothing flickers at the edge. A phone warmed up at once
+	-- with thirty pets in full (2026-11-10).
+	NEAR = 70,
+	FAR = 160,
+	DETAIL_MARGIN = 10,
+	-- The particle layers kept in the middle distance: each pet's main cue (roblox-brain: cut the
+	-- secondary layers first). Everything else (sparkles, motes, smoke, sparks) goes.
+	MAIN_EFFECTS = table.freeze({
+		SoftGlow = true,
+		JetFlame = true,
+		JetCore = true,
+		Flames = true,
+		FlameCore = true,
+		TailFire = true,
+		FireTail = true,
+		StarTail = true,
+		Radiance = true,
+		RadianceHeart = true,
+		Bolts = true,
+	} :: { [string]: boolean }),
 	-- The whole pet bobs this high, studs.
 	BOB = 0.45,
 	-- A little drone bobs on its loop this high, studs.

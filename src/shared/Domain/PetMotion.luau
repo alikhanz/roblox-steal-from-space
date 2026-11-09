@@ -87,4 +87,38 @@ function PetMotion.hop(since: number, hopHeight: number): (number, number)
 	return stretch, lift
 end
 
+-- How much of a pet is drawn and moved, by its distance from the camera: 1 all of it, 2 its main
+-- effects (the secondary particle layers and the light go), 3 none (it stands still and plain).
+export type Detail = number
+
+-- The detail for a pet `distance` studs from the camera and `radius` studs across half its width:
+-- within `near` (past its own radius) all, within `far` the main effects, beyond none. Leaving the
+-- detail it has (`current`) takes `margin` studs more, so a pet at the edge does not flicker.
+function PetMotion.detail(
+	distance: number,
+	radius: number,
+	current: Detail?,
+	near: number,
+	far: number,
+	margin: number
+): Detail
+	local function level(slack: number): Detail
+		if distance <= near + radius + slack then
+			return 1
+		elseif distance <= far + radius + slack then
+			return 2
+		end
+		return 3
+	end
+	local plain = level(0)
+	if not current or plain == current then
+		return plain
+	end
+	-- Moving to less detail only past the margin; to more detail at once.
+	if plain > current then
+		return math.max(current, level(margin))
+	end
+	return plain
+end
+
 return table.freeze(PetMotion)

@@ -4,6 +4,11 @@
 -- places a dressed pet (World/AlienModel, tag BayConfig.ALIEN_TAG) and never moves it; here every
 -- pet near the camera moves on the client, all of them in one BulkMoveTo a frame.
 --
+-- Detail by distance (plan step 4, PetMotion.detail, AlienLooks.MOTION): near pets are drawn and
+-- moved in full; in the middle distance only their main particle layers stay, without the light,
+-- moving every other frame; far ones (other islands too) stand still with no particles, light or
+-- pictures. A phone warmed up at once with thirty pets in full.
+--
 -- On top of a shared bob and sway each family moves its own way: a slime wobbles like jelly and
 -- hops, a crab snaps its claws and steps, a worm waves its segments and looks round, a ray beats
 -- its fins and wags its tail, a whale rows and beats its flukes, a swarm's little drones fly loops
@@ -72,6 +77,14 @@ type Pet = {
 	dustOpen: { ParticleEmitter },
 	dustFold: { ParticleEmitter },
 	images: { ImageLabel },
+	-- Steady particle layers: the secondary ones and the main ones (AlienLooks.MOTION.MAIN_EFFECTS).
+	effects: { ParticleEmitter },
+	mainEffects: { ParticleEmitter },
+	boards: { BillboardGui },
+	-- How much of it is drawn and moved now (PetMotion.detail); nil until first seen.
+	detail: number?,
+	-- Which frames it moves on in the middle distance (every other one).
+	frameSlot: number,
 	light: PointLight?,
 	brightness: number,
 	-- Where a slime's jelly starts (above its solid base), in the pet's space.
@@ -193,6 +206,11 @@ local function petOf(model: Model): Pet?
 		dustOpen = {},
 		dustFold = {},
 		images = {},
+		effects = {},
+		mainEffects = {},
+		boards = {},
+		detail = nil,
+		frameSlot = random:NextInteger(0, 1),
 		light = nil,
 		brightness = 0,
 		jellyFloor = nil,
@@ -247,6 +265,13 @@ local function petOf(model: Model): Pet?
 			table.insert(pet.dustFold, item)
 		elseif item:IsA("ImageLabel") and (item:GetAttribute("Spin") or item:GetAttribute("Sway")) then
 			table.insert(pet.images, item)
+		end
+		-- What the detail turns off and on: the steady particle layers (the wing dust only bursts on
+		-- a beat, so it is left alone), the main ones apart; the pictures (medal, crest).
+		if item:IsA("ParticleEmitter") and item.Rate > 0 then
+			table.insert(if MOTION.MAIN_EFFECTS[item.Name] then pet.mainEffects else pet.effects, item)
+		elseif item:IsA("BillboardGui") then
+			table.insert(pet.boards, item)
 		end
 	end
 	for role, sum in sums do
@@ -499,6 +524,24 @@ local function move(pet: Pet, t: number, dt: number, root: BasePart?, parts: { B
 	end
 end
 
+-- Draws `pet` at `detail` (PetMotion.detail): all its effects, light and pictures; only its main
+-- particle layers; or none of them.
+local function setDetail(pet: Pet, detail: number)
+	pet.detail = detail
+	for _, effect in pet.effects do
+		effect.Enabled = detail == 1
+	end
+	for _, effect in pet.mainEffects do
+		effect.Enabled = detail <= 2
+	end
+	for _, board in pet.boards do
+		board.Enabled = detail <= 2
+	end
+	if pet.light then
+		pet.light.Enabled = detail == 1
+	end
+end
+
 function AlienMotionController.new(): AlienMotionController
 	local pets: { [Model]: Pet } = {}
 
@@ -532,6 +575,7 @@ function AlienMotionController.new(): AlienMotionController
 	end
 
 	local last = os.clock()
+	local frame = 0
 	local function step()
 		local t = os.clock()
 		local dt = math.min(t - last, 0.1)
@@ -546,10 +590,25 @@ function AlienMotionController.new(): AlienMotionController
 		local root = if found and found:IsA("BasePart") then found else nil
 		local parts: { BasePart } = {}
 		local frames: { CFrame } = {}
+		frame += 1
 		for _, pet in pets do
-			-- Far pets stand still: nobody sees them move.
-			if (pet.base.Position - eye).Magnitude <= MOTION.RADIUS + pet.radius then
+			local detail = PetMotion.detail(
+				(pet.base.Position - eye).Magnitude,
+				pet.radius,
+				pet.detail,
+				MOTION.NEAR,
+				MOTION.FAR,
+				MOTION.DETAIL_MARGIN
+			)
+			if detail ~= pet.detail then
+				setDetail(pet, detail)
+			end
+			-- Near: every frame; in the middle distance every other one (half the work, still
+			-- smooth from there); far pets stand still.
+			if detail == 1 then
 				move(pet, t, dt, root, parts, frames)
+			elseif detail == 2 and frame % 2 == pet.frameSlot then
+				move(pet, t, dt * 2, root, parts, frames)
 			end
 		end
 		if #parts > 0 then

@@ -49,6 +49,25 @@ describe("PetMotion", function()
 		expect(lift < 0.01).toBe(true)
 	end)
 
+	it("draws a pet in full near the camera, its main effects farther, nothing far away", function()
+		expect(PetMotion.detail(30, 5, nil, 70, 160, 10)).toBe(1)
+		expect(PetMotion.detail(100, 5, nil, 70, 160, 10)).toBe(2)
+		expect(PetMotion.detail(400, 5, nil, 70, 160, 10)).toBe(3)
+		-- A giant counts from its own edge.
+		expect(PetMotion.detail(100, 40, nil, 70, 160, 10)).toBe(1)
+	end)
+
+	it("keeps a pet's detail at the edge until it is past the margin", function()
+		-- Just past the near edge: still in full, until the margin is crossed.
+		expect(PetMotion.detail(80, 5, 1, 70, 160, 10)).toBe(1)
+		expect(PetMotion.detail(86, 5, 1, 70, 160, 10)).toBe(2)
+		expect(PetMotion.detail(170, 5, 2, 70, 160, 10)).toBe(2)
+		expect(PetMotion.detail(180, 5, 2, 70, 160, 10)).toBe(3)
+		-- Coming closer takes more detail at once.
+		expect(PetMotion.detail(74, 5, 2, 70, 160, 10)).toBe(1)
+		expect(PetMotion.detail(160, 5, 3, 70, 160, 10)).toBe(2)
+	end)
+
 	it("lifts the slime only while it is in the air, at most the hop's height", function()
 		local highest = 0
 		for t = 0, PetMotion.HOP_SECONDS, 0.01 do
