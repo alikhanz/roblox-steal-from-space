@@ -235,7 +235,9 @@ return function(only: { [string]: boolean }?): string
 				continue
 			end
 			local p = paints[part.Name]
-			local role = part.Name:match("^(%a+)")
+			-- The role is the name before its number (`drone2_41` → drone2, `legLA_7` → legLA): a
+			-- role may hold digits of its own (a little drone's number).
+			local role = part.Name:match("^(.-)_%d+$") or part.Name:match("^(%a+)")
 			part:SetAttribute("Role", role)
 			part.Anchored, part.CanCollide, part.CanQuery, part.CanTouch = true, false, false, false
 			part.TextureID = ""

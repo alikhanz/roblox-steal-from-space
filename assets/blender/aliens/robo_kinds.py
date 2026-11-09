@@ -286,10 +286,15 @@ def mandibles(info, theme):
         with robo.role("hingeMand" + name):
             sphere(root, (0.02, 0.02, 0.02), jaw, 8)
     for index, (location, s) in enumerate(info.get("drones", [])):
-        # A little drone's jaws fly with it.
-        with robo.role(f"drone{index + 1}"):
-            for side in (-1, 1):
-                cone((location.x + side * 0.1 * s, location.y - 0.4 * s, location.z - 0.15 * s), 0.04 * s, 0.22 * s, jaw, (-side * 0.6, -1, -0.3))
+        # A little drone's jaws fly with it and snap too: roles drone1MandL… (the drone's own
+        # number first, so the game flies them with it), each on a hinge at its root.
+        for side in (-1, 1):
+            name = f"drone{index + 1}Mand" + ("L" if side < 0 else "R")
+            root = (location.x + side * 0.1 * s, location.y - 0.4 * s, location.z - 0.15 * s)
+            with robo.role(name):
+                cone(root, 0.04 * s, 0.22 * s, jaw, (-side * 0.6, -1, -0.3))
+            with robo.role("hinge" + name[0].upper() + name[1:]):
+                sphere(root, (0.015, 0.015, 0.015), jaw, 8)
 
 
 def crest(info, theme):
@@ -387,15 +392,16 @@ def lightning(info, theme):
         _bolt([(x0, ty, z0), (x0 + side * 0.25, ty, z0 + 0.3), (x0 + side * 0.13, ty, z0 + 0.45), (x0 + side * 0.4, ty, z0 + 0.8)], bolt)
 
 
-@robo.in_role("drone")
 def minions(info, theme):
-    """Three tiny drones buzzing round the pet."""
+    """Three tiny drones buzzing round the pet: each a role of its own (drone1…), so the game
+    flies them round it like a swarm's little drones."""
     cx, cy, cz = info["center"]
     r = info["radius"] + 0.35
     shell = theme["shell"]()
     for index in range(3):
         angle = index / 3 * math.tau + 0.9
-        robo.drone(cx + math.cos(angle) * r, cy + math.sin(angle) * r * 0.5 - 0.2, cz + 0.4 + 0.3 * index, 0.3, theme, shell)
+        with robo.role(f"drone{index + 1}"):
+            robo.drone(cx + math.cos(angle) * r, cy + math.sin(angle) * r * 0.5 - 0.2, cz + 0.4 + 0.3 * index, 0.3, theme, shell)
 
 
 def void_core(info, theme):

@@ -323,10 +323,9 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 		end
 		pet.beat = beat
 		local open = eyeOpen(pet, t)
-		local jaws = {
-			L = if pet.hinges.jawL or pet.hinges.mandL then jawOpen(pet, pet.jaws.L, t) else 0,
-			R = if pet.hinges.jawR or pet.hinges.mandR then jawOpen(pet, pet.jaws.R, t) else 0,
-		}
+		-- Every pet's jaws keep their rhythm; only the ones it has (a crab's, pincers, a devourer's
+		-- mandibles, its drones' too) use it.
+		local jaws = { L = jawOpen(pet, pet.jaws.L, t), R = jawOpen(pet, pet.jaws.R, t) }
 		local headTurn: CFrame? = nil
 		if pet.family == "worm" and pet.hinges.head then
 			local neck = pet.hinges.head
@@ -429,8 +428,17 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 					* CFrame.Angles(0, angle, 0)
 					* CFrame.new(part:GetAttribute("Orbit"), 0, 0)
 			elseif role:match("^drone%d") then
+				-- A little drone circles the lead, bobbing; its jaws (drone1MandL…) snap on the way.
 				local n = tonumber(role:match("%d+"))
-				here = c * CFrame.Angles(0, t * 1.3, 0) * cInv * CFrame.new(0, math.sin(t * 4 + n) * 0.35, 0) * offset
+				local fly = c * CFrame.Angles(0, t * 1.3, 0) * cInv * CFrame.new(0, math.sin(t * 4 + n) * 0.35, 0)
+				local hinge = pet.hinges[role]
+				local centre = pet.groups["drone" .. n]
+				if role:match("Mand[LR]$") and hinge and centre then
+					local side = if hinge.X > centre.X then 1 else -1
+					here = fly * CFrame.new(hinge) * CFrame.Angles(0, -side * jaws[role:sub(-1)] * 0.8, 0) * CFrame.new(-hinge) * offset
+				else
+					here = fly * offset
+				end
 			else
 				here = offset
 			end
