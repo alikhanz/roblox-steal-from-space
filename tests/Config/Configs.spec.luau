@@ -27,13 +27,14 @@ local describe, it, expect = Test.describe, Test.it, Test.expect
 local fs = require("@lune/fs")
 
 describe("AlienConfig", function()
-	it("grows aliens to about eight players tall at the last guardian's legendary (decision 068)", function()
+	it("grows the last guardian's aliens about five times the first's (decisions 068, 083)", function()
 		local first = AlienConfig.ALIENS[AlienConfig.GRADES[1].aliens.Common]
 		local last = AlienConfig.GRADES[#AlienConfig.GRADES]
 		expect(first.scale).toBe(1)
-		-- A body of 2.1 studs: the legendary one about 40, the common one about 22.
-		expect(AlienConfig.ALIENS[last.aliens.Legendary].scale * 2.1).toBeCloseTo(40, 2)
-		expect(AlienConfig.ALIENS[last.aliens.Common].scale * 2.1).toBeCloseTo(22, 1.5)
+		-- With a model about 3 studs across at scale 1, the last legendary stands about 30 wide
+		-- (decision 083: thirty from all over the map fit on an island).
+		expect(AlienConfig.ALIENS[last.aliens.Common].scale).toBeCloseTo(5.2, 0.2)
+		expect(AlienConfig.ALIENS[last.aliens.Legendary].scale).toBeCloseTo(9.3, 0.3)
 		-- Bigger with every guardian and every tier; a variant stands as big as the usual one.
 		for index = 2, #AlienConfig.GRADES do
 			local here = AlienConfig.ALIENS[AlienConfig.GRADES[index].aliens.Common].scale

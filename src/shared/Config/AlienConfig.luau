@@ -131,9 +131,10 @@ local TIERS: { [TierId]: Tier } = {
 -- grows slower than guardian speed (x1.8 against x3), so money matters more with every zone.
 local INCOME_BASE = BigNum.fromNumber(1)
 local INCOME_GROWTH = BigNum.fromNumber(1.7)
--- Each guardian's aliens stand this many times bigger than the previous one's (decision 068):
--- the last guardian's legendary is about eight times a player's height.
-local SIZE_GROWTH = 1.108
+-- Each guardian's aliens stand this many times bigger than the previous one's (decisions 068,
+-- 083): the last guardian's legendary model is about six times a player's height and ~30 studs
+-- wide, so 30 of them from all over the map stand on an island without crowding.
+local SIZE_GROWTH = 1.074
 
 local TIER_POSITIONS: { [TierId]: number } = {}
 local HATCH_ENTRIES: { Loot.Entry<TierId> } = {}
