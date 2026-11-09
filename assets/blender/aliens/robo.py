@@ -399,19 +399,19 @@ def ray(x, z, theme, p=None):
             "span": span, "lift": lift, "hull": ((x, 0.05, z + 0.8 + lift), (0.62, 0.75, 0.32)), "shoulders": False, "hull_obj": body}
 
 
-def drone(x, y, z, size, theme, shell_mat, buzz=False):
-    """A drone; with `buzz` (the lead) its little wings are roles of their own (buzzL, buzzR),
-    hinged at their roots, so the game can make them buzz."""
+def drone(x, y, z, size, theme, shell_mat, buzz=None):
+    """A drone; with `buzz` its little wings are roles of their own, `buzz` + L or R (the lead's
+    buzzL, a little drone's drone1BuzzL), hinged at their roots, so the game can make them buzz."""
     body = sphere((x, y, z), (0.55 * size, 0.5 * size, 0.5 * size), shell_mat, 32)
     pill((x, y + 0.1 * size, z + 0.38 * size), (0.22 * size, 0.18 * size, 0.06 * size), theme["accent_shell"]())
     visor((x, y - 0.46 * size, z + 0.03 * size), 0.3 * size, 0.11 * size, theme["eyes"])
     for side in (-1, 1):
         name = "L" if side < 0 else "R"
-        with role("buzz" + name) if buzz else contextlib.nullcontext():
+        with role(buzz + name) if buzz else contextlib.nullcontext():
             sphere((x + side * 0.55 * size, y + 0.15 * size, z + 0.35 * size), (0.4 * size, 0.2 * size, 0.03 * size),
                    real.iridescent("Wing", (0.8, 0.9, 1.0), transmission=0.85), 24, (0, math.radians(side * -20), 0))
         if buzz:
-            with role("hingeBuzz" + name):
+            with role("hinge" + buzz[0].upper() + buzz[1:] + name):
                 sphere((x + side * 0.2 * size, y + 0.15 * size, z + 0.35 * size), (0.03, 0.03, 0.03), shell_mat, 8)
     sphere((x, y, z - 0.5 * size), (0.15 * size, 0.15 * size, 0.06 * size), glow(theme["accent"], 10.0), 16)
     return body
@@ -427,12 +427,13 @@ def swarm(x, z, theme, p=None):
     main_size = p.get("main", 1.25)
     shell_mat = theme["shell"]()
     lead_z = z + 0.2 + 0.65 * main_size
-    main = drone(x, 0, lead_z, main_size, theme, shell_mat, buzz=True)
+    main = drone(x, 0, lead_z, main_size, theme, shell_mat, buzz="buzz")
     small = []
     for index, (dx, dy, dz, size) in enumerate(SWARM_SPOTS[:p.get("count", 2)]):
         # Each little drone is a role of its own, so the game can fly it round the lead.
         with role(f"drone{index + 1}"):
-            small.append(drone(x + dx * (0.6 + 0.35 * main_size), dy, z + dz * (0.55 + 0.35 * main_size), size, theme, shell_mat))
+            small.append(drone(x + dx * (0.6 + 0.35 * main_size), dy, z + dz * (0.55 + 0.35 * main_size), size, theme, shell_mat,
+                               buzz=f"drone{index + 1}Buzz"))
     info = {"shells": [main] + small, "top": (x, 0, lead_z + 0.65 * main_size), "center": (x, 0, lead_z), "radius": 0.8 * main_size, "width": 1.0 * main_size,
             # Thrusters low on the lead drone's back, under its little wings.
             "engine_z": -0.05 * main_size,

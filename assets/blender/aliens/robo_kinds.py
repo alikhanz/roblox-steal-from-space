@@ -401,7 +401,8 @@ def minions(info, theme):
     for index in range(3):
         angle = index / 3 * math.tau + 0.9
         with robo.role(f"drone{index + 1}"):
-            robo.drone(cx + math.cos(angle) * r, cy + math.sin(angle) * r * 0.5 - 0.2, cz + 0.4 + 0.3 * index, 0.3, theme, shell)
+            robo.drone(cx + math.cos(angle) * r, cy + math.sin(angle) * r * 0.5 - 0.2, cz + 0.4 + 0.3 * index, 0.3, theme, shell,
+                       buzz=f"drone{index + 1}Buzz")
 
 
 def void_core(info, theme):

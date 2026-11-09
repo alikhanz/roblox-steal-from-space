@@ -167,7 +167,7 @@ local function rebuild()
 					local rise = if i == 0 then 0 else reach * random:NextNumber(-0.3, 0.3)
 					table.insert(points, Vector3.new(pet.centre.X + math.cos(angle) * radius, home.Y + rise, pet.centre.Z + math.sin(angle) * radius))
 				end
-				pet.paths[n] = { points = points, home = home, period = random:NextNumber(5, 8) }
+				pet.paths[n] = { points = points, home = home, period = random:NextNumber(3.5, 5.5) }
 			end
 		end
 		table.insert(pets, pet)
@@ -482,6 +482,10 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 				if role:match("Mand[LR]$") and hinge and centre then
 					local side = if hinge.X > centre.X then 1 else -1
 					here = fly * CFrame.new(hinge) * CFrame.Angles(0, -side * jaws[role:sub(-1)] * 0.8, 0) * CFrame.new(-hinge) * offset
+				elseif role:match("Buzz[LR]$") and hinge and centre then
+					-- Its little wings buzz as it flies.
+					local side = if hinge.X > centre.X then 1 else -1
+					here = fly * CFrame.new(hinge) * CFrame.Angles(0, 0, side * 0.45 * math.sin(t * 30 + n * 2)) * CFrame.new(-hinge) * offset
 				else
 					here = fly * offset
 				end
