@@ -449,21 +449,37 @@ def motes(info, color, count, strength=10.0, spread=0.55, size=0.04):
         sphere((cx + math.cos(angle) * radius, cy + math.sin(angle) * radius * 0.55, cz + 0.15 + 0.8 * math.sin(index * 1.7)), (s, s, s), mat, 10)
 
 
+def _flank(info):
+    """Where hull parts on the sides and back sit: a centre, a half-width and a snap that puts a
+    point on the hull. A worm's are on its head: its body centre sits back towards the curled tail,
+    so parts placed from it sank into the head on one side and floated in the air on the other.
+    Other pets keep their body centre and place parts as they are."""
+    if "head" not in info:
+        return info["center"], info["radius"], lambda point, lift=0.0: point
+    head = Vector(info["head"])
+    r = info["head_r"]
+
+    def snap(point, lift=0.0):
+        return tuple(head + (Vector(point) - head).normalized() * (r + lift))
+
+    return (head.x, head.y, head.z - 0.1), r * 1.2, snap
+
+
 def details(info, theme):
     """Small hull detail every pet has: side lights, a vent grille, a bolt."""
-    cx, cy, cz = info["center"]
-    r = info["radius"] * 0.82
+    (cx, cy, cz), r, snap = _flank(info)
+    r *= 0.82
     dark = real.gloss("Vent", (0.06, 0.065, 0.075), 0.3)
     bolt = real.chrome("Bolt", (0.75, 0.77, 0.8), 0.2)
     for side in (-1, 1):
         sx = cx + side * r
         for step in range(3):
-            sphere((sx + side * 0.02, cy - 0.1 + step * 0.13, cz + 0.12), (0.03, 0.035, 0.035), glow(theme["accent"] if step else theme["eyes"], 9.0), 10)
+            sphere(snap((sx + side * 0.02, cy - 0.1 + step * 0.13, cz + 0.12)), (0.03, 0.035, 0.035), glow(theme["accent"] if step else theme["eyes"], 9.0), 10)
         for step in range(3):
-            pill((sx - side * 0.05, cy + 0.35, cz - 0.12 + step * 0.08), (0.03, 0.14, 0.018), dark, (0, 0, 0), 0.5)
-        sphere((sx - side * 0.04, cy + 0.12, cz - 0.28), (0.035, 0.035, 0.035), bolt, 12)
+            pill(snap((sx - side * 0.05, cy + 0.35, cz - 0.12 + step * 0.08), 0.01), (0.03, 0.14, 0.018), dark, (0, 0, 0), 0.5)
+        sphere(snap((sx - side * 0.04, cy + 0.12, cz - 0.28)), (0.035, 0.035, 0.035), bolt, 12)
         # An emblem in the trim colour with a glowing rim: the guardian's badge on the flank.
-        emblem = (sx + side * 0.03, cy - 0.32, cz - 0.05)
+        emblem = snap((sx + side * 0.03, cy - 0.32, cz - 0.05), 0.03)
         cylinder(emblem, 0.13, 0.03, theme["accent_shell"](), (0, math.radians(90), 0), 24)
         torus(emblem, 0.13, 0.015, glow(theme["accent"], 6.0), (0, math.radians(90), 0))
 
@@ -477,15 +493,16 @@ def beacon(info, color, strength):
 
 def pack(info, color, armour):
     """Tier 2+: a twin thruster pack on the back and armour plates on the shoulders."""
-    cx, cy, cz = info["center"]
-    r = info["radius"]
+    (cx, cy, cz), r, snap = _flank(info)
     engine = real.gloss("Engine", (0.1, 0.11, 0.13), 0.3)
     for side in (-1, 1):
         ex = cx + side * 0.32
-        cylinder((ex, cy + r * 0.85, cz + 0.2), 0.13, 0.4, engine, (math.radians(90), 0, 0))
-        torus((ex, cy + r * 0.85 + 0.2, cz + 0.2), 0.12, 0.025, glow(color, 8.0), (math.radians(90), 0, 0))
-        sphere((ex, cy + r * 0.85 + 0.24, cz + 0.2), (0.1, 0.04, 0.1), glow(color, 14.0), 16)
-        info["shells"].append(pill((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
+        # The engine's middle on the back of the hull (a worm's: the back of its head).
+        ex, ey, ez = snap((ex, cy + r * 0.85, cz + 0.2), 0.05)
+        cylinder((ex, ey, ez), 0.13, 0.4, engine, (math.radians(90), 0, 0))
+        torus((ex, ey + 0.2, ez), 0.12, 0.025, glow(color, 8.0), (math.radians(90), 0, 0))
+        sphere((ex, ey + 0.24, ez), (0.1, 0.04, 0.1), glow(color, 14.0), 16)
+        info["shells"].append(pill(snap((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), 0.03), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
 
 
 # A fairy wing, traced from the user's reference (2026-11-08) in its image pixels: x right, y down,
@@ -584,7 +601,11 @@ def wings(info, color, size, gold=False):
     """Tier 3+: a pair of fairy wings behind the pet: a see-through membrane in the tier colour
     with a glowing edge and veins. Each side is its own role (wingL, wingR) and is hinged at its
     root, so the game can flap it."""
-    cx, cy, cz = info["center"]
+    # Hinged behind the head of a worm (symmetric), behind the body of anything else; the span still
+    # follows the whole pet.
+    (cx, cy, cz), _, _ = _flank(info)
+    if "head" in info:
+        cz += 0.1
     r = info["radius"]
     membrane = real.iridescent("GoldWing", GOLD, transmission=0.5, glow=1.5) if gold else real.iridescent("EnergyWing", color, transmission=0.6, glow=1.5)
     edge = glow(GOLD if gold else color, 10.0)
@@ -626,6 +647,9 @@ def orbit(info, color, tilt, extra=0.45, thickness=0.02):
 def crown(info):
     """Tier 4: a gold crown of gem-tipped spikes instead of the antenna."""
     tx, ty, tz = info["top"]
+    if "head" in info:
+        # On a worm's head, not hovering over its feelers.
+        tz = info["head"][2] + info["head_r"] + 0.03
     gold = real.chrome("Crown", GOLD, 0.2)
     torus((tx, ty, tz - 0.05), 0.32, 0.06, gold)
     for index in range(5):
@@ -703,7 +727,7 @@ def _comet(cx, cy, cz, r, tier):
 def _back_arc(info, count, spread=1.0):
     """Points along the pet's top-back, each with an outward direction."""
     tx, ty, tz = info["top"]
-    cx = info["center"][0]
+    cx = _flank(info)[0][0]
     for index in range(count):
         t = ((index - (count - 1) / 2) / (count - 1) * spread) if count > 1 else 0.0
         base = Vector((cx + t * info["radius"] * 0.9, ty + 0.35, tz - 0.45 - abs(t) * 0.35))
