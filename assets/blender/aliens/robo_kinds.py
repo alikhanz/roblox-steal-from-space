@@ -135,8 +135,14 @@ def pincers(info, theme):
         bases = [Vector(robo.stick(info, (lx + side * 0.55 * size, ly - 0.55 * size, lz - 0.25), 0.0, hull)) for side in (-1, 1)]
     for side, base in zip((-1, 1), bases):
         sphere(tuple(base), (0.16, 0.2, 0.14), shell, 24)
-        pill(tuple(base + Vector((side * 0.05, -0.2, 0.08))), (0.06, 0.13, 0.04), shell, (math.radians(-20), 0, 0))
-        pill(tuple(base + Vector((0, -0.18, -0.07))), (0.05, 0.11, 0.035), shell, (math.radians(20), 0, 0))
+        # The two jaws snap like a crab's: the same roles (jawTopL…) on a hinge at their root.
+        name = "L" if side < 0 else "R"
+        with robo.role("jawTop" + name):
+            pill(tuple(base + Vector((side * 0.05, -0.2, 0.08))), (0.06, 0.13, 0.04), shell, (math.radians(-20), 0, 0))
+        with robo.role("jawBot" + name):
+            pill(tuple(base + Vector((0, -0.18, -0.07))), (0.05, 0.11, 0.035), shell, (math.radians(20), 0, 0))
+        with robo.role("hingeJaw" + name):
+            sphere(tuple(base + Vector((0, -0.08, 0))), (0.02, 0.02, 0.02), shell, 8)
 
 
 def icicles(info, theme):
@@ -271,7 +277,14 @@ def mandibles(info, theme):
     (lx, ly, lz), size = _lead(info)
     jaw = real.chrome("Jaw", (0.85, 0.85, 0.9), 0.2)
     for side in (-1, 1):
-        cone((lx + side * 0.22 * size, ly - 0.42 * size, lz - 0.2 * size), 0.07 * size, 0.42 * size, jaw, (-side * 0.6, -1, -0.3))
+        # Each jaw is a role of its own (mandL, mandR) on a hinge at its root: the game opens and
+        # closes them like a beetle's.
+        name = "L" if side < 0 else "R"
+        root = (lx + side * 0.22 * size, ly - 0.42 * size, lz - 0.2 * size)
+        with robo.role("mand" + name):
+            cone(root, 0.07 * size, 0.42 * size, jaw, (-side * 0.6, -1, -0.3))
+        with robo.role("hingeMand" + name):
+            sphere(root, (0.02, 0.02, 0.02), jaw, 8)
     for index, (location, s) in enumerate(info.get("drones", [])):
         # A little drone's jaws fly with it.
         with robo.role(f"drone{index + 1}"):

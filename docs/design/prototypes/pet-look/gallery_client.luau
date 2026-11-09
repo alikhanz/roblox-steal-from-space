@@ -324,8 +324,8 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 		pet.beat = beat
 		local open = eyeOpen(pet, t)
 		local jaws = {
-			L = if pet.hinges.jawL then jawOpen(pet, pet.jaws.L, t) else 0,
-			R = if pet.hinges.jawR then jawOpen(pet, pet.jaws.R, t) else 0,
+			L = if pet.hinges.jawL or pet.hinges.mandL then jawOpen(pet, pet.jaws.L, t) else 0,
+			R = if pet.hinges.jawR or pet.hinges.mandR then jawOpen(pet, pet.jaws.R, t) else 0,
 		}
 		local headTurn: CFrame? = nil
 		if pet.family == "worm" and pet.hinges.head then
@@ -364,6 +364,12 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 				local hinge = CFrame.new(pet.hinges["jaw" .. role:sub(-1)])
 				local angle = jaws[role:sub(-1)] * (if role:sub(4, 6) == "Top" then 1 else -0.6)
 				here = hinge * CFrame.Angles(angle, 0, 0) * hinge:Inverse() * offset
+			elseif (role == "mandL" or role == "mandR") and pet.hinges[role] then
+				-- A devourer's jaws open outwards and snap together (the jaw's tip points ahead, so
+				-- a turn about Y towards its own side opens it).
+				local hinge = pet.hinges[role]
+				local side = if hinge.X > 0 then 1 else -1
+				here = CFrame.new(hinge) * CFrame.Angles(0, -side * jaws[role:sub(-1)] * 0.8, 0) * CFrame.new(-hinge) * offset
 			elseif role:match("^leg[LR]%u$") and pet.hinges[role] then
 				-- A crab steps in the air: each leg swings forward and back on its hip, lifting as it
 				-- swings forward; every other leg in step, the two sides opposite (as crabs walk).
