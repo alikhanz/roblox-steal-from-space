@@ -63,9 +63,10 @@ return table.freeze({
 	MIN_PLACE_WIDTH = 6,
 
 	-- Terminals (docs/design/screens/terminals.md): a stand with a tilted screen beside each zone,
-	-- in the entrance's wedge, the screen toward the spawn. The places' one stands by the floor's
-	-- tray: a bought place takes an alien from the floor.
-	PLACES_TERMINAL_POSITION = Vector3.new(-17, 0, -44),
+	-- in the entrance's wedge, the screen toward the spawn. The places' one stands beside the
+	-- incubator's, on its right for a player walking in (user, 2026-11-10): the two screens a
+	-- couple of studs apart.
+	PLACES_TERMINAL_POSITION = Vector3.new(-8, 0, -18),
 	INCUBATOR_TERMINAL_POSITION = Vector3.new(0, 0, -17.5),
 	TRAINER_TERMINAL_POSITION = Vector3.new(17, 0, -46),
 	TERMINAL_FACES = Vector3.new(0, 0, -StationSize.ISLAND_SPAWN_DISTANCE),
