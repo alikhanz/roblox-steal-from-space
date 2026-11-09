@@ -35,8 +35,8 @@ def siren(info, theme):
     pill((tx, ty, tz - 0.02), (0.3, 0.1, 0.06), real.gloss("Bar", (0.12, 0.13, 0.15), 0.3))
     for side, colour in ((-1, (1.0, 0.15, 0.15)), (1, (0.2, 0.45, 1.0))):
         sphere((tx + side * 0.16, ty, tz + 0.08), (0.11, 0.09, 0.09), real.glow("Siren", colour, 12.0), 16)
-    cx, cy, cz = info["center"]
-    pill((cx, cy - info["radius"] * 0.86, cz - 0.3), (0.16, 0.04, 0.12), real.chrome("Badge", robo.GOLD, 0.25))
+    (cx, cy, cz), r, snap = robo._flank(info)
+    pill(snap((cx, cy - r * 0.86, cz - 0.3), 0.02), (0.16, 0.04, 0.12), real.chrome("Badge", robo.GOLD, 0.25))
 
 
 def rotor(info, theme):
@@ -69,15 +69,16 @@ def bubbles(info, theme):
 
 def exhausts(info, theme):
     """A tank's exhaust pipes and rivets."""
-    cx, cy, cz = info["center"]
-    r = info["radius"]
+    (cx, cy, cz), r, snap = robo._flank(info)
     pipe = real.chrome("Pipe", (0.45, 0.42, 0.4), 0.35)
     for side in (-1, 1):
-        cylinder((cx + side * 0.4, cy + r * 0.55, cz + 0.55), 0.09, 0.7, pipe, (math.radians(-15), 0, 0))
-        sphere((cx + side * 0.4, cy + r * 0.55 + 0.08, cz + 0.92), (0.07, 0.07, 0.03), glow((1.0, 0.45, 0.1), 8.0), 12)
+        # The pipe's foot on the hull, the pipe rising from it.
+        fx, fy, fz = snap((cx + side * 0.4, cy + r * 0.55, cz + 0.2))
+        cylinder((fx, fy, fz + 0.35), 0.09, 0.7, pipe, (math.radians(-15), 0, 0))
+        sphere((fx, fy + 0.08, fz + 0.72), (0.07, 0.07, 0.03), glow((1.0, 0.45, 0.1), 8.0), 12)
     rivet = real.chrome("Rivet", (0.3, 0.28, 0.27), 0.3)
     for dx in (-0.6, -0.36, -0.12, 0.12, 0.36, 0.6):
-        sphere((cx + dx * r, cy - r * 0.68, cz + 0.22), (0.045, 0.03, 0.045), rivet, 12)
+        sphere(snap((cx + dx * r, cy - r * 0.68, cz + 0.22)), (0.045, 0.03, 0.045), rivet, 12)
 
 
 def circlet(info, theme):
@@ -86,9 +87,9 @@ def circlet(info, theme):
     gold = real.chrome("Circlet", robo.GOLD, 0.22)
     torus((tx, ty, tz - 0.3), 0.45, 0.06, gold)
     sphere((tx, ty - 0.45, tz - 0.28), (0.1, 0.06, 0.1), real.glow("Jewel", (0.4, 0.8, 1.0), 10.0), 16)
-    cx, cy, cz = info["center"]
+    (cx, cy, cz), r, snap = robo._flank(info)
     for side in (-1, 1):
-        sphere((cx + side * info["radius"] * 0.85, cy, cz + 0.15), (0.2, 0.18, 0.07), gold, 24)
+        sphere(snap((cx + side * r * 0.85, cy, cz + 0.15)), (0.2, 0.18, 0.07), gold, 24)
 
 
 def pincers(info, theme):

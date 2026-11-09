@@ -318,7 +318,8 @@ def worm(x, z, theme, p=None):
         sphere((x + side * 0.25, -0.05, head_z + head_r + 0.2), (0.05, 0.05, 0.05), glow(theme["accent"], 9.0), 12)
     top = head_z + head_r + 0.45
     return {"shells": shells + [head], "top": (x, -0.1, top), "center": (x + 0.3, 0.3, z + 0.75), "radius": 0.95 * max(rs, 1.0), "width": 1.35 * max(rs, 1.0),
-            "head": (x, -0.1, head_z), "head_r": head_r}
+            "head": (x, -0.1, head_z), "head_r": head_r,
+            "hull": ((x, -0.1, head_z), (head_r, head_r * 0.95, head_r * 0.95)), "flank": (x, -0.1, head_z - 0.1), "flank_r": head_r * 1.2}
 
 
 def ray(x, z, theme, p=None):
@@ -380,7 +381,8 @@ def swarm(x, z, theme, p=None):
         with role(f"drone{index + 1}"):
             small.append(drone(x + dx * (0.6 + 0.35 * main_size), dy, z + dz * (0.55 + 0.35 * main_size), size, theme, shell_mat))
     info = {"shells": [main] + small, "top": (x, 0, lead_z + 0.65 * main_size), "center": (x, 0, lead_z), "radius": 0.8 * main_size, "width": 1.0 * main_size,
-            "lead": (x, 0, lead_z), "lead_size": main_size, "drones": [(s.location.copy(), s.scale.x / 0.55) for s in small]}
+            "lead": (x, 0, lead_z), "lead_size": main_size, "drones": [(s.location.copy(), s.scale.x / 0.55) for s in small],
+            "hull": ((x, 0, lead_z), (0.55 * main_size, 0.5 * main_size, 0.5 * main_size)), "shoulders": False}
     return info
 
 
@@ -451,18 +453,22 @@ def motes(info, color, count, strength=10.0, spread=0.55, size=0.04):
 
 def _flank(info):
     """Where hull parts on the sides and back sit: a centre, a half-width and a snap that puts a
-    point on the hull. A worm's are on its head: its body centre sits back towards the curled tail,
-    so parts placed from it sank into the head on one side and floated in the air on the other.
-    Other pets keep their body centre and place parts as they are."""
-    if "head" not in info:
+    point on the hull. A pet whose body is not one round shell names its hull, an ellipsoid
+    (info["hull"]: centre, radii): a worm's head (its body centre sits back towards the curled
+    tail), a swarm's lead drone (its radius spans the little ones). Without the snap, parts placed
+    from the centre sank into the hull on one side and floated in the air on the other. Other pets
+    place parts as they are."""
+    hull = info.get("hull")
+    if hull is None:
         return info["center"], info["radius"], lambda point, lift=0.0: point
-    head = Vector(info["head"])
-    r = info["head_r"]
+    centre, radii = Vector(hull[0]), hull[1]
 
     def snap(point, lift=0.0):
-        return tuple(head + (Vector(point) - head).normalized() * (r + lift))
+        offset = Vector(point) - centre
+        reach = math.sqrt(sum((offset[axis] / radii[axis]) ** 2 for axis in range(3)))
+        return tuple(centre + offset / reach + offset.normalized() * lift)
 
-    return (head.x, head.y, head.z - 0.1), r * 1.2, snap
+    return info.get("flank", info["center"]), info.get("flank_r", info["radius"]), snap
 
 
 def details(info, theme):
@@ -502,7 +508,9 @@ def pack(info, color, armour):
         cylinder((ex, ey, ez), 0.13, 0.4, engine, (math.radians(90), 0, 0))
         torus((ex, ey + 0.2, ez), 0.12, 0.025, glow(color, 8.0), (math.radians(90), 0, 0))
         sphere((ex, ey + 0.24, ez), (0.1, 0.04, 0.1), glow(color, 14.0), 16)
-        info["shells"].append(pill(snap((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), 0.03), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
+        # A swarm's lead drone has its own little wings on its shoulders: no room for plates.
+        if info.get("shoulders", True):
+            info["shells"].append(pill(snap((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), 0.03), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
 
 
 # A fairy wing, traced from the user's reference (2026-11-08) in its image pixels: x right, y down,
