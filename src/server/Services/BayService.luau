@@ -309,7 +309,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		local widths: { number } = {}
 		for index, pod in data.pods do
 			local alien = if pod.alien then AlienConfig.ALIENS[pod.alien.id] else nil
-			widths[index] = if alien then AlienModel.widthOf(alien.id) else BayLooks.EMPTY_PLACE_WIDTH
+			widths[index] = if alien
+				then math.max(AlienModel.widthOf(alien.id), BayLooks.MIN_PLACE_WIDTH)
+				else BayLooks.EMPTY_PLACE_WIDTH
 		end
 		local placeFrames = BayModel.placeFrames(bay.origin, widths)
 		for index, pod in data.pods do

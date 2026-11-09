@@ -19,6 +19,9 @@ local PLACES = table.freeze({
 	outer = RADIUS - 3,
 	arc = math.rad(300),
 	gap = 1.5,
+	-- A row with room to spare spreads its places, up to this much air between two (user,
+	-- 2026-11-10: the first aliens stand apart, but as a group behind the incubator).
+	airMax = 10,
 	rowSpread = 2,
 	minSqueeze = 0.5,
 	squeezeStep = 0.02,
@@ -55,6 +58,9 @@ return table.freeze({
 	PLACE_RING_WIDTH = 0.3,
 	-- A bought place with no alien: a small pad.
 	EMPTY_PLACE_WIDTH = 2.6,
+	-- A place with an alien is at least this wide, studs (docs/design/screens/island.md): a small
+	-- alien stands on a roomy pad, so the first ones do not jostle; a bigger one gets its own width.
+	MIN_PLACE_WIDTH = 6,
 
 	-- Terminals (docs/design/screens/terminals.md): a stand with a tilted screen beside each zone,
 	-- in the entrance's wedge, the screen toward the spawn. The places' one stands by the floor's

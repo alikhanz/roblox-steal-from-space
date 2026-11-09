@@ -9,6 +9,7 @@ local OPTIONS: PlaceLayout.Options = {
 	outer = 92,
 	arc = math.rad(300),
 	gap = 1.5,
+	airMax = 10,
 	rowSpread = 2,
 	minSqueeze = 0.5,
 	squeezeStep = 0.02,
@@ -118,6 +119,39 @@ describe("PlaceLayout.arrange", function()
 		local huge = PlaceLayout.arrange(repeated(80, 30), OPTIONS)
 		expect(huge.squeeze).toBeCloseTo(OPTIONS.minSqueeze, 1e-6)
 		expect(huge.reach > OPTIONS.outer).toBe(true)
+	end)
+
+	it("spreads a short row's places at one step, with air up to the ceiling", function()
+		local layout = PlaceLayout.arrange({ 2, 4, 3 }, OPTIONS)
+		local spots = layout.spots
+		-- The widest in the middle, the others one step to either side.
+		expect(spots[2].x).toBeCloseTo(0, 1e-6)
+		local radius = radiusOf(spots[2])
+		local function along(spot: PlaceLayout.Spot): number
+			return radius * math.atan2(spot.x, spot.z)
+		end
+		local left, right = along(spots[1]), along(spots[3])
+		expect(math.abs(left)).toBeCloseTo(math.abs(right), 1e-6)
+		-- The step is the widest's slot plus the most air: the row has room to spare.
+		expect(math.abs(left)).toBeCloseTo(4 + OPTIONS.airMax, 1e-6)
+	end)
+
+	it("gives a full row only the least air", function()
+		-- 2-stud places along the first row's arc: as many as fit, then the next row.
+		local layout = PlaceLayout.arrange(repeated(2, 60), OPTIONS)
+		local radius = OPTIONS.inner + 1
+		local first: { number } = {}
+		for _, spot in layout.spots do
+			if math.abs(radiusOf(spot) - radius) < 1e-6 then
+				table.insert(first, radius * math.atan2(spot.x, spot.z))
+			end
+		end
+		table.sort(first)
+		expect(#first > 2).toBe(true)
+		for position = 2, #first do
+			expect(first[position] - first[position - 1] < 2 + OPTIONS.airMax).toBe(true)
+			expect(first[position] - first[position - 1] >= 2 + OPTIONS.gap - 1e-6).toBe(true)
+		end
 	end)
 
 	it("lays out the same places the same way every time", function()

@@ -2,9 +2,11 @@
 -- Where the places stand on a player's island (decision 068, docs/design/screens/island.md): a
 -- horseshoe of rows around the island center, open toward the entrance. A place is as wide as
 -- the alien on it, so the layout follows the aliens: the small ones (and empty places) in the
--- inner rows, the giants out by the dome, the biggest of each row in its middle. When the rows
--- do not fit by the island's edge, the places move closer together, all alike, down to a floor;
--- the aliens keep their size. Pure Luau.
+-- inner rows, the giants out by the dome, the biggest of each row in its middle. A row's places
+-- stand at one step, its widest's, so the row reads even; a row with room to spare gives them
+-- more air, up to a ceiling (the first few aliens stand apart but together, not strewn along the
+-- arc). When the rows do not fit by the island's edge, the places move closer together, all
+-- alike, down to a floor; the aliens keep their size. Pure Luau.
 
 local PlaceLayout = {}
 
@@ -17,6 +19,8 @@ export type Options = {
 	read arc: number,
 	-- Air between two neighbours, in a row (along its arc) and between rows, studs.
 	read gap: number,
+	-- The most air between two neighbours in a row with room to spare, studs.
+	read airMax: number,
 	-- A row takes places at most this many times as wide as its narrowest: the small ones do not
 	-- stand in line with giants.
 	read rowSpread: number,
@@ -45,6 +49,10 @@ export type Layout = {
 type Row = {
 	radius: number,
 	members: { number },
+	-- Its widest place's width: every place of the row takes this much of the arc.
+	widest: number,
+	-- How much of the arc the row may take, studs.
+	room: number,
 }
 
 -- Rows for `order` (indices into `widths`, smallest first) with spacing times `squeeze`. A row's
@@ -72,26 +80,26 @@ local function rowsFor(widths: { number }, order: { number }, options: Options, 
 	end
 	while next <= #order do
 		local members: { number } = {}
-		local used = 0
 		local widest = 0
 		local narrowest = widths[order[next]]
 		while next <= #order do
 			local index = order[next]
 			local width = widths[index]
-			local length = width * squeeze + options.gap
 			local wider = math.max(widest, width)
 			local room = radiusFor(wider) * options.arc - 2 * overhang(wider)
+			-- Every place takes the widest's slot, with the least air between them.
+			local length = (#members + 1) * wider * squeeze + #members * options.gap
 			-- A row holds at least one place, however wide.
-			if #members > 0 and (used + length > room or width > narrowest * options.rowSpread) then
+			if #members > 0 and (length > room or width > narrowest * options.rowSpread) then
 				break
 			end
 			table.insert(members, index)
-			used += length
 			widest = wider
 			next += 1
 		end
 		local radius = radiusFor(widest)
-		table.insert(rows, { radius = radius, members = members })
+		local room = radius * options.arc - 2 * overhang(widest)
+		table.insert(rows, { radius = radius, members = members, widest = widest, room = room })
 		reach = radius + widest / 2
 		base = radius + widest * squeeze / 2 + options.gap
 	end
@@ -101,6 +109,7 @@ end
 function PlaceLayout.arrange(widths: { number }, options: Options): Layout
 	assert(options.minSqueeze > 0 and options.minSqueeze <= 1, "minSqueeze must be in (0, 1]")
 	assert(options.squeezeStep > 0, "squeezeStep must be positive")
+	assert(options.airMax >= options.gap, "airMax must be at least the gap")
 	if #widths == 0 then
 		local none: { Spot } = {}
 		return table.freeze({ spots = table.freeze(none), squeeze = 1, reach = 0 })
@@ -143,17 +152,20 @@ function PlaceLayout.arrange(widths: { number }, options: Options): Layout
 				table.insert(line, 1, index)
 			end
 		end
-		local total = -options.gap
-		for _, index in line do
-			total += widths[index] * squeeze + options.gap
+		-- One step for the whole row; the arc it does not need goes to air, up to the ceiling. Not
+		-- once the places were moved closer: then the island is full, and they stand as a heap.
+		local count = #line
+		local slot = row.widest * squeeze
+		local air = options.gap
+		if count > 1 and squeeze >= 1 then
+			air = math.clamp((row.room - count * slot) / (count - 1), options.gap, options.airMax)
 		end
+		local total = count * slot + (count - 1) * air
 		-- Along the row's arc, from its left end: angle 0 is the back of the island.
-		local along = -total / 2
-		for _, index in line do
-			local width = widths[index] * squeeze
-			local angle = (along + width / 2) / row.radius
+		for position, index in line do
+			local along = -total / 2 + slot / 2 + (position - 1) * (slot + air)
+			local angle = along / row.radius
 			spots[index] = table.freeze({ x = row.radius * math.sin(angle), z = row.radius * math.cos(angle) })
-			along += width + options.gap
 		end
 	end
 	return table.freeze({ spots = table.freeze(spots), squeeze = squeeze, reach = reach })
