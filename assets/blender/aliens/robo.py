@@ -278,8 +278,16 @@ def crab(x, z, theme, p=None):
         arm = cylinder(tuple(shoulder + reach / 2), 0.1, reach.length, shell_mat)
         arm.rotation_euler = reach.to_track_quat("Z", "Y").to_euler()
         ccx, ccy, ccz = claw.location
-        pill((ccx + side * 0.02, ccy - 0.43 * size, ccz + 0.13 * size), (0.12 * size, 0.24 * size, 0.08 * size), theme["accent_shell"](), (math.radians(-15), 0, 0))
-        pill((ccx, ccy - 0.39 * size, ccz - 0.15 * size), (0.1 * size, 0.2 * size, 0.07 * size), shell_mat, (math.radians(15), 0, 0))
+        # The two jaws are roles of their own, hinged where they leave the claw, so the game can
+        # snap them (the export joins a role's parts; merged into the body they could not move).
+        name = "L" if side < 0 else "R"
+        with role("jawTop" + name):
+            pill((ccx + side * 0.02, ccy - 0.43 * size, ccz + 0.13 * size), (0.12 * size, 0.24 * size, 0.08 * size), theme["accent_shell"](), (math.radians(-15), 0, 0))
+        with role("jawBot" + name):
+            pill((ccx, ccy - 0.39 * size, ccz - 0.15 * size), (0.1 * size, 0.2 * size, 0.07 * size), shell_mat, (math.radians(15), 0, 0))
+        # The jaws' hinge: an invisible marker at their root, inside the claw's front.
+        with role("hingeJaw" + name):
+            sphere((ccx, ccy - 0.22 * size, ccz), (0.03, 0.03, 0.03), joint, 8)
         torus((ccx, ccy, ccz), 0.3 * size, 0.025, glow(theme["accent"]), (math.radians(90), 0, 0))
         shells += [arm, claw]
     return {"shells": shells, "top": (x, 0.1, z + 1.75), "center": (x, 0, z + 0.85), "radius": 1.1 * w, "width": 1.65 * w,

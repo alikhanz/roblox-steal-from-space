@@ -317,8 +317,8 @@ return function(only: { [string]: boolean }?): string
 			elseif role == "flame" then
 				table.insert(flameParts, part)
 				part.Transparency = 1
-			elseif role == "hingeL" or role == "hingeR" then
-				part.Transparency = 1 -- a wing's pivot marker, never seen
+			elseif role:match("^hinge") then
+				part.Transparency = 1 -- a pivot marker (a wing's, a crab jaw's), never seen
 			elseif role == "ring" then
 				part.Transparency = 1 -- the rune circle takes its place
 			elseif role == "rays" then
