@@ -26,7 +26,7 @@ Incident: code and comment said "wings swept 38° back", but the rotation sign w
 
 - **A solid glowing cone reads as a spike.** Roblox Neon is flat: no gradient, no soft edge. Flames, rays, comet tails and sparks in game are particles (`ParticleEmitter`, `Beam`, `BillboardGui`). In Blender such a part stays a stand-in with **its own material**; the game hides it (`Transparency = 1`) and spawns particles there. Current stand-ins: `Flame`, `FlameCore`, `Tongue`, `Ray`, `RayShort` (`STAND_INS` in `dress.luau`) and `Jet` (jetpack flame → a jet from the nozzle).
 - **Two round glowing spots read as eyes.** Rear-facing engine nozzles looked like a second pair of eyes from behind; the engines now fire down. Check any paired round lights from the back.
-- **A thin flat part vanishes edge-on.** A wing swept 22° at rest was a line from the side. Too far the other way looks wrong too: a flap of 35°–70° back read as wings pinned back. Current: rest 38° back, flap 21°–55° round it (user-approved range is a taste call — ask).
+- **A thin flat part vanishes edge-on.** A wing swept 22° at rest was a line from the side. Too far the other way looks wrong too: a flap of 35°–70° back, then 21°–55°, read as wings pinned back. Current: rest 38° back (geometry), flap 11°–45° (animation offset). The range is a taste call — ask, and shift it in the animation, not the mesh.
 - **Glow burns out.** In Blender, strength 2–3 keeps the colour; 8+ is burnt to white by AgX. In Roblox, Neon under Bloom also goes white.
 - **See-through and glowing means Glass, not Neon** (Neon gives a white spike). The exporter decides: alpha < 1 or transmission ≥ 0.5 → Glass.
 - **Particles don't render behind Glass.** Candle flames inside a dome vanished; they were moved above it.

@@ -71,9 +71,9 @@ RunService:BindToRenderStep("PetAnim", Enum.RenderPriority.Last.Value - 1, funct
 		local cInv = c:Inverse()
 		-- Wings open and fold back like a book on their hinges (a butterfly's beat), with a slight lift.
 		local beat = math.sin(t * 5 + ph)
-		-- Round the wings' rest sweep (38° back, robo.py WING_SWEEP): from about 21° to 55° back. Further
-		-- back (35°–70°) the wings looked pinned back; closer to flat they turn edge-on from the side.
-		local swing = 0.3 * beat
+		-- From the wings' rest sweep (38° back, robo.py WING_SWEEP): about 11° to 45° back. Further back
+		-- (35°–70°, then 21°–55°) the wings looked pinned back; flat they turn edge-on from the side.
+		local swing = -0.17 + 0.3 * beat
 		-- Fairy dust off the wing edges at the fastest part of each stroke (the beat passes zero):
 		-- forwards as the wings open (the beat falls), back as they fold (it rises).
 		local stroke = if pet.beat > 0 and beat <= 0 then pet.dustOpen elseif pet.beat < 0 and beat >= 0 then pet.dustFold else nil
