@@ -99,6 +99,20 @@ type PlayerBay = {
 	model: Model,
 	-- Ready eggs when the bay was last built: the tick rebuilds it once another becomes ready.
 	ready: number,
+	-- The aliens standing in it, by uid: they outlive a rebuild of the bay, which only moves
+	-- them (or builds them anew when their kind or size changed). An alien is thousands of
+	-- instances' worth of network: rebuilt on every change, thirty of them flooded a phone's
+	-- connection and the server pulled its character back (2026-11-10).
+	aliens: { [number]: ShownAlien },
+}
+
+type ShownAlien = {
+	model: Model,
+	id: AlienConfig.AlienId,
+	-- Its scale override (the floor's), or 0 for its own size.
+	scale: number,
+	-- The frame it stands on.
+	stand: CFrame,
 }
 
 local BayService = {}
@@ -142,17 +156,46 @@ function BayService.new(dependencies: Dependencies): BayService
 		return BayLooks.PILE_ALIEN_SCALE * math.min(1, room / math.max(width, 1e-3))
 	end
 
-	-- `scale` overrides the alien's own size (the small ones on the floor).
-	local function placeAlien(alien: PlayerData.AlienRecord, cframe: CFrame, parent: Instance, scale: number?): Model?
+	-- Shows `alien` standing on `cframe` in `bay`, its own size or `scale` (the small ones on the
+	-- floor): the model it already has, moved there if it stood elsewhere, or a new one when it has
+	-- none or the one it has is of another kind or size. `kept` collects the uids shown.
+	local function showAlien(
+		bay: PlayerBay,
+		alien: PlayerData.AlienRecord,
+		cframe: CFrame,
+		parent: Instance,
+		kept: { [number]: boolean },
+		scale: number?
+	): Model?
 		if not AlienConfig.ALIENS[alien.id] then
 			-- A profile may hold an alien this build no longer knows; it stays in the data.
 			warn(`[BayService] Unknown alien {alien.id} (uid {alien.uid}); not shown`)
 			return nil
 		end
+		kept[alien.uid] = true
+		local scaleKey = scale or 0
+		local shown = bay.aliens[alien.uid]
+		if shown and shown.id == alien.id and shown.scale == scaleKey and shown.model.Parent then
+			if not shown.stand:FuzzyEq(cframe, 1e-3) then
+				AlienModel.place(shown.model, cframe)
+				shown.stand = cframe
+			end
+			return shown.model
+		end
+		if shown then
+			shown.model:Destroy()
+		end
 		local model = AlienModel.build(alien.id, alien.uid, cframe, scale)
 		CollectionService:AddTag(model, BayConfig.ALIEN_TAG)
 		model.Parent = parent
+		bay.aliens[alien.uid] = { model = model, id = alien.id, scale = scaleKey, stand = cframe }
 		return model
+	end
+
+	-- The prompt to pick a floor alien up: there while the inventory has room, gone otherwise.
+	local function pickUpPromptOf(model: Model): ProximityPrompt?
+		local body = model.PrimaryPart
+		return if body then body:FindFirstChildOfClass("ProximityPrompt") else nil
 	end
 
 	-- An egg's model in the bay: in a slot (`hatchAt` given, for its countdown; shining once
@@ -302,7 +345,17 @@ function BayService.new(dependencies: Dependencies): BayService
 			return
 		end
 		local contents = contentsOf(bay)
-		contents:ClearAllChildren()
+		-- Everything but the aliens is light and built anew; the aliens stay (showAlien).
+		local alienModels: { [Instance]: boolean } = {}
+		for _, shown in bay.aliens do
+			alienModels[shown.model] = true
+		end
+		for _, child in contents:GetChildren() do
+			if not alienModels[child] then
+				child:Destroy()
+			end
+		end
+		local kept: { [number]: boolean } = {}
 		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
 
 		-- Places make room for their aliens: the layout follows their sizes (decision 068).
@@ -317,7 +370,11 @@ function BayService.new(dependencies: Dependencies): BayService
 		for index, pod in data.pods do
 			BayModel.buildPlace(placeFrames[index], widths[index], index).Parent = contents
 			if pod.alien then
-				placeAlien(pod.alien, BayModel.placeAlienCFrame(placeFrames[index]), contents)
+				local model = showAlien(bay, pod.alien, BayModel.placeAlienCFrame(placeFrames[index]), contents, kept)
+				local prompt = if model then pickUpPromptOf(model) else nil
+				if prompt then
+					prompt:Destroy()
+				end
 			end
 		end
 		for index = 1, math.min(data.incubatorSlots, BayLooks.CAPSULE_POSITIONS) do
@@ -355,9 +412,22 @@ function BayService.new(dependencies: Dependencies): BayService
 			if index > BayConfig.FLOOR_SHOWN_MAX then
 				break
 			end
-			local model = placeAlien(alien, BayModel.floorCFrame(bay.origin, index), contents, floorScale(alien.id))
-			if model and hasRoom then
-				addPickUpPrompt(player, model, alien.uid)
+			local model =
+				showAlien(bay, alien, BayModel.floorCFrame(bay.origin, index), contents, kept, floorScale(alien.id))
+			if model then
+				local prompt = pickUpPromptOf(model)
+				if hasRoom and not prompt then
+					addPickUpPrompt(player, model, alien.uid)
+				elseif prompt and not hasRoom then
+					prompt:Destroy()
+				end
+			end
+		end
+		-- Aliens no longer in the bay (sold, crossbred, picked up, past the floor's shown ones).
+		for uid, shown in bay.aliens do
+			if not kept[uid] then
+				shown.model:Destroy()
+				bay.aliens[uid] = nil
 			end
 		end
 		changed.fire(player)
@@ -422,7 +492,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		model.Parent = parent
 
 		slotOwners[slot] = player
-		bays[player] = { slot = slot, origin = origin, model = model, ready = 0 }
+		bays[player] = { slot = slot, origin = origin, model = model, ready = 0, aliens = {} }
 		refresh(player)
 		assigned.fire(player, model)
 	end

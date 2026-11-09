@@ -20,6 +20,8 @@ local MODELS = AlienLooks.MODELS
 local FOLDER_NAME = "Aliens"
 -- The fingerprint lune/aliens.luau gives each kind's folder; AlienModels.json lists the repo's.
 local HASH_ATTRIBUTE = "ModelHash"
+-- On a built alien: its pivot's height above the frame it stands on, studs.
+local LIFT_ATTRIBUTE = "StandLift"
 local GLOW_RANGE = 10
 local GLOW_BRIGHTNESS = 1.5
 
@@ -190,7 +192,18 @@ function AlienModel.build(alienId: AlienConfig.AlienId, uid: number, cframe: CFr
 	model.Name = `Alien{uid}`
 	model:SetAttribute(BayConfig.ALIEN_ID_ATTRIBUTE, alienId)
 	model:SetAttribute(BayConfig.ALIEN_UID_ATTRIBUTE, uid)
+	-- How far its pivot stands above where it stands, for moving it later (AlienModel.place).
+	model:SetAttribute(LIFT_ATTRIBUTE, cframe:PointToObjectSpace(model:GetPivot().Position).Y)
+	model:SetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE, model:GetPivot())
 	return model
+end
+
+-- Stands an alien built by AlienModel.build at `cframe` instead (the bay's layout moved it to
+-- another place): a move, not a rebuild, so only its parts' positions go to the clients.
+function AlienModel.place(model: Model, cframe: CFrame)
+	local lift = tonumber(model:GetAttribute(LIFT_ATTRIBUTE)) or 0
+	model:PivotTo(cframe * CFrame.new(0, lift, 0))
+	model:SetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE, model:GetPivot())
 end
 
 -- In Studio: warns about kinds whose model the place lacks or holds out of date against the repo

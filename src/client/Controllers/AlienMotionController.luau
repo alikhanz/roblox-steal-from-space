@@ -181,7 +181,9 @@ local function petOf(model: Model): Pet?
 	if not model:FindFirstChild(EFFECTS_PART) then
 		return nil
 	end
-	local base = model:GetPivot()
+	-- Where the server stood it (its parts are read relative to that, at rest as they arrive).
+	local pivot = model:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
+	local base = if typeof(pivot) == "CFrame" then pivot else model:GetPivot()
 	local cf, size = model:GetBoundingBox()
 	local uid = model:GetAttribute(BayConfig.ALIEN_UID_ATTRIBUTE)
 	local random = Random.new(if type(uid) == "number" then uid else 1)
@@ -544,10 +546,16 @@ end
 
 function AlienMotionController.new(): AlienMotionController
 	local pets: { [Model]: Pet } = {}
+	local moves: { [Model]: RBXScriptConnection } = {}
 
 	local function forget(instance: Instance)
 		if instance:IsA("Model") then
 			pets[instance] = nil
+			local connection = moves[instance]
+			if connection then
+				connection:Disconnect()
+				moves[instance] = nil
+			end
 		end
 	end
 
@@ -563,6 +571,13 @@ function AlienMotionController.new(): AlienMotionController
 				return
 			end
 			pets[instance] = pet
+			-- The bay's layout moved it to another place: the motion goes round its new pivot.
+			moves[instance] = instance:GetAttributeChangedSignal(BayConfig.ALIEN_PIVOT_ATTRIBUTE):Connect(function()
+				local pivot = instance:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
+				if typeof(pivot) == "CFrame" then
+					pet.base = pivot
+				end
+			end)
 			-- Many new meshes at once: ask for them all, or some stay unloaded (half a pet missing).
 			local meshes: { Instance } = {}
 			for _, part in pet.parts do
