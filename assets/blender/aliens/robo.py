@@ -596,16 +596,21 @@ def beacon(info, color, strength):
 
 
 def pack(info, color, armour):
-    """Tier 2+: a twin thruster pack on the back and armour plates on the shoulders."""
+    """Tier 2+: a jetpack on the back and armour plates on the shoulders. Two upright tanks fire
+    down: two round glowing nozzles facing back read as a second pair of eyes from behind."""
     (cx, cy, cz), r, snap = _flank(info)
     engine = real.gloss("Engine", (0.1, 0.11, 0.13), 0.3)
     for side in (-1, 1):
-        ex = cx + side * 0.32
-        # The engine's middle on the back of the hull (a worm's: the back of its head).
-        ex, ey, ez = snap((ex, cy + r * 0.85, cz + info.get("engine_z", 0.2)), 0.05)
-        cylinder((ex, ey, ez), 0.13, 0.4, engine, (math.radians(90), 0, 0))
-        torus((ex, ey + 0.2, ez), 0.12, 0.025, glow(color, 8.0), (math.radians(90), 0, 0))
-        sphere((ex, ey + 0.24, ez), (0.1, 0.04, 0.1), glow(color, 14.0), 16)
+        ex = cx + side * 0.26
+        # The tank's middle on the back of the hull (a worm's: the back of its head), half sunk.
+        ex, ey, ez = snap((ex, cy + r * 0.85, cz + info.get("engine_z", 0.0)), 0.07)
+        cylinder((ex, ey, ez), 0.11, 0.42, engine)
+        # A cap in the armour's colour (gold at the crown's tier) and a band in the tier colour.
+        sphere((ex, ey, ez + 0.21), (0.11, 0.11, 0.07), armour, 16)
+        torus((ex, ey, ez + 0.06), 0.112, 0.02, glow(color, 8.0))
+        # The nozzle flares at the bottom, the flame licks down and a little back.
+        cone((ex, ey, ez - 0.34), 0.12, 0.15, engine, (0, 0, 1))
+        cone((ex, ey, ez - 0.33), 0.07, 0.32, glow(color, 12.0), (0, 0.3, -1))
         # A swarm's lead drone has its own little wings on its shoulders: no room for plates.
         if info.get("shoulders", True):
             info["shells"].append(pill(snap((cx + side * r * 0.78, cy + 0.05, cz + r * 0.45), 0.03), (0.22, 0.3, 0.07), armour, (0, math.radians(side * -40), 0)))
@@ -703,6 +708,12 @@ def _wing_line(points, hinge, side, tilt, size, mat, radius):
     return _tag(obj)
 
 
+# How far the wings sweep back at rest, in degrees. Flat across the back (a small sweep), a wing is
+# a thin line seen from the side; swept back it shows its face from the side and from the front.
+# The game's flap (animate.luau) swings it further back from here.
+WING_SWEEP = 38
+
+
 def wings(info, color, size, gold=False):
     """Tier 3+: a pair of fairy wings behind the pet: a see-through membrane in the tier colour
     with a glowing edge and veins. Each side is its own role (wingL, wingR) and is hinged at its
@@ -722,14 +733,14 @@ def wings(info, color, size, gold=False):
         outline = _smoothed(WING_OUTLINE, True, 2)
         name = "wingL" if side < 0 else "wingR"
         with role(name):
-            _wing_mesh(outline, hinge, side, 22, span, membrane)
-            _wing_line(outline + [outline[0]], hinge, side, 22, span, edge, 0.017)
+            _wing_mesh(outline, hinge, side, WING_SWEEP, span, membrane)
+            _wing_line(outline + [outline[0]], hinge, side, WING_SWEEP, span, edge, 0.017)
             for vein in WING_VEINS:
-                _wing_line(_smoothed(vein, False, 2), hinge, side, 22, span, edge, 0.008)
+                _wing_line(_smoothed(vein, False, 2), hinge, side, WING_SWEEP, span, edge, 0.008)
             # The cells: contours nested inside the edge, drawn towards the root.
             for factor in WING_CELLS:
                 cell = _scaled_towards(outline, factor, (0.0, 0.0))
-                _wing_line(cell + [cell[0]], hinge, side, 22, span, edge, 0.006)
+                _wing_line(cell + [cell[0]], hinge, side, WING_SWEEP, span, edge, 0.006)
         # The hinge marker: the exact root, so the game turns the wing about it (the root stays put,
         # the edge sweeps the most). Invisible in game.
         with role("hinge" + name[-1]):
@@ -737,7 +748,7 @@ def wings(info, color, size, gold=False):
         # Dust markers along part of the outer edge (the forewing from its tip down, the hind lobe):
         # in game, fairy dust flies off them with each stroke. Each is a role of its own so it stays
         # a separate point; the game turns them into emitters and drops the markers.
-        turn = Euler((math.radians(-10), 0, math.radians(side * -22))).to_matrix()
+        turn = Euler((math.radians(-10), 0, math.radians(side * -WING_SWEEP))).to_matrix()
         for index, (x, y) in enumerate(_from_trace(WING_DUST_TRACE)):
             point = Vector(hinge) + turn @ Vector((side * x * span, 0.0, y * span))
             with role(f"dust{name[-1]}{index + 1}"):
@@ -850,7 +861,7 @@ def flair_debris(info, theme, tier):
     (cx, cy, cz), r, snap = _flank(info)
     stripe = real.gloss("Hazard", (0.08, 0.08, 0.09), 0.25)
     for step in range(min(tier, 3)):
-        pill(snap((cx - 0.12 + step * 0.12, cy + r, cz - 0.6 * r), 0.01), (0.09, 0.05, 0.03), stripe if step % 2 else theme["accent_shell"]())
+        pill(snap((cx - 0.08 + step * 0.08, cy + r, cz - 0.6 * r), 0.01), (0.06, 0.05, 0.03), stripe if step % 2 else theme["accent_shell"]())
 
 
 def flair_ice(info, theme, tier):

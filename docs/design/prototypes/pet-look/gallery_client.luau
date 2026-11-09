@@ -148,7 +148,8 @@ RunService:BindToRenderStep("PetGallery", Enum.RenderPriority.Last.Value - 1, fu
 		local c = CFrame.new(pet.centre)
 		local cInv = c:Inverse()
 		local beat = math.sin(t * 5 + ph)
-		local swing = 0.55 + 0.45 * beat
+		-- Over the wings' 38° rest sweep: 35° to 70° back, never edge-on (animate.luau).
+		local swing = 0.25 + 0.3 * beat
 		local stroke = if pet.beat > 0 and beat <= 0
 			then pet.dustOpen
 			elseif pet.beat < 0 and beat >= 0 then pet.dustFold
