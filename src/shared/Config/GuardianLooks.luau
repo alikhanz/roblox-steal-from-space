@@ -86,6 +86,13 @@ local MODELS = table.freeze({
 	-- stands still and is carried whole with its body. Leaving takes MOTION_MARGIN more.
 	MOTION_DISTANCE = 300,
 	MOTION_MARGIN = 30,
+	-- A model near the camera follows its body smoothly (GuardianPose.follow): a jump of the
+	-- body's position is made up over this many seconds, a turn over this many (the star
+	-- serpent's head turns as quickly, SerpentLooks.MODEL.TURN_SECONDS). Farther from its body
+	-- than this, studs (streamed in, a teleport), it is put straight on it.
+	FOLLOW_SECONDS = 0.25,
+	TURN_SECONDS = 0.36,
+	SNAP_DISTANCE = 20,
 	-- It hovers, bobbing this much of its height.
 	BOB = 0.03,
 	-- Its pace eases to a new state's over this many seconds.

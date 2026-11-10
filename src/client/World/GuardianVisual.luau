@@ -55,6 +55,8 @@ export type Visual = {
 	effectsOn: boolean,
 	-- Where it was carried last (a far one still is not moved again).
 	origin: CFrame?,
+	-- Where its body was drawn last frame while near (GuardianPose.follow); nil while far.
+	shown: CFrame?,
 }
 
 -- Templates by post; false where the place has no model.
@@ -167,6 +169,7 @@ function GuardianVisual.attach(body: BasePart, post: GuardianConfig.Post, parent
 		effects = effects,
 		effectsOn = false,
 		origin = nil,
+		shown = nil,
 	}
 	-- Many new meshes at once: ask for them all, or some stay unloaded.
 	task.spawn(function()
@@ -195,6 +198,26 @@ local function glowMaw(visual: Visual, glow: number)
 	end
 end
 
+-- Where a near guardian's body is drawn this frame: following the server's body smoothly
+-- (GuardianPose.follow), its turns eased like the star serpent's head, so the steps in which the
+-- body's motion arrives do not jerk the model. Put straight on the body when it comes near or
+-- has gone far off (streamed in, teleported).
+local function follow(visual: Visual, dt: number): CFrame
+	local body = visual.body.CFrame
+	local shown = visual.shown
+	if not shown or (body.Position - shown.Position).Magnitude > MODELS.SNAP_DISTANCE then
+		return body
+	end
+	local position = GuardianPose.follow(
+		shown.Position,
+		visual.body.AssemblyLinearVelocity,
+		body.Position,
+		dt,
+		MODELS.FOLLOW_SECONDS
+	)
+	return CFrame.new(position) * shown.Rotation:Lerp(body.Rotation, GuardianPose.share(dt, MODELS.TURN_SECONDS))
+end
+
 -- Carries every guardian of `visuals` on its body this frame (`now`: os.clock(), `dt` since the
 -- last frame), moving the parts of those near `eye` (the camera), in one BulkMoveTo.
 function GuardianVisual.step(visuals: { [any]: Visual }, now: number, dt: number, eye: Vector3)
@@ -215,10 +238,8 @@ function GuardianVisual.step(visuals: { [any]: Visual }, now: number, dt: number
 		local rig = visual.rig
 		rig.mouth = motion.mouth + snap * MODELS.STRIKE_MOUTH
 		glowMaw(visual, math.max(motion.maw, snap))
-		local bob = math.sin(visual.clock * 2 + rig.phase) * MODELS.BOB * rig.height
-		-- The model faces -Z, as the body does (GuardianService turns it along its way).
-		local origin = visual.body.CFrame * CFrame.new(0, bob, -lunge * MODELS.STRIKE_LUNGE * visual.length)
-		local distance = (origin.Position - eye).Magnitude
+		local body = visual.body.CFrame
+		local distance = (body.Position - eye).Magnitude
 		local reach = MODELS.MOTION_DISTANCE + visual.radius + (if visual.moving then MODELS.MOTION_MARGIN else 0)
 		visual.moving = distance <= reach
 		if visual.moving ~= visual.effectsOn then
@@ -228,14 +249,19 @@ function GuardianVisual.step(visuals: { [any]: Visual }, now: number, dt: number
 			end
 		end
 		if visual.moving then
+			local shown = follow(visual, dt)
+			visual.shown = shown
+			visual.origin = nil
+			local bob = math.sin(visual.clock * 2 + rig.phase) * MODELS.BOB * rig.height
+			-- The model faces -Z, as the body does (GuardianService turns it along its way).
+			local origin = shown * CFrame.new(0, bob, -lunge * MODELS.STRIKE_LUNGE * visual.length)
 			RigMotion.pose(rig, visual.clock, origin, origin, nil, parts, frames)
-		elseif visual.origin ~= visual.body.CFrame then
+		elseif visual.origin ~= body then
 			-- Far: still, carried whole with its body (only when the body has moved).
-			RigMotion.rest(rig, visual.body.CFrame, parts, frames)
-			visual.origin = visual.body.CFrame
-			continue
+			visual.shown = nil
+			RigMotion.rest(rig, body, parts, frames)
+			visual.origin = body
 		end
-		visual.origin = nil
 	end
 	if #parts > 0 then
 		workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)

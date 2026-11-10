@@ -11,13 +11,28 @@ function GuardianPose.fitScale(span: number, length: number, postScale: number):
 	return length * postScale / span
 end
 
--- `current` eased towards `target` over a frame of `dt` seconds: most of the way (95 %) within
--- `seconds`, never past it, the same whatever the frame rate.
-function GuardianPose.ease(current: number, target: number, dt: number, seconds: number): number
+-- The share of the way to a target that easing covers in a frame of `dt` seconds when it gets
+-- most of the way (95 %) there within `seconds`: the same whatever the frame rate, never past it.
+function GuardianPose.share(dt: number, seconds: number): number
 	if seconds <= 0 then
-		return target
+		return 1
 	end
-	return current + (target - current) * (1 - math.exp(-3 * dt / seconds))
+	return 1 - math.exp(-3 * dt / seconds)
+end
+
+-- `current` eased towards `target` over a frame of `dt` seconds (see share).
+function GuardianPose.ease(current: number, target: number, dt: number, seconds: number): number
+	return current + (target - current) * GuardianPose.share(dt, seconds)
+end
+
+-- Where the model is drawn this frame, following its body: the body's server position reaches
+-- the client in steps (each time the guardian's brain picks a new velocity, the body jumps a
+-- little), so the model goes on from where it was drawn at the body's `velocity` and closes the
+-- gap to the body's `target` position by easing (see share). On a steady course it keeps right
+-- on the body; a jump is spread over `seconds`.
+function GuardianPose.follow(drawn: Vector3, velocity: Vector3, target: Vector3, dt: number, seconds: number): Vector3
+	local predicted = drawn + velocity * dt
+	return predicted + (target - predicted) * GuardianPose.share(dt, seconds)
 end
 
 -- Share of a catch's time the lunge takes to reach its furthest; the rest it draws back.

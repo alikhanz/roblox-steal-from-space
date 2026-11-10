@@ -1,8 +1,13 @@
 --!strict
 
+local roblox = require("@lune/roblox")
+
 local GuardianPose = require("../../src/shared/Domain/GuardianPose")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
+
+-- @lune/roblox typedefs do not declare datatypes; the global Vector3 type describes it.
+local Vector3 = (roblox :: any).Vector3 :: typeof(Vector3)
 
 describe("GuardianPose", function()
 	it("scales a model to its kind's length times its post's scale", function()
@@ -45,5 +50,34 @@ describe("GuardianPose", function()
 		local _, jawEnd = GuardianPose.strike(0.349, 0.35)
 		expect(jawMiddle).toBeCloseTo(1, 1e-9)
 		expect(jawEnd < 0.05).toBe(true)
+	end)
+
+	it("follows a body on a steady course right on it", function()
+		-- The body moves +X at 30 studs a second; the model drawn on it keeps on it.
+		local velocity = Vector3.new(30, 0, 0)
+		local drawn = Vector3.new(0, 0, 0)
+		for frame = 1, 60 do
+			drawn = GuardianPose.follow(drawn, velocity, velocity * (frame / 60), 1 / 60, 0.25)
+		end
+		expect((drawn - velocity).Magnitude).toBeCloseTo(0, 1e-6)
+	end)
+
+	it("spreads a jump of the body over its time instead of jumping with it", function()
+		local still = Vector3.new(0, 0, 0)
+		local target = Vector3.new(1, 0, 0)
+		-- One frame makes up a small part of the gap ...
+		local first = GuardianPose.follow(still, still, target, 1 / 60, 0.25)
+		expect(first.X > 0 and first.X < 0.2).toBe(true)
+		-- ... and its time most of it, whatever the frame rate.
+		local function run(frames: number): number
+			local drawn = still
+			for _ = 1, frames do
+				drawn = GuardianPose.follow(drawn, still, target, 0.25 / frames, 0.25)
+			end
+			return drawn.X
+		end
+		expect(run(15)).toBeCloseTo(0.95, 1e-2)
+		-- Vector3 holds 32-bit floats.
+		expect(run(60)).toBeCloseTo(run(15), 1e-6)
 	end)
 end)
