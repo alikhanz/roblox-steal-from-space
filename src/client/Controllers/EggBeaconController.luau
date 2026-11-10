@@ -1,26 +1,20 @@
 --!strict
--- Makes nest eggs easy to find and tell apart from afar in flight (user, 2026-11-10: "яйца плохо
--- видно во время полёта, их не отличить издали"; "красиво, чтобы детишки радовались"): over every
--- nest holding an egg of uncommon rarity or rarer stands a beacon in the rarity's colour —
---   * a column of light, a coloured glow round a bright core, fading upwards, taller the rarer
---     the egg; it is a few pixels wide on top of its width in studs, so far off it stays visible
---     instead of thinning to nothing (Beams did, and vanished in flight);
---   * an egg badge of a fixed size on screen just over the egg, in a soft glow, larger the rarer
---     the egg, seen through rocks; the rarest pulse gently.
--- A common egg gets none: no beacon reads as common. Looks in EggLooks.RARITIES[…].beacon and
--- EggLooks.BEACON.
+-- Shows what eggs are around you (user, 2026-11-10: eggs were hard to tell apart in flight):
+-- over every nest nearby holding an egg of uncommon rarity or rarer stands a column of light in
+-- the rarity's colour, a coloured glow round a bright core, fading upwards, taller the rarer the
+-- egg. Only within EggLooks.BEACON.range: the eggs around you, not the whole map (a map-wide
+-- radar is an idea for later, docs/IDEAS.md). A common egg gets none: no column reads as common.
+-- Looks in EggLooks.RARITIES[…].beacon and EggLooks.BEACON.
 --
--- Built from the nest's own attributes (HasEgg, Rarity, EggPosition), on this client only: two
--- BillboardGuis a nest on one Attachment, no particles, nothing over the network. The egg itself
+-- Built from the nest's own attributes (HasEgg, Rarity, EggPosition), on this client only: one
+-- BillboardGui a nest on one Attachment, no particles, nothing over the network. The egg itself
 -- may not be streamed in; the nest's attributes are.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
-local Icons = require(script.Parent.Parent.UI.Icons)
 
 export type EggBeaconController = {
 	name: string,
@@ -32,26 +26,10 @@ type Beacon = {
 	column: BillboardGui,
 	glow: Frame,
 	core: Frame,
-	badge: BillboardGui,
-	halo: ImageLabel,
-	-- What is shown now; nil while the beacon is off.
-	spec: EggLooks.BeaconLook?,
 	connections: { RBXScriptConnection },
 }
 
 local EggBeaconController = {}
-
-local function billboard(name: string, foot: Attachment, onTop: boolean): BillboardGui
-	local gui = Instance.new("BillboardGui")
-	gui.Name = name
-	gui.AlwaysOnTop = onTop
-	gui.LightInfluence = 0
-	gui.MaxDistance = EggLooks.BEACON.badgeDistance
-	gui.Adornee = foot
-	-- Parented to its attachment, so it lives and dies with the beacon.
-	gui.Parent = foot
-	return gui
-end
 
 -- A vertical bar fading out to the top, rounded.
 local function bar(name: string, parent: Instance): Frame
@@ -70,18 +48,6 @@ local function bar(name: string, parent: Instance): Frame
 	fade.Parent = frame
 	frame.Parent = parent
 	return frame
-end
-
-local function image(name: string, id: string, scale: number, parent: Instance): ImageLabel
-	local label = Instance.new("ImageLabel")
-	label.Name = name
-	label.BackgroundTransparency = 1
-	label.AnchorPoint = Vector2.new(0.5, 0.5)
-	label.Position = UDim2.fromScale(0.5, 0.5)
-	label.Size = UDim2.fromScale(scale, scale)
-	label.Image = id
-	label.Parent = parent
-	return label
 end
 
 local function fade(frame: Frame, foot: number)
@@ -105,60 +71,41 @@ function EggBeaconController.new(): EggBeaconController
 			and typeof(position) == "Vector3"
 			and spec ~= nil
 		beacon.column.Enabled = shown
-		beacon.badge.Enabled = shown
-		beacon.spec = if shown then spec else nil
 		if not shown or not spec then
 			return
 		end
 		local looks = EggLooks.BEACON
 		local color: Color3 = look.color
 		beacon.foot.WorldPosition = (position :: Vector3) + Vector3.yAxis * looks.foot
-		-- The column stands on its foot: its box is shifted up by half its height.
-		beacon.column.Size = UDim2.new(spec.width, looks.glowMinPixels, spec.height, spec.pixels)
-		beacon.column.SizeOffset = Vector2.new(0, 0.5)
+		beacon.column.Size = UDim2.new(spec.width, looks.glowMinPixels, spec.height, 0)
 		beacon.glow.Size = UDim2.fromScale(1, 1)
 		beacon.glow.BackgroundColor3 = color
 		fade(beacon.glow, looks.glowTransparency)
 		beacon.core.Size = UDim2.new(looks.coreWidth, looks.coreMinPixels, 1, 0)
 		beacon.core.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), looks.coreWhiten)
 		fade(beacon.core, looks.coreTransparency)
-		beacon.badge.Size = UDim2.fromOffset(spec.dot, spec.dot)
-		beacon.halo.ImageColor3 = color
-		local egg = beacon.badge:FindFirstChild("Egg") :: ImageLabel
-		egg.ImageColor3 = color
 	end
 
 	local function add(nest: Instance)
 		if beacons[nest] then
 			return
 		end
-		local looks = EggLooks.BEACON
 		local foot = Instance.new("Attachment")
 		foot.Name = "EggBeacon"
-		local column = billboard("Column", foot, false)
+		local column = Instance.new("BillboardGui")
+		column.Name = "Column"
+		column.LightInfluence = 0
+		column.MaxDistance = EggLooks.BEACON.range
+		-- The column stands on its foot: its box is shifted up by half its height.
+		column.SizeOffset = Vector2.new(0, 0.5)
+		column.Adornee = foot
+		column.Parent = foot
 		local glow = bar("Glow", column)
 		local core = bar("Core", column)
-		-- The badge over the egg: a soft glow, a dark disc, the egg icon in the rarity's colour;
-		-- seen through rocks.
-		local badge = billboard("Badge", foot, true)
-		badge.StudsOffsetWorldSpace = Vector3.yAxis * (looks.badgeAbove - looks.foot)
-		local halo = image("Halo", Icons.GLOW, 1.9, badge)
-		local disc = image("Disc", Icons.DISC, 1, badge)
-		disc.ImageColor3 = looks.discColor
-		image("Egg", Icons.ICONS.Egg, 0.74, badge)
 		-- An Attachment in Terrain sits at a world position, with no part to hold it.
 		foot.Parent = workspace.Terrain
 
-		local beacon: Beacon = {
-			foot = foot,
-			column = column,
-			glow = glow,
-			core = core,
-			badge = badge,
-			halo = halo,
-			spec = nil,
-			connections = {},
-		}
+		local beacon: Beacon = { foot = foot, column = column, glow = glow, core = core, connections = {} }
 		beacons[nest] = beacon
 		for _, attribute in
 			{
@@ -189,31 +136,12 @@ function EggBeaconController.new(): EggBeaconController
 		beacon.foot:Destroy()
 	end
 
-	-- The rarest badges' glow breathes.
-	local sinceUpdate = math.huge
-	local function update(dt: number)
-		sinceUpdate += dt
-		if sinceUpdate < EggLooks.BEACON.updateSeconds then
-			return
-		end
-		sinceUpdate = 0
-		local looks = EggLooks.BEACON
-		local scale = 1.9 * (1 + looks.pulse * math.sin(os.clock() * looks.pulseSpeed))
-		for _, beacon in beacons do
-			local spec = beacon.spec
-			if spec and spec.pulse then
-				beacon.halo.Size = UDim2.fromScale(scale, scale)
-			end
-		end
-	end
-
 	local function start()
 		CollectionService:GetInstanceAddedSignal(EggConfig.NEST_TAG):Connect(add)
 		CollectionService:GetInstanceRemovedSignal(EggConfig.NEST_TAG):Connect(remove)
 		for _, nest in CollectionService:GetTagged(EggConfig.NEST_TAG) do
 			add(nest)
 		end
-		RunService.RenderStepped:Connect(update)
 	end
 
 	return {
