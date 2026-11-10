@@ -15,7 +15,8 @@ local SoundLooks = require(ReplicatedStorage.Shared.Config.SoundLooks)
 local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
 local SoundVoices = require(ReplicatedStorage.Shared.Domain.SoundVoices)
 
--- The sounds follow the chase this often, seconds.
+-- The siren's volume and the others' sirens follow the chase this often, seconds (a chase
+-- starting or ending is heard at once: the Target attribute's signal).
 local STEP_SECONDS = 0.1
 
 export type AlarmSoundController = {
@@ -107,7 +108,9 @@ function AlarmSoundController.new(): AlarmSoundController
 		stepOtherChases(if isChased then {} else chasers)
 	end
 
-	local function watchCatches(model: Instance)
+	local function watchGuardian(model: Instance)
+		-- The alarm sounds the moment a chase starts, not at the next step.
+		model:GetAttributeChangedSignal(GuardianConfig.TARGET_ATTRIBUTE):Connect(step)
 		model:GetAttributeChangedSignal(GuardianConfig.LAST_CATCH_ATTRIBUTE):Connect(function()
 			local body = bodyOf(model)
 			if body then
@@ -117,9 +120,9 @@ function AlarmSoundController.new(): AlarmSoundController
 	end
 
 	local function start()
-		CollectionService:GetInstanceAddedSignal(GuardianConfig.TAG):Connect(watchCatches)
+		CollectionService:GetInstanceAddedSignal(GuardianConfig.TAG):Connect(watchGuardian)
 		for _, model in CollectionService:GetTagged(GuardianConfig.TAG) do
-			watchCatches(model)
+			watchGuardian(model)
 		end
 		local waited = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
