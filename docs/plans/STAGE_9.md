@@ -86,7 +86,7 @@
 
 ## Prod-игра: подготовка
 
-1. Создать Prod-игру от имени Сообщества (`MonetizationConfig.catalogFor` выбирает каталог по `game.GameId`).
+1. Создать Prod-игру от имени Сообщества (`MonetizationConfig.catalogFor` выбирает каталог по `game.GameId`). *(Сделано 2026-11-11: опубликована из Dev-плейса версии 317 через File → Publish As. Universe `10775754016`, корневой плейс `113469823655044`, владелец — Сообщество `1096766348`, закрыта (Private). Устройства: компьютер, планшет, телефон; без VR и консоли; Team Create включён. В Dev-плейсе проверены ручные настройки (`AuthorityMode = Server`, стриминг 2048/4096, `TextChatService`, `LightingStyle = Realistic`) и все наборы. `KeyframeSequence` анимаций (`JetpackFlight`, `Strike`) в плейсе нет, их собирает код.)*
 2. Пропуски и покупки в Prod по каталогу этапа 8 (решения 061–064), ID — в `MonetizationConfig`; переводы покупок.
    Сообщество для Prod — та же строка `1096766348` с GameId Prod в `CommunityConfig` (иначе в Prod нет приглашения и подарка).
 3. Плейс Prod — из облачного Dev-плейса: всё, что вставлено руками (`ServerStorage.Aliens`, `ReplicatedStorage.Guardians`, наборы `ZoneKit`, `TerminalKit`, `StandKit`, `StorageKit`, `IncubatorKit`, `SerpentKit`, `PvpKit` и другие), и ручные настройки:
