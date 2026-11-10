@@ -190,7 +190,8 @@ local function buildDomedPlatform(parent: Instance, station: Zones.Station)
 	buildHull(parent, station)
 end
 
--- A spawn point at `position`: any player may spawn there.
+-- A spawn point at `position`: any player may spawn there. Unseen and not in the way: the player
+-- lands on the floor under it.
 local function spawnAt(name: string, position: Vector3, parent: Instance): SpawnLocation
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = name
@@ -199,7 +200,16 @@ local function spawnAt(name: string, position: Vector3, parent: Instance): Spawn
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Anchored = true
+	spawn.Transparency = 1
+	spawn.CanCollide = false
+	spawn.CanQuery = false
 	spawn.CanTouch = false
+	spawn.CastShadow = false
+	for _, child in spawn:GetChildren() do
+		if child:IsA("Decal") or child:IsA("Texture") then
+			child:Destroy()
+		end
+	end
 	spawn.Parent = parent
 	return spawn
 end
