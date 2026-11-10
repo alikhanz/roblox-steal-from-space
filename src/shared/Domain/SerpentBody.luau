@@ -57,4 +57,23 @@ function SerpentBody.place(head: Vector3, trail: { Vector3 }, spacing: number, c
 	return result
 end
 
+-- The thickness of segment `index` of `count`, from `first` at the neck down to `last` at the tail.
+function SerpentBody.sizeOf(index: number, count: number, first: number, last: number): number
+	local share = if count > 1 then (index - 1) / (count - 1) else 0
+	return first + (last - first) * share
+end
+
+-- How a copy of a segment made `made` thick is stretched to be `size` thick: across and up by
+-- size / made, along the body less (to `floor` of it at the least), so thin segments, still the
+-- same distance apart, close up into one body.
+function SerpentBody.stretchOf(size: number, made: number, floor: number): (number, number)
+	local across = size / made
+	return across, floor + (1 - floor) * across
+end
+
+-- Whether segment `index` wears the stars on its flanks: every `every`-th.
+function SerpentBody.starred(index: number, every: number): boolean
+	return every > 0 and index % every == 0
+end
+
 return table.freeze(SerpentBody)

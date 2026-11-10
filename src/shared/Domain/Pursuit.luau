@@ -40,4 +40,11 @@ function Pursuit.fleeVelocity(from: Vector3, threat: Vector3, speed: number): Ve
 	return offset.Unit * speed
 end
 
+-- `current` eased towards `desired`: how far it gets in `deltaTime` seconds at `response` (per
+-- second; the share left shrinks as exp(-response * deltaTime)). A mover steered this way turns
+-- and speeds up smoothly instead of snapping to each tick's new aim.
+function Pursuit.ease(current: Vector3, desired: Vector3, response: number, deltaTime: number): Vector3
+	return current + (desired - current) * (1 - math.exp(-response * deltaTime))
+end
+
 return table.freeze(Pursuit)

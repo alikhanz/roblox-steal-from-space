@@ -98,6 +98,9 @@ return table.freeze({
 
 	-- Logic rate, like the guardians'.
 	TICK_SECONDS = 1 / 15,
+	-- How quickly its velocity follows each tick's aim, per second (Pursuit.ease): about a
+	-- sixth of a second to turn, so its long body bends instead of jerking.
+	STEER_RESPONSE = 6,
 	-- Its pin follows it (or its egg) this often, seconds.
 	PIN_SECONDS = 0.25,
 	-- Force budget of the movers.

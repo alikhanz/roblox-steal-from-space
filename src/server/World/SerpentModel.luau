@@ -1,7 +1,8 @@
 --!strict
 -- Builds the greybox star serpent's head: a glowing block with two eyes at the front and the
--- physics movers SerpentService steers. Its body is drawn by the clients behind the head
--- (SerpentController). The real model replaces the parts later.
+-- physics movers SerpentService steers: what moves, is hit and catches. The clients hide it and
+-- draw the serpent's look on it, head to tail (World/SerpentVisual, decision 093); without the
+-- serpent's kit in the place they draw a greybox body of balls behind this head.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

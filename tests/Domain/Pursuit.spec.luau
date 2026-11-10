@@ -56,3 +56,23 @@ describe("Pursuit.fleeVelocity", function()
 		expect(velocity.Magnitude).toBe(0)
 	end)
 end)
+
+describe("Pursuit.ease", function()
+	it("moves part of the way, more over a longer step", function()
+		local short = Pursuit.ease(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), 6, 1 / 15)
+		local long = Pursuit.ease(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), 6, 1 / 5)
+		expect(short.X > 0 and short.X < long.X and long.X < 10).toBe(true)
+	end)
+
+	it("gets the same share of the way in two half steps as in one", function()
+		local half = Pursuit.ease(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), 6, 0.05)
+		local twice = Pursuit.ease(half, Vector3.new(10, 0, 0), 6, 0.05)
+		local once = Pursuit.ease(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), 6, 0.1)
+		-- Vector3 holds 32-bit floats.
+		expect(twice.X).toBeCloseTo(once.X, 1e-4)
+	end)
+
+	it("stays at the aim once there", function()
+		expectVector(Pursuit.ease(Vector3.new(1, 2, 3), Vector3.new(1, 2, 3), 6, 0.1), Vector3.new(1, 2, 3))
+	end)
+end)

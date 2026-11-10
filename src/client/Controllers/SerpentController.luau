@@ -1,8 +1,10 @@
 --!strict
--- The star serpent on the client (decision 055).
---   * Its body: while its head (SerpentService, a persistent model in workspace.World) is out,
---     segments follow the path it flies (Domain/SerpentBody). Client-only parts, moved every
---     frame: smooth on every screen without the server sending each segment.
+-- The star serpent on the client (decisions 055, 093).
+--   * Its look: while its head (SerpentService, a persistent model in workspace.World) is out,
+--     the kit's head is worn on it and segments follow the path it flies (Domain/SerpentBody,
+--     World/SerpentVisual): the star egg in the cradle while it is inside, the eyes by the hunt's
+--     phase. Client-only parts, moved every frame: smooth on every screen without the server
+--     sending each segment. Without the kit in the place, a greybox body of balls.
 --   * Its hunt for the star egg, told through the event (EventController): the pin reads the
 --     hits landed while the egg is inside ("Star Serpent 2/3"), then "Star egg" once it is out
 --     (the server moves the pin to the egg); announcements as the egg is knocked out, comes
@@ -19,7 +21,9 @@ local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventController = require(script.Parent.EventController)
 local SerpentBody = require(ReplicatedStorage.Shared.Domain.SerpentBody)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
+local SerpentHunt = require(ReplicatedStorage.Shared.Domain.SerpentHunt)
 local SerpentLooks = require(ReplicatedStorage.Shared.Config.SerpentLooks)
+local SerpentVisual = require(script.Parent.Parent.World.SerpentVisual)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 
 local WORLD_WAIT_TIMEOUT = 30
@@ -61,16 +65,17 @@ local function buildSegments(parent: Instance): { BasePart }
 	return parts
 end
 
--- A white flash over the head and the body as a hit lands.
-local function flash(head: BasePart, body: Instance?)
+-- A white flash over the serpent (`target`: its look, or the greybox head and its `body`) as a hit
+-- lands.
+local function flash(target: Instance, body: Instance?)
 	local looks = SerpentLooks.HIT_FLASH
 	local highlight = Instance.new("Highlight")
 	highlight.FillColor = looks.color
 	highlight.OutlineColor = looks.color
 	highlight.FillTransparency = 0
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-	highlight.Adornee = head.Parent
-	highlight.Parent = head
+	highlight.Adornee = target
+	highlight.Parent = target
 	local bodyHighlight = if body then highlight:Clone() else nil
 	if body and bodyHighlight then
 		bodyHighlight.Adornee = body
@@ -169,23 +174,30 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 			return
 		end
 		local looks = SerpentLooks.BODY
-		local length = looks.segments * looks.spacing
+		-- One spacing more than the body: the tail sits after the last segment.
+		local length = (looks.segments + 1) * looks.spacing
 
-		-- The body of the serpent that is out now.
+		-- The body of the serpent that is out now: its kit look, or the greybox balls without one.
 		local head: BasePart? = nil
 		local body: Folder? = nil
+		local look: SerpentVisual.Visual? = nil
 		local segments: { BasePart } = {}
 		local trail: { Vector3 } = {}
-		local hitConnection: RBXScriptConnection? = nil
+		local connections: { RBXScriptConnection } = {}
+
+		local function eggPlace(): SerpentHunt.EggPlace?
+			local place = if folder then folder:GetAttribute(SerpentConfig.EGG_ATTRIBUTE) else nil
+			return if place == "Inside" or place == "Out" or place == "Delivered" then place else nil
+		end
 
 		local function clear()
-			if hitConnection then
-				hitConnection:Disconnect()
+			for _, connection in connections do
+				connection:Disconnect()
 			end
 			if body then
 				body:Destroy()
 			end
-			head, body, segments, trail, hitConnection = nil, nil, {}, {}, nil
+			head, body, look, segments, trail, connections = nil, nil, nil, {}, {}, {}
 		end
 
 		local function follow(model: Instance)
@@ -197,10 +209,34 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 			local bodyFolder = Instance.new("Folder")
 			bodyFolder.Name = "SerpentBody"
 			bodyFolder.Parent = workspace
-			head, body, segments = part, bodyFolder, buildSegments(bodyFolder)
-			hitConnection = part:GetAttributeChangedSignal(SerpentConfig.LAST_HIT_ATTRIBUTE):Connect(function()
-				flash(part, body)
-			end)
+			head, body = part, bodyFolder
+			look = SerpentVisual.build(bodyFolder, looks.segments)
+			local current = look
+			if current then
+				-- The server's greybox head is only the body that moves and is hit: hidden here.
+				for _, item in model:GetDescendants() do
+					if item:IsA("BasePart") then
+						item.LocalTransparencyModifier = 1
+					end
+				end
+				SerpentVisual.setEgg(current, eggPlace())
+				if folder then
+					table.insert(
+						connections,
+						folder:GetAttributeChangedSignal(SerpentConfig.EGG_ATTRIBUTE):Connect(function()
+							SerpentVisual.setEgg(current, eggPlace())
+						end)
+					)
+				end
+			else
+				segments = buildSegments(bodyFolder)
+			end
+			table.insert(
+				connections,
+				part:GetAttributeChangedSignal(SerpentConfig.LAST_HIT_ATTRIBUTE):Connect(function()
+					flash(if current then current.model else model, if current then nil else body)
+				end)
+			)
 		end
 
 		world.ChildAdded:Connect(function(child)
@@ -218,14 +254,36 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 			task.spawn(follow, present)
 		end
 
-		RunService.RenderStepped:Connect(function()
+		-- The head as drawn: where the server's head is, turned towards its turn smoothly
+		-- (SerpentLooks.MODEL.TURN_SECONDS), so a sharp turn or a jump in what arrives over the
+		-- network does not jerk the whole body.
+		local turned: CFrame? = nil
+
+		RunService.RenderStepped:Connect(function(deltaTime: number)
 			local current = head
-			if not current or #segments == 0 then
+			if not current then
+				turned = nil
 				return
 			end
+			local target = current.CFrame
+			local shown = if turned
+				then CFrame.new(target.Position) * turned.Rotation:Lerp(
+					target.Rotation,
+					1 - math.exp(-deltaTime / SerpentLooks.MODEL.TURN_SECONDS)
+				)
+				else target
+			turned = shown
 			-- The neck joins the back of the head, not its middle.
-			local neck = current.Position - current.CFrame.LookVector * (current.Size.Z / 2)
+			local neck = shown.Position - shown.LookVector * (current.Size.Z / 2)
 			SerpentBody.record(trail, neck, TRAIL_STEP, length)
+			if look then
+				local points = SerpentBody.place(neck, trail, looks.spacing, looks.segments + 1)
+				SerpentVisual.place(look, shown, neck, points, os.clock())
+				return
+			end
+			if #segments == 0 then
+				return
+			end
 			local points = SerpentBody.place(neck, trail, looks.spacing, #segments)
 			local frames: { CFrame } = {}
 			for index, point in points do

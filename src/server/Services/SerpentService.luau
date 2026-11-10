@@ -184,9 +184,18 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		starEgg = nil
 	end
 
+	-- Steers towards `velocity`, eased from the last tick's (SerpentConfig.STEER_RESPONSE): each
+	-- tick's aim (fleeing the nearest player, sliding along its bounds) can turn sharply, and a
+	-- long body snapping to it jerks.
 	local function steer(current: Serpent, velocity: Vector3)
 		local position = current.head.Position
-		local inside = Bounds.keepOutside(position, velocity, CENTER, SerpentConfig.HUNT_RADIUS)
+		local eased = Pursuit.ease(
+			current.velocity.VectorVelocity,
+			velocity,
+			SerpentConfig.STEER_RESPONSE,
+			SerpentConfig.TICK_SECONDS
+		)
+		local inside = Bounds.keepOutside(position, eased, CENTER, SerpentConfig.HUNT_RADIUS)
 		local limited = Bounds.limitVelocity(position, inside, CENTER, SerpentConfig.OUTER_RADIUS)
 		current.velocity.VectorVelocity = limited
 		if limited.Magnitude > 1 then
