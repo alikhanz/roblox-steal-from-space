@@ -27,6 +27,7 @@
 --   game.ServerStorage.DevCommands.GivePass:Invoke("NightShift")
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
 --   game.ServerStorage.DevCommands.SetJetpack:Invoke(5)
+--   game.ServerStorage.DevCommands.ResetCommunityGift:Invoke()
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -111,6 +112,9 @@ export type Dependencies = {
 	notePass: (player: Player, pass: Purchases.PassId) -> boolean,
 	-- Sets the tutorial's progress (TutorialService.setProgress).
 	setTutorialProgress: (player: Player, progress: number) -> boolean,
+	-- The community gift is not taken again; this session's automatic checks are skipped
+	-- (CommunityService.reset).
+	resetCommunityGift: (player: Player) -> boolean,
 	-- Shows a changed jetpack level: the model, the attribute and the speed (JetpackService).
 	refreshJetpack: (player: Player) -> (),
 	-- Shows a changed trainer level: the terminal, the stand's look and flame (as a bought upgrade).
@@ -558,7 +562,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				.. ` | inventory [{ids(data.inventory)}] | floor [{ids(data.floor)}] | eggs {#data.incubator}`
 				.. ` | slots {data.incubatorSlots}, waiting {#data.waiting}`
 				.. ` | passes [{table.concat(data.passes, ", ")}] | receipts {#data.purchaseIds}`
-				.. ` | tutorial {data.tutorialStep}`
+				.. ` | tutorial {data.tutorialStep} | community gift {data.communityGiftTaken}`
 		end,
 		-- The first player's tutorial progress (Domain/Tutorial: 0 starts over, 4 is done).
 		SetTutorialStep = function(progress: number): string
@@ -569,6 +573,18 @@ function DevService.new(dependencies: Dependencies): DevService
 			assert(type(progress) == "number", "SetTutorialStep expects a number")
 			return if dependencies.setTutorialProgress(player, progress)
 				then `tutorial at {progress}`
+				else "profile not active yet"
+		end,
+		-- The first player's community gift is not taken again, and the check at join and at the end
+		-- of the tutorial is skipped this playtest: the invitation shows even to a member (the
+		-- owner always is one). "Join" then asks Roblox for real.
+		ResetCommunityGift = function(): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			return if dependencies.resetCommunityGift(player)
+				then "community gift not taken; automatic checks off this playtest"
 				else "profile not active yet"
 		end,
 		-- The first player wears jetpack `jetpack` (0 Starter … the last), at its first mark: to

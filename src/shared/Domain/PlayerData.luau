@@ -92,6 +92,8 @@ export type PlayerData = {
 	tutorialStep: number,
 	-- Has flown under a dome (decision 096): the double-jump hint is no longer shown.
 	domeFlightLearned: boolean,
+	-- The gift for joining the game's community is taken (decision 098, Domain/CommunityGift).
+	communityGiftTaken: boolean,
 	-- Today's daily quests (Domain/Quests).
 	quests: Quests.State,
 	-- The login gift streak (Domain/LoginGift).
@@ -127,7 +129,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 18
+PlayerData.SCHEMA_VERSION = 19
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -284,6 +286,9 @@ PlayerData.MIGRATIONS = {
 	[16] = function(_data: { [string]: any }) end,
 	-- v18 adds flight under a dome (decision 096): `domeFlightLearned`, false from the template.
 	[17] = function(_data: { [string]: any }) end,
+	-- v19 adds the community gift (decision 098): `communityGiftTaken`, false from the template;
+	-- a member from before gets it on their next join.
+	[18] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -312,6 +317,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		bestPost = 0,
 		tutorialStep = Tutorial.NOT_STARTED,
 		domeFlightLearned = false,
+		communityGiftTaken = false,
 		quests = Quests.empty(),
 		loginGift = LoginGift.empty(),
 		index = AlienIndex.empty(),
@@ -588,8 +594,10 @@ local function validate(data: { [string]: any }): string?
 	if not isInteger(data.tutorialStep) or data.tutorialStep < 0 or data.tutorialStep > Tutorial.DONE then
 		return "tutorialStep is invalid"
 	end
-	if type(data.domeFlightLearned) ~= "boolean" then
-		return "domeFlightLearned is invalid"
+	for _, field in { "domeFlightLearned", "communityGiftTaken" } do
+		if type(data[field]) ~= "boolean" then
+			return `{field} is invalid`
+		end
 	end
 	local questProblem = validateQuests(data.quests)
 	if questProblem then

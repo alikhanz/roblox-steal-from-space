@@ -837,6 +837,35 @@ local Strings = {
 		ru = "Подарок: ●+{coins} и ⚡+{speed}",
 		en = "Gift: ●+{coins} and ⚡+{speed}",
 	},
+	-- The community gift (decision 098): its window, the invitation after the tutorial, the gift.
+	["community.window.title"] = {
+		ru = "Сообщество игры",
+		en = "Game community",
+	},
+	["community.gift.hint"] = {
+		ru = "Вступи в сообщество игры и забери подарок. Он даётся один раз",
+		en = "Join the game's community and grab a gift. You get it once",
+	},
+	["community.join.button"] = {
+		ru = "Вступить",
+		en = "Join",
+	},
+	["community.checking.button"] = {
+		ru = "Проверяю…",
+		en = "Checking…",
+	},
+	["community.invite.toast"] = {
+		ru = "Вступи в сообщество — ⚡+{speed}!",
+		en = "Join our community for ⚡+{speed}!",
+	},
+	["community.rewarded.toast"] = {
+		ru = "Подарок сообщества: ⚡+{speed}",
+		en = "Community gift: ⚡+{speed}",
+	},
+	["notice.notInCommunity.toast"] = {
+		ru = "Ты пока не в сообществе. Попробуй ещё",
+		en = "Not in the community yet. Try again",
+	},
 	["notice.giftTaken.toast"] = {
 		ru = "Сегодняшний подарок уже у тебя",
 		en = "You already got today's gift",

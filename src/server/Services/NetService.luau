@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local CommunityService = require(script.Parent.CommunityService)
 local EconomyService = require(script.Parent.EconomyService)
 local IndexService = require(script.Parent.IndexService)
 local LoginGiftService = require(script.Parent.LoginGiftService)
@@ -57,6 +58,8 @@ export type Dependencies = {
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
 	tutorial: TutorialService.TutorialService,
+	-- The community gift (decision 098).
+	community: CommunityService.CommunityService,
 	-- Granted Robux purchases: what they gave goes to the client.
 	purchased: Signal.Signal<Player, PurchaseService.Granted>,
 	-- A purchase prompt the client is about to show (PurchaseService.notePrompt).
@@ -83,6 +86,7 @@ export type Notice =
 	| IndexService.Notice
 	| StormService.Notice
 	| PurchaseService.Notice
+	| CommunityService.Notice
 
 export type NetService = {
 	name: string,
@@ -292,6 +296,10 @@ function NetService.new(dependencies: Dependencies): NetService
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))
 			end
 		end)
+		local community = dependencies.community
+		community.rewarded.connect(function(player, speed)
+			Remotes.CommunityRewarded.Fire(player, wire(speed))
+		end)
 		quests.rewarded.connect(function(player, paid)
 			Remotes.QuestRewarded.Fire(player, { coins = wire(paid.coins), speed = wire(paid.speed) })
 			local data = dependencies.getData(player)
@@ -347,6 +355,12 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.ClaimLoginGift.SetCallback(guarded(function(player)
 			return loginGift.claim(player)
+		end))
+		Remotes.CommunityPrompted.SetCallback(guarded(function(player)
+			return community.notePrompt(player)
+		end))
+		Remotes.CommunityJoined.SetCallback(guarded(function(player)
+			return community.joined(player)
 		end))
 		Remotes.ClaimIndexAlien.SetCallback(guarded(function(player, alienId: string)
 			return alienIndex.claimAlien(player, alienId)

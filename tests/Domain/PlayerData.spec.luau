@@ -824,3 +824,32 @@ describe("PlayerData migration v17 -> v18", function()
 		expectCorrupted(broken, "domeFlightLearned is invalid")
 	end)
 end)
+
+describe("PlayerData migration v18 -> v19", function()
+	it("leaves the community gift to take for a profile from before", function()
+		local old = savedTemplate()
+		old.schemaVersion = 18
+		old.communityGiftTaken = nil
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.communityGiftTaken).toBe(false)
+		end
+	end)
+
+	it("keeps a taken gift taken through a save", function()
+		local saved = savedTemplate()
+		saved.communityGiftTaken = true
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.communityGiftTaken).toBe(true)
+		end
+	end)
+
+	it("rejects a broken flag", function()
+		local broken = savedTemplate()
+		broken.communityGiftTaken = 1
+		expectCorrupted(broken, "communityGiftTaken is invalid")
+	end)
+end)

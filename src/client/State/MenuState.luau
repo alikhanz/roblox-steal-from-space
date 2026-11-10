@@ -9,16 +9,17 @@ local UserInputService = game:GetService("UserInputService")
 
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
-export type Slot = "Bay" | "Store" | "Quests" | "Index" | "Gift"
+export type Slot = "Bay" | "Store" | "Quests" | "Index" | "Gift" | "Community"
 
 -- Left to right. A tile that can disappear goes last, so the row never has a gap (the gift
--- waits for the first delivery).
+-- waits for the first delivery; the community gift comes after the tutorial and goes for good).
 local SLOTS: { { slot: Slot, key: Enum.KeyCode } } = {
 	{ slot = "Bay", key = Enum.KeyCode.B },
 	{ slot = "Store", key = Enum.KeyCode.M },
 	{ slot = "Quests", key = Enum.KeyCode.J },
 	{ slot = "Index", key = Enum.KeyCode.N },
 	{ slot = "Gift", key = Enum.KeyCode.L },
+	{ slot = "Community", key = Enum.KeyCode.K },
 }
 
 export type Tile = {

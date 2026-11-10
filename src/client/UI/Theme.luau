@@ -13,6 +13,7 @@ local TILE: { [string]: Color3 } = {
 	Quests = hex("#FF9A2E"),
 	Index = hex("#A06BFF"),
 	Gift = hex("#FF5A9E"),
+	Community = hex("#36E0D0"),
 }
 local FLIGHT: { [string]: Color3 } = {
 	Strike = hex("#FF7A3D"),

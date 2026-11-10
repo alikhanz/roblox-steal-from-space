@@ -70,6 +70,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	IndexClaimed = "notice.questClaimed.toast",
 	StormTeleport = "notice.stormTeleport.toast",
 	NoSuchEgg = "notice.noSuchEgg.toast",
+	NotInCommunity = "notice.notInCommunity.toast",
 }
 
 export type Dependencies = {

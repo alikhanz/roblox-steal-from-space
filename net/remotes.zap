@@ -105,6 +105,9 @@ type Notice = enum {
 	MaxIncubatorSlots,
 	-- "Egg ready now": that egg is not warming in the incubator (ready, hatched or gone).
 	NoSuchEgg,
+	-- The community gift: Roblox does not show the player in the game's community (yet), or did
+	-- not answer.
+	NotInCommunity,
 }
 
 -- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the
@@ -409,6 +412,14 @@ event Purchased = {
 	},
 }
 
+-- The community gift was paid (decision 098): the speed stat it added (with the jetpack).
+event CommunityRewarded = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: BigNum,
+}
+
 event NoticeSent = {
 	from: Server,
 	type: Reliable,
@@ -540,6 +551,21 @@ event PurchasePrompted = {
 		source: ShopSource,
 		egg: u32?,
 	},
+}
+
+-- The client is about to show Roblox's prompt to join the game's community (analytics).
+event CommunityPrompted = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}
+
+-- Roblox's community prompt says the player joined (or already was in): the server asks Roblox
+-- itself and pays the gift if so. Nothing is taken on the client's word.
+event CommunityJoined = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
 }
 
 -- The client asks for its snapshot once its controllers are ready, in case the profile

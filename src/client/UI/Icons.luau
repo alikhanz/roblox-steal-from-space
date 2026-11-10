@@ -10,6 +10,7 @@ export type Name =
 	| "Quests"
 	| "Index"
 	| "Gift"
+	| "Community"
 	| "Strike"
 	| "Harpoon"
 	| "Bomb"
@@ -35,6 +36,7 @@ local ICONS: { [Name]: string } = {
 	Quests = "rbxassetid://106652945082541",
 	Index = "rbxassetid://91459266009462",
 	Gift = "rbxassetid://72977247145594",
+	Community = "rbxassetid://0",
 	Strike = "rbxassetid://100400859366699",
 	Harpoon = "rbxassetid://115071386432229",
 	Bomb = "rbxassetid://82979735959616",

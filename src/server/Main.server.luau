@@ -10,6 +10,7 @@ local AlienModels = require(script.Parent.World.AlienModels) :: { [string]: stri
 local BayService = require(script.Parent.Services.BayService)
 local BenchService = require(script.Parent.Services.BenchService)
 local CarryService = require(script.Parent.Services.CarryService)
+local CommunityService = require(script.Parent.Services.CommunityService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
 local DomeFlightService = require(script.Parent.Services.DomeFlightService)
@@ -132,6 +133,10 @@ local questService = QuestService.new(questDependencies)
 -- So does the tutorial (decision 065).
 local tutorialDependencies = {} :: TutorialService.Dependencies
 local tutorialService = TutorialService.new(tutorialDependencies)
+-- The community gift (decision 098) sends its refusals through the net service and hears the
+-- tutorial, so it is bound later too.
+local communityDependencies = {} :: CommunityService.Dependencies
+local communityService = CommunityService.new(communityDependencies)
 local netService = NetService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -149,6 +154,7 @@ local netService = NetService.new({
 	loginGift = loginGiftService,
 	index = indexService,
 	tutorial = tutorialService,
+	community = communityService,
 	purchased = purchaseService.purchased,
 	notePrompt = purchaseService.notePrompt,
 	markActive = activityService.touch,
@@ -218,6 +224,13 @@ tutorialDependencies.eggGrabbed = carryService.grabbed
 tutorialDependencies.eggDelivered = carryService.delivered
 tutorialDependencies.eggLost = carryService.lost
 tutorialDependencies.hatched = bayService.hatched
+
+communityDependencies.activated = profile.activated
+communityDependencies.getData = profile.getData
+communityDependencies.update = profile.update
+communityDependencies.tutorialAdvanced = tutorialService.advanced
+communityDependencies.publishSpeed = speedService.publish
+communityDependencies.notify = netService.notify
 
 local stormService = StormService.new({
 	eventChanged = eventService.changed,
@@ -344,6 +357,16 @@ end)
 purchaseService.prompted.connect(function(player, item, source)
 	metricsService.count(player, "PurchasePrompt", { item, source })
 end)
+communityService.prompted.connect(function(player)
+	metricsService.count(player, "CommunityPrompt")
+end)
+communityService.checked.connect(function(player, member, source)
+	metricsService.count(player, "CommunityCheck", { source, if member then "Member" else "NotMember" })
+end)
+communityService.rewarded.connect(function(player, speed)
+	metricsService.earned(player, "Speed", "Community", speed)
+	metricsService.count(player, "CommunityGift")
+end)
 loginGiftService.rewarded.connect(function(player, reward)
 	metricsService.earned(player, "Coins", "LoginGift", reward.paid.coins)
 	metricsService.earned(player, "Speed", "LoginGift", reward.paid.speed)
@@ -377,6 +400,7 @@ local devService = DevService.new({
 	chooseReadyNowEgg = purchaseService.chooseReadyNowEgg,
 	notePass = purchaseService.notePass,
 	setTutorialProgress = tutorialService.setProgress,
+	resetCommunityGift = communityService.reset,
 	refreshJetpack = jetpackService.refresh,
 	refreshTrainer = function(player: Player)
 		economyService.trainerUpgraded.fire(player)
@@ -408,6 +432,7 @@ Lifecycle.run({
 	indexService,
 	purchaseService,
 	tutorialService,
+	communityService,
 	domeFlightService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.

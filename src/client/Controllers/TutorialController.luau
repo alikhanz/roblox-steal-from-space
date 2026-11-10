@@ -22,6 +22,7 @@ local GuidePath = require(script.Parent.Parent.UI.GuidePath)
 local Icons = require(script.Parent.Parent.UI.Icons)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
+local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Tutorial = require(ReplicatedStorage.Shared.Domain.Tutorial)
@@ -69,6 +70,10 @@ export type TutorialController = {
 	pointsHome: () -> boolean,
 	-- True once the tutorial is over (not reactive).
 	isDone: () -> boolean,
+	-- The same, reactive.
+	done: () -> boolean,
+	-- The player has just finished the tutorial (its farewell line is gone), not on joining.
+	finished: Signal.Signal<>,
 }
 
 local TutorialController = {}
@@ -79,6 +84,7 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 	local readHint = hint :: () -> Hint?
 	-- The last line after finishing, shown for a while (empty: none).
 	local farewell = source("")
+	local finished = Signal.new() :: Signal.Signal<>
 	local pin = ScreenPin.new()
 	local pinTitle = source("")
 	local path: GuidePath.GuidePath? = nil
@@ -264,6 +270,7 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 			farewell(Text.get(locale, "tutorial.done.hint"))
 			task.delay(TutorialConfig.DONE_HINT_SECONDS, function()
 				farewell("")
+				finished.fire()
 			end)
 		end
 	end
@@ -306,6 +313,10 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 		isDone = function(): boolean
 			return Vide.untrack(readHint) == "Done"
 		end,
+		done = function(): boolean
+			return readHint() == "Done"
+		end,
+		finished = finished,
 	}
 end
 
