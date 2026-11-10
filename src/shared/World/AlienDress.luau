@@ -1004,10 +1004,33 @@ local function wings(pet: Model, fx: BasePart, wingParts: { MeshPart }, paints: 
 	end
 end
 
+-- The height of the pet's feet: the lowest corner of its visible parts. Its bounding box reaches
+-- lower, round hidden stand-ins and a legendary's spikes, and the rune laid there sank under the
+-- place's pad.
+local function feetOf(pet: Model): number
+	local low = math.huge
+	for _, part in pet:GetDescendants() do
+		if not part:IsA("MeshPart") or part.Transparency >= 1 then
+			continue
+		end
+		local half = part.Size / 2
+		for _, x in { -1, 1 } do
+			for _, y in { -1, 1 } do
+				for _, z in { -1, 1 } do
+					low = math.min(low, (part.CFrame * Vector3.new(half.X * x, half.Y * y, half.Z * z)).Y)
+				end
+			end
+		end
+	end
+	return low
+end
+
 -- A rune circle on the floor instead of the plain tier ring: it glows in the tier colour, turns
--- slowly (the client), and motes rise from its rim.
+-- slowly (the client), and motes rise from its rim. Laid at the pet's feet; adornLocally lifts it
+-- to RUNE_LIFT over them at the pet's own size.
 local function rune(pet: Model, cf: CFrame, size: Vector3, tier: number, accent: Color3)
-	local floorY = cf.Position.Y - size.Y / 2
+	local feet = feetOf(pet)
+	local floorY = if feet < math.huge then feet else cf.Position.Y - size.Y / 2
 	local halo = Instance.new("Part")
 	halo.Name = "Halo"
 	ghost(halo)
@@ -1214,6 +1237,13 @@ function AlienDress.adornLocally(model: Model)
 		if light:IsA("PointLight") then
 			light.Range = math.clamp(light.Range * ratio, MODELS.LIGHT_RANGE_MIN, MODELS.LIGHT_RANGE_MAX)
 		end
+	end
+	-- The rune's lift scaled with the pet: a small one's sat in its pad. The same height for all.
+	local halo = model:FindFirstChild("Halo")
+	local feet = feetOf(model)
+	if halo and halo:IsA("BasePart") and feet < math.huge then
+		local at = halo.Position
+		halo.CFrame = halo.CFrame - at + Vector3.new(at.X, feet + MODELS.RUNE_LIFT - halo.Size.Y / 2, at.Z)
 	end
 	copy:Destroy()
 end

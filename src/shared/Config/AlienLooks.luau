@@ -43,6 +43,10 @@ local MODELS = table.freeze({
 	-- studs, at most and at least.
 	LIGHT_RANGE_MAX = 16,
 	LIGHT_RANGE_MIN = 5,
+	-- The rune circle on the floor lies this high over the pet's feet, studs, whatever its size: a
+	-- small pet's rune scaled with it sank into its place's pad (only its rim showed round the pad,
+	-- a plain ring; user, 2026-11-10).
+	RUNE_LIFT = 0.08,
 	-- Particle and picture textures (assets/fx).
 	TEXTURES = table.freeze({
 		star = "rbxassetid://113891832030197",
