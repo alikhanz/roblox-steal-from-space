@@ -54,6 +54,8 @@
 
 ## Сообщество (Roblox Community)
 
+**Сообщество создано** (пользователь, 2026-11-10): [Fly & Steal Space Eggs](https://www.roblox.com/communities/1096766348/Fly-Steal-Space-Eggs), ID `1096766348`.
+
 **Владелец Prod-игры — Сообщество, а не личный аккаунт.** Prod — новая игра, её сразу публикуем от имени Сообщества, переносить ничего не надо.
 
 С 2026 года Сообществом владеет само Сообщество, а не роль «Owner». ([DevForum](https://devforum.roblox.com/t/community-ownership-is-now-managed-at-the-community-level/4687884), [перенос игр](https://create.roblox.com/docs/projects/experience-ownership-transfer))
