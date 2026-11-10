@@ -66,14 +66,8 @@ return table.freeze({
 	-- Test targets (playtests) carry this tag so the client's aim sees them like carriers.
 	DUMMY_TAG = "PvpDummy",
 
-	-- Greybox effects, seconds on screen. The harpoon's hook flies out to the target and back
-	-- along the beam over its whole time.
-	HARPOON_BEAM_SECONDS = 0.8,
-	BOMB_FLASH_SECONDS = 0.4,
-	-- The strike's impact: a burst at the touch point, its size and time on screen.
+	-- The strike's greybox impact: a burst at the touch point, its size and time on screen. The
+	-- harpoon's and the bomb's looks are PvpLooks.
 	STRIKE_IMPACT_RADIUS = 3,
 	STRIKE_IMPACT_SECONDS = 0.25,
-	-- Names of the effect instances (the client could dress them up later).
-	HARPOON_BEAM_NAME = "HarpoonBeam",
-	BOMB_NAME = "GravityBomb",
 })

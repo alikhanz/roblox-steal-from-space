@@ -33,6 +33,7 @@ local PlaceGlideController = require(script.Parent.Controllers.PlaceGlideControl
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
 local PurchaseState = require(script.Parent.State.PurchaseState)
+local PvpEffectsController = require(script.Parent.Controllers.PvpEffectsController)
 local PvpViewController = require(script.Parent.Controllers.PvpViewController)
 local QuestController = require(script.Parent.Controllers.QuestController)
 local SerpentController = require(script.Parent.Controllers.SerpentController)
@@ -132,6 +133,7 @@ Lifecycle.run({
 	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
 	KioskController.new({ menu = menuState, windows = windowState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
+	PvpEffectsController.new(),
 	NewbieViewController.new(),
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
 	tutorialController,

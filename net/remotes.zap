@@ -352,6 +352,47 @@ event AbilityResult = {
 	},
 }
 
+-- Someone fired the harpoon (to every client, which draws the hook: World/HarpoonVisual). `target`
+-- is where the hook flies: the target's surface, or the end of its reach on a miss. `egg`: an egg
+-- came loose there and drifts towards the shooter, the hook rides it.
+event HarpoonShot = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		shooter: Instance.Player,
+		target: Vector3,
+		hit: boolean,
+		egg: boolean,
+	},
+}
+
+-- Someone threw the gravity bomb (to every client, which draws it: World/BombVisual). It flies
+-- straight from `start` at `velocity` until BombExploded with the same `id`, at most `fuse` seconds.
+event BombThrown = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		id: u16,
+		thrower: Instance.Player,
+		start: Vector3,
+		velocity: Vector3,
+		fuse: f32,
+	},
+}
+
+-- The bomb `id` went off at `center`.
+event BombExploded = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		id: u16,
+		center: Vector3,
+	},
+}
+
 -- A Robux purchase was granted: what it was, and the coins and speed stat it gave. Compensated:
 -- it found nothing to apply to (the egg hatched, every slot bought) and paid coins instead.
 event Purchased = {

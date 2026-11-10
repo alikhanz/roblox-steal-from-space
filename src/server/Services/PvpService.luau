@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 
 local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local BombFlight = require(script.Parent.Parent.World.BombFlight)
 local CarryService = require(script.Parent.CarryService)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local Flight = require(ReplicatedStorage.Shared.Domain.Flight)
@@ -86,7 +87,22 @@ export type PvpService = {
 	getUsage: () -> { [string]: { used: number, hit: number } },
 	-- Fires after an ability resolved: the player, the ability, whether it hit, whether an egg dropped.
 	abilityUsed: Signal.Signal<Player, AbilityKind, boolean, boolean>,
+	-- What every client draws (World/HarpoonVisual, World/BombVisual; NetService sends it).
+	harpoonShot: Signal.Signal<Shot>,
+	bombThrown: Signal.Signal<Throw>,
+	bombExploded: Signal.Signal<Blast>,
 }
+
+-- A harpoon shot: where the hook flies (the target's surface, or the end of the reach on a
+-- miss), whether it hit and whether an egg came loose there.
+export type Shot = { shooter: Player, target: Vector3, hit: boolean, egg: boolean }
+-- A bomb thrown: it flies straight from `start` at `velocity` for at most `fuse` seconds.
+export type Throw = { id: number, thrower: Player, start: Vector3, velocity: Vector3, fuse: number }
+-- The bomb `id` went off at `center`.
+export type Blast = { id: number, center: Vector3 }
+
+-- Bomb ids go round within the wire's u16.
+local BOMB_ID_LIMIT = 65535
 
 type PlayerState = {
 	lastUsedAt: { [AbilityKind]: number },
@@ -137,6 +153,10 @@ function PvpService.new(dependencies: Dependencies): PvpService
 	local creatures: { Target } = {}
 	local usage: { [string]: { used: number, hit: number } } = {}
 	local abilityUsed = Signal.new() :: Signal.Signal<Player, AbilityKind, boolean, boolean>
+	local harpoonShot = Signal.new() :: Signal.Signal<Shot>
+	local bombThrown = Signal.new() :: Signal.Signal<Throw>
+	local bombExploded = Signal.new() :: Signal.Signal<Blast>
+	local lastBombId = 0
 
 	local function count(kind: AbilityKind, hit: boolean)
 		local entry = usage[kind] or { used = 0, hit = 0 }
@@ -353,7 +373,8 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		if not target then
 			local discount = PvpConfig.HARPOON.cooldownSeconds - PvpConfig.HARPOON.missCooldownSeconds
 			state.lastUsedAt.Harpoon = time() - discount
-			PvpEffects.harpoonBeam(root, root.Position + direction * PvpConfig.HARPOON.rangeStuds)
+			local reach = root.Position + direction * PvpConfig.HARPOON.rangeStuds
+			harpoonShot.fire({ shooter = player, target = reach, hit = false, egg = false })
 			resolved(player, "Harpoon", false, false)
 			return
 		end
@@ -366,14 +387,16 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		state.lastUsedAt.Harpoon = time()
 		local toShooter = root.Position - target.root.Position
 		local launch = (if toShooter.Magnitude > 1e-3 then toShooter.Unit else -direction) * EggConfig.DROP_SPEED
-		PvpEffects.harpoonBeam(root, target.root.Position)
-		resolved(player, "Harpoon", true, target.onHarpoon(launch, player))
+		local landing = fromVector(contactPoint(target, root.Position))
+		-- The egg is out before the clients hear of the shot, so the hook finds it there.
+		local dropped = target.onHarpoon(launch, player)
+		harpoonShot.fire({ shooter = player, target = landing, hit = true, egg = dropped })
+		resolved(player, "Harpoon", true, dropped)
 	end
 
 	-- The bomb flies straight ahead for the fuse, then everyone around it is thrown outward
 	-- and their eggs come loose; the thrower is spared, and so is anyone the rules protect.
 	local function explode(player: Player, character: Model, center: Vector3)
-		PvpEffects.bombFlash(center, PvpConfig.BOMB.radiusStuds)
 		if character.Parent == nil then
 			return
 		end
@@ -413,11 +436,16 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			end
 			return false
 		end
+		lastBombId = lastBombId % BOMB_ID_LIMIT + 1
+		local id = lastBombId
 		local function onExplode(center: Vector3)
+			bombExploded.fire({ id = id, center = center })
 			explode(player, character, center)
 		end
 		local velocity = direction * PvpConfig.BOMB.throwSpeed
-		PvpEffects.throwBomb(start, velocity, PvpConfig.BOMB.fuseSeconds, touches, onExplode)
+		local fuse = PvpConfig.BOMB.fuseSeconds
+		bombThrown.fire({ id = id, thrower = player, start = start, velocity = velocity, fuse = fuse })
+		BombFlight.launch(start, velocity, fuse, touches, onExplode)
 	end
 
 	local ABILITIES: { [AbilityKind]: (Player, PlayerState) -> () } = {
@@ -497,6 +525,9 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			return usage
 		end,
 		abilityUsed = abilityUsed,
+		harpoonShot = harpoonShot,
+		bombThrown = bombThrown,
+		bombExploded = bombExploded,
 	}
 end
 

@@ -49,6 +49,10 @@ export type Dependencies = {
 	trained: Signal.Signal<Player, BigNum.BigNum, number>,
 	-- Ability results to forward.
 	abilityUsed: Signal.Signal<Player, PvpService.AbilityKind, boolean, boolean>,
+	-- The harpoon's and the bomb's looks, for every client to draw.
+	harpoonShot: Signal.Signal<PvpService.Shot>,
+	bombThrown: Signal.Signal<PvpService.Throw>,
+	bombExploded: Signal.Signal<PvpService.Blast>,
 	quests: QuestService.QuestService,
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
@@ -208,6 +212,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		dependencies.abilityUsed.connect(function(player, kind, hit, droppedEgg)
 			Remotes.AbilityResult.Fire(player, { kind = kind, hit = hit, droppedEgg = droppedEgg })
 		end)
+		dependencies.harpoonShot.connect(Remotes.HarpoonShot.FireAll)
+		dependencies.bombThrown.connect(Remotes.BombThrown.FireAll)
+		dependencies.bombExploded.connect(Remotes.BombExploded.FireAll)
 		economy.trainerUpgraded.connect(sendUpgrades)
 		economy.jetpackUpgraded.connect(sendUpgrades)
 		dependencies.coinsChanged.connect(function(player, coins)
