@@ -87,6 +87,8 @@ end
 -- Paints a template's part by its name (JetpackLooks.PARTS): white, so its baked colours show.
 local function dress(part: BasePart)
 	quiet(part)
+	-- Templates are stored anchored; on the character the welds hold the parts.
+	part.Anchored = false
 	part.Color = Color3.new(1, 1, 1)
 	local look = JetpackLooks.PARTS[part.Name]
 	if not look then
@@ -105,7 +107,8 @@ end
 local function buildFromTemplate(model: Model, torso: BasePart, source: Model): { [number]: Attachment }
 	local pack = source:Clone()
 	local scale = torso.Size.X / JetpackConfig.TEMPLATE_TORSO_WIDTH
-	pack:ScaleTo(scale)
+	-- ScaleTo is absolute: keep whatever scale the template was stored at.
+	pack:ScaleTo(pack:GetScale() * scale)
 	-- The template's back meets the torso's back, whatever the torso's depth.
 	local shift = torso.Size.Z / 2 - JetpackConfig.TEMPLATE_BACK * scale
 	pack:PivotTo(torso.CFrame * CFrame.new(0, 0, shift))
