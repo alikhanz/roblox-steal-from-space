@@ -20,6 +20,7 @@ local FlightLean = require("../Domain/FlightLean")
 local Grab = require("../Domain/Grab")
 local GuardianConfig = require("../Config/GuardianConfig")
 local JetpackConfig = require("../Config/JetpackConfig")
+local JetpackSwitch = require("../Domain/JetpackSwitch")
 local Oxygen = require("../Domain/Oxygen")
 local OxygenConfig = require("../Config/OxygenConfig")
 local PvpConfig = require("../Config/PvpConfig")
@@ -108,6 +109,59 @@ local function toggleSlowMode(character: Model, context: Instance)
 	if pressed ~= held then
 		character:SetAttribute(FlightConfig.SLOW_MODE_HELD_ATTRIBUTE, if pressed then true else nil)
 	end
+end
+
+local function numberOr(character: Model, name: string, fallback: number): number
+	local value = character:GetAttribute(name)
+	return if type(value) == "number" then value else fallback
+end
+
+local function writeAttribute(character: Model, name: string, value: any)
+	if character:GetAttribute(name) ~= value then
+		character:SetAttribute(name, value)
+	end
+end
+
+-- Switches the jetpack (Domain/JetpackSwitch, decision 096): always on in space, a double jump
+-- under a dome, off on landing there. Jump comes from the up action (space, R1, A, the touch up
+-- button) or the humanoid's own jump (Roblox's touch jump button). Returns whether it is on.
+local function switchJetpack(rig: Rig, context: Instance, inSpace: boolean, deltaTime: number): boolean
+	local character = rig.character
+	local tuning = FlightConfig.SWITCH
+	local fresh = JetpackSwitch.initial(tuning)
+	local state: JetpackSwitch.State = {
+		on = character:GetAttribute(FlightConfig.JETPACK_ON_ATTRIBUTE) == true,
+		held = character:GetAttribute(FlightConfig.JUMP_HELD_ATTRIBUTE) == true,
+		releasedFor = numberOr(character, FlightConfig.JUMP_RELEASED_ATTRIBUTE, fresh.releasedFor),
+		tapWindow = numberOr(character, FlightConfig.JUMP_TAP_WINDOW_ATTRIBUTE, 0),
+	}
+	-- Pushing down last step, yet hardly falling: a floor is in the way.
+	local landed = state.on
+		and rig.velocity.MaxForce > 0
+		and JetpackSwitch.isLanding(
+			FlightInputs.isPressed(context, FlightInputs.DESCEND),
+			rig.velocity.VectorVelocity.Y,
+			rig.root.AssemblyLinearVelocity.Y,
+			tuning
+		)
+	local nextState = JetpackSwitch.step(state, {
+		inSpace = inSpace,
+		pressed = rig.humanoid.Jump or FlightInputs.isPressed(context, FlightInputs.ASCEND),
+		landed = landed,
+	}, deltaTime, tuning)
+	writeAttribute(character, FlightConfig.JETPACK_ON_ATTRIBUTE, nextState.on)
+	writeAttribute(character, FlightConfig.JUMP_HELD_ATTRIBUTE, if nextState.held then true else nil)
+	writeAttribute(
+		character,
+		FlightConfig.JUMP_RELEASED_ATTRIBUTE,
+		if nextState.releasedFor < tuning.minReleaseSeconds then nextState.releasedFor else nil
+	)
+	writeAttribute(
+		character,
+		FlightConfig.JUMP_TAP_WINDOW_ATTRIBUTE,
+		if nextState.tapWindow > 0 then nextState.tapWindow else nil
+	)
+	return nextState.on
 end
 
 local function currentHit(character: Model): Hit?
@@ -281,15 +335,16 @@ end
 
 -- The jetpack stand on the player's own island (docs/design/screens/jetpack-stand.md,
 -- Domain/Stand): pulls its owner onto the platform and holds them there facing the island's
--- center until they jump or step away. True while it holds them (and they train).
-local function stand(player: Player, rig: Rig, context: Instance, inSpace: boolean): boolean
+-- center until they jump or step away; never takes a flyer. True while it holds them (and they
+-- train).
+local function stand(player: Player, rig: Rig, context: Instance, flying: boolean): boolean
 	local character = rig.character
 	local previous = character:GetAttribute(StandConfig.STATE_ATTRIBUTE)
 	local island = player:GetAttribute(StandConfig.ISLAND_ATTRIBUTE)
 	local frame = if type(island) == "number" then StationConfig.ISLAND_FRAMES[island] else nil
 	local pad = BayConfig.TRAINER_PAD
 	local inZone, onPlatform = false, false
-	if frame and not inSpace then
+	if frame and not flying then
 		local spot = frame:PointToObjectSpace(rig.root.Position)
 		inZone = Trainer.isOnPad(spot.X, spot.Y, spot.Z, pad, BayConfig.TRAINER_TOLERANCE)
 		onPlatform = Trainer.isOnPad(spot.X, spot.Y, spot.Z, pad, 0)
@@ -428,13 +483,15 @@ local function step(deltaTime: number)
 		-- Hands full with an egg: no strike.
 		local lunge = strike(rig, context, inSpace and hit == nil and not carrying, deltaTime)
 
-		local onStand = stand(player, rig, context, inSpace)
-		if inSpace then
+		local jetpackOn = switchJetpack(rig, context, inSpace, deltaTime)
+		-- The stand takes only those on foot (a flyer lands first).
+		local onStand = stand(player, rig, context, jetpackOn)
+		if jetpackOn then
 			fly(rig, context, deltaTime, target, hit, lunge)
 		elseif not onStand then
 			walk(rig)
 		end
-		setAnimation(rig, JetpackConfig.ANIMATION_INSTANCE_NAME, inSpace, JetpackConfig.ANIMATION_FADE_SECONDS)
+		setAnimation(rig, JetpackConfig.ANIMATION_INSTANCE_NAME, jetpackOn, JetpackConfig.ANIMATION_FADE_SECONDS)
 		setAnimation(rig, StandConfig.ANIMATION_INSTANCE_NAME, onStand, StandConfig.ANIMATION_FADE_SECONDS)
 		-- The punch starts with the lunge and plays out by itself.
 		setAnimation(

@@ -67,6 +67,8 @@ export type TutorialController = {
 	icon: () -> Icons.Name?,
 	-- True while its pin leads to the player's island (carrying an egg home).
 	pointsHome: () -> boolean,
+	-- True once the tutorial is over (not reactive).
+	isDone: () -> boolean,
 }
 
 local TutorialController = {}
@@ -300,6 +302,9 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 		pointsHome = function(): boolean
 			local current = Vide.untrack(readHint)
 			return current == "CarryHome" or current == "CarryHomeStronger"
+		end,
+		isDone = function(): boolean
+			return Vide.untrack(readHint) == "Done"
 		end,
 	}
 end

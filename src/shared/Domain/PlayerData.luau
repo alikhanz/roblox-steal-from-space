@@ -90,6 +90,8 @@ export type PlayerData = {
 	bestPost: number,
 	-- Tutorial milestones passed (Domain/Tutorial: 0 not started ... Tutorial.DONE).
 	tutorialStep: number,
+	-- Has flown under a dome (decision 096): the double-jump hint is no longer shown.
+	domeFlightLearned: boolean,
 	-- Today's daily quests (Domain/Quests).
 	quests: Quests.State,
 	-- The login gift streak (Domain/LoginGift).
@@ -125,7 +127,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 17
+PlayerData.SCHEMA_VERSION = 18
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -280,6 +282,8 @@ PlayerData.MIGRATIONS = {
 	end,
 	-- v17: the pet bench is saved (`bench`); a profile from before has none standing.
 	[16] = function(_data: { [string]: any }) end,
+	-- v18 adds flight under a dome (decision 096): `domeFlightLearned`, false from the template.
+	[17] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -307,6 +311,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		onboardingSteps = 0,
 		bestPost = 0,
 		tutorialStep = Tutorial.NOT_STARTED,
+		domeFlightLearned = false,
 		quests = Quests.empty(),
 		loginGift = LoginGift.empty(),
 		index = AlienIndex.empty(),
@@ -582,6 +587,9 @@ local function validate(data: { [string]: any }): string?
 	end
 	if not isInteger(data.tutorialStep) or data.tutorialStep < 0 or data.tutorialStep > Tutorial.DONE then
 		return "tutorialStep is invalid"
+	end
+	if type(data.domeFlightLearned) ~= "boolean" then
+		return "domeFlightLearned is invalid"
 	end
 	local questProblem = validateQuests(data.quests)
 	if questProblem then

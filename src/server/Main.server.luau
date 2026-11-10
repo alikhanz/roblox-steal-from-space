@@ -12,6 +12,7 @@ local BenchService = require(script.Parent.Services.BenchService)
 local CarryService = require(script.Parent.Services.CarryService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
+local DomeFlightService = require(script.Parent.Services.DomeFlightService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local EggHomes = require(ReplicatedStorage.Shared.Domain.EggHomes)
 local EventService = require(script.Parent.Services.EventService)
@@ -272,6 +273,14 @@ local guardianService = GuardianService.new({
 	scheduler = scheduler,
 })
 
+-- Flight under a dome (decision 096): whether the player has learned the double jump.
+local domeFlightService = DomeFlightService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	update = profile.update,
+	scheduler = scheduler,
+})
+
 -- The coin board: the player list column and the board at the station.
 local leaderboardService = LeaderboardService.new({
 	getData = profile.getData,
@@ -399,6 +408,7 @@ Lifecycle.run({
 	indexService,
 	purchaseService,
 	tutorialService,
+	domeFlightService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,

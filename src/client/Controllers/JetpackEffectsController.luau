@@ -1,7 +1,7 @@
 --!strict
 -- Client-side jetpack visuals for every character (decision 089): a jet of beams from each nozzle
 -- — a white-hot core inside a jet in the jetpack's colour, its texture scrolling — and one light
--- per jetpack. The flame grows with speed while flying and goes out under the dome; a guardian's
+-- per jetpack. The flame grows with speed while flying and goes out on foot; a guardian's
 -- hit stalls the engine, which restarts with a burst; the strike's lunge fires it full. On the
 -- jetpack stand the engine runs full, bigger with the trainer's level, and the stand's grate glows.
 -- Purely cosmetic, so it runs outside the simulation and never crosses the network: the server
@@ -414,7 +414,7 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			end
 			effects.stalled = stunned
 
-			local flying = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true and not stunned
+			local flying = character:GetAttribute(FlightConfig.JETPACK_ON_ATTRIBUTE) == true and not stunned
 			-- On the jetpack stand the engine runs full and burns bigger with the trainer's level.
 			local onStand = Stand.isTraining(Stand.parse(character:GetAttribute(StandConfig.STATE_ATTRIBUTE)))
 			local standScale: number? = nil

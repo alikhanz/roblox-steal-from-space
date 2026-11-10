@@ -1051,6 +1051,11 @@ local Strings = {
 		ru = "Новый джетпак: {name}!",
 		en = "New jetpack: {name}!",
 	},
+	-- The double-jump hint after the tutorial (decision 096).
+	["jetpack.doubleJump.toast"] = {
+		ru = "Прыгни дважды — и лети на джетпаке!",
+		en = "Jump twice to fly your jetpack!",
+	},
 	["jetpack.level0.title"] = {
 		ru = "Стартовый",
 		en = "Starter",

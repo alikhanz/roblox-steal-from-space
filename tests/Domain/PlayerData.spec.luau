@@ -805,3 +805,22 @@ describe("PlayerData migration v16 -> v17", function()
 		expectCorrupted(badUids, "bench uids are invalid")
 	end)
 end)
+
+describe("PlayerData migration v17 -> v18", function()
+	it("gives a profile from before the double-jump hint still to learn", function()
+		local old = savedTemplate()
+		old.schemaVersion = 17
+		old.domeFlightLearned = nil
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.domeFlightLearned).toBe(false)
+		end
+	end)
+
+	it("rejects a broken flag", function()
+		local broken = savedTemplate()
+		broken.domeFlightLearned = "yes"
+		expectCorrupted(broken, "domeFlightLearned is invalid")
+	end)
+end)

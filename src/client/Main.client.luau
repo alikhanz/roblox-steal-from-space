@@ -11,6 +11,7 @@ local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local BenchController = require(script.Parent.Controllers.BenchController)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
+local DomeFlightHintController = require(script.Parent.Controllers.DomeFlightHintController)
 local EggBeaconController = require(script.Parent.Controllers.EggBeaconController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
 local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseController)
@@ -136,6 +137,7 @@ Lifecycle.run({
 	PvpEffectsController.new(),
 	NewbieViewController.new(),
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
+	DomeFlightHintController.new({ toast = toastState.push, tutorialDone = tutorialController.isDone }),
 	tutorialController,
 	StationBorderController.new(),
 	ZoneTintController.new(),

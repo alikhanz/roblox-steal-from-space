@@ -55,7 +55,8 @@ function FlightInputs.create(): InputContext
 	context.Priority = CONTEXT_PRIORITY
 	context.Sink = false
 	context.Enabled = true
-	keyAction(FlightInputs.ASCEND, { Enum.KeyCode.Space, Enum.KeyCode.ButtonR1 }).Parent = context
+	-- A (the gamepad's jump) is up too: the double jump and climbing on one button, like space.
+	keyAction(FlightInputs.ASCEND, { Enum.KeyCode.Space, Enum.KeyCode.ButtonR1, Enum.KeyCode.ButtonA }).Parent = context
 	keyAction(FlightInputs.DESCEND, { Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonL1 }).Parent = context
 	keyAction(FlightInputs.GRAB, { Enum.KeyCode.E, Enum.KeyCode.ButtonX }).Parent = context
 	keyAction(FlightInputs.STRIKE, { Enum.KeyCode.MouseLeftButton, Enum.KeyCode.ButtonR2 }).Parent = context

@@ -117,6 +117,8 @@ local HudController = {}
 function HudController.new(dependencies: Dependencies): HudController
 	local oxygen = source(OxygenConfig.CAPACITY)
 	local inSpace = source(false)
+	-- The jetpack is on: in space, or flying under a dome (decision 096).
+	local flying = source(false)
 	-- Slow mode is on (the simulation keeps it on the character).
 	local slowMode = source(false)
 	local speed = dependencies.speed
@@ -183,6 +185,7 @@ function HudController.new(dependencies: Dependencies): HudController
 			local value = character:GetAttribute(OxygenConfig.ATTRIBUTE)
 			oxygen(if type(value) == "number" then value else OxygenConfig.CAPACITY)
 			inSpace(character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true)
+			flying(character:GetAttribute(FlightConfig.JETPACK_ON_ATTRIBUTE) == true)
 			slowMode(character:GetAttribute(FlightConfig.SLOW_MODE_ATTRIBUTE) == true)
 		end
 		readAttributes()
@@ -193,6 +196,10 @@ function HudController.new(dependencies: Dependencies): HudController
 		table.insert(
 			characterConnections,
 			character:GetAttributeChangedSignal(FlightConfig.IN_SPACE_ATTRIBUTE):Connect(readAttributes)
+		)
+		table.insert(
+			characterConnections,
+			character:GetAttributeChangedSignal(FlightConfig.JETPACK_ON_ATTRIBUTE):Connect(readAttributes)
 		)
 		table.insert(
 			characterConnections,
@@ -345,10 +352,17 @@ function HudController.new(dependencies: Dependencies): HudController
 		for _, spec in rowButtons do
 			spec.keyText = keyOf(spec.action)
 		end
+		-- Flying under a dome there is no PvP: only up, down and slow mode are shown there.
 		for _, specs in { touchButtons, rowButtons } do
 			for _, spec in specs do
 				if spec.action == FlightInputs.SLOW_MODE then
 					spec.active = isSlow
+				elseif
+					spec.action == FlightInputs.STRIKE
+					or spec.action == FlightInputs.HARPOON
+					or spec.action == FlightInputs.BOMB
+				then
+					spec.visible = inSpace
 				end
 			end
 		end
@@ -584,7 +598,7 @@ function HudController.new(dependencies: Dependencies): HudController
 					}),
 					FlightButtons.row({
 						visible = function()
-							return inSpace() and not isTouch()
+							return flying() and not isTouch()
 						end,
 						buttons = rowButtons,
 						layoutOrder = 4,
@@ -595,7 +609,7 @@ function HudController.new(dependencies: Dependencies): HudController
 				table.insert(
 					children,
 					FlightButtons.corner({
-						visible = inSpace,
+						visible = flying,
 						buttons = touchButtons,
 						onButton = function(actionName, instance)
 							task.spawn(TouchBindings.bind, player, actionName, instance)
