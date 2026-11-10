@@ -37,7 +37,7 @@
    - ручные настройки: `AuthorityMode = Server`, `StreamingMinRadius = 2048`, `StreamingTargetRadius = 4096`, `TextChatService.ChatVersion = TextChatService`, `LightingStyle = Realistic`;
    - все наборы на месте;
    - в Output при старте Play нет `[AlienModel]`, `[GuardianModel]`, `[SerpentVisual]`, `[PvpKit]` о расхождении или нехватке;
-   - есть каталог покупок для Prod и ID звуков для Prod.
+   - Prod прописан везде, где настройки по играм: `MonetizationConfig` (каталог покупок), `SoundLooks.GAMES` (звуки), `CommunityConfig` (сообщество для подарка). Поиск `10774871729` по `src/` показывает все такие места: кроме скамьи (`DevConfig.BENCH_GAME_IDS`, только Dev) рядом с каждым должен стоять и `10775754016`.
 5. **File → Publish** Prod-плейса.
 6. Зайти в Prod-игру с телефона: вход, полёт, покупка в магазине открывается.
 7. Заметка об обновлении — в сообщество.

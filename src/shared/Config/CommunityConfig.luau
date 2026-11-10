@@ -9,6 +9,8 @@ local BigNum = require("../Domain/BigNum")
 local COMMUNITIES: { [number]: number } = {
 	-- Steal from Space Dev: Fly & Steal Space Eggs.
 	[10774871729] = 1096766348,
+	-- Fly & Steal Space Eggs (Prod, owned by the community).
+	[10775754016] = 1096766348,
 }
 
 local CommunityConfig = {}
