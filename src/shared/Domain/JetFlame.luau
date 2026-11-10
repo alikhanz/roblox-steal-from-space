@@ -49,4 +49,15 @@ function JetFlame.detail(distance: number, near: number, far: number): number
 	return 1
 end
 
+-- How long a jetpack's trail lives, seconds, so that it is `length` studs long at `topSpeed`
+-- (studs a second): a better jetpack flies faster, and its trail would grow with speed alone.
+-- Slower than top speed it is shorter. Kept within `shortest`..`longest`.
+function JetFlame.trailLifetime(length: number, topSpeed: number, shortest: number, longest: number): number
+	assert(shortest > 0 and longest >= shortest, "need 0 < shortest <= longest")
+	if topSpeed <= 0 then
+		return shortest
+	end
+	return math.clamp(length / topSpeed, shortest, longest)
+end
+
 return table.freeze(JetFlame)

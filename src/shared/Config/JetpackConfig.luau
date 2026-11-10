@@ -52,6 +52,13 @@ return table.freeze({
 	-- One light per jetpack, no shadows.
 	FLAME_LIGHT_BRIGHTNESS = 1.5,
 	FLAME_LIGHT_RANGE = 10,
+	-- The trail in flight (JetpackLooks.TRAILS): how long it may live, seconds (its length at top
+	-- speed sets it in between), its brightness against the flame's, and under reduced motion it
+	-- is this much shorter.
+	TRAIL_SHORTEST = 0.12,
+	TRAIL_LONGEST = 1.5,
+	TRAIL_BRIGHTNESS = 0.6,
+	TRAIL_REDUCED_MOTION = 0.5,
 
 	-- Names shared by the model builder and the effects controller.
 	NOZZLE_ATTACHMENT_NAME = "NozzleExit",

@@ -9,6 +9,9 @@
 -- Light on resources: the beams are made once per jetpack and rewritten only when the flame's
 -- state changes (JetFlame steps); far from the camera the core and then the light go, and the core
 -- also goes under reduced motion. No particles at all.
+-- In flight a better jetpack also leaves a trail (JetpackLooks.TRAILS): a ribbon in its colour,
+-- longer and wider with the grade, two from the wing tips on the legendary ones; one Trail per
+-- source, enabled only while flying.
 -- Also registers the flight pose in Studio so this client can play it (see FlightAnimation).
 
 local CollectionService = game:GetService("CollectionService")
@@ -49,9 +52,12 @@ type Nozzle = {
 type Effects = {
 	nozzles: { Nozzle },
 	light: PointLight,
+	trails: { Trail },
 	looks: JetpackLooks.Looks,
 	-- The flame's state last written (burning, power, detail); nil before the first.
 	written: string?,
+	-- The trails' state last written (flying, top speed, reduced motion).
+	trailWritten: string?,
 	-- True while the character was stunned on the last update; the restart burst follows.
 	stalled: boolean,
 	burstUntil: number,
@@ -68,6 +74,12 @@ local CORE_TRANSPARENCY = NumberSequence.new({
 	NumberSequenceKeypoint.new(1, 1),
 })
 local WHITE = Color3.new(1, 1, 1)
+local TRAIL_TRANSPARENCY = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.2),
+	NumberSequenceKeypoint.new(0.6, 0.6),
+	NumberSequenceKeypoint.new(1, 1),
+})
+local TRAIL_WIDTH = NumberSequence.new(1, 0.25)
 
 local JetpackEffectsController = {}
 
@@ -95,8 +107,80 @@ local function tail(name: string, exit: Attachment): Attachment
 	return made
 end
 
--- The flame on a jetpack model, or nil while its nozzles have not arrived (streaming).
-local function build(model: Model, looks: JetpackLooks.Looks): Effects?
+-- The trails of a jetpack (none for the Starter): one between its nozzles, or with `twin` one at
+-- each outermost nozzle. A Trail facing the camera is as wide as its two attachments are apart,
+-- so they stand `width` apart across the jetpack, at the nozzles' height.
+local function buildTrails(
+	model: Model,
+	exits: { Attachment },
+	looks: JetpackLooks.Looks,
+	step: JetpackLooks.Step,
+	scale: number
+): { Trail }
+	local look = looks.trail
+	if not look then
+		return {}
+	end
+	local pivot = model:GetPivot()
+	local across = pivot.RightVector
+	-- The nozzles in the jetpack's frame, left to right.
+	local spots: { Vector3 } = {}
+	for _, exit in exits do
+		local spot: Vector3 = pivot:PointToObjectSpace(exit.WorldPosition)
+		table.insert(spots, spot)
+	end
+	table.sort(spots, function(a: Vector3, b: Vector3): boolean
+		return a.X < b.X
+	end)
+	local sources: { Vector3 } = {}
+	if look.twin then
+		sources = { spots[1], spots[#spots] }
+	else
+		local sum = Vector3.zero
+		for _, spot in spots do
+			sum += spot
+		end
+		sources = { sum / #spots }
+	end
+	local host = exits[1].Parent :: BasePart
+	local half = look.width * scale / 2
+	local trails = {}
+	for index, source in sources do
+		local at = pivot:PointToWorldSpace(source)
+		local left = Instance.new("Attachment")
+		left.Name = `TrailLeft{index}`
+		left.Parent = host
+		left.WorldPosition = at - across * half
+		local right = Instance.new("Attachment")
+		right.Name = `TrailRight{index}`
+		right.Parent = host
+		right.WorldPosition = at + across * half
+		local trail = Instance.new("Trail")
+		trail.Name = "JetTrail"
+		trail.Attachment0 = left
+		trail.Attachment1 = right
+		trail.FaceCamera = true
+		trail.Color = ColorSequence.new(looks.flameStart, looks.flameEnd)
+		trail.Transparency = TRAIL_TRANSPARENCY
+		trail.WidthScale = TRAIL_WIDTH
+		trail.LightEmission = 1
+		trail.LightInfluence = 0
+		trail.Brightness = looks.brightness * JetpackConfig.TRAIL_BRIGHTNESS
+		if step.trail then
+			trail.Texture = step.trail
+			trail.TextureMode = Enum.TextureMode.Wrap
+			trail.TextureLength = step.trailRepeat * scale
+		end
+		trail.Enabled = false
+		trail.Parent = host
+		table.insert(trails, trail)
+	end
+	return trails
+end
+
+-- The flame on a jetpack model, or nil while its nozzles have not arrived (streaming). `scale`
+-- is the jetpack's size against the template's.
+local function build(model: Model, looks: JetpackLooks.Looks, scale: number): Effects?
 	local exits: { Attachment } = {}
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("Attachment") and descendant.Name == JetpackConfig.NOZZLE_ATTACHMENT_NAME then
@@ -132,7 +216,14 @@ local function build(model: Model, looks: JetpackLooks.Looks): Effects?
 	light.Shadows = false
 	light.Enabled = false
 	light.Parent = exits[1]
-	return { nozzles = nozzles, light = light, looks = looks, stalled = false, burstUntil = 0 }
+	return {
+		nozzles = nozzles,
+		light = light,
+		trails = buildTrails(model, exits, looks, step, scale),
+		looks = looks,
+		stalled = false,
+		burstUntil = 0,
+	}
 end
 
 -- Writes the flame: `power` its share of full length (JetFlame.power), `detail` what of it shows
@@ -162,6 +253,21 @@ local function write(effects: Effects, burning: boolean, power: number, detail: 
 	effects.light.Brightness = JetpackConfig.FLAME_LIGHT_BRIGHTNESS
 		* (0.5 + 0.5 * math.min(power, 1.5))
 		* (looks.brightness / JetpackLooks.LEVELS[1].brightness)
+end
+
+-- Writes the trails: on while `flying`, living long enough to be their look's length at
+-- `topSpeed` (shorter under reduced motion).
+local function writeTrails(effects: Effects, flying: boolean, topSpeed: number, scale: number, reduced: boolean)
+	local look = effects.looks.trail
+	if not look then
+		return
+	end
+	local length = look.length * scale * (if reduced then JetpackConfig.TRAIL_REDUCED_MOTION else 1)
+	local lifetime = JetFlame.trailLifetime(length, topSpeed, JetpackConfig.TRAIL_SHORTEST, JetpackConfig.TRAIL_LONGEST)
+	for _, trail in effects.trails do
+		trail.Lifetime = lifetime
+		trail.Enabled = flying
+	end
 end
 
 function JetpackEffectsController.new(): JetpackEffectsController
@@ -227,7 +333,7 @@ function JetpackEffectsController.new(): JetpackEffectsController
 					1,
 					#JetpackLooks.LEVELS
 				)]
-				local made = build(model, looks)
+				local made = build(model, looks, torso.Size.X / JetpackConfig.TEMPLATE_TORSO_WIDTH)
 				if not made then
 					continue
 				end
@@ -281,10 +387,19 @@ function JetpackEffectsController.new(): JetpackEffectsController
 				detail = math.min(detail, 2)
 			end
 
+			local scale = torso.Size.X / JetpackConfig.TEMPLATE_TORSO_WIDTH
 			local state = if burning then `{power}|{detail}` else "off"
 			if state ~= effects.written then
 				effects.written = state
-				write(effects, burning, power, detail, torso.Size.X / JetpackConfig.TEMPLATE_TORSO_WIDTH)
+				write(effects, burning, power, detail, scale)
+			end
+			-- The trail: only in flight, as long as its look at top speed (whole studs a second, so a
+			-- small change in speed rewrites nothing).
+			local reduced = GuiService.ReducedMotionEnabled
+			local trailState = if flying then `{math.floor(maxSpeed)}|{reduced}` else "off"
+			if #effects.trails > 0 and trailState ~= effects.trailWritten then
+				effects.trailWritten = trailState
+				writeTrails(effects, flying, maxSpeed, scale, reduced)
 			end
 		end
 		lightStands()

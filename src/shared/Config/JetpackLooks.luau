@@ -24,6 +24,19 @@ export type Looks = {
 	read width: number,
 	-- Beam.Brightness at full thrust: over 1 keeps it bright in daylight under Realistic light.
 	read brightness: number,
+	-- The trail behind a flyer (TRAILS); nil for the Starter: no trail reads as the first jetpack.
+	read trail: Trail?,
+}
+
+-- A jetpack's trail in flight (user, 2026-11-10: a mark of the grade that grows with it and does
+-- not compete with the eggs' upright beacons): a ribbon in the flame's colour behind the flyer,
+-- longer and wider the better the jetpack. At top speed it is `length` studs long
+-- (JetFlame.trailLifetime) and `width` studs wide at the jetpack; `twin` leaves two, from the
+-- outermost nozzles, instead of one between them (the legendary, four-nozzle jetpacks).
+export type Trail = {
+	read length: number,
+	read width: number,
+	read twin: boolean,
 }
 
 -- One kind of flame: the jet's texture and scroll (studs of texture a second), the core's, and how
@@ -35,6 +48,9 @@ export type Step = {
 	read coreScroll: number,
 	read coreLength: number,
 	read coreWidth: number,
+	-- The trail's texture (nil: a plain ribbon) and studs of trail one copy of it covers.
+	read trail: string?,
+	read trailRepeat: number,
 }
 
 -- Beam textures (assets/fx, white on transparency; `lune run icons` renders them). Until a texture
@@ -63,6 +79,9 @@ local STEPS: { Step } = {
 		coreScroll = 4,
 		coreLength = 0.45,
 		coreWidth = 0.35,
+		-- A plain ribbon.
+		trail = nil,
+		trailRepeat = 8,
 	},
 	-- Plasma (Plasma, Ion, Pulsar): an even jet, bright rings running out of the nozzle.
 	{
@@ -72,6 +91,9 @@ local STEPS: { Step } = {
 		coreScroll = 5,
 		coreLength = 0.6,
 		coreWidth = 0.35,
+		-- Bright rings left behind like dashes.
+		trail = texture("plasma"),
+		trailRepeat = 6,
 	},
 	-- Shock diamonds (Quasar, Antimatter, Singularity): a soft jet, bright beads along the core
 	-- that barely move.
@@ -82,6 +104,9 @@ local STEPS: { Step } = {
 		coreScroll = 0.3,
 		coreLength = 0.75,
 		coreWidth = 0.5,
+		-- A string of bright beads.
+		trail = texture("diamonds"),
+		trailRepeat = 7,
 	},
 	-- Exotic (Hyperdrive, Wormhole, Infinity): strands winding round the jet.
 	{
@@ -91,6 +116,9 @@ local STEPS: { Step } = {
 		coreScroll = 5,
 		coreLength = 0.6,
 		coreWidth = 0.35,
+		-- Two strands winding along it.
+		trail = texture("exotic"),
+		trailRepeat = 10,
 	},
 }
 for _, step in STEPS do
@@ -247,7 +275,29 @@ local LEVELS: { Looks } = {
 	},
 }
 assert(#LEVELS == #UpgradeConfig.JETPACK_NAME_KEYS, "JetpackLooks.LEVELS and UpgradeConfig.JETPACK_NAME_KEYS differ")
-for _, level in LEVELS do
+
+-- The trails, level 0 first (see Trail): none for the Starter, then longer and wider with every
+-- jetpack; the legendary ones leave two.
+local TRAILS: { Trail | false } = {
+	false, -- Starter
+	{ length = 10, width = 0.35, twin = false }, -- Spark
+	{ length = 14, width = 0.4, twin = false }, -- Comet
+	{ length = 18, width = 0.45, twin = false }, -- Plasma
+	{ length = 22, width = 0.5, twin = false }, -- Ion
+	{ length = 26, width = 0.55, twin = false }, -- Pulsar
+	{ length = 32, width = 0.6, twin = false }, -- Quasar
+	{ length = 38, width = 0.65, twin = false }, -- Antimatter
+	{ length = 44, width = 0.7, twin = false }, -- Singularity
+	{ length = 50, width = 0.5, twin = true }, -- Hyperdrive
+	{ length = 56, width = 0.55, twin = true }, -- Wormhole
+	{ length = 64, width = 0.6, twin = true }, -- Infinity
+}
+assert(#TRAILS == #LEVELS, "JetpackLooks TRAILS and LEVELS differ")
+for index, level in LEVELS do
+	local trail = TRAILS[index]
+	if trail then
+		(level :: any).trail = table.freeze(trail)
+	end
 	table.freeze(level)
 end
 
