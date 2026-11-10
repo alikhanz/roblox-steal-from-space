@@ -315,6 +315,8 @@ local function buildFieldRock(
 	part.CanTouch = false
 	part.CanCollide = not kind.loose
 	part.CanQuery = not kind.loose
+	-- In space a rock's shadow falls on nothing but other rocks far off (decision 101).
+	part.CastShadow = false
 	part.Parent = parent
 
 	local crystals = kind.crystals
@@ -415,9 +417,11 @@ type NestLook = {
 }
 
 -- A part of a nest: anchored; the rock, pillar and pad are solid, the rim and cradle only a look.
+-- No shadows: in space they fall on nothing seen (decision 101).
 local function nestPart(part: BasePart, model: Model, collides: boolean)
 	part.Anchored = true
 	part.CanTouch = false
+	part.CastShadow = false
 	part.CanCollide = collides
 	part.CanQuery = collides
 	part.Parent = model

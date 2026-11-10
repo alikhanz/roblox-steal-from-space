@@ -299,6 +299,10 @@ local function paint(pet: Model, paints: { [string]: Paint }, core: Color3): ({ 
 		local role = string.match(part.Name, "^(.-)_%d+$") or string.match(part.Name, "^(%a+)") or part.Name
 		part:SetAttribute("Role", role)
 		ghost(part)
+		-- No shadows at all (decision 101): a pet moves every frame, so the engine redraws the
+		-- shadows of all its parts every frame, a third of the draw calls on an island of 30 pets.
+		-- A guardian painted here casts none either (GuardianVisual).
+		part.CastShadow = false
 		part.TextureID = ""
 		part.MaterialVariant = ""
 		local p = paints[part.Name]
@@ -374,7 +378,6 @@ local function paint(pet: Model, paints: { [string]: Paint }, core: Color3): ({ 
 			part.Color = Color3.fromRGB(150, 115, 230)
 			part.Transparency = 0
 		end
-		part.CastShadow = part.Material ~= Enum.Material.Neon
 		if role == "core" then
 			part.Material = Enum.Material.Neon
 			part.Color = boost(core, 1.2, 1.2)
