@@ -1,6 +1,9 @@
 # The space skybox: six cube faces for Roblox's Sky (SkyboxBk/Dn/Ft/Lf/Rt/Up). Deep space with a
-# soft band of nebula across the sky, a warm nebula patch, stars of many sizes with a few big
-# twinkles, and distant planets lit from the same side as the game's sun (Lighting.ClockTime).
+# soft band of nebula across the sky, nebula patches in their own colours (as in colour-mapped
+# telescope pictures), stars of many sizes with a few big twinkles, and landmarks to steer by,
+# spread far apart round the sky and each unlike the others: a ringed planet, a cratered moon, an
+# icy cloudy planet, a spiral galaxy, a banded gas giant, a comet, a rust-red planet below and a
+# black hole with a glowing disc, lit from the same side as the game's sun (Lighting.ClockTime).
 # The sun itself is not drawn: Roblox draws it (Sky.SunTextureId) where it really shines from.
 #
 # Run headless from the repo root:
@@ -75,6 +78,28 @@ def matte(name, colour, rim=None):
         bsdf.inputs["Coat Weight"].default_value = 0.0
         bsdf.inputs["Sheen Weight"].default_value = 1.0
         bsdf.inputs["Sheen Tint"].default_value = (*rim, 1)
+    return mat
+
+
+def spotted(name, colour, spots, scale, threshold):
+    """A soft planet surface in `colour` with patches of `spots` (craters, clouds, dark seas) where
+    a noise rises past `threshold`."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    bsdf.inputs["Roughness"].default_value = 1.0
+    coord = nodes.new("ShaderNodeTexCoord")
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = scale
+    noise.inputs["Detail"].default_value = 6.0
+    links.new(coord.outputs["Generated"], noise.inputs["Vector"])
+    ramp = nodes.new("ShaderNodeValToRGB")
+    cr = ramp.color_ramp
+    cr.elements[0].position, cr.elements[0].color = threshold - 0.04, (*colour, 1)
+    cr.elements[1].position, cr.elements[1].color = threshold + 0.04, (*spots, 1)
+    links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
     return mat
 
 
@@ -203,10 +228,21 @@ def world():
     wisps = math_node("MULTIPLY", cloud, ramp_value(n, l, noise(6.0, 12, 0.7, (3, 3, 3)), 0.55, 0.85))
     sky = mix(sky, scale_colour(rgb((0.9, 0.6, 1.0)), math_node("MULTIPLY", wisps, 0.35)), None)
 
-    # A warm nebula patch away from the band (orange and rose), low in the sky opposite the sun.
-    warm = math_node("MULTIPLY", spot((-0.6, 0.15, -0.55), 0.35), ramp_value(n, l, noise(3.0, 10, 0.6, (9, 1, 4)), 0.4, 0.8))
-    warm_tint = ramp(noise(1.5, 3, 0.5, (2, 7, 3)), [(0.35, (0.85, 0.3, 0.12)), (0.65, (0.9, 0.2, 0.45))])
-    sky = mix(sky, scale_colour(warm_tint, math_node("MULTIPLY", warm, 0.5)), None)
+    # Nebula patches away from the band, each in its own colours, as in colour-mapped telescope
+    # pictures (2026-11-10): warm orange and rose; teal and gold; blue and white; green and violet
+    # low down. Spread round the sky, clear of the planets and the galaxy.
+    for centre, width, strength, offset, palette in (
+        ((-0.7, -0.3, -0.4), 0.35, 0.5, (9, 1, 4), [(0.35, (0.85, 0.3, 0.12)), (0.65, (0.9, 0.2, 0.45))]),
+        ((0.75, 0.05, -0.15), 0.28, 0.45, (4, 6, 2), [(0.3, (0.08, 0.5, 0.55)), (0.55, (0.2, 0.62, 0.5)), (0.75, (0.9, 0.68, 0.22))]),
+        ((-0.3, -0.35, 0.88), 0.3, 0.45, (7, 3, 8), [(0.35, (0.12, 0.25, 0.85)), (0.7, (0.55, 0.75, 1.0))]),
+        ((0.3, -0.85, 0.35), 0.32, 0.4, (1, 8, 5), [(0.35, (0.15, 0.6, 0.35)), (0.7, (0.5, 0.25, 0.75))]),
+    ):
+        patch = math_node("MULTIPLY", spot(centre, width), ramp_value(n, l, noise(3.0, 10, 0.6, offset), 0.4, 0.8))
+        patch_tint = ramp(noise(1.5, 3, 0.5, tuple(o * 1.7 for o in offset)), palette)
+        sky = mix(sky, scale_colour(patch_tint, math_node("MULTIPLY", patch, strength)), None)
+        # A few brighter wisps in each, so it reads as gas, not a smudge.
+        patch_wisps = math_node("MULTIPLY", patch, ramp_value(n, l, noise(7.0, 12, 0.7, offset), 0.55, 0.85))
+        sky = mix(sky, scale_colour(patch_tint, math_node("MULTIPLY", patch_wisps, strength * 0.8)), None)
 
     # Stars: three layers of Voronoi points, more of them inside the band.
     for scale, radius, keep, strength in ((140, 0.10, 0.55, 1.6), (60, 0.07, 0.25, 3.0), (22, 0.05, 0.12, 6.0)):
@@ -275,17 +311,265 @@ def planets():
     place(ring, big, 800)
     ring.rotation_euler = (math.radians(68), math.radians(18), math.radians(25))
 
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=26, segments=64, ring_count=32)
+    # A grey moon with craters (big enough to steer by, 2026-11-10).
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=44, segments=64, ring_count=32)
     moon = bpy.context.active_object
     bpy.ops.object.shade_smooth()
-    moon.data.materials.append(matte("Moon", (0.7, 0.68, 0.85)))
+    moon.data.materials.append(spotted("Moon", (0.72, 0.7, 0.8), (0.42, 0.4, 0.5), 5.5, 0.62))
     place(moon, (-0.75, 0.38, 0.45), 750)
 
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=16, segments=48, ring_count=24)
+    # An icy teal planet under white clouds.
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=42, segments=64, ring_count=32)
     far = bpy.context.active_object
     bpy.ops.object.shade_smooth()
-    far.data.materials.append(matte("FarPlanet", (0.25, 0.75, 0.8), (0.6, 1.0, 1.0)))
+    far.data.materials.append(spotted("IcePlanet", (0.25, 0.7, 0.85), (0.95, 0.98, 1.0), 2.2, 0.55))
     place(far, (0.1, 0.22, 0.97), 820)
+
+
+def glowing_card(name, size, build):
+    """A flat card facing the centre whose emission and alpha come from `build(nodes, links, uv)`,
+    which returns (colour socket, strength socket) and the card draws strength as both glow and
+    alpha: the sky shows through where it is faint."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    if hasattr(mat, "surface_render_method"):
+        mat.surface_render_method = "BLENDED"
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    nodes.clear()
+    out = nodes.new("ShaderNodeOutputMaterial")
+    coord = nodes.new("ShaderNodeTexCoord")
+    colour, strength = build(nodes, links, coord.outputs["UV"])
+    em = nodes.new("ShaderNodeEmission")
+    links.new(colour, em.inputs["Color"])
+    glow = nodes.new("ShaderNodeMath")
+    glow.operation = "MULTIPLY"
+    glow.inputs[1].default_value = 3.0
+    links.new(strength, glow.inputs[0])
+    links.new(glow.outputs[0], em.inputs["Strength"])
+    alpha = nodes.new("ShaderNodeMath")
+    alpha.operation = "MINIMUM"
+    alpha.inputs[1].default_value = 1.0
+    links.new(strength, alpha.inputs[0])
+    clear = nodes.new("ShaderNodeBsdfTransparent")
+    mix = nodes.new("ShaderNodeMixShader")
+    links.new(alpha.outputs[0], mix.inputs["Fac"])
+    links.new(clear.outputs[0], mix.inputs[1])
+    links.new(em.outputs[0], mix.inputs[2])
+    links.new(mix.outputs[0], out.inputs[0])
+    bpy.ops.mesh.primitive_plane_add(size=size)
+    card = bpy.context.active_object
+    card.data.materials.append(mat)
+    return card
+
+
+def node_math(nodes, links, op, a, b=None):
+    m = nodes.new("ShaderNodeMath")
+    m.operation = op
+    for index, value in enumerate((a, b)):
+        if value is None:
+            continue
+        if isinstance(value, (int, float)):
+            m.inputs[index].default_value = value
+        else:
+            links.new(value, m.inputs[index])
+    return m.outputs[0]
+
+
+def galaxy():
+    """A spiral galaxy far off, tilted: a warm core and two blue-violet arms."""
+    def build(nodes, links, uv):
+        sep = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(uv, sep.inputs[0])
+        x = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", sep.outputs["X"], 0.5), 2.0)
+        y = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", sep.outputs["Y"], 0.5), 2.0)
+        r = node_math(nodes, links, "SQRT", node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", x, x), node_math(nodes, links, "MULTIPLY", y, y)))
+        theta = node_math(nodes, links, "ARCTAN2", y, x)
+        # Two arms winding out on a log spiral.
+        wind = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "LOGARITHM", node_math(nodes, links, "ADD", r, 0.05), 2.718), 3.2)
+        arms = node_math(nodes, links, "COSINE", node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", theta, wind), 2.0))
+        arms = node_math(nodes, links, "POWER", node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "ADD", arms, 1.0), 0.5), 3.0)
+        disc = node_math(nodes, links, "POWER", node_math(nodes, links, "MAXIMUM", node_math(nodes, links, "SUBTRACT", 1.0, r), 0.0), 1.6)
+        core = node_math(nodes, links, "POWER", node_math(nodes, links, "MAXIMUM", node_math(nodes, links, "SUBTRACT", 1.0, node_math(nodes, links, "MULTIPLY", r, 3.2)), 0.0), 2.0)
+        clumps = nodes.new("ShaderNodeTexNoise")
+        clumps.inputs["Scale"].default_value = 9.0
+        clumps.inputs["Detail"].default_value = 6.0
+        links.new(uv, clumps.inputs["Vector"])
+        arms = node_math(nodes, links, "MULTIPLY", arms, node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", clumps.outputs["Fac"], 0.9), 0.3))
+        strength = node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", arms, 0.75), 0.12), disc), node_math(nodes, links, "MULTIPLY", core, 1.4))
+        tint = nodes.new("ShaderNodeValToRGB")
+        tint.color_ramp.elements[0].position, tint.color_ramp.elements[0].color = 0.0, (1.0, 0.88, 0.7, 1)
+        tint.color_ramp.elements[1].position, tint.color_ramp.elements[1].color = 0.55, (0.5, 0.58, 1.0, 1)
+        e = tint.color_ramp.elements.new(0.3)
+        e.color = (0.85, 0.7, 1.0, 1)
+        links.new(r, tint.inputs["Fac"])
+        return tint.outputs["Color"], strength
+
+    card = glowing_card("Galaxy", 380, build)
+    place(card, (-0.45, 0.25, -0.86), 900)
+    towards_origin(card)
+    # Seen at a slant, an ellipse, turned a little in the sky.
+    card.rotation_euler.rotate(Matrix.Rotation(math.radians(62), 3, "X").to_euler())
+    card.rotation_euler.rotate_axis("Z", math.radians(28))
+
+
+def gas_giant():
+    """A banded gas giant, cream, orange and rust, low on the far side of the sky from the ringed one."""
+    mat = bpy.data.materials.new("GasGiant")
+    mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    bsdf.inputs["Roughness"].default_value = 1.0
+    bsdf.inputs["Sheen Weight"].default_value = 0.6
+    bsdf.inputs["Sheen Tint"].default_value = (1.0, 0.85, 0.7, 1)
+    coord = nodes.new("ShaderNodeTexCoord")
+    wobble = nodes.new("ShaderNodeTexNoise")
+    wobble.inputs["Scale"].default_value = 3.0
+    wobble.inputs["Detail"].default_value = 4.0
+    links.new(coord.outputs["Object"], wobble.inputs["Vector"])
+    # Broad bands across the planet (object space, ±radius), gently wavy.
+    bands = nodes.new("ShaderNodeTexWave")
+    bands.wave_type = "BANDS"
+    bands.bands_direction = "Z"
+    bands.inputs["Scale"].default_value = 0.016
+    bands.inputs["Distortion"].default_value = 2.5
+    bands.inputs["Detail"].default_value = 1.0
+    bands.inputs["Detail Scale"].default_value = 0.5
+    links.new(coord.outputs["Object"], bands.inputs["Vector"])
+    ramp = nodes.new("ShaderNodeValToRGB")
+    cr = ramp.color_ramp
+    cr.elements[0].position, cr.elements[0].color = 0.0, (0.95, 0.85, 0.65, 1)
+    cr.elements[1].position, cr.elements[1].color = 1.0, (0.55, 0.25, 0.12, 1)
+    mid = cr.elements.new(0.5)
+    mid.color = (0.95, 0.55, 0.25, 1)
+    links.new(bands.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=68, segments=96, ring_count=48)
+    planet = bpy.context.active_object
+    bpy.ops.object.shade_smooth()
+    planet.data.materials.append(mat)
+    place(planet, (0.85, -0.2, 0.45), 860)
+    planet.rotation_euler = (math.radians(14), math.radians(-8), 0)
+
+
+def comet():
+    """A comet high in the sky: a bright head and a long tail pointing away from the sun."""
+    direction = blender((-0.35, 0.85, -0.1)).normalized()
+    sun = blender(SUN_ROBLOX).normalized()
+    distance = 900
+    head = direction * distance
+    # Away from the sun, as seen on the sky: the tail's direction across the line of sight.
+    away = direction - sun
+    away = (away - direction * away.dot(direction)).normalized()
+    side = direction.cross(away).normalized()
+    length, width = 340.0, 90.0
+
+    def build(nodes, links, uv):
+        sep = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(uv, sep.inputs[0])
+        along = sep.outputs["X"]  # 0 at the head, 1 at the tail's end
+        across = node_math(nodes, links, "ABSOLUTE", node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", sep.outputs["Y"], 0.5), 2.0))
+        # The tail narrows towards the head and fades out along its length and to its edges.
+        allowed = node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", along, 0.85), 0.15)
+        edge = node_math(nodes, links, "POWER", node_math(nodes, links, "MAXIMUM", node_math(nodes, links, "SUBTRACT", 1.0, node_math(nodes, links, "DIVIDE", across, allowed)), 0.0), 1.5)
+        fade = node_math(nodes, links, "POWER", node_math(nodes, links, "SUBTRACT", 1.0, along), 1.6)
+        strength = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "MULTIPLY", edge, fade), 0.9)
+        tint = nodes.new("ShaderNodeValToRGB")
+        tint.color_ramp.elements[0].color = (0.85, 0.97, 1.0, 1)
+        tint.color_ramp.elements[1].color = (0.25, 0.6, 1.0, 1)
+        links.new(along, tint.inputs["Fac"])
+        return tint.outputs["Color"], strength
+
+    mesh = bpy.data.meshes.new("CometTail")
+    corners = [head - side * width * 0.5, head + side * width * 0.5, head + away * length + side * width * 0.5, head + away * length - side * width * 0.5]
+    mesh.from_pydata([tuple(c) for c in corners], [], [(0, 1, 2, 3)])
+    uv = mesh.uv_layers.new()
+    for index, value in enumerate([(0, 0), (0, 1), (1, 1), (1, 0)]):
+        uv.data[index].uv = value
+    tail = bpy.data.objects.new("CometTail", mesh)
+    bpy.context.scene.collection.objects.link(tail)
+    card = glowing_card("CometGlow", 1, build)
+    tail.data.materials.append(card.data.materials[0])
+    bpy.data.objects.remove(card)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=7, segments=24, ring_count=12)
+    ball = bpy.context.active_object
+    ball.data.materials.append(emission("CometHead", (0.9, 0.97, 1.0), 8.0))
+    ball.location = head
+
+
+def red_planet():
+    """A small rust-red planet low down: seen when flying and looking below."""
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=46, segments=64, ring_count=32)
+    planet = bpy.context.active_object
+    bpy.ops.object.shade_smooth()
+    planet.data.materials.append(spotted("RedPlanet", (0.78, 0.3, 0.16), (0.42, 0.12, 0.08), 3.0, 0.6))
+    place(planet, (0.2, -0.75, -0.6), 800)
+
+
+def black_hole():
+    """A black hole in front of the blue nebula: a black disc, a thin bright ring round it, and a
+    tilted disc of glowing gas (white-hot inside, orange and red outside) passing in front of and
+    behind it."""
+    direction = (-0.6, -0.45, 0.65)
+    distance = 900
+
+    def disc(nodes, links, uv):
+        sep = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(uv, sep.inputs[0])
+        x = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", sep.outputs["X"], 0.5), 2.0)
+        y = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", sep.outputs["Y"], 0.5), 2.0)
+        r = node_math(nodes, links, "SQRT", node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", x, x), node_math(nodes, links, "MULTIPLY", y, y)))
+        # Bright just outside the hole, fading out to the rim; nothing inside the hole.
+        inner = node_math(nodes, links, "GREATER_THAN", r, 0.3)
+        falloff = node_math(nodes, links, "POWER", node_math(nodes, links, "MAXIMUM", node_math(nodes, links, "SUBTRACT", 1.0, node_math(nodes, links, "DIVIDE", node_math(nodes, links, "SUBTRACT", r, 0.3), 0.7)), 0.0), 1.8)
+        # Soft swirls of gas: a noise stretched round the disc (radius and a little of the angle).
+        swirl_in = nodes.new("ShaderNodeCombineXYZ")
+        links.new(node_math(nodes, links, "MULTIPLY", r, 5.0), swirl_in.inputs["X"])
+        links.new(node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "ARCTAN2", y, x), 0.6), swirl_in.inputs["Y"])
+        swirls = nodes.new("ShaderNodeTexNoise")
+        swirls.inputs["Scale"].default_value = 1.5
+        swirls.inputs["Detail"].default_value = 3.0
+        links.new(swirl_in.outputs[0], swirls.inputs["Vector"])
+        swirly = node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", swirls.outputs["Fac"], 0.6), 0.55)
+        strength = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "MULTIPLY", inner, falloff), node_math(nodes, links, "MULTIPLY", swirly, 0.85))
+        tint = nodes.new("ShaderNodeValToRGB")
+        cr = tint.color_ramp
+        cr.elements[0].position, cr.elements[0].color = 0.3, (1.0, 0.95, 0.85, 1)
+        cr.elements[1].position, cr.elements[1].color = 0.9, (0.75, 0.12, 0.05, 1)
+        mid = cr.elements.new(0.5)
+        mid.color = (1.0, 0.55, 0.15, 1)
+        links.new(r, tint.inputs["Fac"])
+        return tint.outputs["Color"], strength
+
+    def ring(nodes, links, uv):
+        sep = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(uv, sep.inputs[0])
+        x = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", sep.outputs["X"], 0.5), 2.0)
+        y = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "SUBTRACT", sep.outputs["Y"], 0.5), 2.0)
+        r = node_math(nodes, links, "SQRT", node_math(nodes, links, "ADD", node_math(nodes, links, "MULTIPLY", x, x), node_math(nodes, links, "MULTIPLY", y, y)))
+        # A thin bright ring at the hole's edge, a soft glow round it.
+        sharp = node_math(nodes, links, "POWER", node_math(nodes, links, "MAXIMUM", node_math(nodes, links, "SUBTRACT", 1.0, node_math(nodes, links, "DIVIDE", node_math(nodes, links, "ABSOLUTE", node_math(nodes, links, "SUBTRACT", r, 0.36)), 0.05)), 0.0), 2.0)
+        soft = node_math(nodes, links, "MULTIPLY", node_math(nodes, links, "POWER", node_math(nodes, links, "MAXIMUM", node_math(nodes, links, "SUBTRACT", 1.0, node_math(nodes, links, "DIVIDE", node_math(nodes, links, "ABSOLUTE", node_math(nodes, links, "SUBTRACT", r, 0.36)), 0.35)), 0.0), 2.0), 0.35)
+        strength = node_math(nodes, links, "ADD", sharp, soft)
+        colour = nodes.new("ShaderNodeRGB")
+        colour.outputs[0].default_value = (1.0, 0.8, 0.55, 1)
+        return colour.outputs[0], strength
+
+    size = 300
+    # The glow round the hole, facing us, a little behind it.
+    halo = glowing_card("BlackHoleRing", size, ring)
+    place(halo, direction, distance + 30)
+    towards_origin(halo)
+    # The hole itself.
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=size * 0.5 * 0.33, segments=48, ring_count=24)
+    hole = bpy.context.active_object
+    hole.data.materials.append(emission("BlackHole", (0.0, 0.0, 0.0), 0.0))
+    place(hole, direction, distance)
+    # The disc of gas, tilted, through the hole: its near half in front, its far half behind.
+    gas = glowing_card("BlackHoleDisc", size * 1.5, disc)
+    place(gas, direction, distance)
+    towards_origin(gas)
+    gas.rotation_euler.rotate(Matrix.Rotation(math.radians(74), 3, "X").to_euler())
+    gas.rotation_euler.rotate_axis("Z", math.radians(-18))
 
 
 def sunlight():
@@ -356,5 +640,10 @@ else:
     world()
     twinkles()
     planets()
+    galaxy()
+    gas_giant()
+    comet()
+    red_planet()
+    black_hole()
     sunlight()
 render()
