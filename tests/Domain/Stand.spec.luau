@@ -9,8 +9,17 @@ local describe, it, expect = Test.describe, Test.it, Test.expect
 -- @lune/roblox typedefs do not declare datatypes; the global Vector3 type describes it.
 local Vector3 = (roblox :: any).Vector3 :: typeof(Vector3)
 
-local function input(inZone: boolean, moving: boolean, jumping: boolean): Stand.Input
-	return { inZone = inZone, moving = moving, jumping = jumping }
+type Where = { onPlatform: boolean?, grounded: boolean? }
+
+-- In the air, and on the zone's tolerance ring, off the platform itself.
+local FALLING: Where = { grounded = false }
+local ON_RING: Where = { onPlatform = false }
+
+-- Standing on the floor of the platform itself unless `where` says otherwise.
+local function input(inZone: boolean, moving: boolean, jumping: boolean, where: Where?): Stand.Input
+	local onPlatform = if where and where.onPlatform ~= nil then where.onPlatform else inZone
+	local grounded = if where and where.grounded ~= nil then where.grounded else true
+	return { inZone = inZone, onPlatform = onPlatform, grounded = grounded, moving = moving, jumping = jumping }
 end
 
 describe("Stand.next", function()
@@ -30,10 +39,26 @@ describe("Stand.next", function()
 		expect(Stand.next("Boarding", input(true, true, true))).toBe("Left")
 	end)
 
-	it("does not pull back someone who stepped off until they leave the zone", function()
-		expect(Stand.next("Left", input(true, false, false))).toBe("Left")
+	it("takes someone jumping onto it once they land, not in the air", function()
+		expect(Stand.next(nil, input(true, true, false, FALLING))).toBeNil()
+		expect(Stand.next(nil, input(true, false, false, FALLING))).toBeNil()
+		expect(Stand.next(nil, input(true, false, false))).toBe("Boarding")
+		-- Nor while taking off from its edge.
+		expect(Stand.next(nil, input(true, false, true))).toBeNil()
+	end)
+
+	it("does not pull back someone stepping off it", function()
+		expect(Stand.next("Left", input(true, true, false))).toBe("Left")
+		expect(Stand.next("Left", input(true, false, false, ON_RING))).toBe("Left")
+		expect(Stand.next("Left", input(true, false, false, FALLING))).toBe("Left")
+		expect(Stand.next("Left", input(true, false, true))).toBe("Left")
 		expect(Stand.next("Left", input(false, false, false))).toBeNil()
 		expect(Stand.next(nil, input(true, false, false))).toBe("Boarding")
+	end)
+
+	it("takes back someone who stands still on the platform again", function()
+		expect(Stand.next("Left", input(true, false, false))).toBe("Boarding")
+		expect(Stand.next("Boarding", input(true, false, false))).toBe("On")
 	end)
 
 	it("forgets the stand outside its zone", function()

@@ -288,13 +288,16 @@ local function stand(player: Player, rig: Rig, context: Instance, inSpace: boole
 	local island = player:GetAttribute(StandConfig.ISLAND_ATTRIBUTE)
 	local frame = if type(island) == "number" then StationConfig.ISLAND_FRAMES[island] else nil
 	local pad = BayConfig.TRAINER_PAD
-	local inZone = false
+	local inZone, onPlatform = false, false
 	if frame and not inSpace then
 		local spot = frame:PointToObjectSpace(rig.root.Position)
 		inZone = Trainer.isOnPad(spot.X, spot.Y, spot.Z, pad, BayConfig.TRAINER_TOLERANCE)
+		onPlatform = Trainer.isOnPad(spot.X, spot.Y, spot.Z, pad, 0)
 	end
 	local state = Stand.next(Stand.parse(previous), {
 		inZone = inZone,
+		onPlatform = onPlatform,
+		grounded = rig.humanoid.FloorMaterial ~= Enum.Material.Air,
 		moving = rig.humanoid.MoveDirection.Magnitude > StandConfig.LEAVE_MOVE_THRESHOLD,
 		jumping = rig.humanoid.Jump or FlightInputs.isPressed(context, FlightInputs.ASCEND),
 	})

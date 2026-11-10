@@ -3,9 +3,11 @@
 -- it pulls them on and how big its flame burns. Pure Luau.
 --
 -- A player who walks into the stand's zone is "Boarding": pulled onto the platform while still
--- holding the move input they walked in with. Once that input is let go they are "On". A jump
--- or a new move input takes them off: "Left", which lasts while they are still in the zone, so
--- the stand never pulls back someone who just stepped off.
+-- holding the move input they walked in with. Once that input is let go they are "On". Someone
+-- jumping onto it is taken once they land, not in the air (caught mid-fall, they floated down
+-- in the training pose). A jump or a new move input takes them off: "Left", which lasts while
+-- they are still in the zone, so the stand never pulls back someone who just stepped off — until
+-- they stand still on the platform itself again, and it takes them back on.
 
 local Stand = {}
 
@@ -14,6 +16,10 @@ export type State = "Boarding" | "On" | "Left"
 export type Input = {
 	-- In the stand's zone (and allowed on it: their own stand, walking).
 	read inZone: boolean,
+	-- On the platform itself: the zone without its tolerance ring.
+	read onPlatform: boolean,
+	-- Standing on a floor, not in the air.
+	read grounded: boolean,
 	read moving: boolean,
 	read jumping: boolean,
 }
@@ -30,9 +36,10 @@ function Stand.next(state: State?, input: Input): State?
 		return nil
 	end
 	if state == nil then
-		return "Boarding"
+		return if input.grounded and not input.jumping then "Boarding" else nil
 	elseif state == "Left" then
-		return "Left"
+		local settled = input.onPlatform and input.grounded and not input.moving and not input.jumping
+		return if settled then "Boarding" else "Left"
 	elseif input.jumping then
 		return "Left"
 	elseif state == "Boarding" then
