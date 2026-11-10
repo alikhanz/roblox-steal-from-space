@@ -744,68 +744,11 @@ local function signatures(
 	end
 end
 
--- A meteor burns on top of its tier: a comet tail behind (a fire core that widens and cools from
--- white-yellow to red, dark smoke after it, sparks), heat embers round the body, fireball comets
--- circling it and a crest of fire behind its head (in the Blender renders, its comet tail seen
--- from the front: tongues fanning up and out), growing with the tier.
-local function meteorFire(
-	pet: Model,
-	fx: BasePart,
-	back: Attachment,
-	cf: CFrame,
-	size: Vector3,
-	radius: number,
-	tier: number
-)
-	emitter(back, "TailFire", {
-		Texture = TEX.flame,
-		EmissionDirection = Enum.NormalId.Back,
-		Color = colours({
-			{ 0, Color3.fromRGB(255, 250, 210) },
-			{ 0.2, Color3.fromRGB(255, 200, 80) },
-			{ 0.55, Color3.fromRGB(255, 110, 25) },
-			{ 1, Color3.fromRGB(150, 25, 10) },
-		}),
-		Transparency = seq({ { 0, 0.1 }, { 0.6, 0.35 }, { 1, 1 } }),
-		Size = seq({ { 0, 0.8 }, { 0.4, 1.9 }, { 1, 2.8 } }),
-		Lifetime = NumberRange.new(0.5, 0.9),
-		Rate = 70,
-		Speed = NumberRange.new(6, 9),
-		Drag = 2.5,
-		Acceleration = Vector3.new(0, 2, 0),
-		SpreadAngle = Vector2.new(10, 10),
-		Rotation = NumberRange.new(0, 360),
-		RotSpeed = NumberRange.new(-45, 45),
-	})
-	emitter(back, "TailSmoke", {
-		Texture = TEX.smoke,
-		LightEmission = 0,
-		LightInfluence = 1,
-		EmissionDirection = Enum.NormalId.Back,
-		Color = ColorSequence.new(Color3.fromRGB(60, 48, 44)),
-		Transparency = seq({ { 0, 1 }, { 0.2, 0.55 }, { 1, 1 } }),
-		Size = seq({ { 0, 1.2 }, { 1, 4.5 } }),
-		Lifetime = NumberRange.new(1.4, 2.2),
-		Rate = 22,
-		Speed = NumberRange.new(4, 6),
-		Drag = 1.2,
-		Acceleration = Vector3.new(0, 1.5, 0),
-		Rotation = NumberRange.new(0, 360),
-		RotSpeed = NumberRange.new(-20, 20),
-	})
-	emitter(back, "TailSparks", {
-		Texture = TEX.spark,
-		EmissionDirection = Enum.NormalId.Back,
-		Orientation = Enum.ParticleOrientation.VelocityParallel,
-		Transparency = seq({ { 0, 0 }, { 1, 1 } }),
-		Color = colours({ { 0, Color3.fromRGB(255, 240, 180) }, { 1, Color3.fromRGB(255, 120, 30) } }),
-		Size = seq({ { 0, 0.18 }, { 1, 0.05 } }),
-		Lifetime = NumberRange.new(0.4, 0.8),
-		Rate = 30,
-		Speed = NumberRange.new(7, 12),
-		SpreadAngle = Vector2.new(25, 25),
-		Acceleration = Vector3.new(0, -6, 0),
-	})
+-- A meteor burns on top of its tier: heat embers round the body, fireball comets circling it and a
+-- crest of fire behind its head (in the Blender renders, its comet tail seen from the front:
+-- tongues fanning up and out), growing with the tier. No comet tail streaming out behind it (fire,
+-- smoke and sparks shot out sideways all the time: "looks off", user, 2026-11-10).
+local function meteorFire(pet: Model, fx: BasePart, cf: CFrame, size: Vector3, radius: number, tier: number)
 	emitter(fx, "HeatEmbers", {
 		Texture = TEX.ember,
 		Color = colours({ { 0, Color3.fromRGB(255, 220, 120) }, { 1, Color3.fromRGB(255, 70, 20) } }),
@@ -1169,7 +1112,7 @@ function AlienDress.adorn(pet: Model)
 	fx.CFrame = cf
 	fx.Parent = pet
 	local top = attachment(fx, "Top", Vector3.new(0, size.Y * 0.5, 0))
-	-- The back of the pet: it faces -Z, so its back is +Z (a meteor's tail streams from here).
+	-- The back of the pet: it faces -Z, so its back is +Z (signatures that trail behind start here).
 	local back = attachment(fx, "Back", Vector3.new(0, size.Y * 0.05, size.Z * 0.45))
 
 	jets(fx, jetParts, paints)
@@ -1187,7 +1130,7 @@ function AlienDress.adorn(pet: Model)
 	aura(fx, top, radius, tier, meteor, zone, core, tierColor)
 	signatures(fx, top, back, signature, core, flameParts)
 	if meteor then
-		meteorFire(pet, fx, back, cf, size, radius, tier)
+		meteorFire(pet, fx, cf, size, radius, tier)
 	end
 	if tier == 4 then
 		legendaryGlow(fx, top, size, radius, meteor)

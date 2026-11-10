@@ -93,7 +93,6 @@ local MOTION = table.freeze({
 		JetCore = true,
 		Flames = true,
 		FlameCore = true,
-		TailFire = true,
 		FireTail = true,
 		StarTail = true,
 		Radiance = true,
