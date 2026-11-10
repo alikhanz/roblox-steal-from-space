@@ -58,4 +58,26 @@ describe("Alien models", function()
 			expect(files[kindId]).toBe(true)
 		end
 	end)
+
+	it("keeps Blender's markers as points: hinges on the body, fairy dust on the wings", function()
+		for _, file in fs.readDir(MODELS_DIR) do
+			if not string.match(file, "%.rbxm$") then
+				continue
+			end
+			for _, item in roblox.deserializeModel(fs.readFile(`{MODELS_DIR}/{file}`))[1]:GetDescendants() do
+				local parent = item.Parent :: any
+				if item.ClassName == "MeshPart" then
+					-- No marker is left a part (a mesh to download and a part to send).
+					expect(string.match(item.Name, "^hinge") or string.match(item.Name, "^dust[LR]")).toBeNil()
+				elseif item.ClassName == "Attachment" and string.match(item.Name, "^hinge") then
+					-- On a part that never moves, so the point stays where the joint is.
+					expect(string.match(parent.Name, "^body_%d+$")).toBeTruthy()
+				elseif item.ClassName == "Attachment" and item.Name == "Dust" then
+					-- On its wing's membrane, so it flaps with it.
+					expect(string.match(parent.Name, "^wing[LR]_%d+$")).toBeTruthy()
+					expect(string.match(tostring(parent:GetAttribute("Paint")), "Wing$")).toBeTruthy()
+				end
+			end
+		end
+	end)
 end)

@@ -18,8 +18,9 @@
 -- its fins and wags its tail, a whale rows and beats its flukes, a swarm's little drones fly loops
 -- of their own; wings flap (their edges leave a glowing stroke), comets circle, the rune and the medal turn; every pet
 -- blinks and turns to a player close by, each on its own rhythm. The parts tell what they are by
--- their Role attribute (AlienDress); hinges are parts named `hinge<Name>` (`hingeJawL` turns
--- `jawL`). Lengths made at the dressing scale grow with the pet (Model:GetScale()).
+-- their Role attribute (AlienDress); hinges are points (attachments, lune/aliens.luau) named
+-- `hinge<Name>` (`hingeJawL` turns `jawL`). Lengths made at the dressing scale grow with the pet
+-- (Model:GetScale()).
 --
 -- The frame's work is kept small (it was most of the client's time with thirty pets, 2026-11-10):
 -- what each part does is worked out once, as the pet arrives (a Mover), and the parts never seen
@@ -421,6 +422,15 @@ local function petOf(model: Model): Pet?
 	}
 	local found: { Found } = {}
 	local sums: { [string]: { position: Vector3, count: number } } = {}
+	-- A hinge, under the name of what turns on it: hingeL → wingL, hingeJawL → jawL, hingeLegLA →
+	-- legLA, hingeFinOuterR → finOuterR, hingeHead → head.
+	local function addHinge(name: string, position: Vector3)
+		if name == "hingeL" or name == "hingeR" then
+			pet.hinges["wing" .. string.sub(name, -1)] = position
+		elseif string.match(name, "^hinge%u") then
+			pet.hinges[string.lower(string.sub(name, 6, 6)) .. string.sub(name, 7)] = position
+		end
+	end
 	for _, item in model:GetDescendants() do
 		if item:IsA("BasePart") then
 			if item.Name == LABEL_PART and item.Parent == model then
@@ -445,13 +455,12 @@ local function petOf(model: Model): Pet?
 			sum.position += offset.Position
 			sum.count += 1
 			sums[role] = sum
-			if role == "hingeL" or role == "hingeR" then
-				pet.hinges["wing" .. string.sub(role, -1)] = offset.Position
-			elseif string.match(role, "^hinge%u") then
-				-- Any other hinge, under the name of what turns on it: hingeJawL → jawL,
-				-- hingeLegLA → legLA, hingeFinOuterR → finOuterR, hingeHead → head.
-				pet.hinges[string.lower(string.sub(role, 6, 6)) .. string.sub(role, 7)] = offset.Position
+			-- A model from before the markers became points still has them as parts.
+			if string.match(role, "^hinge") then
+				addHinge(role, offset.Position)
 			end
+		elseif item:IsA("Attachment") and string.match(item.Name, "^hinge") then
+			addHinge(item.Name, base:PointToObjectSpace(item.WorldPosition))
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
 		elseif item:IsA("ImageLabel") and (item:GetAttribute("Spin") or item:GetAttribute("Sway")) then
