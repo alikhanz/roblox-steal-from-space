@@ -10,6 +10,9 @@
 -- moving every other frame; far ones (other islands too) stand still with no particles, light or
 -- pictures. A phone warmed up at once with thirty pets in full.
 --
+-- When the bay's layout moves a pet to another place (BayConfig.ALIEN_PIVOT_ATTRIBUTE), it glides
+-- there with its place (PlaceGlideController) rather than jump.
+--
 -- On top of a shared bob and sway each family moves its own way: a slime wobbles like jelly and
 -- hops, a crab snaps its claws and steps, a worm waves its segments and looks round, a ray beats
 -- its fins and wags its tail, a whale rows and beats its flukes, a swarm's little drones fly loops
@@ -31,6 +34,7 @@ local RunService = game:GetService("RunService")
 local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local PetMotion = require(ReplicatedStorage.Shared.Domain.PetMotion)
 
 local MOTION = AlienLooks.MOTION
@@ -68,6 +72,13 @@ type Snap = {
 	nextAt: number,
 	start: number?,
 	twice: boolean,
+}
+
+-- The pet on its way to where the bay's layout moved it (BayLooks.LAYOUT_GLIDE_SECONDS).
+type Glide = {
+	from: CFrame,
+	to: CFrame,
+	start: number,
 }
 
 -- A little drone's loop round its pet: a closed curve through points in the pet's space.
@@ -126,6 +137,11 @@ type Picture = {
 
 type Pet = {
 	base: CFrame,
+	glide: Glide?,
+	-- The part the bay's label hangs on, and where it sits in the pet's space: it never moves,
+	-- but glides with the pet.
+	label: BasePart?,
+	labelOffset: CFrame,
 	phase: number,
 	random: Random,
 	family: string,
@@ -378,6 +394,9 @@ local function petOf(model: Model): Pet?
 	local now = os.clock()
 	local pet: Pet = {
 		base = base,
+		glide = nil,
+		label = nil,
+		labelOffset = CFrame.identity,
 		phase = random:NextNumber(0, 2 * math.pi),
 		random = random,
 		family = tostring(model:GetAttribute("Family") or ""),
@@ -415,6 +434,8 @@ local function petOf(model: Model): Pet?
 	for _, item in model:GetDescendants() do
 		if item:IsA("BasePart") then
 			if item.Name == LABEL_PART and item.Parent == model then
+				pet.label = item
+				pet.labelOffset = base:ToObjectSpace(item.CFrame)
 				continue
 			end
 			local role = tostring(item:GetAttribute("Role") or "body")
@@ -709,6 +730,28 @@ local function setDetail(pet: Pet, detail: number)
 	end
 end
 
+-- Moves a pet on its way to a new place one frame along (its label part too): true while it is
+-- on the way, the last frame included.
+local function glide(pet: Pet, t: number, parts: { BasePart }, frames: { CFrame }): boolean
+	local way = pet.glide
+	if not way then
+		return false
+	end
+	local u = (t - way.start) / BayLooks.LAYOUT_GLIDE_SECONDS
+	if u >= 1 then
+		pet.base = way.to
+		pet.glide = nil
+	else
+		pet.base = way.from:Lerp(way.to, PetMotion.smooth(u))
+	end
+	local label = pet.label
+	if label then
+		table.insert(parts, label)
+		table.insert(frames, pet.base * pet.labelOffset)
+	end
+	return true
+end
+
 function AlienMotionController.new(): AlienMotionController
 	local pets: { [Model]: Pet } = {}
 	local moves: { [Model]: RBXScriptConnection } = {}
@@ -745,22 +788,14 @@ function AlienMotionController.new(): AlienMotionController
 				return
 			end
 			pets[instance] = pet
-			-- The bay's layout moved it to another place: the motion goes round its new pivot.
+			-- The bay's layout moved it to another place: it glides there from where it stands, and
+			-- the motion goes round its new pivot (the server's move of its parts is overridden
+			-- every frame on the way).
 			moves[instance] = instance:GetAttributeChangedSignal(BayConfig.ALIEN_PIVOT_ATTRIBUTE):Connect(function()
 				local pivot = instance:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
-				if typeof(pivot) ~= "CFrame" then
-					return
+				if typeof(pivot) == "CFrame" then
+					pet.glide = { from = pet.base, to = pivot, start = os.clock() }
 				end
-				pet.base = pivot
-				-- The server moved its own parts; the effects made here move along at once (a far
-				-- pet is not moved every frame).
-				local parts: { BasePart } = {}
-				local frames: { CFrame } = {}
-				for _, m in pet.movers do
-					table.insert(parts, m.part)
-					table.insert(frames, pivot * m.offset)
-				end
-				workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
 			end)
 			-- Many new meshes at once: ask for them all, or some stay unloaded (half a pet missing).
 			local meshes: { Instance } = {}
@@ -791,6 +826,7 @@ function AlienMotionController.new(): AlienMotionController
 		local frames: { CFrame } = {}
 		frame += 1
 		for _, pet in pets do
+			local gliding = glide(pet, t, parts, frames)
 			local distance = (pet.base.Position - eye).Magnitude
 			local detail =
 				PetMotion.detail(distance, pet.radius, pet.detail, MOTION.NEAR, MOTION.FAR, MOTION.DETAIL_MARGIN)
@@ -798,11 +834,16 @@ function AlienMotionController.new(): AlienMotionController
 				setDetail(pet, detail)
 			end
 			-- Close by: every frame; farther, every other one (half the work, still smooth from
-			-- there); far pets stand still.
-			if detail == 1 and distance <= MOTION.SMOOTH + pet.radius then
+			-- there); far pets stand still. On its way to a new place, every frame.
+			if (detail == 1 and distance <= MOTION.SMOOTH + pet.radius) or (gliding and detail <= 2) then
 				move(pet, t, dt, root, parts, frames)
 			elseif detail <= 2 and frame % 2 == pet.frameSlot then
 				move(pet, t, dt * 2, root, parts, frames)
+			elseif gliding then
+				for _, m in pet.movers do
+					table.insert(parts, m.part)
+					table.insert(frames, pet.base * m.offset)
+				end
 			end
 		end
 		if #parts > 0 then

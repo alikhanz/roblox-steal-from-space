@@ -74,6 +74,9 @@ return table.freeze({
 	-- A place with an alien is at least this wide, studs (docs/design/screens/island.md): a small
 	-- alien stands on a roomy pad, so the first ones do not jostle; a bigger one gets its own width.
 	MIN_PLACE_WIDTH = 6,
+	-- A new alien on a place reshapes the layout: the places and their aliens glide to their new
+	-- spots in this long, seconds, rather than jump (2026-11-10).
+	LAYOUT_GLIDE_SECONDS = 0.6,
 
 	-- Terminals (docs/design/screens/terminals.md): a stand with a tilted screen beside each zone,
 	-- in the entrance's wedge, the screen toward the spawn (the places' one: across the path, see

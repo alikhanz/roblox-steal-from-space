@@ -98,6 +98,10 @@ return table.freeze({
 	-- Where the server stands an alien (its model's pivot, a CFrame): the client moves the pet
 	-- around it and follows it when the bay's layout shifts the alien to another place.
 	ALIEN_PIVOT_ATTRIBUTE = "Pivot",
+	-- A place's model, and where it stands (its floor frame, a CFrame): when the layout shifts it,
+	-- the client glides it there with its alien.
+	PLACE_TAG = "BayPlace",
+	PLACE_PIVOT_ATTRIBUTE = "Pivot",
 	-- True on an alien standing small on the floor: the client shows only its model (no effects,
 	-- no motion).
 	ALIEN_PLAIN_ATTRIBUTE = "Plain",

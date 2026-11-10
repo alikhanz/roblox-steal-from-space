@@ -1,8 +1,8 @@
 --!strict
 -- Owns the bays on the station: one per player, taken when their profile is active and freed
 -- when they leave. The profile is the source of truth; the bay model is its reflection and is
--- rebuilt from the profile after every change (`refresh`), which at this scale is cheap and
--- cannot drift. Once a second the bays pay what the pods earn and show the eggs that became
+-- brought up to date with the profile after every change (`refresh`): what it already shows
+-- stays or moves, only what changed is built or taken away. Once a second the bays pay what the pods earn and show the eggs that became
 -- ready; the owner hatches a ready egg with its prompt (decision 059). The time away is paid
 -- by OfflineService.
 
@@ -52,7 +52,7 @@ export type Dependencies = {
 export type BayService = {
 	name: string,
 	start: () -> (),
-	-- Rebuilds a player's bay from their profile. Call after any change to the bay data.
+	-- Brings a player's bay up to date with their profile. Call after any change to the bay data.
 	refresh: (player: Player) -> (),
 	-- The bay's frame on the platform; nil until the player has one.
 	getOrigin: (player: Player) -> CFrame?,
@@ -104,6 +104,26 @@ type PlayerBay = {
 	-- instances' worth of network: rebuilt on every change, thirty of them flooded a phone's
 	-- connection and the server pulled its character back (2026-11-10).
 	aliens: { [number]: ShownAlien },
+	-- The rest of what stands in it outlives a rebuild too, moved or changed only where the
+	-- profile changed: rebuilt on every hatch, the capsules blinked and the places jumped on
+	-- screen (2026-11-10). Places by index, with the width each was built for; capsules by index;
+	-- eggs by uid, and the capsule each egg warming lies in (Bay.capsulesFor).
+	places: { ShownPlace },
+	capsules: { Model },
+	eggs: { [number]: ShownEgg },
+	eggCapsules: { [number]: number },
+}
+
+type ShownPlace = {
+	model: Model,
+	width: number,
+}
+
+type ShownEgg = {
+	part: BasePart,
+	-- What it shows: "warming" or "ready" in a capsule, or "waiting" in the queue. Its prompt and
+	-- light go with this, so a change builds it anew.
+	state: string,
 }
 
 type ShownAlien = {
@@ -198,9 +218,12 @@ function BayService.new(dependencies: Dependencies): BayService
 		return if body then body:FindFirstChildOfClass("ProximityPrompt") else nil
 	end
 
-	-- An egg's model in the bay: in a slot (`hatchAt` given, for its countdown; shining once
-	-- `ready`) or waiting for one on the platform.
-	local function placeEgg(
+	-- Shows `egg` lying at `cframe` in `bay`: in a capsule (`hatchAt` given, for its countdown;
+	-- shining once `ready`) or waiting for one on the platform. The part it already has, moved
+	-- there, or a new one when it has none or what it shows changed (the second result: true for a
+	-- new one, which needs its prompt). `kept` collects the uids shown.
+	local function showEgg(
+		bay: PlayerBay,
 		egg: {
 			read uid: number,
 			read rarity: string,
@@ -210,15 +233,32 @@ function BayService.new(dependencies: Dependencies): BayService
 		},
 		cframe: CFrame,
 		parent: Instance,
+		kept: { [number]: boolean },
 		hatchAt: number?,
 		ready: boolean?
-	): BasePart?
+	): (BasePart?, boolean)
+		local state = if hatchAt == nil then "waiting" elseif ready then "ready" else "warming"
+		local shown = bay.eggs[egg.uid]
+		if shown and shown.state == state and shown.part.Parent then
+			kept[egg.uid] = true
+			if not shown.part.CFrame:FuzzyEq(cframe, 1e-3) then
+				shown.part.CFrame = cframe
+			end
+			if hatchAt then
+				shown.part:SetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE, hatchAt)
+			end
+			return shown.part, false
+		end
+		if shown then
+			shown.part:Destroy()
+			bay.eggs[egg.uid] = nil
+		end
 		if
 			not EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId]
 			or not EggConfig.SIZES[egg.size :: EggConfig.SizeId]
 		then
 			warn(`[BayService] Unknown egg {egg.rarity} {egg.size} (uid {egg.uid}); not shown`)
-			return nil
+			return nil, false
 		end
 		local part = EggModel.build(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, {
 			glowScale = BayLooks.INCUBATOR_GLOW_SCALE,
@@ -243,7 +283,9 @@ function BayService.new(dependencies: Dependencies): BayService
 			light.Parent = part
 		end
 		part.Parent = parent
-		return part
+		kept[egg.uid] = true
+		bay.eggs[egg.uid] = { part = part, state = state }
+		return part, true
 	end
 
 	-- A prompt is client input: true when the player has a bay and stands within reach of `body`.
@@ -345,16 +387,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			return
 		end
 		local contents = contentsOf(bay)
-		-- Everything but the aliens is light and built anew; the aliens stay (showAlien).
-		local alienModels: { [Instance]: boolean } = {}
-		for _, shown in bay.aliens do
-			alienModels[shown.model] = true
-		end
-		for _, child in contents:GetChildren() do
-			if not alienModels[child] then
-				child:Destroy()
-			end
-		end
+		-- What it already shows stays, moved where it now stands (showAlien, showEgg); only what
+		-- changed is built anew or taken away.
 		local kept: { [number]: boolean } = {}
 		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
 
@@ -368,7 +402,19 @@ function BayService.new(dependencies: Dependencies): BayService
 		end
 		local placeFrames = BayModel.placeFrames(bay.origin, widths)
 		for index, pod in data.pods do
-			BayModel.buildPlace(placeFrames[index], widths[index], index).Parent = contents
+			-- A place of the same width moves; one that got (or lost) an alien is built to its size.
+			local place = bay.places[index]
+			if place and place.width == widths[index] and place.model.Parent then
+				BayModel.movePlace(place.model, placeFrames[index])
+			else
+				if place then
+					place.model:Destroy()
+				end
+				local model = BayModel.buildPlace(placeFrames[index], widths[index], index)
+				CollectionService:AddTag(model, BayConfig.PLACE_TAG)
+				model.Parent = contents
+				bay.places[index] = { model = model, width = widths[index] }
+			end
 			if pod.alien then
 				local model = showAlien(bay, pod.alien, BayModel.placeAlienCFrame(placeFrames[index]), contents, kept)
 				local prompt = if model then pickUpPromptOf(model) else nil
@@ -377,28 +423,58 @@ function BayService.new(dependencies: Dependencies): BayService
 				end
 			end
 		end
-		for index = 1, math.min(data.incubatorSlots, BayLooks.CAPSULE_POSITIONS) do
-			BayModel.buildCapsule(bay.origin, index).Parent = contents
+		for index = #bay.places, #data.pods + 1, -1 do
+			bay.places[index].model:Destroy()
+			bay.places[index] = nil
 		end
+
+		-- Capsules stand still: only the bought ones are added.
+		local capsuleCount = math.min(data.incubatorSlots, BayLooks.CAPSULE_POSITIONS)
+		for index = #bay.capsules + 1, capsuleCount do
+			local capsule = BayModel.buildCapsule(bay.origin, index)
+			capsule.Parent = contents
+			bay.capsules[index] = capsule
+		end
+		for index = #bay.capsules, capsuleCount + 1, -1 do
+			bay.capsules[index]:Destroy()
+			bay.capsules[index] = nil
+		end
+
+		-- Every egg stays in its own capsule (Bay.capsulesFor).
+		local warming: { number } = {}
+		for _, egg in data.incubator do
+			table.insert(warming, egg.uid)
+		end
+		bay.eggCapsules = Bay.capsulesFor(warming, bay.eggCapsules, capsuleCount)
+		local keptEggs: { [number]: boolean } = {}
 		local current = now()
 		bay.ready = 0
-		for index, egg in data.incubator do
+		for _, egg in data.incubator do
 			local ready = Bay.isReady(egg, current)
-			local part = placeEgg(egg, BayModel.eggCFrame(bay.origin, index), contents, egg.hatchAt, ready)
+			local cframe = BayModel.eggCFrame(bay.origin, bay.eggCapsules[egg.uid])
+			local part, new = showEgg(bay, egg, cframe, contents, keptEggs, egg.hatchAt, ready)
 			if ready then
 				bay.ready += 1
-				if part then
+			end
+			if part and new then
+				if ready then
 					addHatchPrompt(player, part, egg.uid)
+				else
+					addHatchNowPrompt(player, part, egg)
 				end
-			elseif part then
-				addHatchNowPrompt(player, part, egg)
 			end
 		end
 		for index, egg in data.waiting do
 			if index > BayConfig.WAITING_SHOWN_MAX then
 				break
 			end
-			placeEgg(egg, BayModel.waitingEggCFrame(bay.origin, index), contents)
+			showEgg(bay, egg, BayModel.waitingEggCFrame(bay.origin, index), contents, keptEggs)
+		end
+		for uid, shown in bay.eggs do
+			if not keptEggs[uid] then
+				shown.part:Destroy()
+				bay.eggs[uid] = nil
+			end
 		end
 		local incubator = bay.model:FindFirstChild(BayConfig.INCUBATOR_NAME)
 		if incubator then
@@ -492,7 +568,17 @@ function BayService.new(dependencies: Dependencies): BayService
 		model.Parent = parent
 
 		slotOwners[slot] = player
-		bays[player] = { slot = slot, origin = origin, model = model, ready = 0, aliens = {} }
+		bays[player] = {
+			slot = slot,
+			origin = origin,
+			model = model,
+			ready = 0,
+			aliens = {},
+			places = {},
+			capsules = {},
+			eggs = {},
+			eggCapsules = {},
+		}
 		refresh(player)
 		assigned.fire(player, model)
 	end

@@ -127,7 +127,21 @@ function BayModel.buildPlace(frame: CFrame, width: number, index: number): Model
 	pad.Parent = model
 
 	model.PrimaryPart = pad
+	model:SetAttribute(BayConfig.PLACE_PIVOT_ATTRIBUTE, frame)
+	-- Streamed whole: the client glides its parts round that frame (PlaceGlideController).
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	return model
+end
+
+-- Moves a place built by BayModel.buildPlace to `frame` (the layout shifted it): a move, so only
+-- its parts' positions go to the clients, and they glide it there.
+function BayModel.movePlace(model: Model, frame: CFrame)
+	local was = model:GetAttribute(BayConfig.PLACE_PIVOT_ATTRIBUTE)
+	if typeof(was) ~= "CFrame" or was:FuzzyEq(frame, 1e-3) then
+		return
+	end
+	model:PivotTo(frame * was:ToObjectSpace(model:GetPivot()))
+	model:SetAttribute(BayConfig.PLACE_PIVOT_ATTRIBUTE, frame)
 end
 
 -- Where an alien on a place at `frame` stands: on its pad.

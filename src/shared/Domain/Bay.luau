@@ -269,4 +269,31 @@ function Bay.hatch(data: Data, uid: number, now: number): PlayerData.EggRecord?
 	return nil
 end
 
+-- Which capsule each egg warming in the incubator lies in, by uid (`uids` in the incubator's
+-- order): an egg keeps the capsule it had (`previous`) while there are `capsules` of them, and a
+-- new one takes the first free capsule. A hatch or a new egg moves no other egg (the incubator's
+-- list closes up behind a hatched egg, and every egg after it used to jump one capsule round).
+function Bay.capsulesFor(uids: { number }, previous: { [number]: number }, capsules: number): { [number]: number }
+	local result: { [number]: number } = {}
+	local taken: { [number]: boolean } = {}
+	for _, uid in uids do
+		local capsule = previous[uid]
+		if capsule and capsule <= capsules and not taken[capsule] then
+			result[uid] = capsule
+			taken[capsule] = true
+		end
+	end
+	local free = 1
+	for _, uid in uids do
+		if not result[uid] then
+			while taken[free] do
+				free += 1
+			end
+			result[uid] = free
+			taken[free] = true
+		end
+	end
+	return result
+end
+
 return table.freeze(Bay)

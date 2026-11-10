@@ -26,6 +26,7 @@ local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
 local MenuState = require(script.Parent.State.MenuState)
 local NewbieViewController = require(script.Parent.Controllers.NewbieViewController)
+local PlaceGlideController = require(script.Parent.Controllers.PlaceGlideController)
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
 local PurchaseState = require(script.Parent.State.PurchaseState)
@@ -103,6 +104,7 @@ Lifecycle.run({
 	GuardianViewController.new({ speed = speedState.speed }),
 	BayViewController.new({ profile = profileState }),
 	AlienMotionController.new(),
+	PlaceGlideController.new(),
 	BenchController.new(),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
