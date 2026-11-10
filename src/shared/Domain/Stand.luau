@@ -65,4 +65,24 @@ function Stand.flameScale(level: number, maxScale: number, fullLevel: number): n
 	return 1 + (maxScale - 1) * share
 end
 
+-- Which look of the stand trainer `level` has (decision 091): the index of the last tier in
+-- `tierStarts` (the level each tier starts at, ascending, the first 0) that the level has
+-- reached. Levels have no end; past the last start the stand stays on the last tier, the top.
+function Stand.tier(level: number, tierStarts: { number }): number
+	assert(#tierStarts > 0 and tierStarts[1] == 0, "the first tier starts at level 0")
+	local tier = 1
+	for index, start in tierStarts do
+		assert(index == 1 or start > tierStarts[index - 1], "tiers start in ascending order")
+		if level >= start then
+			tier = index
+		end
+	end
+	return tier
+end
+
+-- How many of the dial's `lamps` burn at trainer `level`: one a level, all of them from `lamps` on.
+function Stand.dialLit(level: number, lamps: number): number
+	return math.clamp(math.floor(level), 0, lamps)
+end
+
 return table.freeze(Stand)

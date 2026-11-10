@@ -5,12 +5,16 @@
 -- waiting eggs, aliens on the floor. The contents themselves are added and replaced by BayService
 -- as the profile changes. The island's floor and dome are WorldService's.
 
+local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local PlaceLayout = require(ReplicatedStorage.Shared.Domain.PlaceLayout)
+local Stand = require(ReplicatedStorage.Shared.Domain.Stand)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
+local StandKit = require(script.Parent.StandKit)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local TerminalKit = require(script.Parent.TerminalKit)
 
@@ -250,17 +254,13 @@ local function standPart(name: string, size: Vector3, cframe: CFrame, color: Col
 	return part
 end
 
--- The jetpack stand on the trainer's pad (docs/design/screens/jetpack-stand.md), one model: its
--- platform (the primary part), the frame behind the rider, the rail in front, pilot lights, the
--- blast grate and the ring of its zone. The simulation pulls the owner onto the platform.
-local function buildStand(origin: CFrame, island: Instance)
+-- The greybox stand, without the kit in the place: one look for every level. Its platform (the
+-- primary part), the frame behind the rider, the rail in front, pilot lights, the blast grate and
+-- the ring of its zone.
+local function buildGreyboxStand(origin: CFrame, frame: CFrame, parent: Model)
 	local pad = BayConfig.TRAINER_PAD
 	local center = origin * CFrame.new(pad.x, 0, pad.z)
-	local frame = origin * CFrame.lookAt(Vector3.new(pad.x, 0, pad.z), Vector3.zero)
 	local height = StandConfig.PLATFORM_HEIGHT
-
-	local parent = Instance.new("Model")
-	parent.Name = BayConfig.STAND_NAME
 
 	local platform = disc(BayConfig.TRAINER_NAME, center * CFrame.new(0, height / 2, 0), pad.radius, height)
 	platform.Material = Enum.Material.DiamondPlate
@@ -331,8 +331,160 @@ local function buildStand(origin: CFrame, island: Instance)
 	ring.CanCollide = false
 	scenery(ring)
 	ring.Parent = parent
+end
 
-	parent.Parent = island
+-- The jetpack stand on the trainer's pad (docs/design/screens/jetpack-stand.md), one model; the
+-- simulation pulls the owner onto its platform. With the kit in the place its look grows with the
+-- trainer's level (decision 091, BayModel.dressStand); its pivot is its frame on the floor, -Z
+-- where the rider faces (the island's centre).
+local function buildStand(origin: CFrame, island: Instance)
+	local pad = BayConfig.TRAINER_PAD
+	local frame = origin * CFrame.lookAt(Vector3.new(pad.x, 0, pad.z), Vector3.zero)
+	local stand = Instance.new("Model")
+	stand.Name = BayConfig.STAND_NAME
+	if StandKit.present() then
+		-- The solid platform, unseen: the kit's discs draw it. dressStand sizes it to the tier's.
+		local height = StandConfig.PLATFORM_HEIGHT
+		local platform = disc(BayConfig.TRAINER_NAME, frame * CFrame.new(0, height / 2, 0), pad.radius, height)
+		platform.Transparency = 1
+		scenery(platform)
+		platform.Parent = stand
+		stand.PrimaryPart = platform
+		platform.PivotOffset = platform.CFrame:ToObjectSpace(frame)
+		-- No tier worn yet: the first dressStand puts one on.
+		stand:SetAttribute(BayConfig.STAND_TIER_ATTRIBUTE, 0)
+	else
+		buildGreyboxStand(origin, frame, stand)
+	end
+	stand.Parent = island
+end
+
+-- A piece of the stand's look: it never collides (see standPart), never casts a shadow (phones).
+local function standLook(part: BasePart, name: string, parent: Instance)
+	part.Name = name
+	part.CanCollide = false
+	scenery(part)
+	part.Parent = parent
+end
+
+local TIER_STARTS = table.freeze((function()
+	local starts = {}
+	for index, tier in BayLooks.STAND_TIERS do
+		starts[index] = tier.fromLevel
+	end
+	return starts
+end)())
+
+-- The kit's pieces a tier wears: the piece's name in the kit and on the stand, its material and
+-- colour. Not every tier has every piece (gold is the top's).
+local STAND_PIECES = table.freeze({
+	{
+		kind = "Body",
+		name = BayConfig.STAND_LOOK_NAME,
+		material = BayLooks.STAND_BODY_MATERIAL,
+		color = Color3.new(1, 1, 1),
+	},
+	{
+		kind = "Glow",
+		name = BayConfig.STAND_LOOK_NAME,
+		material = Enum.Material.Neon,
+		color = BayLooks.STAND_GLOW_COLOR,
+	},
+	{
+		kind = "Gold",
+		name = BayConfig.STAND_LOOK_NAME,
+		material = BayLooks.STAND_BODY_MATERIAL,
+		color = BayLooks.STAND_GOLD_COLOR,
+	},
+	{
+		kind = "Grate",
+		name = BayConfig.STAND_GRATE_NAME,
+		material = Enum.Material.Neon,
+		color = BayLooks.STAND_GRATE_COLOR,
+	},
+	{
+		kind = "Pilot",
+		name = BayConfig.STAND_PILOT_NAME,
+		material = Enum.Material.Neon,
+		color = BayLooks.STAND_PILOT_COLOR,
+	},
+})
+
+local STAND_LOOK_NAMES = table.freeze({
+	[BayConfig.STAND_LOOK_NAME] = true,
+	[BayConfig.STAND_GRATE_NAME] = true,
+	[BayConfig.STAND_PILOT_NAME] = true,
+	[BayConfig.STAND_LAMP_NAME] = true,
+})
+
+-- Puts tier `index`'s look on the kit's stand: its pieces where the kit holds them, its platform's
+-- size, the level dial's lamps round its rim.
+local function wearTier(stand: Model, platform: BasePart, index: number)
+	for _, child in stand:GetChildren() do
+		if STAND_LOOK_NAMES[child.Name] then
+			child:Destroy()
+		end
+	end
+	local frame = stand:GetPivot()
+	local tier = BayLooks.STAND_TIERS[index]
+	local height = StandConfig.PLATFORM_HEIGHT
+	platform.Size = Vector3.new(height, tier.platformRadius * 2, tier.platformRadius * 2)
+
+	for _, look in STAND_PIECES do
+		local id = `{look.kind}{index}`
+		local piece = if StandKit.has(id) then StandKit.piece(id) else nil
+		if piece then
+			local part = piece.part
+			part.CFrame = frame * piece.offset
+			part.Material = look.material
+			part.Color = look.color
+			if look.kind == "Gold" and MaterialService:FindFirstChild(AlienLooks.MODELS.METAL_VARIANT) then
+				part.MaterialVariant = AlienLooks.MODELS.METAL_VARIANT
+			end
+			standLook(part, look.name, stand)
+		end
+	end
+
+	local dial = BayLooks.STAND_DIAL
+	for lamp = 1, dial.lamps do
+		-- From the rider's front left (-X, -Z), round behind them (+Z), to their front right.
+		local degrees = -dial.arcDegrees / 2 + dial.arcDegrees * (lamp - 0.5) / dial.lamps
+		local part = Instance.new("Part")
+		part.Size = dial.lampSize
+		part.CFrame = frame
+			* CFrame.Angles(0, math.rad(degrees), 0)
+			* CFrame.new(0, height + dial.lampSize.Y / 2, tier.dialRadius)
+		part:SetAttribute(BayConfig.STAND_LAMP_NAME, lamp)
+		standLook(part, BayConfig.STAND_LAMP_NAME, stand)
+	end
+	stand:SetAttribute(BayConfig.STAND_TIER_ATTRIBUTE, index)
+end
+
+-- Dresses the stand of `bay` for trainer `level` (decision 091): the tier's look (only when the
+-- tier changes) and the level dial, a lamp lit a level. Nothing for the greybox stand.
+function BayModel.dressStand(bay: Instance, level: number)
+	local stand = bay:FindFirstChild(BayConfig.STAND_NAME)
+	local platform = stand and stand:FindFirstChild(BayConfig.TRAINER_NAME)
+	if not stand or not stand:IsA("Model") or not platform or not platform:IsA("BasePart") then
+		return
+	end
+	if stand:GetAttribute(BayConfig.STAND_TIER_ATTRIBUTE) == nil then
+		-- The greybox: no kit in the place when the island was built.
+		return
+	end
+	local index = Stand.tier(level, TIER_STARTS)
+	if stand:GetAttribute(BayConfig.STAND_TIER_ATTRIBUTE) ~= index then
+		wearTier(stand, platform, index)
+	end
+	local dial = BayLooks.STAND_DIAL
+	local lit = Stand.dialLit(level, dial.lamps)
+	for _, part in stand:GetChildren() do
+		local lamp = part:GetAttribute(BayConfig.STAND_LAMP_NAME)
+		if part:IsA("BasePart") and type(lamp) == "number" then
+			part.Material = if lamp <= lit then Enum.Material.Neon else BayLooks.STAND_BODY_MATERIAL
+			part.Color = if lamp <= lit then dial.litColor else dial.offColor
+		end
+	end
 end
 
 -- The owner's sign: a board on two posts at the entrance. The name hangs over it (the client's

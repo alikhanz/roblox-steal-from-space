@@ -2,12 +2,14 @@
 -- The trainer in every bay, the jetpack stand (docs/design/screens/jetpack-stand.md): while it
 -- holds its owner, their trained speed grows a few times a second. The simulation pulls the
 -- owner on and lets them off (Domain/Stand). The profile holds the level; the bay model carries
--- it for the trainer's terminal, whose button buys the next level (an UpgradeTrainer command).
+-- it for the trainer's terminal, whose button buys the next level (an UpgradeTrainer command), and
+-- the stand wears the look of its level (decision 091).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local BayModel = require(script.Parent.Parent.World.BayModel)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
@@ -48,13 +50,14 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 	local stations: { [Player]: Station } = {}
 	local trained = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number>
 
-	-- The level on the bay model (the trainer's terminal reads it) and on the player (the
-	-- stand's flame grows with it).
+	-- The level on the bay model (the trainer's terminal reads it), on the stand (its look) and on
+	-- the player (the stand's flame grows with it).
 	local function describe(player: Player, station: Station)
 		local data = dependencies.getData(player)
 		local level = if data then data.trainerLevel else 0
 		station.model:SetAttribute(BayConfig.TRAINER_LEVEL_ATTRIBUTE, level)
 		player:SetAttribute(StandConfig.TRAINER_LEVEL_ATTRIBUTE, level)
+		BayModel.dressStand(station.model, level)
 	end
 
 	local function onBayAssigned(player: Player, model: Model)

@@ -92,6 +92,11 @@ return table.freeze({
 	STAND_NAME = "Stand",
 	STAND_GRATE_NAME = "StandGrate",
 	STAND_PILOT_NAME = "StandPilot",
+	-- The stand from the kit (decision 091): the rest of its look (body, light, gold) and the level
+	-- dial's lamps; on the stand, the tier it wears.
+	STAND_LOOK_NAME = "StandLook",
+	STAND_LAMP_NAME = "StandLamp",
+	STAND_TIER_ATTRIBUTE = "Tier",
 	-- On the bay model: the owner's trainer level and pod count, for the terminals.
 	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
 	POD_COUNT_ATTRIBUTE = "PodCount",

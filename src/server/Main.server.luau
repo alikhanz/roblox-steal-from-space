@@ -366,6 +366,9 @@ local devService = DevService.new({
 	notePass = purchaseService.notePass,
 	setTutorialProgress = tutorialService.setProgress,
 	refreshJetpack = jetpackService.refresh,
+	refreshTrainer = function(player: Player)
+		economyService.trainerUpgraded.fire(player)
+	end,
 })
 
 -- Order matters for start: the world is built before nests, bays, guardians and players use it.

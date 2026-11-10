@@ -228,6 +228,35 @@ return table.freeze({
 	STAND_GRATE_COLOR = Color3.fromRGB(40, 30, 30),
 	STAND_GRATE_HOT_COLOR = Color3.fromRGB(255, 140, 50),
 
+	-- The stand's look grows with the trainer's level (decision 091): a new model from the kit
+	-- (World/StandKit, assets/blender/trainer/stand.py) at each tier's first level, the last the
+	-- top; Domain/Stand.tier picks it. Each tier: its first level, the radius of its solid platform
+	-- (its widest disc) and of the level dial on its top. Keep them in step with stand.py's TIERS.
+	-- Without the kit in the place the stand is the greybox above, one look for every level.
+	STAND_TIERS = table.freeze({
+		table.freeze({ fromLevel = 0, platformRadius = 3, dialRadius = 2.75 }),
+		table.freeze({ fromLevel = 3, platformRadius = 3.45, dialRadius = 2.85 }),
+		table.freeze({ fromLevel = 6, platformRadius = 3.65, dialRadius = 3 }),
+		table.freeze({ fromLevel = 9, platformRadius = 3.85, dialRadius = 3.15 }),
+		table.freeze({ fromLevel = 12, platformRadius = 3.8, dialRadius = 3.4 }),
+		table.freeze({ fromLevel = 15, platformRadius = 4.1, dialRadius = 3.7 }),
+	}),
+	-- The kit's pieces of a tier: the plastic body (white: its colours are baked in), the yellow
+	-- light, the top tier's gold (the pets' metal variant, AlienLooks.MODELS.METAL_VARIANT).
+	STAND_BODY_MATERIAL = Enum.Material.SmoothPlastic,
+	STAND_GLOW_COLOR = Color3.fromRGB(255, 214, 90),
+	STAND_GOLD_COLOR = Color3.fromRGB(255, 190, 45),
+	-- Between tiers, the level dial on the platform's top: a lamp lit a level, all lit from the
+	-- last on. Its lamps run round the rim from the rider's front left, behind them, to their front
+	-- right; the gap in front is where they step off. A lamp's size: along the rim, up, across it.
+	STAND_DIAL = table.freeze({
+		lamps = 15,
+		arcDegrees = 300,
+		lampSize = Vector3.new(0.32, 0.06, 0.16),
+		litColor = Color3.fromRGB(255, 214, 90),
+		offColor = Color3.fromRGB(40, 44, 62),
+	}),
+
 	-- The floor: a tray on the right of a player who walks in from the spawn, where aliens with no
 	-- place stand, all small (the first guardian's size) until placed, in a grid filled from the
 	-- entrance's side.

@@ -113,6 +113,8 @@ export type Dependencies = {
 	setTutorialProgress: (player: Player, progress: number) -> boolean,
 	-- Shows a changed jetpack level: the model, the attribute and the speed (JetpackService).
 	refreshJetpack: (player: Player) -> (),
+	-- Shows a changed trainer level: the terminal, the stand's look and flame (as a bought upgrade).
+	refreshTrainer: (player: Player) -> (),
 }
 
 export type DevService = {
@@ -590,6 +592,26 @@ function DevService.new(dependencies: Dependencies): DevService
 			end
 			dependencies.refreshJetpack(player)
 			return `jetpack {jetpack} (level {level})`
+		end,
+		-- The first player's trainer level, as if bought: the terminal, the stand's look (decision
+		-- 091: a new model at 0, 3, 6, 9, 12, 15) and its flame follow.
+		SetTrainerLevel = function(level: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(
+				type(level) == "number" and level % 1 == 0 and level >= 0,
+				"SetTrainerLevel expects a whole number from 0"
+			)
+			local written = dependencies.update(player, function(data)
+				data.trainerLevel = level
+			end)
+			if not written then
+				return "profile not active yet"
+			end
+			dependencies.refreshTrainer(player)
+			return `trainer level {level}`
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).
 		SetInfiniteOxygen = function(enabled: boolean): string
