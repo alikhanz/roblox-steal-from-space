@@ -22,6 +22,7 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
+local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
@@ -446,16 +447,21 @@ function BayService.new(dependencies: Dependencies): BayService
 			bay.places[index] = nil
 		end
 
-		-- Capsules stand still: only the bought ones are added.
-		local capsuleCount = math.min(data.incubatorSlots, BayLooks.CAPSULE_POSITIONS)
-		for index = #bay.capsules + 1, capsuleCount do
-			local capsule = BayModel.buildCapsule(bay.origin, index)
-			capsule.Parent = contents
-			bay.capsules[index] = capsule
-		end
-		for index = #bay.capsules, capsuleCount + 1, -1 do
-			bay.capsules[index]:Destroy()
-			bay.capsules[index] = nil
+		-- Every slot of the ring stands: bought ones as open capsules, the rest as closed buds
+		-- (docs/design/screens/incubator.md). They stand still: only a slot just bought (or sold
+		-- back by a dev command) is built anew.
+		local capsuleCount = math.min(data.incubatorSlots, IncubatorShape.POSITIONS)
+		for index = 1, IncubatorShape.POSITIONS do
+			local isBought = index <= capsuleCount
+			local capsule = bay.capsules[index]
+			if not capsule or not capsule.Parent or BayModel.isCapsuleBought(capsule) ~= isBought then
+				if capsule then
+					capsule:Destroy()
+				end
+				capsule = BayModel.buildCapsule(bay.origin, index, isBought)
+				capsule.Parent = contents
+				bay.capsules[index] = capsule
+			end
 		end
 
 		-- Every egg stays in its own capsule (Bay.capsulesFor).
@@ -467,9 +473,12 @@ function BayService.new(dependencies: Dependencies): BayService
 		local keptEggs: { [number]: boolean } = {}
 		local current = now()
 		bay.ready = 0
+		local states: { [number]: BayModel.CapsuleState } = {}
 		for _, egg in data.incubator do
 			local ready = Bay.isReady(egg, current)
-			local cframe = BayModel.eggCFrame(bay.origin, bay.eggCapsules[egg.uid])
+			local capsule = bay.eggCapsules[egg.uid]
+			states[capsule] = if ready then "Ready" else "Warming"
+			local cframe = BayModel.eggCFrame(bay.origin, capsule)
 			local part, new = showEgg(bay, egg, cframe, contents, keptEggs, egg.hatchAt, ready)
 			if ready then
 				bay.ready += 1
@@ -481,6 +490,9 @@ function BayService.new(dependencies: Dependencies): BayService
 					addHatchNowPrompt(player, part, egg)
 				end
 			end
+		end
+		for index = 1, capsuleCount do
+			BayModel.setCapsuleState(bay.capsules[index], states[index] or "Empty")
 		end
 		for index, egg in data.waiting do
 			if index > BayConfig.WAITING_SHOWN_MAX then

@@ -20,6 +20,8 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
+local Incubator = require(ReplicatedStorage.Shared.Domain.Incubator)
+local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
 local Layout = require(script.Parent.Parent.UI.Layout)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Mount = require(script.Parent.Parent.UI.Mount)
@@ -44,8 +46,9 @@ local BOARD_PIXELS_PER_STUD = 50
 local BOARD_PADDING = 12
 -- Over the top of the alien's head.
 local ALIEN_STUDS_ABOVE = 1
--- Each egg's countdown, just over its top (eggs come in three sizes).
-local EGG_STUDS_ABOVE_TOP = 0.55
+-- A waiting egg's chip, just over its top (eggs come in three sizes). An egg in a capsule hangs
+-- its chip over the capsule's petals (Domain/Incubator.chipAbove).
+local EGG_STUDS_ABOVE_TOP = BayLooks.EGG_CHIP_OVER_EGG
 -- The owner's name reads from across the island; what stands on it only up close, or the
 -- labels pile up on each other.
 local SIGN_MAX_DISTANCE = 120
@@ -420,7 +423,12 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				iconColor = color,
 				text = remaining,
 				color = color,
-				studsAbove = part.Size.Y / 2 + EGG_STUDS_ABOVE_TOP,
+				studsAbove = Incubator.chipAbove(
+					part.Size.Y,
+					IncubatorShape,
+					BayLooks.EGG_CHIP_OVER_POD,
+					BayLooks.EGG_CHIP_OVER_EGG
+				),
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),
 				tick

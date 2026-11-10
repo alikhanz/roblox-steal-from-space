@@ -11,6 +11,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
+local Incubator = require(ReplicatedStorage.Shared.Domain.Incubator)
+local IncubatorKit = require(script.Parent.IncubatorKit)
+local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
 local PlaceLayout = require(ReplicatedStorage.Shared.Domain.PlaceLayout)
 local Shelf = require(ReplicatedStorage.Shared.Domain.Shelf)
 local ShelfShape = require(ReplicatedStorage.Shared.Config.ShelfShape)
@@ -23,12 +27,17 @@ local TerminalKit = require(script.Parent.TerminalKit)
 
 local BayModel = {}
 
+-- What a bought capsule's light shows (BayLooks.CAPSULE_LIGHTS).
+export type CapsuleState = "Warming" | "Ready" | "Empty"
+
 -- Fewer pieces than this would show a circle as a polygon.
 local MIN_ARC_PIECES = 24
 -- An arc is drawn of straight pieces at most this long, studs.
 local ARC_PIECE_LENGTH = 6
--- A ready egg lies this far above its capsule's stand, studs: room for the largest egg.
-local EGG_LIFT = 1.4
+-- A bought capsule's part that lights up with its state, and the attribute telling a bought
+-- capsule from a closed bud.
+local CAPSULE_LIGHT_NAME = "Light"
+local CAPSULE_BOUGHT_ATTRIBUTE = "Bought"
 -- How far above the floor a waiting egg lies, studs.
 local WAITING_EGG_LIFT = 1
 
@@ -157,56 +166,104 @@ function BayModel.placeAlienCFrame(frame: CFrame): CFrame
 	return frame * CFrame.new(0, BayLooks.PLACE_PAD_HEIGHT, 0)
 end
 
--- The angle of capsule `index` (1-based) around the incubator: the first faces the entrance
--- (-Z), the next ones alternate to its right and left.
-local function capsuleAngle(index: number): number
-	local step = math.pi * 2 / BayLooks.CAPSULE_POSITIONS
-	local offset = math.ceil((index - 1) / 2) * (if index % 2 == 0 then 1 else -1)
-	return math.pi + offset * step
-end
-
--- Where capsule `index` (1-based) stands: on the incubator's stand, facing out.
+-- Where incubator slot `index` (1-based) stands: on the dais's top, facing out of the ring
+-- (Domain/Incubator.slotAngle: the first faces the entrance).
 function BayModel.capsuleCFrame(origin: CFrame, index: number): CFrame
-	local center = BayLooks.INCUBATOR_POSITION + Vector3.yAxis * BayLooks.INCUBATOR_THICKNESS
-	local at = around(center, BayLooks.CAPSULE_RING_RADIUS, capsuleAngle(index))
+	local center = BayLooks.INCUBATOR_POSITION + Vector3.yAxis * IncubatorShape.DAIS_HEIGHT
+	local at = around(center, IncubatorShape.RING_RADIUS, Incubator.slotAngle(index, IncubatorShape))
 	return origin * CFrame.lookAt(at, at + (at - center) * Vector3.new(1, 0, 1))
 end
 
-function BayModel.buildCapsule(origin: CFrame, index: number): Model
-	local frame = BayModel.capsuleCFrame(origin, index)
-	local stand = disc(
-		"Stand",
-		frame * CFrame.new(0, BayLooks.CAPSULE_STAND_HEIGHT / 2, 0),
-		BayLooks.CAPSULE_RADIUS,
-		BayLooks.CAPSULE_STAND_HEIGHT
-	)
+-- A piece of the incubator's kit worn at `frame` (its offset taken), touching nothing.
+local function wearKit(piece: IncubatorKit.Piece, name: string, frame: CFrame, parent: Instance): MeshPart
+	local part = piece.part
+	part.Name = name
+	part.CanCollide = false
+	scenery(part)
+	part.CFrame = frame * piece.offset
+	part.Parent = parent
+	return part
+end
+
+-- A slot without the kit: a disc, under glass when it is bought, with a lid when it is not.
+local function buildGreyboxCapsule(frame: CFrame, isBought: boolean, model: Model)
+	local look = BayLooks.CAPSULE_GREYBOX
+	local stand =
+		disc("Stand", frame * CFrame.new(0, look.standHeight / 2, 0), IncubatorShape.SOCKET_RADIUS, look.standHeight)
 	stand.Material = Enum.Material.Metal
-	stand.Color = BayLooks.CAPSULE_STAND_COLOR
+	stand.Color = look.standColor
+	stand.CanCollide = false
 	scenery(stand)
-
-	local glass = disc(
-		"Glass",
-		frame * CFrame.new(0, BayLooks.CAPSULE_STAND_HEIGHT + BayLooks.CAPSULE_GLASS_HEIGHT / 2, 0),
-		BayLooks.CAPSULE_RADIUS,
-		BayLooks.CAPSULE_GLASS_HEIGHT
-	)
-	glass.Material = Enum.Material.Glass
-	glass.Color = BayLooks.CAPSULE_GLASS_COLOR
-	glass.Transparency = BayLooks.CAPSULE_GLASS_TRANSPARENCY
-	glass.CanCollide = false
-	scenery(glass)
-
-	local model = Instance.new("Model")
-	model.Name = `Capsule{index}`
 	stand.Parent = model
-	glass.Parent = model
-	model.PrimaryPart = stand
+	local height = if isBought then IncubatorShape.POD_HEIGHT - look.standHeight else look.lidHeight
+	local cover = disc(
+		if isBought then CAPSULE_LIGHT_NAME else "Lid",
+		frame * CFrame.new(0, look.standHeight + height / 2, 0),
+		IncubatorShape.SOCKET_RADIUS - 0.2,
+		height
+	)
+	cover.Material = if isBought then Enum.Material.Glass else Enum.Material.Metal
+	cover.Color = if isBought then look.glassColor else look.standColor
+	cover.Transparency = if isBought then look.glassTransparency else 0
+	cover.CanCollide = false
+	scenery(cover)
+	cover.Parent = model
+end
+
+-- Incubator slot `index`: an open capsule (`isBought`), where an egg hovers, or a closed bud
+-- (docs/design/screens/incubator.md). Its look collides with nothing; an invisible cylinder over
+-- the socket keeps players out of it without stopping prompts or the camera (as the shelf's
+-- blocks). A capsule's light is set by `setCapsuleState`.
+function BayModel.buildCapsule(origin: CFrame, index: number, isBought: boolean): Model
+	local frame = BayModel.capsuleCFrame(origin, index)
+	local model = Instance.new("Model")
+	model.Name = `{if isBought then "Capsule" else "Bud"}{index}`
+	local body = IncubatorKit.piece(if isBought then "PodBody" else "BudBody")
+	local glow = if isBought then IncubatorKit.piece("PodGlow") else nil
+	if body and (glow or not isBought) then
+		wearKit(body, "Body", frame, model)
+		if glow then
+			wearKit(glow, CAPSULE_LIGHT_NAME, frame, model)
+		end
+	else
+		buildGreyboxCapsule(frame, isBought, model)
+	end
+	local height = if isBought then IncubatorShape.POD_HEIGHT else IncubatorShape.BUD_HEIGHT
+	local block = disc("Block", frame * CFrame.new(0, height / 2, 0), IncubatorShape.SOCKET_RADIUS, height)
+	block.Transparency = 1
+	scenery(block)
+	block.Parent = model
+	model.PrimaryPart = block
+	model:SetAttribute(CAPSULE_BOUGHT_ATTRIBUTE, isBought)
 	return model
 end
 
--- Where the egg in incubator slot `index` (1-based) lies: in its capsule.
+-- Whether `capsule` (buildCapsule) is an open, bought one.
+function BayModel.isCapsuleBought(capsule: Model): boolean
+	return capsule:GetAttribute(CAPSULE_BOUGHT_ATTRIBUTE) == true
+end
+
+-- Lights a bought capsule for its egg: warming, ready, or none (BayLooks.CAPSULE_LIGHTS).
+function BayModel.setCapsuleState(capsule: Model, state: CapsuleState)
+	local light = capsule:FindFirstChild(CAPSULE_LIGHT_NAME)
+	if not light or not light:IsA("BasePart") then
+		return
+	end
+	local lights = BayLooks.CAPSULE_LIGHTS
+	local look = if state == "Ready" then lights.Ready elseif state == "Warming" then lights.Warming else lights.Empty
+	if light:IsA("MeshPart") then
+		light.Color = look.color
+		light.Material = look.material
+	else
+		-- The greybox's glass takes the state's colour as its tint (an empty one, its own).
+		light.Color = if state == "Empty" then BayLooks.CAPSULE_GREYBOX.glassColor else look.color
+	end
+end
+
+-- Where the egg in incubator slot `index` (1-based) hovers: a medium egg's centre in its capsule
+-- (every size stands its bottom there, EggLooks.liftOf).
 function BayModel.eggCFrame(origin: CFrame, index: number): CFrame
-	return BayModel.capsuleCFrame(origin, index) * CFrame.new(0, BayLooks.CAPSULE_STAND_HEIGHT + EGG_LIFT, 0)
+	return BayModel.capsuleCFrame(origin, index) * CFrame.new(0, IncubatorShape.EGG_FLOOR + EggLooks.EGG_SIZE.Y / 2, 0)
 end
 
 -- Where queued egg `index` (1-based) lies: on the floor round the incubator, from the
@@ -828,6 +885,44 @@ local function buildZoneLines(origin: CFrame, parent: Instance)
 	)
 end
 
+-- The incubator's dais in the island's center (docs/design/screens/incubator.md): the solid part
+-- `Incubator` (invisible over the kit's dais, which touches nothing; it carries the incubator's
+-- attributes), the kit's dais and its light, or the greybox disc in the incubator's colour. Its
+-- slots are BayService's (buildCapsule).
+local function buildIncubator(origin: CFrame, parent: Instance)
+	local center = origin * CFrame.new(BayLooks.INCUBATOR_POSITION)
+	local incubator = disc(
+		BayConfig.INCUBATOR_NAME,
+		center * CFrame.new(0, IncubatorShape.DAIS_HEIGHT / 2, 0),
+		IncubatorShape.DAIS_RADIUS,
+		IncubatorShape.DAIS_HEIGHT
+	)
+	incubator.Material = Enum.Material.SmoothPlastic
+	incubator.Color = BayLooks.INCUBATOR_COLOR
+	scenery(incubator)
+	incubator.Parent = parent
+	local body = IncubatorKit.piece("DaisBody")
+	local glow = IncubatorKit.piece("DaisGlow")
+	if not body or not glow then
+		return
+	end
+	incubator.Transparency = 1
+	wearKit(body, "Dais", center, parent)
+	local light = wearKit(glow, "DaisLight", center, parent)
+	light.Material = Enum.Material.Neon
+	light.Color = BayLooks.INCUBATOR_COLOR
+	-- The heater in the dais's middle stands on its own: nobody walks through it.
+	local heater = disc(
+		"Heater",
+		center * CFrame.new(0, IncubatorShape.DAIS_HEIGHT + IncubatorShape.CORE_HEIGHT / 2, 0),
+		IncubatorShape.CORE_RADIUS,
+		IncubatorShape.CORE_HEIGHT
+	)
+	heater.Transparency = 1
+	scenery(heater)
+	heater.Parent = parent
+end
+
 function BayModel.build(slot: number, origin: CFrame): Model
 	local model = Instance.new("Model")
 	model.Name = `Bay{slot}`
@@ -839,17 +934,7 @@ function BayModel.build(slot: number, origin: CFrame): Model
 
 	buildSign(origin, model)
 
-	local incubator = disc(
-		BayConfig.INCUBATOR_NAME,
-		origin * CFrame.new(BayLooks.INCUBATOR_POSITION) * CFrame.new(0, BayLooks.INCUBATOR_THICKNESS / 2, 0),
-		BayLooks.INCUBATOR_RADIUS,
-		BayLooks.INCUBATOR_THICKNESS
-	)
-	incubator.Material = Enum.Material.SmoothPlastic
-	incubator.Color = BayLooks.INCUBATOR_COLOR
-	scenery(incubator)
-	incubator.Parent = model
-
+	buildIncubator(origin, model)
 	buildStand(origin, model)
 	buildShelf(origin, model)
 
@@ -865,7 +950,7 @@ function BayModel.build(slot: number, origin: CFrame): Model
 	contents.Name = BayConfig.CONTENTS_NAME
 	contents.Parent = model
 
-	model.PrimaryPart = incubator
+	model.PrimaryPart = model:FindFirstChild(BayConfig.INCUBATOR_NAME) :: BasePart
 	return model
 end
 

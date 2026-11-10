@@ -4,7 +4,8 @@
 -- 081). Whoever takes a copy gives it its size, turn, material and colour. The kits: World/ZoneKit
 -- (rocks, crystals, rings), World/TerminalKit (the island terminals' console), World/EggKit (the
 -- egg's shell and what it wears), World/StationKit (the central station), World/StandKit (the
--- jetpack stand), World/StorageKit (the island's shelf).
+-- jetpack stand), World/StorageKit (the island's shelf), World/IncubatorKit (the island's
+-- incubator).
 
 local ServerStorage = game:GetService("ServerStorage")
 

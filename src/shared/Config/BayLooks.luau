@@ -5,6 +5,7 @@
 -- Y up from the island floor. Pure numbers live in
 -- BayConfig. Greybox: the real looks come with the art pass.
 
+local IncubatorShape = require("./IncubatorShape")
 local StationSize = require("./StationSize")
 
 -- One bay on each island around the station (the islands' places are in StationConfig).
@@ -44,9 +45,13 @@ local PLACES_TERMINAL_POSITION = PLACES_EDGE * PLACES_TERMINAL_ALONG + PLACES_ED
 -- wedge, clear of the places' horseshoe.
 local SHELF_POSITION = Vector3.new(-21, 0, -52)
 
--- The incubator in the island's center: a low stand with up to 12 capsules round it.
-local CAPSULE_RING_RADIUS = 8.5
-local CAPSULE_RADIUS = 1.6
+-- The incubator's colour: its terminal, its line on the floor, its dais's light and a capsule whose
+-- egg warms; and a capsule whose egg is ready to hatch (the hatch action's green,
+-- docs/design/DESIGN.md). Deep and saturated: on the islands Neon of a lighter orange
+-- (255, 170, 60) read yellow beside the trainer's, and a light green (90, 240, 110) white
+-- (Studio, 2026-11-10).
+local INCUBATOR_COLOR = Color3.fromRGB(255, 80, 10)
+local CAPSULE_READY_COLOR = Color3.fromRGB(20, 200, 60)
 
 return table.freeze({
 	BAY_COUNT = BAY_COUNT,
@@ -169,33 +174,42 @@ return table.freeze({
 		cap = 1,
 	}),
 
-	-- The incubator: a disc under the capsules; eggs in its slots lie in the capsules.
+	-- The incubator (docs/design/screens/incubator.md): a dais in the island's center, its slots
+	-- round it (Config/IncubatorShape), each an open capsule where an egg hovers or, not bought
+	-- yet, a closed bud.
 	INCUBATOR_POSITION = Vector3.zero,
-	INCUBATOR_RADIUS = CAPSULE_RING_RADIUS + CAPSULE_RADIUS + 0.8,
-	INCUBATOR_THICKNESS = 0.6,
-	INCUBATOR_COLOR = Color3.fromRGB(255, 170, 60),
-	-- The incubator's zone on the floor: a ring around the stand and the waiting eggs.
+	INCUBATOR_COLOR = INCUBATOR_COLOR,
+	-- The incubator's zone on the floor: a ring around the dais and the waiting eggs.
 	INCUBATOR_ZONE_RADIUS = 15,
-	-- Capsules stand in a ring; the first faces the entrance, the next ones alternate to either
-	-- side of it.
-	CAPSULE_RING_RADIUS = CAPSULE_RING_RADIUS,
-	CAPSULE_POSITIONS = 12,
-	CAPSULE_RADIUS = CAPSULE_RADIUS,
-	CAPSULE_STAND_HEIGHT = 0.4,
-	-- Room for a large egg (decision 084), with a little air over it.
-	CAPSULE_GLASS_HEIGHT = 4,
-	CAPSULE_STAND_COLOR = Color3.fromRGB(120, 130, 160),
-	CAPSULE_GLASS_COLOR = Color3.fromRGB(140, 220, 255),
-	CAPSULE_GLASS_TRANSPARENCY = 0.65,
+	-- A capsule's light tells its state: its egg warms, is ready to hatch, or it is bought and
+	-- empty (lit no more: plastic of the warm colour).
+	CAPSULE_LIGHTS = table.freeze({
+		Warming = table.freeze({ color = INCUBATOR_COLOR, material = Enum.Material.Neon }),
+		Ready = table.freeze({ color = CAPSULE_READY_COLOR, material = Enum.Material.Neon }),
+		Empty = table.freeze({ color = Color3.fromRGB(150, 105, 60), material = Enum.Material.SmoothPlastic }),
+	}),
+	-- The chip over an egg in a capsule hangs this far over the petals' tips, or over the egg's
+	-- own top when it is the taller (Domain/Incubator.chipAbove).
+	EGG_CHIP_OVER_POD = 0.6,
+	EGG_CHIP_OVER_EGG = 0.55,
+	-- Without the kit in the place: a disc a slot, glass over a bought one, a lid on the rest.
+	CAPSULE_GREYBOX = table.freeze({
+		standHeight = 0.4,
+		standColor = Color3.fromRGB(120, 130, 160),
+		glassColor = Color3.fromRGB(140, 220, 255),
+		glassTransparency = 0.65,
+		lidHeight = 1,
+	}),
 	-- Rare eggs still shine in the incubator, at this share of their light.
 	INCUBATOR_GLOW_SCALE = 0.2,
 	-- A ready egg (its time has come, decision 059) shines with this light until it is hatched.
-	READY_EGG_LIGHT_COLOR = Color3.fromRGB(255, 240, 150),
+	READY_EGG_LIGHT_COLOR = CAPSULE_READY_COLOR,
 	READY_EGG_LIGHT_BRIGHTNESS = 3,
 	READY_EGG_LIGHT_RANGE = 8,
 	-- Eggs waiting for a slot lie on the floor around the incubator, from the entrance's side
-	-- (decision 058), then on a wider ring.
-	WAITING_RING_RADIUS = 12.5,
+	-- (decision 058), then on a wider ring; the first ring is clear of the dais's edge even for a
+	-- large egg.
+	WAITING_RING_RADIUS = IncubatorShape.DAIS_RADIUS + 1.6,
 	WAITING_RING_SLOTS = 24,
 	WAITING_RING_STEP = 2,
 
