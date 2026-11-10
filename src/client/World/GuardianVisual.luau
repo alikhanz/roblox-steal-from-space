@@ -84,6 +84,9 @@ local function templateOf(postId: string): Template?
 		if part:IsA("BasePart") then
 			-- 132 guardians: their shadows would cost more than they show in open space.
 			part.CastShadow = false
+			if string.match(part.Name, "^core_") then
+				part.Color = part.Color:Lerp(Color3.new(0, 0, 0), MODELS.CORE_DIM)
+			end
 		end
 	end
 	local _, size = model:GetBoundingBox()

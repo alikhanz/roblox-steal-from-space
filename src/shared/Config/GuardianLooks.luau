@@ -79,6 +79,9 @@ local MODELS = table.freeze({
 	-- Paint sources the game colours itself: the eyes by state, the throat by how fierce.
 	EYE_SOURCE = "GuardianEye",
 	MAW_SOURCE = "Maw",
+	-- A guardian's glowing core (a slime's jelly) is darkened by this share of its pet's colour: a
+	-- big Neon part in the pet's bright colour burns to white under Bloom (seen in Studio, 2026-11-10).
+	CORE_DIM = 0.5,
 	-- The parts move only this close to the camera, studs past the model's half length; farther it
 	-- stands still and is carried whole with its body. Leaving takes MOTION_MARGIN more.
 	MOTION_DISTANCE = 300,

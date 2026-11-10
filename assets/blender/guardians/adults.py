@@ -139,7 +139,8 @@ def slime(x, z, theme, p, zone):
     jelly = [(0, 0, 0, 0.92), (0, 0, 0.55, 0.8), (0.12, 0.02, 1.05, 0.55), (-0.3, 0.1, 0.25, 0.6), (0.35, -0.05, 0.2, 0.55)]
     if h > 1.2:
         jelly.append((0.0, 0.0, 1.55, 0.45))
-    real.blob([(ex * w, ey * w, ez * h, r * min(w, h)) for ex, ey, ez, r in jelly], theme["core"](), (x, 0, z + 0.55 + 0.45 * h), 0.045 / robo.DETAIL)
+    # Tagged as the pet's is: role "core", which the game paints in the guardian's core colour.
+    robo._tag(real.blob([(ex * w, ey * w, ez * h, r * min(w, h)) for ex, ey, ez, r in jelly], theme["core"](), (x, 0, z + 0.55 + 0.45 * h), 0.045 / robo.DETAIL))
     tint = tuple(0.75 + 0.25 * c for c in theme["colours"]["core"])
     dome = sphere((x, 0, dome_z), (0.95 * w, 0.95 * w, 1.15 * h), robo.shell_glass("Dome", tint), 48)
     # The cage: three hoops over the dome make six ribs, none across the face.
