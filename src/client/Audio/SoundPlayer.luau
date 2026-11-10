@@ -79,10 +79,11 @@ end
 local function start(name: Name, options: Options?, looped: boolean): (Sound?, () -> ())
 	local spec = SoundLooks.SOUNDS[name]
 	local noop = function() end
-	if spec.id == "" then
+	local id = SoundLooks.assetOf(game.GameId, name)
+	if not id then
 		if not warnedMissing[name] then
 			warnedMissing[name] = true
-			warn(`[SoundPlayer] {name} has no uploaded asset yet (SoundLooks); silent`)
+			warn(`[SoundPlayer] {name} has no asset for this game (SoundLooks.GAMES); silent`)
 		end
 		return nil, noop
 	end
@@ -106,7 +107,7 @@ local function start(name: Name, options: Options?, looped: boolean): (Sound?, (
 
 	local sound = Instance.new("Sound")
 	sound.Name = name
-	sound.SoundId = spec.id
+	sound.SoundId = id
 	sound.Volume = spec.volume * (options and options.volume or 1)
 	sound.PlaybackSpeed = options and options.speed or 1
 	sound.Looped = looped
@@ -212,10 +213,11 @@ end
 -- Loads every uploaded sound ahead, so the first of each plays on time. Yields.
 function SoundPlayer.preload()
 	local sounds: { Instance } = {}
-	for _, spec in SoundLooks.SOUNDS do
-		if spec.id ~= "" then
+	for name in SoundLooks.SOUNDS do
+		local id = SoundLooks.assetOf(game.GameId, name)
+		if id then
 			local sound = Instance.new("Sound")
-			sound.SoundId = spec.id
+			sound.SoundId = id
 			table.insert(sounds, sound)
 		end
 	end

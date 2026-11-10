@@ -1,8 +1,9 @@
 --!strict
 -- Every sound of the game (brief docs/design/SOUND.md): its asset, volume, group, how much it
 -- matters and how far it carries. The files are made by assets/audio/sfx.py and uploaded to
--- Roblox; the client plays them (client Audio/SoundPlayer). Pure data; which sounds may play at
--- once is Domain/SoundVoices.
+-- Roblox per game (GAMES: an asset of one creator plays in another's game only once shared with
+-- it, so Prod may get its own ids); the client plays them (client Audio/SoundPlayer). Which
+-- sounds may play at once is Domain/SoundVoices.
 
 local SoundVoices = require("../Domain/SoundVoices")
 
@@ -48,8 +49,8 @@ export type Name =
 export type Group = "World" | "Interface" | "Alarm"
 
 export type Sound = {
-	-- rbxassetid://…; empty until uploaded (the player warns once and stays silent).
-	read id: string,
+	-- A Roblox asset every game may play (Roblox's own sounds); ours are in GAMES.
+	read publicId: string?,
 	read volume: number,
 	read group: Group,
 	-- Higher matters more when the voices run out (PRIORITY below).
@@ -73,24 +74,23 @@ local PRIORITY = table.freeze({
 	INTERFACE = 1,
 })
 
-local function world(id: string, volume: number, priority: number, near: number, reach: number): Sound
-	return { id = id, volume = volume, group = "World", priority = priority, near = near, reach = reach }
+local function world(volume: number, priority: number, near: number, reach: number): Sound
+	return { volume = volume, group = "World", priority = priority, near = near, reach = reach }
 end
 
-local function mine(id: string, volume: number, priority: number?): Sound
-	return { id = id, volume = volume, group = "World", priority = priority or PRIORITY.MINE }
+local function mine(volume: number, priority: number?): Sound
+	return { volume = volume, group = "World", priority = priority or PRIORITY.MINE }
 end
 
-local function interface(id: string, volume: number): Sound
-	return { id = id, volume = volume, group = "Interface", priority = PRIORITY.INTERFACE }
+local function interface(volume: number): Sound
+	return { volume = volume, group = "Interface", priority = PRIORITY.INTERFACE }
 end
 
 local SOUNDS: { [Name]: Sound } = {
 	-- The chase: the start and the loop for the chased player; the loop also sounds from the
 	-- guardian for everyone near.
-	AlarmStart = { id = "", volume = 0.6, group = "Alarm", priority = PRIORITY.ALARM },
+	AlarmStart = { volume = 0.6, group = "Alarm", priority = PRIORITY.ALARM },
 	AlarmLoop = {
-		id = "",
 		volume = 0.5,
 		group = "Alarm",
 		priority = PRIORITY.ALARM,
@@ -98,21 +98,20 @@ local SOUNDS: { [Name]: Sound } = {
 		reach = 150,
 		looped = true,
 	},
-	EggGrab = mine("", 0.5),
-	Delivery = mine("", 0.6, PRIORITY.ME),
-	EggDrop = world("", 0.6, PRIORITY.OTHERS, 12, 120),
-	GuardianCatch = world("", 0.7, PRIORITY.OTHERS, 15, 150),
+	EggGrab = mine(0.5),
+	Delivery = mine(0.6, PRIORITY.ME),
+	EggDrop = world(0.6, PRIORITY.OTHERS, 12, 120),
+	GuardianCatch = world(0.7, PRIORITY.OTHERS, 15, 150),
 
-	StrikeSwing = world("", 0.5, PRIORITY.OTHERS, 12, 100),
-	StrikeHit = world("", 0.7, PRIORITY.OTHERS, 12, 120),
-	HarpoonShot = world("", 0.55, PRIORITY.OTHERS, 12, 120),
-	HarpoonGrab = world("", 0.6, PRIORITY.OTHERS, 12, 120),
-	BombThrow = world("", 0.5, PRIORITY.OTHERS, 12, 100),
-	BombBoom = world("", 0.8, PRIORITY.OTHERS, 25, 250),
-	HitMe = mine("", 0.7, PRIORITY.ME),
+	StrikeSwing = world(0.5, PRIORITY.OTHERS, 12, 100),
+	StrikeHit = world(0.7, PRIORITY.OTHERS, 12, 120),
+	HarpoonShot = world(0.55, PRIORITY.OTHERS, 12, 120),
+	HarpoonGrab = world(0.6, PRIORITY.OTHERS, 12, 120),
+	BombThrow = world(0.5, PRIORITY.OTHERS, 12, 100),
+	BombBoom = world(0.8, PRIORITY.OTHERS, 25, 250),
+	HitMe = mine(0.7, PRIORITY.ME),
 
 	JetLoop = {
-		id = "",
 		volume = 0.35,
 		group = "World",
 		priority = PRIORITY.AMBIENT,
@@ -120,37 +119,43 @@ local SOUNDS: { [Name]: Sound } = {
 		reach = 60,
 		looped = true,
 	},
-	JetStart = world("", 0.4, PRIORITY.AMBIENT, 15, 60),
-	OxygenLow = mine("", 0.35, PRIORITY.ME),
-	OxygenRefill = mine("", 0.4),
+	JetStart = world(0.4, PRIORITY.AMBIENT, 15, 60),
+	OxygenLow = mine(0.35, PRIORITY.ME),
+	OxygenRefill = mine(0.4),
 
-	EventWarning = mine("", 0.5),
-	StormStart = mine("", 0.5),
-	MeteorFall = world("", 0.7, PRIORITY.AMBIENT, 40, 400),
-	SerpentAppear = mine("", 0.5),
-	SerpentHit = world("", 0.6, PRIORITY.OTHERS, 20, 200),
-	StarEggOut = world("", 0.6, PRIORITY.OTHERS, 25, 300),
+	EventWarning = mine(0.5),
+	StormStart = mine(0.5),
+	MeteorFall = world(0.7, PRIORITY.AMBIENT, 40, 400),
+	SerpentAppear = mine(0.5),
+	SerpentHit = world(0.6, PRIORITY.OTHERS, 20, 200),
+	StarEggOut = world(0.6, PRIORITY.OTHERS, 25, 300),
 
-	Hatch = mine("", 0.6),
-	HatchRare = mine("", 0.5),
-	Crossbreed = mine("", 0.55),
-	BuyCoins = mine("", 0.5),
-	BuyRobux = mine("", 0.6),
-	Reward = mine("", 0.55),
-	TrainerOn = mine("", 0.45),
-	TrainerTick = mine("", 0.2, PRIORITY.AMBIENT),
+	Hatch = mine(0.6),
+	HatchRare = mine(0.5),
+	Crossbreed = mine(0.55),
+	BuyCoins = mine(0.5),
+	BuyRobux = mine(0.6),
+	Reward = mine(0.55),
+	TrainerOn = mine(0.45),
+	TrainerTick = mine(0.2, PRIORITY.AMBIENT),
 
-	WindowOpen = interface("", 0.25),
-	WindowClose = interface("", 0.2),
-	Toast = interface("", 0.3),
-	Denied = interface("", 0.35),
+	WindowOpen = interface(0.25),
+	WindowClose = interface(0.2),
+	Toast = interface(0.3),
+	Denied = interface(0.35),
 	-- Roblox_UI_Small_Click (Creator Store, creator Roblox): kept from the buttons' brief.
-	Click = interface("rbxassetid://15675032796", 0.35),
+	Click = { publicId = "rbxassetid://15675032796", volume = 0.35, group = "Interface", priority = PRIORITY.INTERFACE },
 }
 
 for _, sound in SOUNDS do
 	table.freeze(sound)
 end
+
+-- Our uploaded sounds by game (game.GameId): Dev; Prod once shared with it or uploaded there.
+-- A sound missing here is silent (the player warns once). Upload list: docs/design/SOUND.md.
+local GAMES: { [number]: { [Name]: string } } = {
+	[10774871729] = {},
+}
 
 local RULES: SoundVoices.Rules = {
 	-- A phone mixes few sounds at once without mud.
@@ -178,8 +183,13 @@ local CHASE: SoundVoices.Chase = {
 	loopShare = 0.6,
 }
 
-return table.freeze({
+for _, ids in GAMES do
+	table.freeze(ids)
+end
+
+local SoundLooks = {
 	SOUNDS = table.freeze(SOUNDS),
+	GAMES = table.freeze(GAMES),
 	PRIORITY = PRIORITY,
 	RULES = table.freeze(RULES),
 	-- Volume of each group; the master group holds them all.
@@ -206,4 +216,12 @@ return table.freeze({
 	-- A loose egg is news (EggDrop) only this soon after it came loose, seconds; older ones are
 	-- streaming in.
 	FRESH_DROP_SECONDS = 1,
-})
+}
+
+-- The asset of sound `name` in game `gameId`, or nil if it has none there.
+function SoundLooks.assetOf(gameId: number, name: Name): string?
+	local ids = GAMES[gameId]
+	return (ids and ids[name]) or SOUNDS[name].publicId
+end
+
+return table.freeze(SoundLooks)

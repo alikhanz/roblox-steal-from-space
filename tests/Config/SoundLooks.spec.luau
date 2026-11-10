@@ -37,9 +37,23 @@ describe("SoundLooks", function()
 		end
 	end)
 
-	it("plays uploaded assets only", function()
-		for _, sound in SoundLooks.SOUNDS do
-			expect(sound.id == "" or string.match(sound.id, "^rbxassetid://%d+$") ~= nil).toBe(true)
+	it("plays uploaded assets only, of sounds it knows", function()
+		local function isAsset(id: string): boolean
+			return string.match(id, "^rbxassetid://%d+$") ~= nil
 		end
+		for _, sound in SoundLooks.SOUNDS do
+			expect(sound.publicId == nil or isAsset(sound.publicId :: string)).toBe(true)
+		end
+		for _, ids in SoundLooks.GAMES do
+			for name, id in ids do
+				expect(SoundLooks.SOUNDS[name] ~= nil).toBe(true)
+				expect(isAsset(id)).toBe(true)
+			end
+		end
+	end)
+
+	it("finds a game's own asset first, then a public one, else none", function()
+		expect(SoundLooks.assetOf(0, "Click")).toBe(SoundLooks.SOUNDS.Click.publicId)
+		expect(SoundLooks.assetOf(0, "Delivery")).toBe(nil)
 	end)
 end)
