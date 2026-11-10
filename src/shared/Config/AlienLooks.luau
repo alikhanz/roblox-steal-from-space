@@ -61,6 +61,10 @@ local MODELS = table.freeze({
 		rune = "rbxassetid://88644383353062",
 		-- A jetpack's flame along a beam, tongues of fire that tile and scroll (assets/fx/jet.svg).
 		jet = "rbxassetid://105800856225099",
+		-- Flipbooks of a cluster of twinkling specks or stars, 4x4 frames that loop
+		-- (assets/fx/dustsheet.svg, starsheet.svg).
+		dustsheet = "rbxassetid://88657258922832",
+		starsheet = "rbxassetid://133175593190677",
 		rays = "rbxassetid://75268695809192",
 		crest = "rbxassetid://73996927875354",
 		smoke = "rbxasset://textures/particles/smoke_main.dds",
@@ -73,6 +77,27 @@ local MODELS = table.freeze({
 	METAL_VARIANT = "PetMetal",
 	SKINS_FOLDER = "AlienSkins",
 	LAVA_SKIN = "Lava",
+})
+
+-- The fine dust round a pet as twinkling clusters (AlienDress): each particle of these layers
+-- carries a flipbook of a little cluster of specks or stars (`sheet`, MODELS.TEXTURES), so they
+-- emit `rate` as often with each particle `size` times as big, the grains the same size as before.
+-- These layers were the most particles a pet had after its wings (2026-11-10).
+local FX = table.freeze({
+	CLUSTERS = table.freeze({
+		Motes = "dustsheet",
+		Stardust = "dustsheet",
+		Embers = "dustsheet",
+		Frost = "starsheet",
+		Twinkle = "starsheet",
+	} :: { [string]: string }),
+	-- 1/4, not 1/6: at a sixth the dust was too thin to see (user, 2026-11-10).
+	CLUSTER_RATE = 1 / 4,
+	-- The shell the clusters are born on, a share of the pet's box (AlienDress.clusters).
+	CLUSTER_SHELL = 0.95,
+	CLUSTER_SIZE = 4,
+	-- Frames a second of a cluster's twinkle, at least and at most.
+	CLUSTER_FRAMERATE = table.freeze({ 10, 14 }),
 })
 
 -- The pets' living motion on the client (AlienMotionController), as the gallery had it. Lengths
@@ -147,6 +172,7 @@ return table.freeze({
 	BODY_SIZE = BODY_SIZE,
 	widthOf = widthOf,
 	MODELS = MODELS,
+	FX = FX,
 	MOTION = MOTION,
 	EYE_SIZE = Vector3.new(0.35, 0.5, 0.2),
 	EYE_COLOR = Color3.fromRGB(20, 20, 30),

@@ -1081,6 +1081,52 @@ function AlienDress.prepare(pet: Model)
 	pet.PrimaryPart = body
 end
 
+-- The fine dust as twinkling clusters (AlienLooks.FX): each particle of these layers carries a
+-- flipbook of a few specks or stars twinkling, so the layer emits several times less often with
+-- bigger particles, and the grains look as they did. They are born on a shell the pet's own size
+-- (`cf`, `size`: its box), not on the effects carrier inside it: on a big round pet that one lies
+-- within the body, and a whole cluster appeared and faded hidden in it (user, 2026-11-10).
+local function clusters(pet: Model, cf: CFrame, size: Vector3)
+	local FX = AlienLooks.FX
+	local shell: BasePart? = nil
+	for _, item in pet:GetDescendants() do
+		local sheet = if item:IsA("ParticleEmitter") then FX.CLUSTERS[item.Name] else nil
+		if not sheet then
+			continue
+		end
+		if not shell then
+			local part = Instance.new("Part")
+			part.Name = "DustShell"
+			part:SetAttribute("Role", "body")
+			ghost(part)
+			part.Transparency = 1
+			part.CastShadow = false
+			part.Size = size * FX.CLUSTER_SHELL
+			part.CFrame = cf
+			part.Parent = pet
+			shell = part
+		end
+		local particles = item :: ParticleEmitter
+		particles.Parent = shell
+		particles.Shape = Enum.ParticleEmitterShape.Sphere
+		particles.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+		particles.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+		particles.Texture = (TEX :: any)[sheet]
+		particles.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
+		particles.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+		particles.FlipbookFramerate = NumberRange.new(FX.CLUSTER_FRAMERATE[1], FX.CLUSTER_FRAMERATE[2])
+		particles.FlipbookStartRandom = true
+		particles.Rotation = NumberRange.new(0, 360)
+		particles.Rate *= FX.CLUSTER_RATE
+		local keys = {}
+		for _, key in particles.Size.Keypoints do
+			local scale = FX.CLUSTER_SIZE
+			table.insert(keys, NumberSequenceKeypoint.new(key.Time, key.Value * scale, key.Envelope * scale))
+		end
+		particles.Size = NumberSequence.new(keys)
+	end
+end
+
 -- The client's half, on a prepared pet at the dressing scale: every effect.
 function AlienDress.adorn(pet: Model)
 	local zone = tostring(pet:GetAttribute("Zone"))
@@ -1133,6 +1179,7 @@ function AlienDress.adorn(pet: Model)
 		end
 	end
 	rune(pet, cf, size, accent)
+	clusters(pet, cf, size)
 end
 
 -- Adorns `model`, a prepared pet the server placed at its own size, on this client only. The

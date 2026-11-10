@@ -22,7 +22,7 @@ local SOURCES = {
 }
 local SIZE = 256
 -- Images drawn bigger, by name: what covers a large area in the world (the rune under a big pet).
-local SIZES: { [string]: number } = { rune = 1024 }
+local SIZES: { [string]: number } = { rune = 1024, dustsheet = 1024, starsheet = 1024 }
 local GLOW = "drop-shadow(0 0 7px rgba(255, 255, 255, 0.45))"
 local PORT = 8790
 local DEFAULT_CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe"

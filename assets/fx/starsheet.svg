@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Twinkling stars round a pet (AlienDress, AlienLooks.FX.CLUSTERS): one particle carries a cluster (2026-11-10). Generated (seeded), 4x4 frames that loop: 6 specks, each twinkling on its own beat. White on transparency, tinted in game. -->
+  <defs>
+    <radialGradient id="speck"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(84.4 65.8) scale(17.01)" fill="#fff" opacity="0.67"/>
+  <circle cx="84.4" cy="65.8" r="9.35" fill="url(#speck)" opacity="0.67"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(67.2 75.5) scale(15.33)" fill="#fff" opacity="0.90"/>
+  <circle cx="67.2" cy="75.5" r="8.43" fill="url(#speck)" opacity="0.90"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(45.0 80.2) scale(13.44)" fill="#fff" opacity="0.66"/>
+  <circle cx="45.0" cy="80.2" r="7.39" fill="url(#speck)" opacity="0.66"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(46.0 58.2) scale(20.90)" fill="#fff" opacity="0.97"/>
+  <circle cx="46.0" cy="58.2" r="11.50" fill="url(#speck)" opacity="0.97"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(52.1 54.6) scale(12.73)" fill="#fff" opacity="0.53"/>
+  <circle cx="52.1" cy="54.6" r="7.00" fill="url(#speck)" opacity="0.53"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(73.7 49.2) scale(18.25)" fill="#fff" opacity="0.59"/>
+  <circle cx="73.7" cy="49.2" r="10.04" fill="url(#speck)" opacity="0.59"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(212.4 65.8) scale(16.62)" fill="#fff" opacity="0.59"/>
+  <circle cx="212.4" cy="65.8" r="9.14" fill="url(#speck)" opacity="0.59"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(195.2 75.5) scale(15.57)" fill="#fff" opacity="0.97"/>
+  <circle cx="195.2" cy="75.5" r="8.57" fill="url(#speck)" opacity="0.97"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(173.0 80.2) scale(14.14)" fill="#fff" opacity="0.85"/>
+  <circle cx="173.0" cy="80.2" r="7.78" fill="url(#speck)" opacity="0.85"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(174.0 58.2) scale(20.11)" fill="#fff" opacity="0.82"/>
+  <circle cx="174.0" cy="58.2" r="11.06" fill="url(#speck)" opacity="0.82"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(180.1 54.6) scale(12.63)" fill="#fff" opacity="0.50"/>
+  <circle cx="180.1" cy="54.6" r="6.95" fill="url(#speck)" opacity="0.50"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(201.7 49.2) scale(19.17)" fill="#fff" opacity="0.77"/>
+  <circle cx="201.7" cy="49.2" r="10.55" fill="url(#speck)" opacity="0.77"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(340.4 65.8) scale(16.34)" fill="#fff" opacity="0.53"/>
+  <circle cx="340.4" cy="65.8" r="8.99" fill="url(#speck)" opacity="0.53"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(323.2 75.5) scale(15.69)" fill="#fff" opacity="1.00"/>
+  <circle cx="323.2" cy="75.5" r="8.63" fill="url(#speck)" opacity="1.00"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(301.0 80.2) scale(14.63)" fill="#fff" opacity="0.98"/>
+  <circle cx="301.0" cy="80.2" r="8.05" fill="url(#speck)" opacity="0.98"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(302.0 58.2) scale(19.11)" fill="#fff" opacity="0.63"/>
+  <circle cx="302.0" cy="58.2" r="10.51" fill="url(#speck)" opacity="0.63"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(308.1 54.6) scale(12.67)" fill="#fff" opacity="0.51"/>
+  <circle cx="308.1" cy="54.6" r="6.97" fill="url(#speck)" opacity="0.51"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(329.7 49.2) scale(20.05)" fill="#fff" opacity="0.94"/>
+  <circle cx="329.7" cy="49.2" r="11.03" fill="url(#speck)" opacity="0.94"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(468.4 65.8) scale(16.22)" fill="#fff" opacity="0.50"/>
+  <circle cx="468.4" cy="65.8" r="8.92" fill="url(#speck)" opacity="0.50"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(451.2 75.5) scale(15.66)" fill="#fff" opacity="0.99"/>
+  <circle cx="451.2" cy="75.5" r="8.62" fill="url(#speck)" opacity="0.99"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(429.0 80.2) scale(14.62)" fill="#fff" opacity="0.98"/>
+  <circle cx="429.0" cy="80.2" r="8.04" fill="url(#speck)" opacity="0.98"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(430.0 58.2) scale(18.49)" fill="#fff" opacity="0.51"/>
+  <circle cx="430.0" cy="58.2" r="10.17" fill="url(#speck)" opacity="0.51"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(436.1 54.6) scale(12.84)" fill="#fff" opacity="0.56"/>
+  <circle cx="436.1" cy="54.6" r="7.06" fill="url(#speck)" opacity="0.56"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(457.7 49.2) scale(20.36)" fill="#fff" opacity="1.00"/>
+  <circle cx="457.7" cy="49.2" r="11.20" fill="url(#speck)" opacity="1.00"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(84.4 193.8) scale(16.28)" fill="#fff" opacity="0.51"/>
+  <circle cx="84.4" cy="193.8" r="8.95" fill="url(#speck)" opacity="0.51"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(67.2 203.5) scale(15.49)" fill="#fff" opacity="0.95"/>
+  <circle cx="67.2" cy="203.5" r="8.52" fill="url(#speck)" opacity="0.95"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(45.0 208.2) scale(14.11)" fill="#fff" opacity="0.84"/>
+  <circle cx="45.0" cy="208.2" r="7.76" fill="url(#speck)" opacity="0.84"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(46.0 186.2) scale(18.61)" fill="#fff" opacity="0.53"/>
+  <circle cx="46.0" cy="186.2" r="10.24" fill="url(#speck)" opacity="0.53"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(52.1 182.6) scale(13.12)" fill="#fff" opacity="0.64"/>
+  <circle cx="52.1" cy="182.6" r="7.22" fill="url(#speck)" opacity="0.64"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(73.7 177.2) scale(19.93)" fill="#fff" opacity="0.91"/>
+  <circle cx="73.7" cy="177.2" r="10.96" fill="url(#speck)" opacity="0.91"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(212.4 193.8) scale(16.50)" fill="#fff" opacity="0.56"/>
+  <circle cx="212.4" cy="193.8" r="9.08" fill="url(#speck)" opacity="0.56"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(195.2 203.5) scale(15.20)" fill="#fff" opacity="0.87"/>
+  <circle cx="195.2" cy="203.5" r="8.36" fill="url(#speck)" opacity="0.87"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(173.0 208.2) scale(13.41)" fill="#fff" opacity="0.65"/>
+  <circle cx="173.0" cy="208.2" r="7.37" fill="url(#speck)" opacity="0.65"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(174.0 186.2) scale(19.41)" fill="#fff" opacity="0.68"/>
+  <circle cx="174.0" cy="186.2" r="10.68" fill="url(#speck)" opacity="0.68"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(180.1 182.6) scale(13.46)" fill="#fff" opacity="0.73"/>
+  <circle cx="180.1" cy="182.6" r="7.40" fill="url(#speck)" opacity="0.73"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(201.7 177.2) scale(19.01)" fill="#fff" opacity="0.73"/>
+  <circle cx="201.7" cy="177.2" r="10.45" fill="url(#speck)" opacity="0.73"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(340.4 193.8) scale(16.86)" fill="#fff" opacity="0.64"/>
+  <circle cx="340.4" cy="193.8" r="9.27" fill="url(#speck)" opacity="0.64"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(323.2 203.5) scale(14.84)" fill="#fff" opacity="0.78"/>
+  <circle cx="323.2" cy="203.5" r="8.16" fill="url(#speck)" opacity="0.78"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(301.0 208.2) scale(12.92)" fill="#fff" opacity="0.52"/>
+  <circle cx="301.0" cy="208.2" r="7.11" fill="url(#speck)" opacity="0.52"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(302.0 186.2) scale(20.41)" fill="#fff" opacity="0.87"/>
+  <circle cx="302.0" cy="186.2" r="11.23" fill="url(#speck)" opacity="0.87"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(308.1 182.6) scale(13.81)" fill="#fff" opacity="0.83"/>
+  <circle cx="308.1" cy="182.6" r="7.59" fill="url(#speck)" opacity="0.83"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(329.7 177.2) scale(18.13)" fill="#fff" opacity="0.56"/>
+  <circle cx="329.7" cy="177.2" r="9.97" fill="url(#speck)" opacity="0.56"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(468.4 193.8) scale(17.30)" fill="#fff" opacity="0.73"/>
+  <circle cx="468.4" cy="193.8" r="9.51" fill="url(#speck)" opacity="0.73"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(451.2 203.5) scale(14.46)" fill="#fff" opacity="0.68"/>
+  <circle cx="451.2" cy="203.5" r="7.95" fill="url(#speck)" opacity="0.68"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(429.0 208.2) scale(12.93)" fill="#fff" opacity="0.52"/>
+  <circle cx="429.0" cy="208.2" r="7.11" fill="url(#speck)" opacity="0.52"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(430.0 186.2) scale(21.03)" fill="#fff" opacity="0.99"/>
+  <circle cx="430.0" cy="186.2" r="11.57" fill="url(#speck)" opacity="0.99"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(436.1 182.6) scale(14.11)" fill="#fff" opacity="0.91"/>
+  <circle cx="436.1" cy="182.6" r="7.76" fill="url(#speck)" opacity="0.91"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(457.7 177.2) scale(17.82)" fill="#fff" opacity="0.50"/>
+  <circle cx="457.7" cy="177.2" r="9.80" fill="url(#speck)" opacity="0.50"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(84.4 321.8) scale(17.75)" fill="#fff" opacity="0.83"/>
+  <circle cx="84.4" cy="321.8" r="9.76" fill="url(#speck)" opacity="0.83"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(67.2 331.5) scale(14.11)" fill="#fff" opacity="0.60"/>
+  <circle cx="67.2" cy="331.5" r="7.76" fill="url(#speck)" opacity="0.60"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(45.0 336.2) scale(13.44)" fill="#fff" opacity="0.66"/>
+  <circle cx="45.0" cy="336.2" r="7.39" fill="url(#speck)" opacity="0.66"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(46.0 314.2) scale(20.90)" fill="#fff" opacity="0.97"/>
+  <circle cx="46.0" cy="314.2" r="11.50" fill="url(#speck)" opacity="0.97"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(52.1 310.6) scale(14.33)" fill="#fff" opacity="0.97"/>
+  <circle cx="52.1" cy="310.6" r="7.88" fill="url(#speck)" opacity="0.97"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(73.7 305.2) scale(18.25)" fill="#fff" opacity="0.59"/>
+  <circle cx="73.7" cy="305.2" r="10.04" fill="url(#speck)" opacity="0.59"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(212.4 321.8) scale(18.14)" fill="#fff" opacity="0.91"/>
+  <circle cx="212.4" cy="321.8" r="9.98" fill="url(#speck)" opacity="0.91"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(195.2 331.5) scale(13.86)" fill="#fff" opacity="0.53"/>
+  <circle cx="195.2" cy="331.5" r="7.63" fill="url(#speck)" opacity="0.53"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(173.0 336.2) scale(14.14)" fill="#fff" opacity="0.85"/>
+  <circle cx="173.0" cy="336.2" r="7.78" fill="url(#speck)" opacity="0.85"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(174.0 314.2) scale(20.11)" fill="#fff" opacity="0.82"/>
+  <circle cx="174.0" cy="314.2" r="11.06" fill="url(#speck)" opacity="0.82"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(180.1 310.6) scale(14.43)" fill="#fff" opacity="1.00"/>
+  <circle cx="180.1" cy="310.6" r="7.94" fill="url(#speck)" opacity="1.00"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(201.7 305.2) scale(19.17)" fill="#fff" opacity="0.77"/>
+  <circle cx="201.7" cy="305.2" r="10.55" fill="url(#speck)" opacity="0.77"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(340.4 321.8) scale(18.42)" fill="#fff" opacity="0.97"/>
+  <circle cx="340.4" cy="321.8" r="10.13" fill="url(#speck)" opacity="0.97"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(323.2 331.5) scale(13.75)" fill="#fff" opacity="0.50"/>
+  <circle cx="323.2" cy="331.5" r="7.56" fill="url(#speck)" opacity="0.50"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(301.0 336.2) scale(14.63)" fill="#fff" opacity="0.98"/>
+  <circle cx="301.0" cy="336.2" r="8.05" fill="url(#speck)" opacity="0.98"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(302.0 314.2) scale(19.11)" fill="#fff" opacity="0.63"/>
+  <circle cx="302.0" cy="314.2" r="10.51" fill="url(#speck)" opacity="0.63"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(308.1 310.6) scale(14.39)" fill="#fff" opacity="0.99"/>
+  <circle cx="308.1" cy="310.6" r="7.91" fill="url(#speck)" opacity="0.99"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(329.7 305.2) scale(20.05)" fill="#fff" opacity="0.94"/>
+  <circle cx="329.7" cy="305.2" r="11.03" fill="url(#speck)" opacity="0.94"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(468.4 321.8) scale(18.53)" fill="#fff" opacity="1.00"/>
+  <circle cx="468.4" cy="321.8" r="10.19" fill="url(#speck)" opacity="1.00"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(451.2 331.5) scale(13.77)" fill="#fff" opacity="0.51"/>
+  <circle cx="451.2" cy="331.5" r="7.58" fill="url(#speck)" opacity="0.51"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(429.0 336.2) scale(14.62)" fill="#fff" opacity="0.98"/>
+  <circle cx="429.0" cy="336.2" r="8.04" fill="url(#speck)" opacity="0.98"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(430.0 314.2) scale(18.49)" fill="#fff" opacity="0.51"/>
+  <circle cx="430.0" cy="314.2" r="10.17" fill="url(#speck)" opacity="0.51"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(436.1 310.6) scale(14.22)" fill="#fff" opacity="0.94"/>
+  <circle cx="436.1" cy="310.6" r="7.82" fill="url(#speck)" opacity="0.94"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(457.7 305.2) scale(20.36)" fill="#fff" opacity="1.00"/>
+  <circle cx="457.7" cy="305.2" r="11.20" fill="url(#speck)" opacity="1.00"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(84.4 449.8) scale(18.48)" fill="#fff" opacity="0.99"/>
+  <circle cx="84.4" cy="449.8" r="10.16" fill="url(#speck)" opacity="0.99"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(67.2 459.5) scale(13.95)" fill="#fff" opacity="0.55"/>
+  <circle cx="67.2" cy="459.5" r="7.67" fill="url(#speck)" opacity="0.55"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(45.0 464.2) scale(14.11)" fill="#fff" opacity="0.84"/>
+  <circle cx="45.0" cy="464.2" r="7.76" fill="url(#speck)" opacity="0.84"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(46.0 442.2) scale(18.61)" fill="#fff" opacity="0.53"/>
+  <circle cx="46.0" cy="442.2" r="10.24" fill="url(#speck)" opacity="0.53"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(52.1 438.6) scale(13.94)" fill="#fff" opacity="0.86"/>
+  <circle cx="52.1" cy="438.6" r="7.67" fill="url(#speck)" opacity="0.86"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(73.7 433.2) scale(19.93)" fill="#fff" opacity="0.91"/>
+  <circle cx="73.7" cy="433.2" r="10.96" fill="url(#speck)" opacity="0.91"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(212.4 449.8) scale(18.25)" fill="#fff" opacity="0.94"/>
+  <circle cx="212.4" cy="449.8" r="10.04" fill="url(#speck)" opacity="0.94"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(195.2 459.5) scale(14.24)" fill="#fff" opacity="0.63"/>
+  <circle cx="195.2" cy="459.5" r="7.83" fill="url(#speck)" opacity="0.63"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(173.0 464.2) scale(13.41)" fill="#fff" opacity="0.65"/>
+  <circle cx="173.0" cy="464.2" r="7.37" fill="url(#speck)" opacity="0.65"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(174.0 442.2) scale(19.41)" fill="#fff" opacity="0.68"/>
+  <circle cx="174.0" cy="442.2" r="10.68" fill="url(#speck)" opacity="0.68"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(180.1 438.6) scale(13.60)" fill="#fff" opacity="0.77"/>
+  <circle cx="180.1" cy="438.6" r="7.48" fill="url(#speck)" opacity="0.77"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(201.7 433.2) scale(19.01)" fill="#fff" opacity="0.73"/>
+  <circle cx="201.7" cy="433.2" r="10.45" fill="url(#speck)" opacity="0.73"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(340.4 449.8) scale(17.89)" fill="#fff" opacity="0.86"/>
+  <circle cx="340.4" cy="449.8" r="9.84" fill="url(#speck)" opacity="0.86"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(323.2 459.5) scale(14.60)" fill="#fff" opacity="0.72"/>
+  <circle cx="323.2" cy="459.5" r="8.03" fill="url(#speck)" opacity="0.72"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(301.0 464.2) scale(12.92)" fill="#fff" opacity="0.52"/>
+  <circle cx="301.0" cy="464.2" r="7.11" fill="url(#speck)" opacity="0.52"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(302.0 442.2) scale(20.41)" fill="#fff" opacity="0.87"/>
+  <circle cx="302.0" cy="442.2" r="11.23" fill="url(#speck)" opacity="0.87"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(308.1 438.6) scale(13.26)" fill="#fff" opacity="0.67"/>
+  <circle cx="308.1" cy="438.6" r="7.29" fill="url(#speck)" opacity="0.67"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(329.7 433.2) scale(18.13)" fill="#fff" opacity="0.56"/>
+  <circle cx="329.7" cy="433.2" r="9.97" fill="url(#speck)" opacity="0.56"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(468.4 449.8) scale(17.46)" fill="#fff" opacity="0.77"/>
+  <circle cx="468.4" cy="449.8" r="9.60" fill="url(#speck)" opacity="0.77"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(451.2 459.5) scale(14.98)" fill="#fff" opacity="0.82"/>
+  <circle cx="451.2" cy="459.5" r="8.24" fill="url(#speck)" opacity="0.82"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(429.0 464.2) scale(12.93)" fill="#fff" opacity="0.52"/>
+  <circle cx="429.0" cy="464.2" r="7.11" fill="url(#speck)" opacity="0.52"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(430.0 442.2) scale(21.03)" fill="#fff" opacity="0.99"/>
+  <circle cx="430.0" cy="442.2" r="11.57" fill="url(#speck)" opacity="0.99"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(436.1 438.6) scale(12.95)" fill="#fff" opacity="0.59"/>
+  <circle cx="436.1" cy="438.6" r="7.12" fill="url(#speck)" opacity="0.59"/>
+  <path d="M0 -1 C0.17 -0.23 0.23 -0.17 1 0 C0.23 0.17 0.17 0.23 0 1 C-0.17 0.23 -0.23 0.17 -1 0 C-0.23 -0.17 -0.17 -0.23 0 -1 Z" transform="translate(457.7 433.2) scale(17.82)" fill="#fff" opacity="0.50"/>
+  <circle cx="457.7" cy="433.2" r="9.80" fill="url(#speck)" opacity="0.50"/>
+</svg>
