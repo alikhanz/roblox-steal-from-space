@@ -1,5 +1,5 @@
 --!strict
--- Attaches the jetpack to an R15 character (decision 086): the body of its jetpack from the place's
+-- Attaches the jetpack to an R15 character (decision 089): the body of its jetpack from the place's
 -- templates (ServerStorage.Jetpacks, one model per jetpack, colours baked in its meshes), grips in
 -- both hands linked to the pack by hoses, and an attachment at each nozzle's exit for the flame,
 -- which every client adds itself (JetpackEffectsController). Sizes follow the character's

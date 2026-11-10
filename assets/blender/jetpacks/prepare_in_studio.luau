@@ -1,6 +1,6 @@
 --!strict
 -- Turns the inserted jetpack pack (export_jetpacks.py → Open Cloud → insert_asset) into the game's
--- templates, ServerStorage.Jetpacks.Jetpack<n> (decision 086, JetpackModel). Run in Studio, Edit
+-- templates, ServerStorage.Jetpacks.Jetpack<n> (decision 089, JetpackModel). Run in Studio, Edit
 -- mode (Command Bar or MCP execute_luau), with the inserted asset at ServerStorage.JetpacksIn; then
 -- save the place.
 --

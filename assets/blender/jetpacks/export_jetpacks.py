@@ -1,4 +1,4 @@
-# Exports the twelve jetpacks (jetpacks.py) for the game as one GLB (decision 086).
+# Exports the twelve jetpacks (jetpacks.py) for the game as one GLB (decision 089).
 #
 # A jetpack rides on every character, so it is kept as light as it can be (user, 2026-11-10: "the
 # jetpack must not eat too many resources"): the game's detail (jetpacks.LOW_POLY) and every part

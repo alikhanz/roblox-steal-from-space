@@ -1,5 +1,5 @@
 --!strict
--- How each jetpack looks (decision 086): its body is a model of its own (assets/blender/jetpacks,
+-- How each jetpack looks (decision 089): its body is a model of its own (assets/blender/jetpacks,
 -- ServerStorage.Jetpacks in the place; the colours are baked in its meshes), its flame a jet of
 -- beams from each nozzle. The flame changes in four steps of three jetpacks — fire, plasma, shock
 -- diamonds, exotic — and grows longer and brighter with every jetpack, in its own colour, so a

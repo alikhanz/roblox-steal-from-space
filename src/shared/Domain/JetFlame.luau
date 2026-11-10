@@ -1,5 +1,5 @@
 --!strict
--- How hard a jetpack's flame burns (decision 086): a share of its full length, from the engine's
+-- How hard a jetpack's flame burns (decision 089): a share of its full length, from the engine's
 -- state. Pure Luau; the look (lengths, colours, textures) is JetpackLooks', the beams the effects
 -- controller's.
 

@@ -1,5 +1,5 @@
 --!strict
--- Client-side jetpack visuals for every character (decision 086): a jet of beams from each nozzle
+-- Client-side jetpack visuals for every character (decision 089): a jet of beams from each nozzle
 -- — a white-hot core inside a jet in the jetpack's colour, its texture scrolling — and one light
 -- per jetpack. The flame grows with speed while flying and goes out under the dome; a guardian's
 -- hit stalls the engine, which restarts with a burst; the strike's lunge fires it full. On the

@@ -18,7 +18,7 @@ return table.freeze({
 
 	LEAN = table.freeze(LEAN),
 
-	-- Model (decision 086): ServerStorage.<MODELS_FOLDER>.<TEMPLATE_PREFIX><jetpack> in the place,
+	-- Model (decision 089): ServerStorage.<MODELS_FOLDER>.<TEMPLATE_PREFIX><jetpack> in the place,
 	-- one per jetpack (JetpackLooks.jetpackOf), built for a torso TEMPLATE_TORSO_WIDTH wide whose
 	-- back is TEMPLATE_BACK in front of its pivot; scaled to the character's. Without them the
 	-- greybox stands in (colours per level in JetpackLooks).
