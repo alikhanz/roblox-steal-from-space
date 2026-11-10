@@ -125,7 +125,8 @@ return table.freeze({
 		-- The lens inside the ring: a glowing disc in a lighter shade of the zone's colour.
 		lensRadius = 0.55,
 		lensThickness = 0.08,
-		lensLighten = 0.6,
+		-- Neon under bloom whitens on its own: a little lighter is enough (0.6 read as a white spot).
+		lensLighten = 0.2,
 	}),
 	-- A glowing stripe across the console's front, this high above the foot: on the flat of the
 	-- face, inside its rounded edges.

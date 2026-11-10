@@ -96,6 +96,7 @@ The game keeps **bare models in the repo** and **dresses them in code**.
 - **Snapshots:** `screen_capture` needs `camera_position`, `look_at_position` and `capture_id`. Review sheet: `_G.PetSheet(kind)` — variants 2, 3, 4, m4 × turns 0°, 90°, 180°.
 - **The MCP thread lacks `Network` capability.** Our modules can't be called from `execute_luau` in Play — use the `DevCommands` mailbox.
 - **`model:ScaleTo(k)` is absolute:** re-dressing doesn't grow the model.
+- **A fixed Beam (`FaceCamera = false`) spreads its width along its attachments' `SecondaryAxis`** (measured in Studio, 2026-11-10; the docs don't say). With default attachments on a vertical beam that axis lies along the beam, and the beam is invisible from everywhere. Set the attachments' `WorldCFrame` with `CFrame.fromMatrix(at, axis, widthDirection)`. A camera-facing beam is no fix for a flat fan of light: seen from above it lies across whatever it lights (the terminals' beam, decision 086).
 
 ## 6a. Mesh loading limits
 

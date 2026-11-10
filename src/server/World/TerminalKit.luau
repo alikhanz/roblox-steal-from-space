@@ -5,9 +5,10 @@
 -- (BayLooks.TERMINAL_CONSOLE), white: BayModel gives each copy its turn, material and colour.
 -- Without the kit in the place a terminal stands in greybox parts of the same size.
 --
--- Into the place (as the zones' kit, decision 085): terminal-kit.glb uploaded through Open Cloud,
--- inserted into ServerStorage, its MeshParts moved into a Folder `TerminalKit` (CollisionFidelity
--- Box). Save the place.
+-- Into the place (as the zones' kit, decisions 085, 086): Open Cloud asset 88280633868891
+-- (terminal-kit.glb) inserted into ServerStorage, its MeshParts moved into a Folder `TerminalKit`
+-- (CollisionFidelity stays Default: the console is nearly a box, the ring touches nothing). Save the
+-- place.
 
 local MeshKit = require(script.Parent.MeshKit)
 

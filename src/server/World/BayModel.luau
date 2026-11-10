@@ -509,20 +509,23 @@ local function buildTerminal(origin: CFrame, name: string, position: Vector3, co
 		end
 	end
 
-	-- The cone of light from the lens to the screen's bottom edge, turned to whoever looks at it.
+	-- The fan of light from the lens to the screen's bottom edge, in the screen's plane. Not turned
+	-- to the camera: seen from above, a camera-facing beam lay across the screen (user, 2026-11-10).
+	-- A fixed beam spreads its width along its attachments' secondary axis (measured in Studio): the
+	-- screen's right.
 	local beamLooks = BayLooks.TERMINAL_BEAM
-	local from = Instance.new("Attachment")
-	from.Name = "BeamFrom"
-	from.Parent = lens
-	local to = Instance.new("Attachment")
-	to.Name = "BeamTo"
-	to.Position = Vector3.new(0, -screenSize.Y / 2, 0)
-	to.Parent = screen
+	local function anchor(attachmentName: string, part: BasePart, at: Vector3): Attachment
+		local attachment = Instance.new("Attachment")
+		attachment.Name = attachmentName
+		attachment.Parent = part
+		attachment.WorldCFrame = CFrame.fromMatrix(at, frame.LookVector, frame.RightVector)
+		return attachment
+	end
 	local beam = Instance.new("Beam")
 	beam.Name = "Beam"
-	beam.Attachment0 = from
-	beam.Attachment1 = to
-	beam.FaceCamera = true
+	beam.Attachment0 = anchor("BeamFrom", lens, lens.Position)
+	beam.Attachment1 = anchor("BeamTo", screen, (screenFrame * CFrame.new(0, -screenSize.Y / 2, 0)).Position)
+	beam.FaceCamera = false
 	beam.Segments = 1
 	beam.Width0 = beamLooks.width0
 	beam.Width1 = beamLooks.width1
