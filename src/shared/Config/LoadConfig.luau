@@ -11,11 +11,13 @@ return table.freeze({
 	-- Higher first. Things that show up in front of the player go before things in hidden windows.
 	PRIORITY = table.freeze({
 		-- Other players' jetpacks.
-		JETPACK = 6,
+		JETPACK = 7,
+		-- One job at the join, and the clicks and the engine are needed in the first seconds
+		-- (Studio, 2026-11-11: after the guardians it waited 3 s behind the six near the island).
+		SOUNDS = 6,
 		-- The star serpent, a guardian near the camera: they are in front of the player right now.
 		SERPENT = 5,
 		GUARDIAN = 5,
-		SOUNDS = 4,
 		-- Pets on the player's own island, then everyone else's.
 		OWN_PETS = 3,
 		PETS = 2,
