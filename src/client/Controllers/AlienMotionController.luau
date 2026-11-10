@@ -758,14 +758,16 @@ local function popIn(model: Model)
 	then
 		return
 	end
-	local pivot = model:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
 	local lift = tonumber(model:GetAttribute(BayConfig.ALIEN_LIFT_ATTRIBUTE)) or 0
-	local stand = (if typeof(pivot) == "CFrame" then pivot else model:GetPivot()) * CFrame.new(0, -lift, 0)
 	local full = model:GetScale()
 	local start = os.clock()
 	while model:IsDescendantOf(workspace) do
 		local u = math.min((os.clock() - start) / pop.seconds, 1)
 		local k = pop.from + (1 - pop.from) * backOut(u)
+		-- Where it stands now: the layout may move its place while it pops (several aliens come
+		-- at once), and it must land there, not where it appeared.
+		local pivot = model:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
+		local stand = (if typeof(pivot) == "CFrame" then pivot else model:GetPivot()) * CFrame.new(0, -lift, 0)
 		model:ScaleTo(full * k)
 		model:PivotTo(stand * CFrame.new(0, lift * k, 0))
 		if u >= 1 then
