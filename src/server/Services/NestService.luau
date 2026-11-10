@@ -69,7 +69,7 @@ type Nest = {
 	rarity: EggConfig.RarityId?,
 	size: EggConfig.SizeId?,
 	variant: AlienConfig.VariantId?,
-	egg: Part?,
+	egg: BasePart?,
 	cycle: NestCycle.State,
 	crater: boolean,
 	-- A crater whose shower is over: it goes as soon as its egg is back.

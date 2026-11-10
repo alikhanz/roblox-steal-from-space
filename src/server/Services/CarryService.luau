@@ -129,14 +129,14 @@ export type CarryService = {
 
 type CarriedEntry = {
 	egg: Egg,
-	model: Part,
+	model: BasePart,
 	-- Already carried inside the station border once (reachedStation fired).
 	reachedStation: boolean,
 }
 
 type LooseEgg = {
 	egg: Egg,
-	part: Part,
+	part: BasePart,
 	expiresAt: number,
 	-- Drift left from the knock-out; the egg coasts to a stop and tumbles meanwhile.
 	velocity: Vector3,
