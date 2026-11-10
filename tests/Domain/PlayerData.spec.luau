@@ -777,3 +777,31 @@ describe("PlayerData migration v14 -> v15", function()
 		expectCorrupted(broken, "tutorialStep is invalid")
 	end)
 end)
+
+describe("PlayerData migration v16 -> v17", function()
+	it("gives a profile from before no bench and keeps a saved one", function()
+		local old = savedTemplate()
+		old.schemaVersion = 16
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.bench).toBeNil()
+		end
+		local benched = savedTemplate()
+		benched.bench = { pods = 3, uids = { 4, 5 } }
+		local kept = load(benched)
+		expect(kept.ok).toBe(true)
+		if kept.ok then
+			expect(#(kept.data.bench :: PlayerData.BenchRecord).uids).toBe(2)
+		end
+	end)
+
+	it("rejects a broken bench", function()
+		local broken = savedTemplate()
+		broken.bench = { pods = 0, uids = {} }
+		expectCorrupted(broken, "bench is invalid")
+		local badUids = savedTemplate()
+		badUids.bench = { pods = 3, uids = { "x" } }
+		expectCorrupted(badUids, "bench uids are invalid")
+	end)
+end)

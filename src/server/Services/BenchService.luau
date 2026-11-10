@@ -4,16 +4,17 @@
 -- six families, many legendaries with wings, comets and the medal, meteor ones, giants from the far
 -- guardians), and takes them away again. Only in Studio and, in a live server, only in the Dev game
 -- (DevConfig.BENCH_GAME_IDS) and only for the game's creator: the player attribute
--- DevConfig.BENCH_ATTRIBUTE shows the client its two buttons. What the bench changed is kept on
--- this server only: clearing after a rejoin finds nothing to undo.
+-- DevConfig.BENCH_ATTRIBUTE shows the client its two buttons. What the bench changed is saved in
+-- the profile (Domain/Bench): clearing works after a rejoin too (it kept to the server once, and a
+-- rejoin left the island full with nothing to clear; user, 2026-11-10).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
-local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local Bench = require(ReplicatedStorage.Shared.Domain.Bench)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 
@@ -36,12 +37,6 @@ export type BenchService = {
 	start: () -> (),
 	-- Fills the island (`fill`) or takes the bench away; nothing for a player not allowed.
 	run: (player: Player, fill: boolean) -> (),
-}
-
--- What the bench did to a player's places: how many there were, and the uids it put in.
-type Change = {
-	pods: number,
-	uids: { [number]: boolean },
 }
 
 local BenchService = {}
@@ -75,68 +70,18 @@ local function allowed(player: Player): boolean
 end
 
 function BenchService.new(dependencies: Dependencies): BenchService
-	local changes: { [Player]: Change } = {}
-
-	local function fill(player: Player)
-		if changes[player] then
-			return
-		end
-		local data = dependencies.getData(player)
-		if not data then
-			return
-		end
-		local change: Change = { pods = #data.pods, uids = {} }
-		local written = dependencies.update(player, function(profile)
-			while #profile.pods < BayConfig.MAX_PODS do
-				table.insert(profile.pods, {})
-			end
-			local queue = benchAliens(BayConfig.MAX_PODS)
-			local next = 1
-			for _, pod in profile.pods do
-				if not pod.alien then
-					local uid = Bay.newUid(profile)
-					pod.alien = { uid = uid, id = queue[next] }
-					change.uids[uid] = true
-					next += 1
-				end
-			end
-		end)
-		if written then
-			changes[player] = change
-			dependencies.refresh(player)
-		end
-	end
-
-	local function clear(player: Player)
-		local change = changes[player]
-		if not change then
-			return
-		end
-		local written = dependencies.update(player, function(profile)
-			for _, pod in profile.pods do
-				if pod.alien and change.uids[pod.alien.uid] then
-					pod.alien = nil
-				end
-			end
-			-- The places the bench added, while they stand empty (the player's own aliens stay).
-			while #profile.pods > change.pods and not profile.pods[#profile.pods].alien do
-				table.remove(profile.pods)
-			end
-		end)
-		if written then
-			changes[player] = nil
-			dependencies.refresh(player)
-		end
-	end
-
 	local function run(player: Player, wanted: boolean)
-		if not allowed(player) then
+		if not allowed(player) or not dependencies.getData(player) then
 			return
 		end
-		if wanted then
-			fill(player)
-		else
-			clear(player)
+		local changed = false
+		dependencies.update(player, function(data)
+			changed = if wanted
+				then Bench.fill(data, benchAliens(BayConfig.MAX_PODS), BayConfig.MAX_PODS)
+				else Bench.clear(data)
+		end)
+		if changed then
+			dependencies.refresh(player)
 		end
 	end
 
@@ -148,9 +93,6 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		for _, player in Players:GetPlayers() do
 			mark(player)
 		end
-		Players.PlayerRemoving:Connect(function(player)
-			changes[player] = nil
-		end)
 	end
 
 	return {

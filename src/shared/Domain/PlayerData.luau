@@ -48,6 +48,13 @@ export type Pod = {
 	alien: AlienRecord?,
 }
 
+-- What the pet bench put in (decision 082, Domain/Bench): how many places the player had before,
+-- and the aliens it added. Saved, so "/bench clear" still finds them after a rejoin.
+export type BenchRecord = {
+	pods: number,
+	uids: { number },
+}
+
 export type PlayerData = {
 	schemaVersion: number,
 	coins: BigNum.BigNum,
@@ -96,6 +103,8 @@ export type PlayerData = {
 	passes: { string },
 	-- What the last time away paid, for "Collect x2"; zeros: nothing to collect again.
 	pendingDouble: PendingDouble,
+	-- The pet bench, while it stands on the island; nil: none (a developer's tool, decision 082).
+	bench: BenchRecord?,
 }
 
 export type PendingDouble = {
@@ -116,7 +125,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 16
+PlayerData.SCHEMA_VERSION = 17
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -269,6 +278,8 @@ PlayerData.MIGRATIONS = {
 			index.found = found
 		end
 	end,
+	-- v17: the pet bench is saved (`bench`); a profile from before has none standing.
+	[16] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -494,6 +505,27 @@ local function validatePurchases(data: { [string]: any }): string?
 	return nil
 end
 
+local function validateBench(bench: any): string?
+	if bench == nil then
+		return nil
+	end
+	if type(bench) ~= "table" or not isInteger(bench.pods) or bench.pods < 1 then
+		return "bench is invalid"
+	end
+	local uids = bench.uids
+	if type(uids) ~= "table" then
+		return "bench uids are invalid"
+	end
+	local count = 0
+	for key, uid in uids do
+		if not isInteger(key) or key < 1 or key > #uids or not isInteger(uid) or uid < 1 then
+			return "bench uids are invalid"
+		end
+		count += 1
+	end
+	return if count == #uids then nil else "bench uids are invalid"
+end
+
 -- Checks a migrated, reconciled copy and converts saved values into their runtime form in place.
 local function validate(data: { [string]: any }): string?
 	for _, field in { "coins", "coinsEarned", "trained" } do
@@ -567,6 +599,10 @@ local function validate(data: { [string]: any }): string?
 	local indexProblem = validateIndex(data.index)
 	if indexProblem then
 		return indexProblem
+	end
+	local benchProblem = validateBench(data.bench)
+	if benchProblem then
+		return benchProblem
 	end
 	return validatePurchases(data)
 end
