@@ -65,13 +65,19 @@ function CoinBoardController.new(): CoinBoardController
 	end
 
 	-- The board's coins turning about their pivots, until the board goes. Coins stream in and out,
-	-- so each frame turns whichever are there, from the pivot each had when first seen.
+	-- so each frame turns whichever are there, from the pivot each had when first seen. The
+	-- pivots are kept in a plain table, cleared as a coin goes: in a weak one Luau drops a coin's
+	-- entry while the coin lives, its turned pivot is taken for the rest one, and the coin jumps
+	-- (playtest 2026-11-10).
 	local function turnCoins(board: Instance, folder: Instance)
 		if GuiService.ReducedMotionEnabled then
 			return
 		end
-		local pivots: { [Model]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
-		local turning = RunService.Heartbeat:Connect(function()
+		local pivots: { [Instance]: CFrame } = {}
+		local removed = folder.ChildRemoved:Connect(function(child)
+			pivots[child] = nil
+		end)
+		local turning = RunService.RenderStepped:Connect(function()
 			local turn = CFrame.Angles(0, os.clock() / LeaderboardLooks.COIN_TURN_SECONDS * math.pi * 2, 0)
 			for _, child in folder:GetChildren() do
 				if child:IsA("Model") then
@@ -83,6 +89,7 @@ function CoinBoardController.new(): CoinBoardController
 		end)
 		board.Destroying:Once(function()
 			turning:Disconnect()
+			removed:Disconnect()
 		end)
 	end
 
@@ -118,12 +125,16 @@ function CoinBoardController.new(): CoinBoardController
 			end)
 			-- Drawn on each panel itself, as it streams in, so it goes away with it (streaming out,
 			-- a rebuilt world). A panel streamed out and back in keeps its drawing.
-			local drawn: { [Instance]: true } = setmetatable({}, { __mode = "k" }) :: any
+			-- A plain table, cleared as a panel goes (instances are no keys for a weak one).
+			local drawn: { [Instance]: true } = {}
 			local function draw(panel: Instance)
 				if drawn[panel] or panel.Name ~= LeaderboardConfig.PANEL_NAME or not panel:IsA("BasePart") then
 					return
 				end
 				drawn[panel] = true
+				panel.Destroying:Once(function()
+					drawn[panel] = nil
+				end)
 				local unmount = Vide.mount(function()
 					return CoinBoard({
 						adornee = panel,
