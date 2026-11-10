@@ -21,6 +21,8 @@ local SOURCES = {
 	{ dir = "assets/fx", glow = false },
 }
 local SIZE = 256
+-- Images drawn bigger, by name: what covers a large area in the world (the rune under a big pet).
+local SIZES: { [string]: number } = { rune = 1024 }
 local GLOW = "drop-shadow(0 0 7px rgba(255, 255, 255, 0.45))"
 local PORT = 8790
 local DEFAULT_CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe"
@@ -46,10 +48,11 @@ local function render(): boolean
 			if name then
 				local page = `{OUT_DIR}/{name}.html`
 				local filter = if source.glow then `filter: {GLOW};` else ""
+				local size = SIZES[name] or SIZE
 				fs.writeFile(
 					page,
 					`<!DOCTYPE html><html><body style="margin:0;background:transparent">`
-						.. `<img src="file:///{absolute(source.dir)}/{file}" style="display:block;width:{SIZE}px;height:{SIZE}px;{filter}">`
+						.. `<img src="file:///{absolute(source.dir)}/{file}" style="display:block;width:{size}px;height:{size}px;{filter}">`
 						.. `</body></html>`
 				)
 				local result = process.exec(chrome, {
@@ -58,7 +61,7 @@ local function render(): boolean
 					"--hide-scrollbars",
 					"--allow-file-access-from-files",
 					"--default-background-color=00000000",
-					`--window-size={SIZE},{SIZE}`,
+					`--window-size={size},{size}`,
 					`--screenshot={absolute(OUT_DIR)}/{name}.png`,
 					`file:///{absolute(page)}`,
 				})

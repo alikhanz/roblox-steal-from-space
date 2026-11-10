@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A jetpack's flame along a Beam (AlienDress.jets): tongues of fire streaming along X, soft
+       across Y (the beam's width). It tiles along X: what leaves the right edge comes back on the
+       left, so the beam can scroll it (TextureSpeed). White on transparency, tinted in game. -->
+  <defs>
+    <filter id="soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="6 4"/></filter>
+    <linearGradient id="across" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.3" stop-color="#fff" stop-opacity="0.75"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.7" stop-color="#fff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <g id="tongues" fill="#fff">
+      <ellipse cx="30" cy="128" rx="60" ry="34"/>
+      <ellipse cx="110" cy="108" rx="44" ry="22"/>
+      <ellipse cx="150" cy="146" rx="52" ry="26"/>
+      <ellipse cx="215" cy="122" rx="48" ry="30"/>
+      <ellipse cx="80" cy="150" rx="30" ry="16"/>
+      <ellipse cx="185" cy="96" rx="26" ry="12"/>
+    </g>
+  </defs>
+  <!-- A steady soft core along the middle. -->
+  <rect x="0" y="0" width="256" height="256" fill="url(#across)" opacity="0.45"/>
+  <!-- The tongues, three times along X so the edges wrap. -->
+  <g filter="url(#soft)" opacity="0.9">
+    <use href="#tongues" x="-256"/>
+    <use href="#tongues"/>
+    <use href="#tongues" x="256"/>
+  </g>
+</svg>

@@ -57,6 +57,10 @@ local MODELS = table.freeze({
 		ember = "rbxassetid://82123783399839",
 		flame = "rbxassetid://120732950893778",
 		halo = "rbxassetid://100306136441986",
+		-- The rune circle under a pet, crisp at 1024 px (assets/fx/rune.svg).
+		rune = "rbxassetid://88644383353062",
+		-- A jetpack's flame along a beam, tongues of fire that tile and scroll (assets/fx/jet.svg).
+		jet = "rbxassetid://105800856225099",
 		rays = "rbxassetid://75268695809192",
 		crest = "rbxassetid://73996927875354",
 		smoke = "rbxasset://textures/particles/smoke_main.dds",
@@ -111,18 +115,26 @@ local MOTION = table.freeze({
 	HOP_EVERY = table.freeze({ 5, 10 }),
 	BLINK_EVERY = table.freeze({ 2, 6 }),
 	JAW_EVERY = table.freeze({ 1.8, 4.5 }),
-	-- Fairy wings (AlienDress.wings): each beat sheds this many dust grains and stars from every
-	-- dust point (there are ~16 on a winged pet), and the wing tip draws a glowing stroke: a ribbon
-	-- from the tip `edge` of the wing down its edge, fading over `seconds`. It was 10 grains and 2
-	-- stars a point and a spray of sparkles at the tip: ~400 particles a winged pet (2026-11-10).
-	WING_DUST = 4,
-	WING_DUST_STARS = 1,
+	-- Fairy wings (AlienDress.wings): the outer edge draws a glowing stroke as the wing beats,
+	-- ribbons between the Dust points along it (~8 a wing), fading over `seconds`, this see-through
+	-- where the edge just was. It was a shower of dust from those points and sparkles at the tip:
+	-- ~400 particles a winged pet (user, 2026-11-10: the stroke looks better).
 	WING_STROKE = table.freeze({
-		edge = 0.12,
-		seconds = 0.35,
-		transparency = 0.25,
-		brightness = 1.5,
+		seconds = 0.3,
+		transparency = 0.45,
+		brightness = 1.2,
 	}),
+	-- A jetpack's flame (AlienDress.jets): two camera-facing beams down from each nozzle, the flame
+	-- in its colour and a white core, `length` and `width` times the hidden Blender cone's length,
+	-- the fire scrolling along them `scroll` times a second. It was two streams of particles (~30
+	-- a pet, 2026-11-10).
+	JET_FLAME = table.freeze({ length = 1.7, width = 0.5, transparency = 0.15, scroll = 2.5 }),
+	JET_CORE = table.freeze({ length = 0.9, width = 0.22, transparency = 0.05, scroll = 3.5 }),
+	-- A comet's tail (AlienDress.cometTail): a ribbon `width` times its head's size at the head,
+	-- living `seconds` (its length, as the comet flies), this see-through at the head. A meteor's
+	-- fireball has a fire tail. They were streams of particles: ~65 a comet (2026-11-10).
+	COMET_TAIL = table.freeze({ width = 1.6, seconds = 0.55, transparency = 0.2, brightness = 1.5 }),
+	FIRE_TAIL = table.freeze({ width = 1.5, seconds = 0.45, transparency = 0.1, brightness = 1.8 }),
 	-- A crab's jaws open this far before they snap shut, radians.
 	JAW_OPEN = 0.45,
 	-- A pet turns to a player this close (studs past its own size), at most this far (degrees).

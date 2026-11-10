@@ -16,7 +16,7 @@
 -- On top of a shared bob and sway each family moves its own way: a slime wobbles like jelly and
 -- hops, a crab snaps its claws and steps, a worm waves its segments and looks round, a ray beats
 -- its fins and wags its tail, a whale rows and beats its flukes, a swarm's little drones fly loops
--- of their own; wings flap and shed dust, comets circle, the rune and the medal turn; every pet
+-- of their own; wings flap (their edges leave a glowing stroke), comets circle, the rune and the medal turn; every pet
 -- blinks and turns to a player close by, each on its own rhythm. The parts tell what they are by
 -- their Role attribute (AlienDress); hinges are parts named `hinge<Name>` (`hingeJawL` turns
 -- `jawL`). Lengths made at the dressing scale grow with the pet (Model:GetScale()).
@@ -124,11 +124,6 @@ type Mover = {
 	phase: number,
 }
 
-type Dust = {
-	emitter: ParticleEmitter,
-	count: number,
-}
-
 type Picture = {
 	image: ImageLabel,
 	-- Degrees a second, or nil for a slow sway from `sway`.
@@ -158,12 +153,10 @@ type Pet = {
 	groups: { [string]: Vector3 },
 	hinges: { [string]: Vector3 },
 	paths: { [number]: Path },
-	dustOpen: { Dust },
-	dustFold: { Dust },
 	pictures: { Picture },
 	-- Steady particle layers: the secondary ones and the main ones (AlienLooks.MOTION.MAIN_EFFECTS).
-	effects: { ParticleEmitter | Trail },
-	mainEffects: { ParticleEmitter | Trail },
+	effects: { ParticleEmitter | Trail | Beam },
+	mainEffects: { ParticleEmitter | Trail | Beam },
 	boards: { BillboardGui },
 	-- How much of it is drawn and moved now (PetMotion.detail); nil until first seen.
 	detail: number?,
@@ -173,7 +166,6 @@ type Pet = {
 	brightness: number,
 	-- Where a slime's jelly starts (above its solid base), in the pet's space.
 	jellyFloor: number?,
-	beat: number,
 	yaw: number,
 	blinkAt: number,
 	blinkStart: number?,
@@ -409,8 +401,6 @@ local function petOf(model: Model): Pet?
 		groups = {},
 		hinges = {},
 		paths = {},
-		dustOpen = {},
-		dustFold = {},
 		pictures = {},
 		effects = {},
 		mainEffects = {},
@@ -420,7 +410,6 @@ local function petOf(model: Model): Pet?
 		light = nil,
 		brightness = 0,
 		jellyFloor = nil,
-		beat = 0,
 		yaw = 0,
 		blinkAt = now + random:NextNumber(0.5, 4),
 		blinkStart = nil,
@@ -465,12 +454,6 @@ local function petOf(model: Model): Pet?
 			end
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
-		elseif item:IsA("ParticleEmitter") and string.match(item.Name, "^Dust") then
-			local dust = {
-				emitter = item,
-				count = if string.match(item.Name, "Star$") then MOTION.WING_DUST_STARS else MOTION.WING_DUST,
-			}
-			table.insert(if string.match(item.Name, "^DustOpen") then pet.dustOpen else pet.dustFold, dust)
 		elseif item:IsA("ImageLabel") and (item:GetAttribute("Spin") or item:GetAttribute("Sway")) then
 			table.insert(pet.pictures, {
 				image = item,
@@ -478,9 +461,9 @@ local function petOf(model: Model): Pet?
 				sway = tonumber(item:GetAttribute("Sway")) or 0,
 			})
 		end
-		-- What the detail turns off and on: the steady particle layers (the wing dust only bursts on
-		-- a beat, so it is left alone), the main ones apart; the pictures (medal, crest).
-		if (item:IsA("ParticleEmitter") and item.Rate > 0) or item:IsA("Trail") then
+		-- What the detail turns off and on: the steady particle layers, the ribbons (wing strokes,
+		-- comet tails) and the beams (jet flames), the main ones apart; the pictures (medal, crest).
+		if (item:IsA("ParticleEmitter") and item.Rate > 0) or item:IsA("Trail") or item:IsA("Beam") then
 			table.insert(if MOTION.MAIN_EFFECTS[item.Name] then pet.mainEffects else pet.effects, item)
 		elseif item:IsA("BillboardGui") then
 			table.insert(pet.boards, item)
@@ -569,16 +552,6 @@ local function move(pet: Pet, t: number, dt: number, root: BasePart?, parts: { B
 	local beat = math.sin(t * 5 + ph)
 	-- From the wings' 38° rest sweep: 11° to 45° back.
 	local swing = -0.17 + 0.3 * beat
-	local stroke = if pet.beat > 0 and beat <= 0
-		then pet.dustOpen
-		elseif pet.beat < 0 and beat >= 0 then pet.dustFold
-		else nil
-	if stroke then
-		for _, dust in stroke do
-			dust.emitter:Emit(dust.count)
-		end
-	end
-	pet.beat = beat
 	local open = eyeOpen(pet, t)
 	-- Every pet's jaws keep their rhythm; only the ones it has (a crab's, pincers, a devourer's
 	-- mandibles, its drones' too) use it.

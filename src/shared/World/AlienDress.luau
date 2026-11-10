@@ -8,9 +8,8 @@
 --     the lava skin: nothing heavy goes to the clients.
 --   * adorn (each client, AlienMotionController, on a local copy: adornLocally): a soft light low
 --     under the body, particles by zone and signature (soft: fading in and out), the jetpacks'
---     flames, wing sparkles and dust, comets with particle tails, a turning rune circle on the
---     floor; a meteor's comet tail of fire, smoke and sparks, fireball comets and a crest of fire
---     behind its head; a legendary's glow under a turning medal of rays. These were half of a
+--     flames, the wings' glowing strokes, comets with glowing tails, a turning rune circle on the
+--     floor; a meteor's heat embers, fireball comets and a crest of fire behind its head; a legendary's glow under a turning medal of rays. These were half of a
 --     pet's instances and the heaviest ones (2026-11-10).
 --
 -- The pet comes with its data in attributes (Zone, Family, Tier 0-4, Meteor, Signature, Core,
@@ -31,7 +30,8 @@ local AlienDress = {}
 
 local MODELS = AlienLooks.MODELS
 local TEX = MODELS.TEXTURES
-local WING_STROKE = AlienLooks.MOTION.WING_STROKE
+local MOTION_LOOKS = AlienLooks.MOTION
+local WING_STROKE = MOTION_LOOKS.WING_STROKE
 local GOLD = Color3.fromRGB(255, 200, 70)
 local FIRE = Color3.fromRGB(255, 120, 30)
 local WHITE = Color3.new(1, 1, 1)
@@ -182,7 +182,40 @@ local function board(at: Attachment, name: string, texture: string, size: number
 	gui.Parent = at
 end
 
--- A comet circling the pet: a glowing head and a tail of particles left behind in the world.
+-- A comet's tail: a glowing ribbon left behind the head as it circles, facing the camera, white at
+-- the head and fading out in the tail's colours. It was a stream of particles (~65 a comet); one
+-- ribbon draws it smoother (2026-11-10).
+local function cometTail(
+	wisp: BasePart,
+	name: string,
+	colour: ColorSequence,
+	look: {
+		read width: number,
+		read seconds: number,
+		read transparency: number,
+		read brightness: number,
+	}
+)
+	local half = wisp.Size.Y * look.width / 2
+	local front = attachment(wisp, "TailTop", Vector3.new(0, half, 0))
+	local back = attachment(wisp, "TailBottom", Vector3.new(0, -half, 0))
+	local tail = Instance.new("Trail")
+	tail.Name = name
+	tail.Attachment0 = front
+	tail.Attachment1 = back
+	tail.FaceCamera = true
+	tail.Lifetime = look.seconds
+	tail.MinLength = 0
+	tail.LightEmission = 1
+	tail.LightInfluence = 0
+	tail.Brightness = look.brightness
+	tail.Color = colour
+	tail.Transparency = seq({ { 0, look.transparency }, { 1, 1 } })
+	tail.WidthScale = seq({ { 0, 1 }, { 1, 0.1 } })
+	tail.Parent = wisp
+end
+
+-- A comet circling the pet: a glowing head and a glowing tail left behind in the world.
 local function comet(
 	pet: Model,
 	cf: CFrame,
@@ -208,51 +241,18 @@ local function comet(
 	wisp:SetAttribute("Phase", index * 2 * math.pi / count)
 	wisp:SetAttribute("Speed", if fiery then 1.9 else 1.6)
 	if fiery then
-		emitter(wisp, "FireTail", {
-			Texture = TEX.flame,
-			Color = colours({
+		cometTail(
+			wisp,
+			"FireTail",
+			colours({
 				{ 0, Color3.fromRGB(255, 245, 190) },
 				{ 0.3, Color3.fromRGB(255, 160, 40) },
 				{ 1, Color3.fromRGB(190, 30, 10) },
 			}),
-			Size = seq({ { 0, 0.9 }, { 1, 0.15 } }),
-			Lifetime = NumberRange.new(0.35, 0.55),
-			Rate = 70,
-			Speed = NumberRange.new(0, 0.4),
-			Rotation = NumberRange.new(0, 360),
-			RotSpeed = NumberRange.new(-90, 90),
-		})
-		emitter(wisp, "TailSmoke", {
-			Texture = TEX.smoke,
-			LightEmission = 0,
-			LightInfluence = 1,
-			Color = ColorSequence.new(Color3.fromRGB(70, 55, 50)),
-			Transparency = seq({ { 0, 0.7 }, { 1, 1 } }),
-			Size = seq({ { 0, 0.5 }, { 1, 1.6 } }),
-			Lifetime = NumberRange.new(0.6, 1),
-			Rate = 18,
-			Speed = NumberRange.new(0, 0.3),
-		})
+			MOTION_LOOKS.FIRE_TAIL
+		)
 	else
-		emitter(wisp, "StarTail", {
-			Texture = TEX.star,
-			Color = colours({ { 0, WHITE }, { 0.4, tail }, { 1, tail } }),
-			Size = seq({ { 0, 0.55 }, { 1, 0 } }),
-			Lifetime = NumberRange.new(0.5, 0.9),
-			Rate = 45,
-			Speed = NumberRange.new(0, 0.5),
-			Rotation = NumberRange.new(0, 360),
-			RotSpeed = NumberRange.new(-120, 120),
-		})
-		emitter(wisp, "GlowTail", {
-			Texture = TEX.ember,
-			Color = ColorSequence.new(tail),
-			Transparency = seq({ { 0, 0.3 }, { 1, 1 } }),
-			Size = seq({ { 0, 0.9 }, { 1, 0.1 } }),
-			Lifetime = NumberRange.new(0.4, 0.6),
-			Rate = 60,
-			Speed = NumberRange.new(0, 0.1),
-		})
+		cometTail(wisp, "StarTail", colours({ { 0, WHITE }, { 0.4, tail }, { 1, tail } }), MOTION_LOOKS.COMET_TAIL)
 	end
 	wisp.Parent = pet
 end
@@ -378,6 +378,15 @@ end
 -- The jetpack's flames (tier 2+): from each nozzle (the top of Blender's hidden flame cone), a
 -- short jet down and a little back, in the colour Blender gave it with a pale core. The cone's
 -- length sets the jet's.
+-- One beam of a jet's flame: its name (MOTION.MAIN_EFFECTS keeps it in the middle distance), its
+-- size and scroll (AlienLooks.MOTION), its colours and how much it glows.
+type JetLayer = {
+	name: string,
+	look: { read length: number, read width: number, read transparency: number, read scroll: number },
+	colour: ColorSequence,
+	emission: number,
+}
+
 local function jets(fx: BasePart, jetParts: { MeshPart }, paints: { [string]: Paint })
 	for index, part in jetParts do
 		-- The cone stands almost upright, its base half its length above its middle.
@@ -389,34 +398,34 @@ local function jets(fx: BasePart, jetParts: { MeshPart }, paints: { [string]: Pa
 		)
 		nozzle.CFrame *= CFrame.Angles(-0.29, 0, 0) -- Bottom leans to +Z, the pet's back
 		local colour = paints[part.Name].colour
-		emitter(nozzle, "JetFlame", {
-			Texture = TEX.flame,
-			EmissionDirection = Enum.NormalId.Bottom,
-			LightEmission = 0.6,
-			Color = colours({ { 0, WHITE }, { 0.25, boost(colour, 1, 1.2) }, { 1, colour } }),
-			Transparency = seq({ { 0, 0.2 }, { 0.5, 0.35 }, { 1, 1 } }),
-			Size = seq({ { 0, length * 0.4 }, { 0.3, length * 0.5 }, { 1, length * 0.1 } }),
-			Lifetime = NumberRange.new(0.26, 0.36),
-			Rate = 50,
-			Speed = NumberRange.new(length * 5, length * 6.5),
-			SpreadAngle = Vector2.new(8, 8),
-			Rotation = NumberRange.new(0, 360),
-			RotSpeed = NumberRange.new(-90, 90),
-		})
-		emitter(nozzle, "JetCore", {
-			Texture = TEX.flame,
-			EmissionDirection = Enum.NormalId.Bottom,
-			LightEmission = 0.9,
-			Color = ColorSequence.new(WHITE),
-			Transparency = seq({ { 0, 0.1 }, { 1, 1 } }),
-			Size = seq({ { 0, length * 0.24 }, { 1, length * 0.05 } }),
-			Lifetime = NumberRange.new(0.14, 0.22),
-			Rate = 30,
-			Speed = NumberRange.new(length * 3.5, length * 4.5),
-			SpreadAngle = Vector2.new(5, 5),
-			Rotation = NumberRange.new(0, 360),
-			ZOffset = 0.6,
-		})
+		-- Two beams down from the nozzle, facing the camera, the fire scrolling along them: the
+		-- flame in its colour and a white core over it.
+		local flameColour = colours({ { 0, WHITE }, { 0.25, boost(colour, 1, 1.2) }, { 1, colour } })
+		local layers: { JetLayer } = {
+			{ name = "JetFlame", look = MOTION_LOOKS.JET_FLAME, colour = flameColour, emission = 0.7 },
+			{ name = "JetCore", look = MOTION_LOOKS.JET_CORE, colour = ColorSequence.new(WHITE), emission = 1 },
+		}
+		for _, layer in layers do
+			local look = layer.look
+			local tail = attachment(fx, layer.name .. "End" .. index, Vector3.zero)
+			tail.CFrame = nozzle.CFrame * CFrame.new(0, -length * look.length, 0)
+			local beam = Instance.new("Beam")
+			beam.Name = layer.name
+			beam.Attachment0 = nozzle
+			beam.Attachment1 = tail
+			beam.FaceCamera = true
+			beam.Segments = 1
+			beam.Texture = TEX.jet
+			beam.TextureMode = Enum.TextureMode.Stretch
+			beam.TextureSpeed = look.scroll
+			beam.LightEmission = layer.emission
+			beam.LightInfluence = 0
+			beam.Color = layer.colour
+			beam.Transparency = seq({ { 0, look.transparency }, { 0.6, 0.4 }, { 1, 1 } })
+			beam.Width0 = length * look.width
+			beam.Width1 = length * look.width * 0.25
+			beam.Parent = fx
+		end
 	end
 end
 
@@ -837,10 +846,9 @@ local function legendaryGlow(fx: BasePart, top: Attachment, size: Vector3, radiu
 end
 
 -- Fairy wings (modelled in Blender, a role a side): the membrane is a faint tint; its glowing edge,
--- veins and pattern carry the shape. Sparkles fall off the tip. Then fairy dust off part of each
--- wing's edge: the dust markers from Blender (or the Dust points a bare model keeps) become
--- emitters on the membrane (so they flap with it), throwing fine glowing dust in the wing's colour
--- along the stroke, forwards as the wing opens and back as it folds (the client fires them).
+-- veins and pattern carry the shape. The dust markers from Blender along each wing's outer edge
+-- become Dust points on the membrane (so they flap with it); the client strings a glowing stroke
+-- through them (wings).
 -- The membrane of a wing (`side`): the part of the wing material (EnergyWing, GoldWing); the edge
 -- and veins are the glowing lines.
 local function membraneOf(side: string, wingParts: { MeshPart }, paints: { [string]: Paint }): MeshPart?
@@ -880,6 +888,9 @@ local function colorWings(pet: Model, wingParts: { MeshPart }, paints: { [string
 			if host then
 				local point = Instance.new("Attachment")
 				point.Name = "Dust"
+				-- Where it lies along the wing's edge (1 at the tip): the wing's stroke runs through
+				-- the points in this order.
+				point:SetAttribute("Order", tonumber(string.match(marker.Name, "^dust[LR](%d+)")) or 0)
 				point.Parent = host
 				point.WorldPosition = marker.Position
 			end
@@ -888,73 +899,41 @@ local function colorWings(pet: Model, wingParts: { MeshPart }, paints: { [string
 	end
 end
 
-local function wings(pet: Model, fx: BasePart, wingParts: { MeshPart }, paints: { [string]: Paint }, accent: Color3)
+local function wings(wingParts: { MeshPart }, paints: { [string]: Paint }, accent: Color3)
+	-- The wing's outer edge leaves a glowing stroke behind it as the wing beats: a ribbon between
+	-- every two neighbouring Dust points (they lie along the edge, from the tip down), so the whole
+	-- edge sweeps a soft afterimage, fading in a moment. It was a spray of sparkles at the tip
+	-- (2026-11-10): one ribbon a stretch of edge draws the beat softer for a fraction of the cost.
 	for _, side in { "wingL", "wingR" } do
 		local membrane = membraneOf(side, wingParts, paints)
 		if not membrane then
 			continue
 		end
-		-- Outwards is the side the wing really sits on (the import turns the pet round, so
-		-- Blender's left wing is at +X here), not its role's name.
-		local sign = if fx.CFrame:PointToObjectSpace(membrane.Position).X > 0 then 1 else -1
-		-- The forewing's sharp tip (up and out) leaves a glowing stroke behind it as the wing beats:
-		-- a ribbon from the tip a little way down the wing's edge, fading in a moment. It was a spray
-		-- of sparkles: one ribbon draws the beat softer for a fraction of the particles (2026-11-10).
-		local tip = attachment(membrane, "Tip", Vector3.new(sign * membrane.Size.X * 0.45, membrane.Size.Y * 0.45, 0))
-		local edge = WING_STROKE.edge
-		local inner = attachment(
-			membrane,
-			"TipEdge",
-			Vector3.new(sign * membrane.Size.X * (0.45 - edge), membrane.Size.Y * (0.45 - edge), 0)
-		)
-		local stroke = Instance.new("Trail")
-		stroke.Name = "WingStroke"
-		stroke.Attachment0 = tip
-		stroke.Attachment1 = inner
-		stroke.Lifetime = WING_STROKE.seconds
-		stroke.MinLength = 0
-		stroke.LightEmission = 1
-		stroke.LightInfluence = 0
-		stroke.Brightness = WING_STROKE.brightness
-		stroke.Color = colours({ { 0, WHITE }, { 0.25, accent }, { 1, accent } })
-		stroke.Transparency = seq({ { 0, WING_STROKE.transparency }, { 1, 1 } })
-		stroke.WidthScale = seq({ { 0, 1 }, { 1, 0.3 } })
-		stroke.Parent = tip
-	end
-
-	for _, at in pet:GetDescendants() do
-		if not (at:IsA("Attachment") and at.Name == "Dust") then
-			continue
+		local points: { Attachment } = {}
+		for _, child in membrane:GetChildren() do
+			if child:IsA("Attachment") and child.Name == "Dust" then
+				table.insert(points, child)
+			end
 		end
-		at:ClearAllChildren()
-		local dust = boost(accent, 0.8, 1.2)
-		-- The dust follows the stroke: opening, the wing edge sweeps forward (the pet faces -Z, so
-		-- forward is Front); folding, it sweeps back over the pet's back.
-		for _, stroke in { { "DustOpen", Enum.NormalId.Front }, { "DustFold", Enum.NormalId.Back } } do
-			emitter(at, stroke[1] :: string, {
-				Texture = TEX.ember,
-				EmissionDirection = stroke[2],
-				Color = colours({ { 0, WHITE }, { 0.3, dust }, { 1, accent } }),
-				Size = seq({ { 0, 0 }, { 0.15, 0.24, 0.1 }, { 0.7, 0.15, 0.07 }, { 1, 0 } }),
-				Lifetime = NumberRange.new(0.9, 1.6),
-				Rate = 0,
-				Speed = NumberRange.new(2, 4.5),
-				Drag = 2.5,
-				Acceleration = Vector3.new(0, -0.6, 0),
-				SpreadAngle = Vector2.new(40, 40),
-			})
-			emitter(at, (stroke[1] :: string) .. "Star", {
-				Texture = TEX.star,
-				EmissionDirection = stroke[2],
-				Color = colours({ { 0, WHITE }, { 1, dust } }),
-				Size = seq({ { 0, 0 }, { 0.2, 0.3, 0.12 }, { 1, 0 } }),
-				Lifetime = NumberRange.new(0.6, 1.1),
-				Rate = 0,
-				Speed = NumberRange.new(1.5, 3.5),
-				Drag = 2,
-				SpreadAngle = Vector2.new(50, 50),
-				RotSpeed = NumberRange.new(-180, 180),
-			})
+		local function order(point: Attachment): number
+			return tonumber(point:GetAttribute("Order")) or 0
+		end
+		table.sort(points, function(a: Attachment, b: Attachment): boolean
+			return order(a) < order(b)
+		end)
+		for index = 1, #points - 1 do
+			local stroke = Instance.new("Trail")
+			stroke.Name = "WingStroke"
+			stroke.Attachment0 = points[index]
+			stroke.Attachment1 = points[index + 1]
+			stroke.Lifetime = WING_STROKE.seconds
+			stroke.MinLength = 0
+			stroke.LightEmission = 1
+			stroke.LightInfluence = 0
+			stroke.Brightness = WING_STROKE.brightness
+			stroke.Color = colours({ { 0, WHITE }, { 0.3, accent }, { 1, accent } })
+			stroke.Transparency = seq({ { 0, WING_STROKE.transparency }, { 1, 1 } })
+			stroke.Parent = membrane
 		end
 	end
 end
@@ -980,10 +959,11 @@ local function feetOf(pet: Model): number
 	return low
 end
 
--- A rune circle on the floor instead of the plain tier ring: it glows in the tier colour, turns
--- slowly (the client), and motes rise from its rim. Laid at the pet's feet; adornLocally lifts it
--- to RUNE_LIFT over them at the pet's own size.
-local function rune(pet: Model, cf: CFrame, size: Vector3, tier: number, accent: Color3)
+-- A rune circle on the floor instead of the plain tier ring: it glows in the tier colour and turns
+-- slowly (the client). Its picture is crisp at 1024 px with a faint glow under it: the blurred
+-- 256 px one smeared under a big pet, and the motes off its rim went unseen (user, 2026-11-10).
+-- Laid at the pet's feet; adornLocally lifts it to RUNE_LIFT over them at the pet's own size.
+local function rune(pet: Model, cf: CFrame, size: Vector3, accent: Color3)
 	local feet = feetOf(pet)
 	local floorY = if feet < math.huge then feet else cf.Position.Y - size.Y / 2
 	local halo = Instance.new("Part")
@@ -995,14 +975,14 @@ local function rune(pet: Model, cf: CFrame, size: Vector3, tier: number, accent:
 	halo.Size = Vector3.new(haloSize, 0.05, haloSize)
 	halo.CFrame = CFrame.new(cf.Position.X, floorY + 0.08, cf.Position.Z)
 	halo:SetAttribute("Role", "halo")
-	for _, layer in { { TEX.halo, 0, "Rune" }, { TEX.ember, 0.55, "Glow" } } do
+	for _, layer in { { TEX.rune, 0, "Rune", 1024 }, { TEX.ember, 0.72, "Glow", 256 } } do
 		local gui = Instance.new("SurfaceGui")
 		gui.Name = layer[3] :: string
 		gui.Face = Enum.NormalId.Top
 		gui.LightInfluence = 0
 		gui.Brightness = 2
 		gui.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
-		gui.CanvasSize = Vector2.new(256, 256)
+		gui.CanvasSize = Vector2.new(layer[4] :: number, layer[4] :: number)
 		local image = Instance.new("ImageLabel")
 		image.Size = UDim2.fromScale(1, 1)
 		image.BackgroundTransparency = 1
@@ -1012,17 +992,6 @@ local function rune(pet: Model, cf: CFrame, size: Vector3, tier: number, accent:
 		image.Parent = gui
 		gui.Parent = halo
 	end
-	emitter(halo, "RimMotes", {
-		Texture = TEX.star,
-		Color = colours({ { 0, WHITE }, { 1, accent } }),
-		Size = seq({ { 0, 0 }, { 0.2, 0.32 }, { 1, 0 } }),
-		Lifetime = NumberRange.new(1, 1.8),
-		Rate = 10 + tier * 6,
-		Speed = NumberRange.new(1.5, 2.5),
-		EmissionDirection = Enum.NormalId.Top,
-		Shape = Enum.ParticleEmitterShape.Disc,
-		ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface,
-	})
 	halo.Parent = pet
 end
 
@@ -1147,14 +1116,14 @@ function AlienDress.adorn(pet: Model)
 	if tier == 4 then
 		legendaryGlow(fx, top, size, radius, meteor)
 	end
-	wings(pet, fx, wingParts, paints, accent)
+	wings(wingParts, paints, accent)
 	-- Comets instead of orbit rings (tier 3+), unless a meteor's fireballs fly already.
 	if tier >= 3 and not meteor then
 		for index = 1, tier - 1 do
 			comet(pet, cf, radius, index, tier - 1, boost(accent, 0.5, 1.2), accent, false)
 		end
 	end
-	rune(pet, cf, size, tier, accent)
+	rune(pet, cf, size, accent)
 end
 
 -- Adorns `model`, a prepared pet the server placed at its own size, on this client only. The
@@ -1186,6 +1155,18 @@ function AlienDress.adornLocally(model: Model)
 		local home = if twins[made] == nil and parent then twins[parent] else nil
 		if home then
 			made.Parent = home
+		end
+		-- A ribbon tied to points the model already had (the wings' Dust points) is tied to the
+		-- model's own ones, not the copy's (gone with it).
+		if made:IsA("Trail") then
+			local trail = made :: Trail
+			local a0, a1 = trail.Attachment0, trail.Attachment1
+			if a0 and twins[a0] then
+				trail.Attachment0 = twins[a0] :: Attachment
+			end
+			if a1 and twins[a1] then
+				trail.Attachment1 = twins[a1] :: Attachment
+			end
 		end
 	end
 	for _, light in model:GetDescendants() do

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The rune circle under a pet (AlienDress.rune), drawn crisp at 1024 px: the old halo.svg was
+       256 px with blurred lines, and on a big pet's floor it smeared (user, 2026-11-10). White on
+       transparency, tinted in game. -->
+  <defs>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3"/></filter>
+    <g id="star">
+      <path d="M0 -15 C2.5 -3.5 3.5 -2.5 15 0 C3.5 2.5 2.5 3.5 0 15 C-2.5 3.5 -3.5 2.5 -15 0 C-3.5 -2.5 -2.5 -3.5 0 -15 Z" fill="#fff"/>
+    </g>
+  </defs>
+  <!-- A faint glow under the lines, kept tight to them. -->
+  <g filter="url(#soft)" opacity="0.55">
+    <circle cx="256" cy="256" r="238" fill="none" stroke="#fff" stroke-width="10"/>
+    <circle cx="256" cy="256" r="166" fill="none" stroke="#fff" stroke-width="6"/>
+  </g>
+  <!-- The crisp lines. -->
+  <circle cx="256" cy="256" r="238" fill="none" stroke="#fff" stroke-width="6"/>
+  <circle cx="256" cy="256" r="224" fill="none" stroke="#fff" stroke-width="2" opacity="0.8"/>
+  <circle cx="256" cy="256" r="208" fill="none" stroke="#fff" stroke-width="4" stroke-dasharray="20 14"/>
+  <circle cx="256" cy="256" r="166" fill="none" stroke="#fff" stroke-width="4" opacity="0.85"/>
+  <circle cx="256" cy="256" r="156" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.6"/>
+  <!-- Ticks between the rings, every 15 degrees. -->
+  <g stroke="#fff" stroke-width="3" opacity="0.7" transform="translate(256 256)">
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(7.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(22.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(37.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(52.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(67.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(82.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(97.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(112.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(127.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(142.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(157.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(172.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(187.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(202.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(217.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(232.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(247.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(262.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(277.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(292.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(307.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(322.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(337.5)"/>
+    <line x1="0" y1="-176" x2="0" y2="-196" transform="rotate(352.5)"/>
+  </g>
+  <!-- Eight stars on the ring between, the four big ones on the axes. -->
+  <g transform="translate(256 256)">
+    <use href="#star" transform="rotate(0) translate(0 -186) scale(1.4)"/>
+    <use href="#star" transform="rotate(45) translate(0 -186)"/>
+    <use href="#star" transform="rotate(90) translate(0 -186) scale(1.4)"/>
+    <use href="#star" transform="rotate(135) translate(0 -186)"/>
+    <use href="#star" transform="rotate(180) translate(0 -186) scale(1.4)"/>
+    <use href="#star" transform="rotate(225) translate(0 -186)"/>
+    <use href="#star" transform="rotate(270) translate(0 -186) scale(1.4)"/>
+    <use href="#star" transform="rotate(315) translate(0 -186)"/>
+  </g>
+</svg>
