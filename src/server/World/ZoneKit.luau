@@ -32,6 +32,10 @@ export type PieceId =
 
 local ZoneKit = {}
 
+-- About how wide each piece is modelled, studs (zone_kit.py: RADIUS 5): a copy `w` wide is the
+-- piece's size times w / SIZE, keeping its proportions.
+ZoneKit.SIZE = 10
+
 local warned = false
 
 -- A fresh copy of `id`, anchored and touching nothing; nil (with one warning) without the kit.

@@ -19,6 +19,7 @@ local ShopModel = require(script.Parent.Parent.World.ShopModel)
 local SkyLooks = require(ReplicatedStorage.Shared.Config.SkyLooks)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.WorldConfig)
+local ZoneBlend = require(ReplicatedStorage.Shared.Domain.ZoneBlend)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 local ZoneKit = require(script.Parent.Parent.World.ZoneKit)
 local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
@@ -232,21 +233,150 @@ local function randomInField(random: Random): Vector3
 	return StationConfig.PLATFORM_CENTER + Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance)
 end
 
+local function pickKind(kinds: { ZoneLooks.FieldKind }, random: Random): ZoneLooks.FieldKind
+	local total = 0
+	for _, kind in kinds do
+		total += kind.weight
+	end
+	local roll = random:NextNumber(0, total)
+	for _, kind in kinds do
+		roll -= kind.weight
+		if roll <= 0 then
+			return kind
+		end
+	end
+	return kinds[#kinds]
+end
+
+local function randomTurn(random: Random): CFrame
+	local tau = math.pi * 2
+	return CFrame.Angles(random:NextNumber(0, tau), random:NextNumber(0, tau), random:NextNumber(0, tau))
+end
+
+-- A copy of a kit piece about `width` studs wide; nil without the kit.
+local function kitPiece(id: string, width: number): MeshPart?
+	local part = ZoneKit.piece(id :: ZoneKit.PieceId)
+	if part then
+		part.Size *= width / ZoneKit.SIZE
+	end
+	return part
+end
+
+-- One rock of the field (ZoneLooks.FIELD): a kit shape of its kind, turned at random, with the
+-- crystals or the ring its kind carries. Without the kit, a ball.
+local function buildFieldRock(
+	name: string,
+	kind: ZoneLooks.FieldKind,
+	at: Vector3,
+	width: number,
+	random: Random,
+	parent: Instance
+)
+	local frame = CFrame.new(at) * randomTurn(random)
+	local rock: BasePart? = kitPiece(kind.pieces[random:NextInteger(1, #kind.pieces)], width)
+	if rock then
+		rock.Size *= kind.stretch or Vector3.one
+	else
+		local ball = Instance.new("Part")
+		ball.Shape = Enum.PartType.Ball
+		ball.Size = Vector3.one * width
+		rock = ball
+	end
+	local part = rock :: BasePart
+	part.Name = name
+	part.CFrame = frame
+	part.Material = kind.material
+	part.Color = kind.colors[random:NextInteger(1, #kind.colors)]
+	part.Transparency = kind.transparency or 0
+	part.Anchored = true
+	part.CanTouch = false
+	part.CanCollide = not kind.loose
+	part.CanQuery = not kind.loose
+	part.Parent = parent
+
+	local crystals = kind.crystals
+	if crystals then
+		local bunch = kitPiece(if random:NextNumber() < 0.5 then "Crystals1" else "Crystals2", width * 0.9)
+		if bunch then
+			-- Rooted a little into the rock's top, growing out along its up.
+			bunch.Name = `{name}Crystals`
+			bunch.CFrame = frame * CFrame.new(0, part.Size.Y * 0.3 + bunch.Size.Y * 0.35, 0)
+			bunch.Material = Enum.Material.Glass
+			bunch.Color = crystals.color
+			bunch.Transparency = crystals.transparency
+			scenery(bunch)
+			bunch.CanCollide = false
+			bunch.Parent = parent
+		end
+	end
+	if kind.ring then
+		local ring = kitPiece("Ring", width * 1.6)
+		if ring then
+			ring.Name = `{name}Ring`
+			ring.CFrame = CFrame.new(at) * CFrame.Angles(random:NextNumber(-0.6, 0.6), random:NextNumber(0, math.pi), 0)
+			ring.Material = Enum.Material.Neon
+			ring.Color = kind.ring
+			scenery(ring)
+			ring.CanCollide = false
+			ring.Parent = parent
+		end
+	end
+end
+
+-- The asteroid field: rocks of the zone each floats in (Domain/ZoneBlend: across the gap between
+-- two zones' rings, a mix), seeded, so every server builds the same field.
 local function buildAsteroids(parent: Instance)
 	local random = Random.new(WorldConfig.SEED)
 	local folder = Instance.new("Folder")
 	folder.Name = "Asteroids"
 	for index = 1, WorldConfig.ASTEROID_COUNT do
-		local asteroid = Instance.new("Part")
-		asteroid.Name = `Asteroid{index}`
-		asteroid.Shape = Enum.PartType.Ball
-		asteroid.Size = Vector3.one * random:NextNumber(WorldConfig.MIN_SIZE, WorldConfig.MAX_SIZE)
-		asteroid.CFrame = CFrame.new(randomInField(random))
-		asteroid.Material = Enum.Material.Slate
-		asteroid.Color = ZoneLooks.FIELD_ROCK_COLORS[random:NextInteger(1, #ZoneLooks.FIELD_ROCK_COLORS)]
-		asteroid.Anchored = true
-		asteroid.CanTouch = false
-		asteroid.Parent = folder
+		local at = randomInField(random)
+		local width = random:NextNumber(WorldConfig.MIN_SIZE, WorldConfig.MAX_SIZE)
+		local offset = at - StationConfig.PLATFORM_CENTER
+		local zone = ZoneBlend.pick(Vector3.new(offset.X, 0, offset.Z).Magnitude, random:NextNumber())
+		buildFieldRock(`Asteroid{index}`, pickKind(ZoneLooks.FIELD[zone], random), at, width, random, folder)
+	end
+	folder.Parent = parent
+end
+
+-- Debris Belt: wrecked plates and girders drifting through the zone, some with a little light.
+local function buildScrap(parent: Instance)
+	local random = Random.new(WorldConfig.SEED + 4)
+	local zone = ZoneConfig.ZONES.DebrisBelt
+	local folder = Instance.new("Folder")
+	folder.Name = "Scrap"
+	for index = 1, ZoneLooks.SCRAP_COUNT do
+		local angle = random:NextNumber(0, math.pi * 2)
+		local distance = random:NextNumber(zone.ringMin, zone.ringMax)
+		local at = StationConfig.PLATFORM_CENTER
+			+ Vector3.new(
+				math.cos(angle) * distance,
+				random:NextNumber(-zone.heightSpread, zone.heightSpread),
+				math.sin(angle) * distance
+			)
+		local length = random:NextNumber(ZoneLooks.SCRAP_LENGTH.Min, ZoneLooks.SCRAP_LENGTH.Max)
+		local piece = Instance.new("Part")
+		piece.Name = `Scrap{index}`
+		-- Every other one a flat hull plate, the rest girders.
+		piece.Size = if index % 2 == 0 then Vector3.new(length * 0.6, 0.4, length) else Vector3.new(0.8, 0.8, length)
+		piece.CFrame = CFrame.new(at) * randomTurn(random)
+		piece.Material = if index % 2 == 0 then Enum.Material.DiamondPlate else Enum.Material.Metal
+		piece.Color = ZoneLooks.SCRAP_COLORS[random:NextInteger(1, #ZoneLooks.SCRAP_COLORS)]
+		piece.CanCollide = false
+		scenery(piece)
+		piece.Parent = folder
+		if index % ZoneLooks.SCRAP_LIGHT_EVERY == 0 then
+			local light = Instance.new("Part")
+			light.Name = `Scrap{index}Light`
+			light.Shape = Enum.PartType.Ball
+			light.Size = Vector3.one * 0.7
+			light.CFrame = piece.CFrame * CFrame.new(0, piece.Size.Y / 2 + 0.3, length * 0.35)
+			light.Material = Enum.Material.Neon
+			light.Color = ZoneLooks.SCRAP_LIGHT_COLOR
+			light.CanCollide = false
+			scenery(light)
+			light.Parent = folder
+		end
 	end
 	folder.Parent = parent
 end
@@ -420,10 +550,18 @@ local function buildLandmarks(parent: Instance)
 	for index = 1, ZoneLooks.ICE_CHUNK_COUNT do
 		local angle = random:NextNumber(0, math.pi * 2)
 		local distance = random:NextNumber(ice.ringMin, ice.ringMax)
-		local chunk = Instance.new("Part")
+		local size = random:NextNumber(ZoneLooks.ICE_CHUNK_MIN_SIZE, ZoneLooks.ICE_CHUNK_MAX_SIZE)
+		local chunk: BasePart
+		local kitChunk = kitPiece(if index % 2 == 0 then "IceChunk1" else "IceChunk2", size)
+		if kitChunk then
+			chunk = kitChunk
+		else
+			local ball = Instance.new("Part")
+			ball.Shape = Enum.PartType.Ball
+			ball.Size = Vector3.one * size
+			chunk = ball
+		end
 		chunk.Name = `Ice{index}`
-		chunk.Shape = Enum.PartType.Ball
-		chunk.Size = Vector3.one * random:NextNumber(ZoneLooks.ICE_CHUNK_MIN_SIZE, ZoneLooks.ICE_CHUNK_MAX_SIZE)
 		chunk.CFrame = CFrame.new(
 			center
 				+ Vector3.new(
@@ -431,7 +569,7 @@ local function buildLandmarks(parent: Instance)
 					random:NextNumber(-ZoneLooks.ICE_BAND_HEIGHT, ZoneLooks.ICE_BAND_HEIGHT),
 					math.sin(angle) * distance
 				)
-		)
+		) * CFrame.Angles(index, index * 1.7, index * 0.3)
 		chunk.Material = Enum.Material.Ice
 		chunk.Color = ZoneLooks.ICE_COLOR
 		chunk.CanCollide = false
@@ -573,6 +711,7 @@ function WorldService.new(): WorldService
 		board.Parent = world
 		coinBoard = board
 		buildAsteroids(world)
+		buildScrap(world)
 		nestSites = buildNests(world)
 		buildLandmarks(world)
 		buildBoundary(world)
