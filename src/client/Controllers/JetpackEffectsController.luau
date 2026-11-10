@@ -7,10 +7,12 @@
 -- Purely cosmetic, so it runs outside the simulation and never crosses the network: the server
 -- sends the bare jetpack with its nozzle attachments, each client adds the flame itself.
 -- Light on resources: the beams are made once per jetpack and rewritten only when the flame's
--- state changes (JetFlame steps); far from the camera the core and then the light go.
+-- state changes (JetFlame steps); far from the camera the core and then the light go, and the core
+-- also goes under reduced motion. No particles at all.
 -- Also registers the flight pose in Studio so this client can play it (see FlightAnimation).
 
 local CollectionService = game:GetService("CollectionService")
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -264,6 +266,10 @@ function JetpackEffectsController.new(): JetpackEffectsController
 				JetFlame.power({ thrust = thrust, burst = burst, standScale = standScale }, JetpackConfig.FLAME)
 			local detail =
 				JetFlame.detail((root.Position - eye).Magnitude, JetpackConfig.FLAME_NEAR, JetpackConfig.FLAME_FAR)
+			-- Reduced motion drops the secondary layer (the core) first.
+			if GuiService.ReducedMotionEnabled then
+				detail = math.min(detail, 2)
+			end
 
 			local state = if burning then `{power}|{detail}` else "off"
 			if state ~= effects.written then

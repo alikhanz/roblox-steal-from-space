@@ -14,6 +14,7 @@
 local ServerStorage = game:GetService("ServerStorage")
 
 local SPACING = 4 -- export_jetpacks.py
+local MAX_PARTS = 4 -- export_jetpacks.py
 local SOURCE = "JetpacksIn"
 local TARGET = "Jetpacks"
 
@@ -91,4 +92,37 @@ for n, parts in bodies do
 end
 folder.Parent = ServerStorage
 source:Destroy()
+
+-- Read the result back instead of trusting the insert (BLENDER_ROBLOX.md, section 7): every grade,
+-- within the part budget, with its nozzles and a loaded mesh on every part.
+local ContentProvider = game:GetService("ContentProvider")
+local problems = {}
+for n = 0, 11 do
+	local model = folder:FindFirstChild(`Jetpack{n}`)
+	if not model then
+		table.insert(problems, `Jetpack{n} missing`)
+		continue
+	end
+	local parts, exits, unloaded = 0, 0, 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("MeshPart") then
+			parts += 1
+			if ContentProvider:GetAssetFetchStatus(d.MeshId) ~= Enum.AssetFetchStatus.Success then
+				unloaded += 1
+			end
+		elseif d:IsA("Attachment") and d.Name == "NozzleExit" then
+			exits += 1
+		end
+	end
+	print(`[Jetpacks] Jetpack{n}: {parts} parts, {exits} nozzles, {unloaded} meshes not loaded yet`)
+	if parts == 0 or parts > MAX_PARTS then
+		table.insert(problems, `Jetpack{n} has {parts} parts`)
+	end
+	if exits == 0 then
+		table.insert(problems, `Jetpack{n} has no nozzles`)
+	end
+end
 print(`[Jetpacks] {count} templates in ServerStorage.{TARGET}, unit {unit}`)
+if #problems > 0 then
+	warn(`[Jetpacks] {table.concat(problems, "; ")}`)
+end
