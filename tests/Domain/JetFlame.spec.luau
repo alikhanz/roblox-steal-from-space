@@ -43,6 +43,35 @@ describe("JetFlame.detail", function()
 	end)
 end)
 
+describe("JetFlame.trailLength", function()
+	it("has no trail at level 0, the first length at level 1 and the last at the top", function()
+		expect(JetFlame.trailLength(0, 21, 10, 120, 1.3)).toBe(0)
+		expect(JetFlame.trailLength(1, 21, 10, 120, 1.3)).toBeCloseTo(10, 1e-9)
+		expect(JetFlame.trailLength(21, 21, 10, 120, 1.3)).toBeCloseTo(120, 1e-9)
+	end)
+
+	it("grows with every level, faster near the top", function()
+		local previous, previousStep = 0, 0
+		for level = 1, 21 do
+			local length = JetFlame.trailLength(level, 21, 10, 120, 1.3)
+			expect(length > previous).toBe(true)
+			if level > 2 then
+				expect(length - previous >= previousStep).toBe(true)
+			end
+			previousStep = length - previous
+			previous = length
+		end
+	end)
+
+	it("is straight with a curve of 1", function()
+		expect(JetFlame.trailLength(11, 21, 10, 110, 1)).toBeCloseTo(60, 1e-9)
+	end)
+
+	it("stops at the last length past the top", function()
+		expect(JetFlame.trailLength(30, 21, 10, 120, 1.3)).toBeCloseTo(120, 1e-9)
+	end)
+end)
+
 describe("JetFlame.trailLifetime", function()
 	it("lives long enough to be its length at top speed", function()
 		expect(JetFlame.trailLifetime(30, 60, 0.1, 3)).toBeCloseTo(0.5, 1e-9)

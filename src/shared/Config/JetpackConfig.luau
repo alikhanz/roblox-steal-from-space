@@ -52,9 +52,13 @@ return table.freeze({
 	-- One light per jetpack, no shadows.
 	FLAME_LIGHT_BRIGHTNESS = 1.5,
 	FLAME_LIGHT_RANGE = 10,
-	-- The trail in flight (JetpackLooks.TRAILS): how long it may live, seconds (its length at top
-	-- speed sets it in between), its brightness against the flame's, and under reduced motion it
-	-- is this much shorter.
+	-- The trail in flight (its look per jetpack in JetpackLooks.TRAILS): studs long at top speed,
+	-- longer with every jetpack level (JetFlame.trailLength) — the first level's, the top level's
+	-- and the curve between; how long it may live, seconds (its length at top speed sets it in
+	-- between); its brightness against the flame's; and under reduced motion it is this much shorter.
+	TRAIL_FIRST = 10,
+	TRAIL_LAST = 120,
+	TRAIL_CURVE = 1.3,
 	TRAIL_SHORTEST = 0.12,
 	TRAIL_LONGEST = 1.5,
 	TRAIL_BRIGHTNESS = 0.6,

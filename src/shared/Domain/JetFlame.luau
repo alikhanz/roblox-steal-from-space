@@ -49,6 +49,18 @@ function JetFlame.detail(distance: number, near: number, far: number): number
 	return 1
 end
 
+-- How long a jetpack's trail is at top speed, studs (user, 2026-11-10: longer with every level,
+-- and long at the top): none at level 0, `first` at level 1, `last` at `maxLevel`, between them
+-- along a curve — `curve` over 1 grows it slowly first and faster near the top.
+function JetFlame.trailLength(level: number, maxLevel: number, first: number, last: number, curve: number): number
+	assert(maxLevel > 1 and last >= first and first > 0 and curve > 0, "bad trail tuning")
+	if level < 1 then
+		return 0
+	end
+	local share = math.clamp((level - 1) / (maxLevel - 1), 0, 1)
+	return first + (last - first) * share ^ curve
+end
+
 -- How long a jetpack's trail lives, seconds, so that it is `length` studs long at `topSpeed`
 -- (studs a second): a better jetpack flies faster, and its trail would grow with speed alone.
 -- Slower than top speed it is shorter. Kept within `shortest`..`longest`.

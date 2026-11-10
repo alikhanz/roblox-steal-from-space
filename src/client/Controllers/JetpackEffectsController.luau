@@ -33,6 +33,10 @@ local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local Stand = require(ReplicatedStorage.Shared.Domain.Stand)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
+local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
+
+local MAX_LEVEL = Upgrades.jetpackMaxLevel(UpgradeConfig.TUNING)
 
 export type JetpackEffectsController = {
 	name: string,
@@ -52,7 +56,9 @@ type Nozzle = {
 type Effects = {
 	nozzles: { Nozzle },
 	light: PointLight,
+	-- The trail's threads and its glow (JetpackLooks.Trail), each possibly empty.
 	trails: { Trail },
+	glows: { Trail },
 	looks: JetpackLooks.Looks,
 	-- The flame's state last written (burning, power, detail); nil before the first.
 	written: string?,
@@ -80,6 +86,14 @@ local TRAIL_TRANSPARENCY = NumberSequence.new({
 	NumberSequenceKeypoint.new(1, 1),
 })
 local TRAIL_WIDTH = NumberSequence.new(1, 0.25)
+local GLOW_TRANSPARENCY = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.45),
+	NumberSequenceKeypoint.new(0.5, 0.7),
+	NumberSequenceKeypoint.new(1, 1),
+})
+local GLOW_WIDTH = NumberSequence.new(1, 0.5)
+-- The glow against a thread's brightness: it lies under the threads, not over them.
+local GLOW_BRIGHTNESS = 0.6
 
 local JetpackEffectsController = {}
 
@@ -107,75 +121,100 @@ local function tail(name: string, exit: Attachment): Attachment
 	return made
 end
 
--- The trails of a jetpack (none for the Starter): one between its nozzles, or with `twin` one at
--- each outermost nozzle. A Trail facing the camera is as wide as its two attachments are apart,
--- so they stand `width` apart across the jetpack, at the nozzles' height.
+-- The trail's colours from the jetpack back: its own (a rainbow), else the flame's pale to colour.
+local function trailColor(looks: JetpackLooks.Looks, look: JetpackLooks.Trail): ColorSequence
+	local colors = look.colors
+	if not colors or #colors < 2 then
+		return ColorSequence.new(looks.flameStart, looks.flameEnd)
+	end
+	local points = {}
+	for index, color in colors do
+		table.insert(points, ColorSequenceKeypoint.new((index - 1) / (#colors - 1), color))
+	end
+	return ColorSequence.new(points)
+end
+
+-- One Trail facing the camera on `host`: it is as wide as its two attachments are apart, so they
+-- stand `width` apart across the jetpack at `at`.
+local function ribbon(name: string, host: BasePart, at: Vector3, across: Vector3, width: number): Trail
+	local left = Instance.new("Attachment")
+	left.Name = `{name}Left`
+	left.Parent = host
+	left.WorldPosition = at - across * width / 2
+	local right = Instance.new("Attachment")
+	right.Name = `{name}Right`
+	right.Parent = host
+	right.WorldPosition = at + across * width / 2
+	local made = Instance.new("Trail")
+	made.Name = name
+	made.Attachment0 = left
+	made.Attachment1 = right
+	made.FaceCamera = true
+	made.LightEmission = 1
+	made.LightInfluence = 0
+	made.Enabled = false
+	made.Parent = host
+	return made
+end
+
+-- The trail of a jetpack (none for the Starter): its threads — one between the nozzles, or with
+-- `twin` one at each outermost nozzle — and its glow round all of them, if it has one.
 local function buildTrails(
 	model: Model,
 	exits: { Attachment },
 	looks: JetpackLooks.Looks,
 	step: JetpackLooks.Step,
 	scale: number
-): { Trail }
+): ({ Trail }, { Trail })
 	local look = looks.trail
 	if not look then
-		return {}
+		return {}, {}
 	end
 	local pivot = model:GetPivot()
 	local across = pivot.RightVector
 	-- The nozzles in the jetpack's frame, left to right.
 	local spots: { Vector3 } = {}
+	local sum = Vector3.zero
 	for _, exit in exits do
 		local spot: Vector3 = pivot:PointToObjectSpace(exit.WorldPosition)
 		table.insert(spots, spot)
+		sum += spot
 	end
 	table.sort(spots, function(a: Vector3, b: Vector3): boolean
 		return a.X < b.X
 	end)
-	local sources: { Vector3 } = {}
-	if look.twin then
-		sources = { spots[1], spots[#spots] }
-	else
-		local sum = Vector3.zero
-		for _, spot in spots do
-			sum += spot
-		end
-		sources = { sum / #spots }
-	end
+	local middle = sum / #spots
+	local sources = if look.twin then { spots[1], spots[#spots] } else { middle }
 	local host = exits[1].Parent :: BasePart
-	local half = look.width * scale / 2
+	local color = trailColor(looks, look)
+	local brightness = looks.brightness * JetpackConfig.TRAIL_BRIGHTNESS
 	local trails = {}
 	for index, source in sources do
-		local at = pivot:PointToWorldSpace(source)
-		local left = Instance.new("Attachment")
-		left.Name = `TrailLeft{index}`
-		left.Parent = host
-		left.WorldPosition = at - across * half
-		local right = Instance.new("Attachment")
-		right.Name = `TrailRight{index}`
-		right.Parent = host
-		right.WorldPosition = at + across * half
-		local trail = Instance.new("Trail")
-		trail.Name = "JetTrail"
-		trail.Attachment0 = left
-		trail.Attachment1 = right
-		trail.FaceCamera = true
-		trail.Color = ColorSequence.new(looks.flameStart, looks.flameEnd)
+		local trail = ribbon(`JetTrail{index}`, host, pivot:PointToWorldSpace(source), across, look.width * scale)
+		trail.Color = color
 		trail.Transparency = TRAIL_TRANSPARENCY
 		trail.WidthScale = TRAIL_WIDTH
-		trail.LightEmission = 1
-		trail.LightInfluence = 0
-		trail.Brightness = looks.brightness * JetpackConfig.TRAIL_BRIGHTNESS
+		trail.Brightness = brightness
 		if step.trail then
 			trail.Texture = step.trail
 			trail.TextureMode = Enum.TextureMode.Wrap
 			trail.TextureLength = step.trailRepeat * scale
 		end
-		trail.Enabled = false
-		trail.Parent = host
 		table.insert(trails, trail)
 	end
-	return trails
+	local glows = {}
+	if look.glow then
+		-- Soft across its width (the core's texture), stretched along it.
+		local glow = ribbon("JetGlow", host, pivot:PointToWorldSpace(middle), across, look.glow * scale)
+		glow.Color = color
+		glow.Transparency = GLOW_TRANSPARENCY
+		glow.WidthScale = GLOW_WIDTH
+		glow.Brightness = brightness * GLOW_BRIGHTNESS
+		glow.Texture = step.core
+		glow.TextureMode = Enum.TextureMode.Stretch
+		table.insert(glows, glow)
+	end
+	return trails, glows
 end
 
 -- The flame on a jetpack model, or nil while its nozzles have not arrived (streaming). `scale`
@@ -216,10 +255,12 @@ local function build(model: Model, looks: JetpackLooks.Looks, scale: number): Ef
 	light.Shadows = false
 	light.Enabled = false
 	light.Parent = exits[1]
+	local trails, glows = buildTrails(model, exits, looks, step, scale)
 	return {
 		nozzles = nozzles,
 		light = light,
-		trails = buildTrails(model, exits, looks, step, scale),
+		trails = trails,
+		glows = glows,
 		looks = looks,
 		stalled = false,
 		burstUntil = 0,
@@ -255,18 +296,34 @@ local function write(effects: Effects, burning: boolean, power: number, detail: 
 		* (looks.brightness / JetpackLooks.LEVELS[1].brightness)
 end
 
--- Writes the trails: on while `flying`, living long enough to be their look's length at
--- `topSpeed` (shorter under reduced motion).
-local function writeTrails(effects: Effects, flying: boolean, topSpeed: number, scale: number, reduced: boolean)
-	local look = effects.looks.trail
-	if not look then
+-- Writes the trails: on while `flying`, living long enough to be as long as jetpack `level`'s at
+-- `topSpeed`. Under reduced motion they are shorter and the glow goes, as the core does.
+local function writeTrails(
+	effects: Effects,
+	flying: boolean,
+	level: number,
+	topSpeed: number,
+	scale: number,
+	reduced: boolean
+)
+	if not effects.looks.trail then
 		return
 	end
-	local length = look.length * scale * (if reduced then JetpackConfig.TRAIL_REDUCED_MOTION else 1)
+	local length = JetFlame.trailLength(
+		level,
+		MAX_LEVEL,
+		JetpackConfig.TRAIL_FIRST,
+		JetpackConfig.TRAIL_LAST,
+		JetpackConfig.TRAIL_CURVE
+	) * scale * (if reduced then JetpackConfig.TRAIL_REDUCED_MOTION else 1)
 	local lifetime = JetFlame.trailLifetime(length, topSpeed, JetpackConfig.TRAIL_SHORTEST, JetpackConfig.TRAIL_LONGEST)
 	for _, trail in effects.trails do
 		trail.Lifetime = lifetime
 		trail.Enabled = flying
+	end
+	for _, glow in effects.glows do
+		glow.Lifetime = lifetime
+		glow.Enabled = flying and not reduced
 	end
 end
 
@@ -393,13 +450,16 @@ function JetpackEffectsController.new(): JetpackEffectsController
 				effects.written = state
 				write(effects, burning, power, detail, scale)
 			end
-			-- The trail: only in flight, as long as its look at top speed (whole studs a second, so a
-			-- small change in speed rewrites nothing).
+			-- The trail: only in flight, as long as the jetpack level's at top speed (whole studs a
+			-- second, so a small change in speed rewrites nothing). A new mark of the same jetpack
+			-- keeps the model, so the level is read from the player.
 			local reduced = GuiService.ReducedMotionEnabled
-			local trailState = if flying then `{math.floor(maxSpeed)}|{reduced}` else "off"
+			local level = player:GetAttribute(UpgradeConfig.JETPACK_LEVEL_ATTRIBUTE)
+			local jetpackLevel = if type(level) == "number" then level else 0
+			local trailState = if flying then `{jetpackLevel}|{math.floor(maxSpeed)}|{reduced}` else "off"
 			if #effects.trails > 0 and trailState ~= effects.trailWritten then
 				effects.trailWritten = trailState
-				writeTrails(effects, flying, maxSpeed, scale, reduced)
+				writeTrails(effects, flying, jetpackLevel, maxSpeed, scale, reduced)
 			end
 		end
 		lightStands()

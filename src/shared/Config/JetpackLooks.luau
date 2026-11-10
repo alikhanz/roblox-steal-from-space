@@ -30,13 +30,17 @@ export type Looks = {
 
 -- A jetpack's trail in flight (user, 2026-11-10: a mark of the grade that grows with it and does
 -- not compete with the eggs' upright beacons): a ribbon in the flame's colour behind the flyer,
--- longer and wider the better the jetpack. At top speed it is `length` studs long
--- (JetFlame.trailLifetime) and `width` studs wide at the jetpack; `twin` leaves two, from the
--- outermost nozzles, instead of one between them (the legendary, four-nozzle jetpacks).
+-- longer with every level (JetFlame.trailLength, JetpackConfig.TRAIL_*) and wider with every
+-- jetpack. It is `width` studs wide at the jetpack; `twin` leaves two, from the
+-- outermost nozzles, instead of one between them (the legendary, four-nozzle jetpacks). The best
+-- jetpacks also leave a `glow`: a soft, faint ribbon that many studs wide round the threads, so the
+-- trail reads as a comet's tail rather than a string. `colors` paint the trail from the jetpack
+-- back (the last jetpack's rainbow); without them it fades from the flame's pale to its colour.
 export type Trail = {
-	read length: number,
 	read width: number,
 	read twin: boolean,
+	read glow: number?,
+	read colors: { Color3 }?,
 }
 
 -- One kind of flame: the jet's texture and scroll (studs of texture a second), the core's, and how
@@ -276,21 +280,32 @@ local LEVELS: { Looks } = {
 }
 assert(#LEVELS == #UpgradeConfig.JETPACK_NAME_KEYS, "JetpackLooks.LEVELS and UpgradeConfig.JETPACK_NAME_KEYS differ")
 
--- The trails, level 0 first (see Trail): none for the Starter, then longer and wider with every
--- jetpack; the legendary ones leave two.
+-- The trails, jetpack 0 first (see Trail; their length goes by level): none for the Starter,
+-- then wider with every jetpack; from the wings on a glow round it, wider with every jetpack; the
+-- legendary ones leave two threads, and the last one a rainbow.
+local RAINBOW = table.freeze({
+	rgb(255, 255, 255),
+	rgb(255, 70, 70),
+	rgb(255, 170, 40),
+	rgb(255, 240, 60),
+	rgb(80, 255, 110),
+	rgb(40, 200, 255),
+	rgb(120, 90, 255),
+	rgb(230, 80, 255),
+})
 local TRAILS: { Trail | false } = {
 	false, -- Starter
-	{ length = 10, width = 0.35, twin = false }, -- Spark
-	{ length = 14, width = 0.4, twin = false }, -- Comet
-	{ length = 18, width = 0.45, twin = false }, -- Plasma
-	{ length = 22, width = 0.5, twin = false }, -- Ion
-	{ length = 26, width = 0.55, twin = false }, -- Pulsar
-	{ length = 32, width = 0.6, twin = false }, -- Quasar
-	{ length = 38, width = 0.65, twin = false }, -- Antimatter
-	{ length = 44, width = 0.7, twin = false }, -- Singularity
-	{ length = 50, width = 0.5, twin = true }, -- Hyperdrive
-	{ length = 56, width = 0.55, twin = true }, -- Wormhole
-	{ length = 64, width = 0.6, twin = true }, -- Infinity
+	{ width = 0.35, twin = false }, -- Spark
+	{ width = 0.4, twin = false }, -- Comet
+	{ width = 0.45, twin = false }, -- Plasma
+	{ width = 0.5, twin = false }, -- Ion
+	{ width = 0.55, twin = false }, -- Pulsar
+	{ width = 0.6, twin = false, glow = 1.2 }, -- Quasar
+	{ width = 0.65, twin = false, glow = 1.5 }, -- Antimatter
+	{ width = 0.7, twin = false, glow = 1.8 }, -- Singularity
+	{ width = 0.7, twin = true, glow = 2.4 }, -- Hyperdrive
+	{ width = 0.8, twin = true, glow = 2.8 }, -- Wormhole
+	{ width = 0.9, twin = true, glow = 3.4, colors = RAINBOW }, -- Infinity
 }
 assert(#TRAILS == #LEVELS, "JetpackLooks TRAILS and LEVELS differ")
 for index, level in LEVELS do
