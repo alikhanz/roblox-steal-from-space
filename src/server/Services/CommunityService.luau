@@ -31,8 +31,9 @@ export type Dependencies = {
 	activated: Signal.Signal<Player>,
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
-	-- The tutorial reached progress `progress` (TutorialService.advanced).
-	tutorialAdvanced: Signal.Signal<Player, number>,
+	-- The tutorial's hint changed (TutorialService.changed): "Done" once it is over. Not
+	-- `advanced`, which a progress set by hand (the Studio command) does not fire.
+	tutorialChanged: Signal.Signal<Player, Tutorial.Hint>,
 	publishSpeed: (player: Player) -> (),
 	-- A refusal for a toast on the client (NetService.notify).
 	notify: (player: Player, notice: Notice) -> (),
@@ -159,8 +160,8 @@ function CommunityService.new(dependencies: Dependencies): CommunityService
 			publish(player)
 			task.spawn(autoCheck, player)
 		end)
-		dependencies.tutorialAdvanced.connect(function(player, progress)
-			if progress >= Tutorial.DONE then
+		dependencies.tutorialChanged.connect(function(player, hint)
+			if hint == "Done" then
 				task.spawn(autoCheck, player)
 			end
 		end)

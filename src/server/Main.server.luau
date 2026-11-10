@@ -228,7 +228,7 @@ tutorialDependencies.hatched = bayService.hatched
 communityDependencies.activated = profile.activated
 communityDependencies.getData = profile.getData
 communityDependencies.update = profile.update
-communityDependencies.tutorialAdvanced = tutorialService.advanced
+communityDependencies.tutorialChanged = tutorialService.changed
 communityDependencies.publishSpeed = speedService.publish
 communityDependencies.notify = netService.notify
 
@@ -401,7 +401,10 @@ local devService = DevService.new({
 	notePass = purchaseService.notePass,
 	setTutorialProgress = tutorialService.setProgress,
 	resetCommunityGift = communityService.reset,
-	refreshJetpack = jetpackService.refresh,
+	-- As a bought level: the model and speed, and the client's copy of the levels too.
+	refreshJetpack = function(player: Player)
+		economyService.jetpackUpgraded.fire(player)
+	end,
 	refreshTrainer = function(player: Player)
 		economyService.trainerUpgraded.fire(player)
 	end,
