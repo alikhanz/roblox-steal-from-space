@@ -66,6 +66,8 @@ export type Dependencies = {
 	markActive: (player: Player) -> (),
 	-- The pet bench: fill the island or clear it (BenchService.run; checks who may).
 	bench: (player: Player, fill: boolean) -> (),
+	-- The guardian bench: set it round the player or take it away (BenchService.showGuardians).
+	benchGuardians: (player: Player, show: boolean) -> (),
 }
 
 export type Notice =
@@ -311,6 +313,10 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.BuyPod.SetCallback(guarded(function(player)
 			return economy.buyPod(player)
+		end))
+		Remotes.BenchGuardians.SetCallback(guarded(function(player, show: boolean)
+			dependencies.benchGuardians(player, show)
+			return nil
 		end))
 		Remotes.Bench.SetCallback(guarded(function(player, fill: boolean)
 			dependencies.bench(player, fill)

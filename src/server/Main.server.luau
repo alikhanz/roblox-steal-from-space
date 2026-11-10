@@ -15,6 +15,8 @@ local DevService = require(script.Parent.Services.DevService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local EggHomes = require(ReplicatedStorage.Shared.Domain.EggHomes)
 local EventService = require(script.Parent.Services.EventService)
+local GuardianModel = require(script.Parent.World.GuardianModel)
+local GuardianModels = require(script.Parent.World.GuardianModels) :: { [string]: string }
 local GuardianService = require(script.Parent.Services.GuardianService)
 local IndexService = require(script.Parent.Services.IndexService)
 local JetpackService = require(script.Parent.Services.JetpackService)
@@ -40,6 +42,8 @@ local WorldService = require(script.Parent.Services.WorldService)
 
 -- In Studio: say if the place's alien models lag behind the repo (lune/aliens.luau).
 AlienModel.checkPlace(AlienModels)
+-- And the guardians' (lune/guardians.luau).
+GuardianModel.checkPlace(GuardianModels)
 
 -- One Heartbeat drives every periodic server job (see CONVENTIONS, performance).
 local scheduler = Scheduler.new()
@@ -145,6 +149,7 @@ local netService = NetService.new({
 	notePrompt = purchaseService.notePrompt,
 	markActive = activityService.touch,
 	bench = benchService.run,
+	benchGuardians = benchService.showGuardians,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update

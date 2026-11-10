@@ -1,6 +1,7 @@
 --!strict
--- The pet bench's two buttons (decision 082): fill the island with 30 aliens to measure it on a
--- phone, and take them away. Shown only while the server marks the player as allowed
+-- The bench's buttons (decision 082): fill the island with 30 aliens to measure it on a
+-- phone, and take them away; set the Event Horizon's 42 guardians round the player and take them
+-- away (BenchService.showGuardians). Shown only while the server marks the player as allowed
 -- (DevConfig.BENCH_ATTRIBUTE: Studio, or the Dev game's creator). A developer's tool, not a
 -- player's screen: plain instances, no brief, no localization (the labels are the commands' names).
 
@@ -11,7 +12,7 @@ local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
-local BUTTON_SIZE = UDim2.fromOffset(120, 36)
+local BUTTON_SIZE = UDim2.fromOffset(190, 36)
 local BUTTON_COLOR = Color3.fromRGB(60, 70, 140)
 
 export type BenchController = {
@@ -21,7 +22,7 @@ export type BenchController = {
 
 local BenchController = {}
 
-local function button(parent: Instance, text: string, order: number, fill: boolean)
+local function button(parent: Instance, text: string, order: number, press: () -> ())
 	local item = Instance.new("TextButton")
 	item.Name = text
 	item.LayoutOrder = order
@@ -35,7 +36,7 @@ local function button(parent: Instance, text: string, order: number, fill: boole
 	item.AutoLocalize = false
 	Instance.new("UICorner").Parent = item
 	item.Activated:Connect(function()
-		Remotes.Bench.Fire(fill)
+		press()
 	end)
 	item.Parent = parent
 end
@@ -55,15 +56,25 @@ function BenchController.new(): BenchController
 		local column = Instance.new("Frame")
 		column.AnchorPoint = Vector2.new(1, 0.5)
 		column.Position = UDim2.new(1, -12, 0.5, 0)
-		column.Size = UDim2.fromOffset(BUTTON_SIZE.X.Offset, BUTTON_SIZE.Y.Offset * 2 + 6)
+		column.Size = UDim2.fromOffset(BUTTON_SIZE.X.Offset, BUTTON_SIZE.Y.Offset * 4 + 6 * 3)
 		column.BackgroundTransparency = 1
 		column.Parent = gui
 		local layout = Instance.new("UIListLayout")
 		layout.Padding = UDim.new(0, 6)
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.Parent = column
-		button(column, "/bench", 1, true)
-		button(column, "/bench clear", 2, false)
+		button(column, "/bench", 1, function()
+			Remotes.Bench.Fire(true)
+		end)
+		button(column, "/bench clear", 2, function()
+			Remotes.Bench.Fire(false)
+		end)
+		button(column, "/bench guardians", 3, function()
+			Remotes.BenchGuardians.Fire(true)
+		end)
+		button(column, "/bench guardians clear", 4, function()
+			Remotes.BenchGuardians.Fire(false)
+		end)
 		gui.Parent = playerGui
 
 		local function show()

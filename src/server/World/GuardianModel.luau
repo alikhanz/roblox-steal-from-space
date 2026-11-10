@@ -1,8 +1,11 @@
 --!strict
--- Builds the greybox guardian: a body in its kind's shape, two glowing eyes at the front and the
--- physics movers the service steers. Real models replace the parts later.
+-- Builds a guardian as the server has it: a greybox body in its kind's shape with two glowing eyes
+-- at the front and the physics movers the service steers. Each client dresses it in its post's
+-- model (World/GuardianVisual, GuardianLooks.MODELS) and hides the greybox; the greybox shows
+-- only where the place has no model for the post.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
@@ -77,6 +80,37 @@ function GuardianModel.build(kind: GuardianLooks.KindLook, look: GuardianLooks.P
 
 	model.PrimaryPart = body
 	return model
+end
+
+-- In Studio: warns about posts whose model the place lacks or holds out of date against the repo
+-- (src/server/World/GuardianModels.json, written by lune/guardians.luau), with how to bring them
+-- in. Quiet while the repo has no models yet.
+function GuardianModel.checkPlace(manifest: { [string]: string })
+	if not RunService:IsStudio() then
+		return
+	end
+	local models = GuardianLooks.MODELS
+	local folder = ReplicatedStorage:FindFirstChild(models.FOLDER_NAME)
+	local missing, stale = {}, {}
+	for _, post in GuardianConfig.POSTS do
+		local expected = manifest[post.id]
+		local model = folder and folder:FindFirstChild(post.id)
+		if not expected then
+			continue
+		elseif not model then
+			table.insert(missing, post.id)
+		elseif model:GetAttribute(models.HASH_ATTRIBUTE) ~= expected then
+			table.insert(stale, post.id)
+		end
+	end
+	if #missing + #stale == 0 then
+		return
+	end
+	warn(
+		`[GuardianModel] The place's guardian models differ from the repo (missing: {table.concat(missing, ", ")};`
+			.. ` out of date: {table.concat(stale, ", ")}). Bring them in: delete ReplicatedStorage.{models.FOLDER_NAME},`
+			.. ` select ReplicatedStorage, File → Import Roblox Model → out/Guardians.rbxm (lune run guardians).`
+	)
 end
 
 return table.freeze(GuardianModel)

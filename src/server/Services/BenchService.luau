@@ -8,6 +8,15 @@
 -- the profile (Domain/Bench): clearing works after a rejoin too (it kept to the server once, and a
 -- rejoin left the island full with nothing to clear; user, 2026-11-10).
 
+--
+-- The guardian bench (docs/plans/GUARDIANS.md, phone load): the Event Horizon's guardians, as many
+-- as the zone has (7 nests a post, 42, the biggest models), set in a ring round the player, a
+-- third each asleep, chasing and going home, so a phone shows the load of flying through that
+-- zone without the flight. They are display guardians: still bodies with no brain, which every
+-- client dresses as it does real ones. They live on the server only, until taken away or the
+-- player leaves.
+
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,7 +25,19 @@ local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local Bench = require(ReplicatedStorage.Shared.Domain.Bench)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
+local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
+local GuardianModel = require(script.Parent.Parent.World.GuardianModel)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
+local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
+
+-- The guardian bench's zone, its ring round the player (studs: past the biggest models' length,
+-- inside the guardians' motion distance, so all of them move) and how high above the player.
+local BENCH_GUARDIAN_ZONE: ZoneConfig.ZoneId = "EventHorizon"
+local BENCH_GUARDIAN_RING = 200
+local BENCH_GUARDIAN_RISE = 20
+local BENCH_GUARDIAN_STATES: { GuardianBrain.State } = { "Sleep", "Chase", "Return" }
 
 -- Tiers in the bench, round and round: the heavy ones (wings, comets, the medal) most often.
 local BENCH_TIERS: { AlienConfig.TierId } = { "Legendary", "Epic", "Rare", "Legendary", "Uncommon", "Epic" }
@@ -37,6 +58,9 @@ export type BenchService = {
 	start: () -> (),
 	-- Fills the island (`fill`) or takes the bench away; nothing for a player not allowed.
 	run: (player: Player, fill: boolean) -> (),
+	-- Sets the guardian bench round the player (`show`) or takes it away; nothing for a player
+	-- not allowed.
+	showGuardians: (player: Player, show: boolean) -> (),
 }
 
 local BenchService = {}
@@ -85,6 +109,64 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		end
 	end
 
+	-- The guardian bench of each player who set it.
+	local guardianBenches: { [Player]: Folder } = {}
+
+	local function clearGuardians(player: Player)
+		local folder = guardianBenches[player]
+		if folder then
+			guardianBenches[player] = nil
+			folder:Destroy()
+		end
+	end
+
+	local function showGuardians(player: Player, wanted: boolean)
+		if not allowed(player) then
+			return
+		end
+		if not wanted then
+			clearGuardians(player)
+			return
+		end
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if guardianBenches[player] or not (root and root:IsA("BasePart")) then
+			return
+		end
+		local posts: { GuardianConfig.Post } = {}
+		for _, post in GuardianConfig.POSTS do
+			if post.zone == BENCH_GUARDIAN_ZONE then
+				for _ = 1, ZoneConfig.ZONES[BENCH_GUARDIAN_ZONE].nestsPerPost do
+					table.insert(posts, post)
+				end
+			end
+		end
+		local folder = Instance.new("Folder")
+		folder.Name = `BenchGuardians{player.UserId}`
+		local centre = root.Position + Vector3.yAxis * BENCH_GUARDIAN_RISE
+		for index, post in posts do
+			local angle = (index - 1) / #posts * 2 * math.pi
+			local at = centre + Vector3.new(math.cos(angle), 0, math.sin(angle)) * BENCH_GUARDIAN_RING
+			local model = GuardianModel.build(GuardianLooks.KINDS[post.kind], GuardianLooks.POSTS[post.id])
+			local body = model.PrimaryPart :: BasePart
+			-- Still: no brain moves a display guardian.
+			body.Anchored = true
+			-- Facing the player, as a guardian faces its way (-Z).
+			model:PivotTo(CFrame.lookAt(at, Vector3.new(centre.X, at.Y, centre.Z)))
+			model:SetAttribute(GuardianConfig.POST_ATTRIBUTE, post.id)
+			model:SetAttribute(
+				GuardianConfig.STATE_ATTRIBUTE,
+				BENCH_GUARDIAN_STATES[(index - 1) % #BENCH_GUARDIAN_STATES + 1]
+			)
+			model:SetAttribute(GuardianConfig.RECOMMENDED_MANTISSA_ATTRIBUTE, post.recommended.mantissa)
+			model:SetAttribute(GuardianConfig.RECOMMENDED_EXPONENT_ATTRIBUTE, post.recommended.exponent)
+			CollectionService:AddTag(model, GuardianConfig.TAG)
+			model.Parent = folder
+		end
+		folder.Parent = workspace:FindFirstChild("World") or workspace
+		guardianBenches[player] = folder
+	end
+
 	local function start()
 		local function mark(player: Player)
 			player:SetAttribute(DevConfig.BENCH_ATTRIBUTE, allowed(player))
@@ -93,12 +175,14 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		for _, player in Players:GetPlayers() do
 			mark(player)
 		end
+		Players.PlayerRemoving:Connect(clearGuardians)
 	end
 
 	return {
 		name = "BenchService",
 		start = start,
 		run = run,
+		showGuardians = showGuardians,
 	}
 end
 

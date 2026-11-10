@@ -1,9 +1,10 @@
 --!strict
 -- The client side of guardians: the sign with the name over each one, coloured by how the player
 -- stands against the guardian's recommended speed (red, white, green: GuardianLooks.standingColor),
--- and
--- eyes that light up with the guardian's state. Guardians stream in and out, so everything is
--- keyed by the model and torn down when it goes.
+-- and its look: its post's model on the server's greybox body (World/GuardianVisual: moving by its
+-- state, its eyes in the state's colour, a lunge when it catches someone), or, where the place has
+-- no model for its post, the greybox with eyes that light up with its state. Guardians stream in
+-- and out, so everything is keyed by the model and torn down when it goes.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -13,18 +14,22 @@ local TweenService = game:GetService("TweenService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
+local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
+local GuardianVisual = require(script.Parent.Parent.World.GuardianVisual)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
 
--- The strike: the body swells and snaps back.
+-- The greybox's strike: the body swells and snaps back.
 local STRIKE_SCALE = 1.35
 local STRIKE_TWEEN = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true)
+-- A frame longer than this (a hitch) moves the guardians as if it were this long.
+local MAX_FRAME_SECONDS = 0.1
 
 export type Dependencies = {
 	-- The player's speed stat: the names are coloured by it.
@@ -39,6 +44,7 @@ export type GuardianViewController = {
 type View = {
 	unmount: () -> (),
 	connections: { RBXScriptConnection },
+	visual: GuardianVisual.Visual?,
 }
 
 local GuardianViewController = {}
@@ -60,9 +66,19 @@ local function debugTextOf(post: GuardianConfig.Post, recommended: BigNum.BigNum
 	return `⚡ {BigNum.format(post.speed)} · rec {rec}`
 end
 
-local function paintEyes(model: Model)
+local function stateOf(model: Model): GuardianBrain.State
 	local state = model:GetAttribute(GuardianConfig.STATE_ATTRIBUTE)
-	local color = GuardianLooks.EYE_COLORS[state :: any] or GuardianLooks.EYE_COLORS.Sleep
+	return if GuardianLooks.EYE_COLORS[state :: any] then state :: GuardianBrain.State else "Sleep"
+end
+
+-- The model's state (its eyes, pace, jaw), or the greybox's eyes in the state's colour.
+local function showState(model: Model, visual: GuardianVisual.Visual?)
+	local state = stateOf(model)
+	if visual then
+		GuardianVisual.setState(visual, state)
+		return
+	end
+	local color = GuardianLooks.EYE_COLORS[state]
 	for _, child in model:GetChildren() do
 		if child.Name == GuardianConfig.EYE_NAME and child:IsA("BasePart") then
 			child.Color = color
@@ -70,8 +86,30 @@ local function paintEyes(model: Model)
 	end
 end
 
+-- The greybox part hidden on this client under the model (the server's body still moves and
+-- catches; its sign hangs on it).
+local function hide(part: Instance)
+	if part:IsA("BasePart") then
+		part.Transparency = 1
+	end
+end
+
+-- Where this client keeps its guardians' models.
+local function lookFolder(): Folder
+	local found = workspace:FindFirstChild(GuardianLooks.MODELS.CLIENT_FOLDER)
+	if found and found:IsA("Folder") then
+		return found
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = GuardianLooks.MODELS.CLIENT_FOLDER
+	folder.Parent = workspace
+	return folder
+end
+
 function GuardianViewController.new(dependencies: Dependencies): GuardianViewController
 	local views: { [Instance]: View } = {}
+	-- The models in this client's view, carried and moved every frame.
+	local visuals: { [Instance]: GuardianVisual.Visual } = {}
 	-- Body watchers of every tagged guardian, present body or not.
 	local tracked: { [Instance]: { RBXScriptConnection } } = {}
 
@@ -79,14 +117,18 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		local view = views[instance]
 		if view then
 			views[instance] = nil
+			visuals[instance] = nil
 			for _, connection in view.connections do
 				connection:Disconnect()
 			end
 			view.unmount()
+			if view.visual then
+				GuardianVisual.detach(view.visual)
+			end
 		end
 	end
 
-	-- Builds the sign and eye painting for a guardian whose body is present.
+	-- Builds the sign and the look for a guardian whose body is present.
 	local function show(instance: Instance, body: Instance, locale: Text.Locale)
 		if views[instance] then
 			return
@@ -122,18 +164,41 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 				debugText = debugTextOf(post, recommended),
 			})
 		end, instance)
-		paintEyes(instance)
+		-- Each guardian keeps a rhythm of its own, the same every time it streams in.
+		local seed = math.floor(body.Position.X * 7 + body.Position.Z * 13)
+		local visual = GuardianVisual.attach(body, post, lookFolder(), seed)
+		local connections = {
+			instance:GetAttributeChangedSignal(GuardianConfig.STATE_ATTRIBUTE):Connect(function()
+				showState(instance, visual)
+			end),
+		}
 		local restSize = body.Size
-		views[instance] = {
-			unmount = unmount,
-			connections = {
-				instance:GetAttributeChangedSignal(GuardianConfig.STATE_ATTRIBUTE):Connect(function()
-					paintEyes(instance)
-				end),
+		if visual then
+			visuals[instance] = visual
+			for _, child in instance:GetChildren() do
+				hide(child)
+			end
+			-- The greybox's eyes may stream in after its body.
+			table.insert(connections, instance.ChildAdded:Connect(hide))
+			table.insert(
+				connections,
+				instance:GetAttributeChangedSignal(GuardianConfig.LAST_CATCH_ATTRIBUTE):Connect(function()
+					GuardianVisual.strike(visual, os.clock())
+				end)
+			)
+		else
+			table.insert(
+				connections,
 				instance:GetAttributeChangedSignal(GuardianConfig.LAST_CATCH_ATTRIBUTE):Connect(function()
 					TweenService:Create(body, STRIKE_TWEEN, { Size = restSize * STRIKE_SCALE }):Play()
-				end),
-			},
+				end)
+			)
+		end
+		showState(instance, visual)
+		views[instance] = {
+			unmount = unmount,
+			visual = visual,
+			connections = connections,
 		}
 	end
 
@@ -173,6 +238,17 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		forget(instance)
 	end
 
+	local last = os.clock()
+	local function step()
+		local now = os.clock()
+		local dt = math.min(now - last, MAX_FRAME_SECONDS)
+		last = now
+		local camera = workspace.CurrentCamera
+		if camera and next(visuals) then
+			GuardianVisual.step(visuals, now, dt, camera.CFrame.Position)
+		end
+	end
+
 	local function start()
 		local locale = Text.localeOf(Players.LocalPlayer)
 		CollectionService:GetInstanceAddedSignal(GuardianConfig.TAG):Connect(function(instance)
@@ -182,6 +258,7 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		for _, instance in CollectionService:GetTagged(GuardianConfig.TAG) do
 			watch(instance, locale)
 		end
+		RunService.RenderStepped:Connect(step)
 	end
 
 	return {

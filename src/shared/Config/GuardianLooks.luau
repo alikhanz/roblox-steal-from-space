@@ -1,7 +1,8 @@
 --!strict
 -- How guardians look. Kept apart from GuardianConfig so the numbers there load in Lune (the
--- balance calculator and tests), where Roblox datatypes do not exist. Greybox: a body kind
--- gives the shape, the post gives the color and size.
+-- balance calculator and tests), where Roblox datatypes do not exist. The greybox body: a body
+-- kind gives the shape, the post the color and size; the real model (MODELS, decision 087) is
+-- fitted to that size and moves by the guardian's state (STATE_MOTION).
 
 local GuardianBrain = require("../Domain/GuardianBrain")
 local GuardianConfig = require("./GuardianConfig")
@@ -64,6 +65,49 @@ for id in GuardianConfig.POSTS_BY_ID do
 	assert(POSTS[id], `GuardianLooks has no look for post {id}`)
 end
 
+-- The real models (docs/plans/GUARDIANS.md): a post's adult, assets/guardians/<post>.rbxm, put
+-- into the place by hand as ReplicatedStorage.<FOLDER_NAME> (lune/guardians.luau). The server's
+-- guardian stays the greybox body that moves and catches; each client dresses it in its post's
+-- model (World/GuardianVisual), which never crosses the network. A post with no model in the
+-- place shows the greybox.
+local MODELS = table.freeze({
+	FOLDER_NAME = "Guardians",
+	-- The fingerprint lune/guardians.luau gives each model; GuardianModels.json lists the repo's.
+	HASH_ATTRIBUTE = "ModelHash",
+	-- Where each client keeps its guardians' models.
+	CLIENT_FOLDER = "GuardianLooks",
+	-- Paint sources the game colours itself: the eyes by state, the throat by how fierce.
+	EYE_SOURCE = "GuardianEye",
+	MAW_SOURCE = "Maw",
+	-- The parts move only this close to the camera, studs past the model's half length; farther it
+	-- stands still and is carried whole with its body. Leaving takes MOTION_MARGIN more.
+	MOTION_DISTANCE = 300,
+	MOTION_MARGIN = 30,
+	-- It hovers, bobbing this much of its height.
+	BOB = 0.03,
+	-- Its pace eases to a new state's over this many seconds.
+	TEMPO_EASE_SECONDS = 0.6,
+	-- A catch: it lunges ahead this share of its length and its jaws snap, over this many seconds.
+	STRIKE_LUNGE = 0.2,
+	STRIKE_SECONDS = 0.35,
+	-- A jaw snapping at a catch opens this much wider, radians.
+	STRIKE_MOUTH = 0.35,
+})
+
+-- How a guardian moves in each state: its parts' pace (1: a pet's), how far its lower jaw hangs
+-- open (radians) and how brightly its throat glows (a share of full).
+export type StateMotion = {
+	read tempo: number,
+	read mouth: number,
+	read maw: number,
+}
+
+local STATE_MOTION: { [GuardianBrain.State]: StateMotion } = {
+	Sleep = table.freeze({ tempo = 0.45, mouth = 0.04, maw = 0.3 }),
+	Chase = table.freeze({ tempo = 1.8, mouth = 0.4, maw = 1 }),
+	Return = table.freeze({ tempo = 1, mouth = 0.12, maw = 0.6 }),
+}
+
 local EYE_COLORS: { [GuardianBrain.State]: Color3 } = {
 	Sleep = Color3.fromRGB(70, 70, 90),
 	Chase = Color3.fromRGB(255, 40, 40),
@@ -88,5 +132,7 @@ return table.freeze({
 	KINDS = table.freeze(KINDS),
 	POSTS = table.freeze(POSTS),
 	EYE_COLORS = table.freeze(EYE_COLORS),
+	MODELS = MODELS,
+	STATE_MOTION = table.freeze(STATE_MOTION),
 	standingColor = standingColor,
 })

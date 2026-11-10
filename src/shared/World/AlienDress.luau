@@ -285,7 +285,10 @@ end
 local function paint(pet: Model, paints: { [string]: Paint }, core: Color3): ({ MeshPart }, { MeshPart }, { MeshPart })
 	local wingParts, flameParts, jetParts = {}, {}, {}
 	local metal = metalName()
-	local lava = lavaSkin()
+	-- The lava skin is fetched only for a part that wears it: it lives in ServerStorage, which a
+	-- client painting a guardian (AlienDress.paintModel) cannot see.
+	local lava: SurfaceAppearance? = nil
+	local lavaLooked = false
 	for _, instance in pet:GetDescendants() do
 		if not instance:IsA("MeshPart") then
 			continue
@@ -329,6 +332,9 @@ local function paint(pet: Model, paints: { [string]: Paint }, core: Color3): ({ 
 			part.Color = WHITE
 			part.Reflectance = 0
 			part.Transparency = 0
+			if not lavaLooked then
+				lava, lavaLooked = lavaSkin(), true
+			end
 			if lava then
 				lava:Clone().Parent = part
 			end
@@ -1079,6 +1085,13 @@ function AlienDress.prepare(pet: Model)
 	body.CFrame = cf
 	body.Parent = pet
 	pet.PrimaryPart = body
+end
+
+-- Paints another bare model of the robots' pipeline the way a pet's parts are painted (a
+-- guardian's, assets/guardians: World/GuardianVisual): materials, metal, glass, baked colours,
+-- Blender's stand-ins and markers hidden, each part's Role. `core`: the colour its core glows.
+function AlienDress.paintModel(model: Model, core: Color3)
+	paint(model, paintsOf(model), core)
 end
 
 -- The fine dust as twinkling clusters (AlienLooks.FX): each particle of these layers carries a

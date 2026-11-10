@@ -517,3 +517,12 @@ event Bench = {
 	call: SingleSync,
 	data: boolean,
 }
+
+-- The guardian bench (BenchService.showGuardians): true sets the Event Horizon's 42 guardians in a
+-- ring round the player, false takes them away. The server ignores anyone not allowed.
+event BenchGuardians = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: boolean,
+}
