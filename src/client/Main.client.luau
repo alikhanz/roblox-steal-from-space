@@ -29,6 +29,7 @@ local HomeBeaconController = require(script.Parent.Controllers.HomeBeaconControl
 local HudController = require(script.Parent.Controllers.HudController)
 local IndexController = require(script.Parent.Controllers.IndexController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
+local JetpackLoadController = require(script.Parent.Controllers.JetpackLoadController)
 local KioskController = require(script.Parent.Controllers.KioskController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
@@ -85,6 +86,8 @@ local tutorialController = TutorialController.new({ speed = speedState.speed, gr
 Lifecycle.run({
 	-- First: every GUI made after it keeps Roblox's auto-translation off (decision 071).
 	AutoLocalizeGuard.new(),
+	-- Before anything that preloads: the player's own jetpack is asked for first (LoadConfig).
+	JetpackLoadController.new(),
 	profileState,
 	purchaseState,
 	abilityState,

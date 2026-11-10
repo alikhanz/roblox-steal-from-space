@@ -9,15 +9,16 @@
 -- the model only near it and detaches it again (decision 101), so a post's meshes are fetched only
 -- once one of its guardians is near.
 
-local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
+local AssetQueue = require(script.Parent.Parent.Loading.AssetQueue)
 local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local GuardianPose = require(ReplicatedStorage.Shared.Domain.GuardianPose)
+local LoadConfig = require(ReplicatedStorage.Shared.Config.LoadConfig)
 local RigMotion = require(script.Parent.RigMotion)
 
 local MODELS = GuardianLooks.MODELS
@@ -133,7 +134,7 @@ function GuardianVisual.attach(body: BasePart, post: GuardianConfig.Post, parent
 	model:PivotTo(body.CFrame)
 	local eyes: { BasePart } = {}
 	local maws: { Maw } = {}
-	local meshes: { Instance } = {}
+	local meshes: { AssetQueue.Asset } = {}
 	local effects: { ParticleEmitter | Beam } = {}
 	for _, part in model:GetDescendants() do
 		if part:IsA("ParticleEmitter") or part:IsA("Beam") then
@@ -173,10 +174,8 @@ function GuardianVisual.attach(body: BasePart, post: GuardianConfig.Post, parent
 		origin = nil,
 		shown = nil,
 	}
-	-- Many new meshes at once: ask for them all, or some stay unloaded.
-	task.spawn(function()
-		pcall(ContentProvider.PreloadAsync, ContentProvider, meshes)
-	end)
+	-- Many new meshes at once: ask for them all, or some stay unloaded (after the jetpack, AssetQueue).
+	AssetQueue.later(`guardian model {model.Name}`, LoadConfig.PRIORITY.GUARDIAN, meshes)
 	return visual
 end
 

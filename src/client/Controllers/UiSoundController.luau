@@ -30,7 +30,7 @@ local UiSoundController = {}
 
 function UiSoundController.new(dependencies: Dependencies): UiSoundController
 	local function start()
-		task.spawn(SoundPlayer.preload)
+		SoundPlayer.preload()
 
 		local openWindow: string? = nil
 		local lastToast = 0

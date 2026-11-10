@@ -6,11 +6,12 @@
 -- master SoundGroup with a group per kind (world, interface, alarm).
 -- One player per client, so its voices live in the module.
 
-local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
+local AssetQueue = require(script.Parent.Parent.Loading.AssetQueue)
+local LoadConfig = require(ReplicatedStorage.Shared.Config.LoadConfig)
 local SoundLooks = require(ReplicatedStorage.Shared.Config.SoundLooks)
 local SoundVoices = require(ReplicatedStorage.Shared.Domain.SoundVoices)
 
@@ -270,9 +271,10 @@ function SoundPlayer.loop(name: Name, options: Options?): Loop?
 end
 
 -- Loads every sound of this game ahead and keeps a few of each ready, so even quick repeats
--- (clicks) start at once. Yields.
+-- (clicks) start at once. The loading waits its turn behind the player's jetpack (AssetQueue): a
+-- sound played before that loads when played.
 function SoundPlayer.preload()
-	local sounds: { Instance } = {}
+	local sounds: { AssetQueue.Asset } = {}
 	for name in SoundLooks.SOUNDS do
 		local id = SoundLooks.assetOf(game.GameId, name)
 		if id then
@@ -283,10 +285,7 @@ function SoundPlayer.preload()
 			end
 		end
 	end
-	local ok, problem = pcall(ContentProvider.PreloadAsync, ContentProvider, sounds)
-	if not ok then
-		warn(`[SoundPlayer] Preloading sounds failed: {problem}`)
-	end
+	AssetQueue.later("sounds", LoadConfig.PRIORITY.SOUNDS, sounds)
 end
 
 return table.freeze(SoundPlayer)

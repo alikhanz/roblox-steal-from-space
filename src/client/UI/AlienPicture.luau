@@ -5,11 +5,12 @@
 -- A guardian with no sheet yet shows the ball the windows had before: a disc in the tier's colour
 -- with a light spot and two eyes. Fills its parent.
 
-local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienIcons = require(ReplicatedStorage.Shared.Config.AlienIcons)
+local AssetQueue = require(script.Parent.Parent.Loading.AssetQueue)
 local Icons = require(script.Parent.Icons)
+local LoadConfig = require(ReplicatedStorage.Shared.Config.LoadConfig)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
@@ -77,23 +78,19 @@ local function Ball(props: Props, shown: () -> boolean): Frame
 	}) :: Frame
 end
 
--- The sheets load together the first time a window draws an alien, not at the game's start (the
--- brief: they must not slow the way in).
+-- The sheets load together the first time a window draws an alien, and last of the join's
+-- preloads (AssetQueue; the brief: they must not slow the way in).
 local preloaded = false
 local function preload()
 	if preloaded then
 		return
 	end
 	preloaded = true
-	local sheets: { string } = {}
+	local sheets: { AssetQueue.Asset } = {}
 	for _, sheet in AlienIcons.SHEETS do
 		table.insert(sheets, sheet)
 	end
-	if #sheets > 0 then
-		task.spawn(function()
-			ContentProvider:PreloadAsync(sheets)
-		end)
-	end
+	AssetQueue.later("alien icon sheets", LoadConfig.PRIORITY.ICONS, sheets)
 end
 
 local function AlienPicture(props: Props): Frame

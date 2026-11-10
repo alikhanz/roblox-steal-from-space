@@ -17,9 +17,10 @@
 -- the egg, `SegmentOrigin`, `TailOrigin`; `JetPoint` where the jet comes out). Insertion into
 -- Studio turned the kit about Y, which offsets from the specks don't mind.
 
-local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AssetQueue = require(script.Parent.Parent.Loading.AssetQueue)
+local LoadConfig = require(ReplicatedStorage.Shared.Config.LoadConfig)
 local SerpentBody = require(ReplicatedStorage.Shared.Domain.SerpentBody)
 local SerpentHunt = require(ReplicatedStorage.Shared.Domain.SerpentHunt)
 local SerpentLooks = require(ReplicatedStorage.Shared.Config.SerpentLooks)
@@ -272,9 +273,12 @@ function SerpentVisual.build(parent: Instance, segments: number): Visual?
 		table.insert(visual.parts, placed.part)
 	end
 	model.Parent = parent
-	task.spawn(function()
-		pcall(ContentProvider.PreloadAsync, ContentProvider, visual.parts)
-	end)
+	-- After the player's jetpack (AssetQueue): a hunt can be on as the player joins.
+	local assets: { AssetQueue.Asset } = {}
+	for _, part in visual.parts do
+		table.insert(assets, part)
+	end
+	AssetQueue.later("serpent", LoadConfig.PRIORITY.SERPENT, assets)
 	return visual
 end
 
