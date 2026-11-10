@@ -10,7 +10,8 @@
 -- Into the place: stand-kit.glb uploaded through Open Cloud and inserted into ServerStorage, its
 -- MeshParts moved into a Folder `StandKit` without moving them; CollisionFidelity Box by hand in
 -- Properties (MCP can't set it; the pieces touch nothing, hull data would only weigh). Save the
--- place.
+-- place. In the place now: asset 138487246978119 (2026-11-10; insertion turned it 46.2° about Y,
+-- which the offsets from `Origin` don't mind).
 
 local ServerStorage = game:GetService("ServerStorage")
 

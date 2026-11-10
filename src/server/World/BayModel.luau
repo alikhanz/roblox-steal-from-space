@@ -382,7 +382,7 @@ local STAND_PIECES = table.freeze({
 		kind = "Body",
 		name = BayConfig.STAND_LOOK_NAME,
 		material = BayLooks.STAND_BODY_MATERIAL,
-		color = Color3.new(1, 1, 1),
+		color = BayLooks.STAND_BODY_TINT,
 	},
 	{
 		kind = "Glow",
@@ -393,7 +393,7 @@ local STAND_PIECES = table.freeze({
 	{
 		kind = "Gold",
 		name = BayConfig.STAND_LOOK_NAME,
-		material = BayLooks.STAND_BODY_MATERIAL,
+		material = BayLooks.STAND_GOLD_MATERIAL,
 		color = BayLooks.STAND_GOLD_COLOR,
 	},
 	{

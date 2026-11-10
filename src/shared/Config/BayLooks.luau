@@ -241,10 +241,15 @@ return table.freeze({
 		table.freeze({ fromLevel = 12, platformRadius = 3.8, dialRadius = 3.4 }),
 		table.freeze({ fromLevel = 15, platformRadius = 4.1, dialRadius = 3.7 }),
 	}),
-	-- The kit's pieces of a tier: the plastic body (white: its colours are baked in), the yellow
-	-- light, the top tier's gold (the pets' metal variant, AlienLooks.MODELS.METAL_VARIANT).
-	STAND_BODY_MATERIAL = Enum.Material.SmoothPlastic,
+	-- The kit's pieces of a tier: the metal body (its shades baked in, times this tint), the
+	-- yellow light, the top tier's gold (the pets' metal variant, AlienLooks.MODELS.METAL_VARIANT,
+	-- whose base is SmoothPlastic). The island's light and grading turn the concepts' blue-grey
+	-- steel pink on plain plastic; Metal tinted blue and darker reads as the concepts' steel
+	-- (Studio, 2026-11-10).
+	STAND_BODY_MATERIAL = Enum.Material.Metal,
+	STAND_BODY_TINT = Color3.fromRGB(120, 135, 190),
 	STAND_GLOW_COLOR = Color3.fromRGB(255, 214, 90),
+	STAND_GOLD_MATERIAL = Enum.Material.SmoothPlastic,
 	STAND_GOLD_COLOR = Color3.fromRGB(255, 190, 45),
 	-- Between tiers, the level dial on the platform's top: a lamp lit a level, all lit from the
 	-- last on. Its lamps run round the rim from the rider's front left, behind them, to their front
