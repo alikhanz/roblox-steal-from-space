@@ -78,6 +78,37 @@ local GAMES: { [number]: GameCatalog } = {
 			[3728654444] = { kind = "CollectDouble", tier = 8 },
 		},
 	},
+	-- Fly & Steal Space Eggs, the Prod game owned by the community (created 2026-11-11).
+	[10775754016] = {
+		passes = {
+			DoubleTraining = 2078156255,
+			NightShift = 2075939060,
+		},
+		products = {
+			[3730276086] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[1] },
+			[3730276256] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[2] },
+			[3730276305] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[3] },
+			[3730276317] = { kind = "ReadyNow", tier = 1 },
+			[3730276329] = { kind = "ReadyNow", tier = 2 },
+			[3730276341] = { kind = "ReadyNow", tier = 3 },
+			[3730276356] = { kind = "ReadyNow", tier = 4 },
+			[3730276414] = { kind = "ReadyNow", tier = 5 },
+			[3730276427] = { kind = "ReadyNow", tier = 6 },
+			[3730276443] = { kind = "ReadyNow", tier = 7 },
+			[3730276456] = { kind = "ReadyNow", tier = 8 },
+			[3730276474] = { kind = "IncubatorSlot", tier = 1 },
+			[3730276492] = { kind = "IncubatorSlot", tier = 2 },
+			[3730276508] = { kind = "IncubatorSlot", tier = 3 },
+			[3730276633] = { kind = "CollectDouble", tier = 1 },
+			[3730276643] = { kind = "CollectDouble", tier = 2 },
+			[3730276655] = { kind = "CollectDouble", tier = 3 },
+			[3730276671] = { kind = "CollectDouble", tier = 4 },
+			[3730276681] = { kind = "CollectDouble", tier = 5 },
+			[3730276693] = { kind = "CollectDouble", tier = 6 },
+			[3730276710] = { kind = "CollectDouble", tier = 7 },
+			[3730276526] = { kind = "CollectDouble", tier = 8 },
+		},
+	},
 }
 
 local MonetizationConfig = {}
