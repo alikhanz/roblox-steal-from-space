@@ -1,5 +1,5 @@
 --!strict
--- The egg's kit of meshes (decision 087): for each kind of egg (the five rarities and the meteor
+-- The egg's kit of meshes (decision 088): for each kind of egg (the five rarities and the meteor
 -- egg) its capsule's plastic body `Body<Kind>` with the colours baked in, and what glows on it
 -- `Glow<Kind>` (none for Common); the legendary's gold cap `CapGold`. From Blender
 -- (assets/blender/eggs/egg_kit.py), in ServerStorage.EggKit of the place (World/MeshKit). The

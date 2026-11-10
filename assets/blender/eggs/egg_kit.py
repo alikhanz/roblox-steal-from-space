@@ -1,4 +1,4 @@
-# The egg's kit of meshes (docs/plans/POLISH.md, "Яйца"; decision 087): a space egg is a ceramic
+# The egg's kit of meshes (docs/plans/POLISH.md, "Яйца"; decision 088): a space egg is a ceramic
 # capsule like the pets' hulls and the station's kiosks (user, 2026-11-10: "мне нравятся больше
 # капсулы, которые ты ранее показывал"). One GLB, one node per piece, all about the egg's centre
 # (the origin).

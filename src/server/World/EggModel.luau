@@ -1,5 +1,5 @@
 --!strict
--- Builds a space egg (decision 087): a ceramic capsule from the egg kit, wearing more the rarer it
+-- Builds a space egg (decision 088): a ceramic capsule from the egg kit, wearing more the rarer it
 -- is (a lit seam, a lit window, an antenna and a ring in orbit, a gold cap and a halo; World/EggKit
 -- holds the shapes with their colours baked in), scaled by its size. The rarest eggs carry a faint
 -- light, meteor eggs are scorched with lava in their seams and burn, lucky ones (the star egg)

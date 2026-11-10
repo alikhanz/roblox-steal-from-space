@@ -2,7 +2,7 @@
 -- How eggs look. Kept apart from EggConfig so the numbers there load in Lune (the balance
 -- calculator and tests), where Roblox datatypes do not exist.
 --
--- An egg is a ceramic capsule (decision 087) from the egg kit (World/EggKit): its plastic body
+-- An egg is a ceramic capsule (decision 088) from the egg kit (World/EggKit): its plastic body
 -- with the colours baked in (pearl base, the cap in the rarity's colour) and what each rarity
 -- wears are in the meshes (assets/blender/eggs/egg_kit.py: a lit seam from uncommon, a lit window
 -- from rare, an antenna and an orbit from epic, a gold cap and a halo for legendary). Here: what
