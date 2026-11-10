@@ -22,6 +22,7 @@ export type JetpackService = {
 	name: string,
 	start: () -> (),
 	getLevel: (player: Player) -> number,
+	refresh: (player: Player) -> (),
 }
 
 local JetpackService = {}
@@ -40,18 +41,22 @@ function JetpackService.new(dependencies: Dependencies): JetpackService
 		end
 	end
 
+	-- After the level changed: the model, the attribute and the speed it multiplies.
+	local function refresh(player: Player)
+		publish(player)
+		dependencies.publishSpeed(player)
+	end
+
 	local function start()
 		dependencies.activated.connect(publish)
-		dependencies.jetpackUpgraded.connect(function(player)
-			publish(player)
-			dependencies.publishSpeed(player)
-		end)
+		dependencies.jetpackUpgraded.connect(refresh)
 	end
 
 	return {
 		name = "JetpackService",
 		start = start,
 		getLevel = getLevel,
+		refresh = refresh,
 	}
 end
 

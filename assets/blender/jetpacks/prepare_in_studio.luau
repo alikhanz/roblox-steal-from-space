@@ -46,6 +46,14 @@ for _, part in source:GetDescendants() do
 end
 assert(origins[0] and origins[1], "the pack lacks its origin markers")
 local unit = SPACING / (origins[1] - origins[0]).Magnitude
+-- Insertion turns the pack about Y (it faces the camera). The row runs along Blender's +X, which
+-- import puts on Roblox's −X; the turn that took −X onto the row is undone with the pivot.
+local row = (origins[1] - origins[0]).Unit
+local turn = CFrame.Angles(0, math.atan2(row.Z, -row.X), 0)
+local link = source:FindFirstChildWhichIsA("PackageLink", true)
+if link then
+	link:Destroy()
+end
 
 local old = ServerStorage:FindFirstChild(TARGET)
 if old then
@@ -70,7 +78,7 @@ for n, parts in bodies do
 		end
 		part.Parent = model
 	end
-	model.WorldPivot = CFrame.new(origin)
+	model.WorldPivot = CFrame.new(origin) * turn
 	-- Into studs about the pivot (a plain resize: the stored scale stays 1).
 	for _, part in parts do
 		part.Size *= unit
@@ -79,11 +87,31 @@ for n, parts in bodies do
 	-- The nozzles hang off the shell (every jetpack has one); a flame leaves along −Y (down).
 	local shell = model:FindFirstChild("Shell") :: BasePart
 	assert(shell, `jetpack {n} has no shell`)
+	-- In the pivot's frame. The import loses a marker's place now and then (it lands on the origin:
+	-- 4 of 32 on 2026-11-10); every jetpack is mirror-symmetric in X, so a lost nozzle is its pair's
+	-- mirror.
+	local exits: { Vector3 } = {}
 	for _, at in nozzles[n] or {} do
+		local here = (CFrame.new(origin) * turn):PointToObjectSpace(origin + (at - origin) * unit)
+		if here.Magnitude > 0.05 then
+			table.insert(exits, here)
+		end
+	end
+	for _, here in table.clone(exits) do
+		local mirror = Vector3.new(-here.X, here.Y, here.Z)
+		local paired = false
+		for _, other in exits do
+			paired = paired or (other - mirror).Magnitude < 0.05
+		end
+		if not paired then
+			table.insert(exits, mirror)
+		end
+	end
+	for _, here in exits do
 		local exit = Instance.new("Attachment")
 		exit.Name = "NozzleExit"
 		exit.Parent = shell
-		exit.WorldCFrame = CFrame.new(origin + (at - origin) * unit)
+		exit.WorldCFrame = CFrame.new(origin) * turn * CFrame.new(here)
 	end
 	-- Stored at the origin of the world, so a clone's pivot is the torso's centre.
 	model:PivotTo(CFrame.new())

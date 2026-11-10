@@ -26,6 +26,7 @@
 --   game.ServerStorage.DevCommands.ReplayLastReceipt:Invoke()
 --   game.ServerStorage.DevCommands.GivePass:Invoke("NightShift")
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
+--   game.ServerStorage.DevCommands.SetJetpack:Invoke(5)
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -52,6 +53,7 @@ local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpService = require(script.Parent.PvpService)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
+local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -109,6 +111,8 @@ export type Dependencies = {
 	notePass: (player: Player, pass: Purchases.PassId) -> boolean,
 	-- Sets the tutorial's progress (TutorialService.setProgress).
 	setTutorialProgress: (player: Player, progress: number) -> boolean,
+	-- Shows a changed jetpack level: the model, the attribute and the speed (JetpackService).
+	refreshJetpack: (player: Player) -> (),
 }
 
 export type DevService = {
@@ -564,6 +568,28 @@ function DevService.new(dependencies: Dependencies): DevService
 			return if dependencies.setTutorialProgress(player, progress)
 				then `tutorial at {progress}`
 				else "profile not active yet"
+		end,
+		-- The first player wears jetpack `jetpack` (0 Starter … the last), at its first mark: to
+		-- look at each jetpack's body and flame (decision 089). Speed follows the new multiplier.
+		SetJetpack = function(jetpack: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local tuning = UpgradeConfig.TUNING
+			assert(
+				type(jetpack) == "number" and jetpack % 1 == 0 and jetpack >= 0 and jetpack <= tuning.jetpackLast,
+				`SetJetpack expects a whole number 0–{tuning.jetpackLast}`
+			)
+			local level = if jetpack == 0 then 0 else (jetpack - 1) * #tuning.jetpackMarks + 1
+			local written = dependencies.update(player, function(data)
+				data.jetpackLevel = level
+			end)
+			if not written then
+				return "profile not active yet"
+			end
+			dependencies.refreshJetpack(player)
+			return `jetpack {jetpack} (level {level})`
 		end,
 		-- Oxygen stops draining for every player in this playtest (true) or drains again (false).
 		SetInfiniteOxygen = function(enabled: boolean): string

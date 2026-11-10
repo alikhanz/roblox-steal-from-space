@@ -65,6 +65,8 @@ Incident: code and comment said "wings swept 38° back", but the rotation sign w
    Blender is not on Git Bash's PATH — run it by full path from PowerShell. System Python is a Microsoft Store stub; use Blender's Python only.
 2. **Upload:** Open Cloud `POST /assets/v1/assets` (Model, GLB file), then poll `GET /assets/v1/operations/{id}` until `done`. On `Unknown Error`, upload again.
 3. **Insert:** MCP `insert_asset` into `ServerStorage.RoboPackIn`. On "Failed to load package asset: Request Failed", re-upload the GLB (new asset) and insert that. An inserted model is a package: remove its `PackageLink`.
+   - **Insertion turns the model about Y** to face the camera (the jetpacks' row came in 46° off, 2026-11-10). Never read directions from world positions as if the pack were axis-aligned: recover the turn from something known (the row of origin markers, `assets/blender/jetpacks/prepare_in_studio.luau`) and undo it with the pivot.
+   - **A marker can lose its place on import:** 4 of the jetpacks' 32 nozzle markers (identical tiny tetrahedra) landed on the model's origin (2026-11-10). Check markers against the origin after insertion; the jetpacks' script restores a lost nozzle as its mirror-symmetric pair.
 4. **Into the repo and the game:** see 5a.
 
 (The prototype gallery unpacked and dressed in Studio with `PetUnpack`/`PetDress` modules; the game does it in code now — 5a.)

@@ -165,9 +165,10 @@ local function write(effects: Effects, burning: boolean, power: number, detail: 
 end
 
 function JetpackEffectsController.new(): JetpackEffectsController
-	-- Weak keys: entries vanish together with the jetpack models of removed characters (a new
-	-- jetpack is a new model, so it gets a new flame).
-	local effectsByModel: { [Model]: Effects } = setmetatable({}, { __mode = "k" }) :: any
+	-- A new jetpack is a new model, so it gets a new flame; an entry goes when its model is
+	-- destroyed. Not a weak table: Luau may collect an Instance's wrapper while the Instance lives,
+	-- and the entry vanished with it (the flame was rebuilt over and over; Studio, 2026-11-10).
+	local effectsByModel: { [Model]: Effects } = {}
 
 	-- Players on their stand this frame, with their flame's scale (cleared every frame).
 	local standsLit: { [Player]: number } = {}
@@ -230,7 +231,16 @@ function JetpackEffectsController.new(): JetpackEffectsController
 				if not made then
 					continue
 				end
+				-- Also sweep for models that left without Destroying (builds are rare, so it's cheap).
+				for other in effectsByModel do
+					if not other.Parent then
+						effectsByModel[other] = nil
+					end
+				end
 				effectsByModel[model] = made
+				model.Destroying:Once(function()
+					effectsByModel[model] = nil
+				end)
 				found = made
 			end
 			local effects = found :: Effects

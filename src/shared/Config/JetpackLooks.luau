@@ -40,11 +40,11 @@ export type Step = {
 -- Beam textures (assets/fx, white on transparency; `lune run icons` renders them). Until a texture
 -- is uploaded its id is empty and FALLBACK_TEXTURE stands in.
 local TEXTURES = table.freeze({
-	core = "", -- assets/fx/jet-core.svg
-	fire = "", -- assets/fx/jet-fire.svg
-	plasma = "", -- assets/fx/jet-plasma.svg
-	diamonds = "", -- assets/fx/jet-diamonds.svg
-	exotic = "", -- assets/fx/jet-exotic.svg
+	core = "rbxassetid://130565237636281", -- assets/fx/jet-core.svg
+	fire = "rbxassetid://131491955518269", -- assets/fx/jet-fire.svg
+	plasma = "rbxassetid://74020183030100", -- assets/fx/jet-plasma.svg
+	diamonds = "rbxassetid://81011633768379", -- assets/fx/jet-diamonds.svg
+	exotic = "rbxassetid://87198272606940", -- assets/fx/jet-exotic.svg
 })
 -- The pets' jetpack flame (assets/fx/jet.svg, AlienLooks).
 local FALLBACK_TEXTURE = "rbxassetid://105800856225099"
