@@ -89,7 +89,7 @@ end)()
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
 	-- Shows a short message (grabbed, delivered or dropped egg).
-	toast: (text: string, kind: Toasts.Kind) -> (),
+	toast: (text: string, kind: Toasts.Kind, alienId: string?) -> (),
 	abilities: AbilityState.AbilityState,
 	-- The player's speed stat.
 	speed: () -> BigNum.BigNum,

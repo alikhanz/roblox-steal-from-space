@@ -1,19 +1,22 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- One alien in a bay window list (docs/design/screens/bay-window.md): its guardian's name, a
--- badge for a variant (meteor), the income on the right, an outline in its tier's colour. A tap
+-- One alien in a bay window list (docs/design/screens/bay-window.md): its icon
+-- (docs/design/screens/alien-icons.md), a badge for a variant (meteor), its name, the income on
+-- the right, an outline in its tier's colour. A tap
 -- toggles its selection: a pink frame around the row (the outline stays the tier's, so the frame
 -- sits on a wrapper: one object takes one stroke). Faded when it cannot join the crossbreed.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AlienIcons = require(ReplicatedStorage.Shared.Config.AlienIcons)
+local AlienPicture = require(script.Parent.AlienPicture)
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
+local Press = require(script.Parent.Press)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
-local source = Vide.source
 
 local NEON = Theme.NEON
 local HEIGHT = 32
@@ -22,12 +25,14 @@ local OUTER_CORNER = UDim.new(0, 11)
 local PADDING_X = 10
 local ICON_SIZE = 15
 local VARIANT_SIZE = 17
+local PICTURE_SIZE = 26
+local GAP = 5
 -- Room kept for the income's number and the gaps, points.
 local INCOME_TEXT_ROOM = 70
 local FILL_TRANSPARENCY = 0.965
 -- How far the tier's outline goes towards the glass, and its thickness.
 local TIER_LINE_DARKEN = 0.28
-local PRESSED_SCALE = 0.97
+local ROW_PRESS_SHARE = 0.5
 local DIMMED_TRANSPARENCY = 0.55
 local METEOR_COLOR = Color3.fromHex("#FFA060")
 
@@ -37,6 +42,8 @@ export type Props = {
 	-- "8.5/s".
 	income: () -> string,
 	tierColor: () -> Color3,
+	-- Its kind's icon at its tier; nil while its guardian has no sheet (the ball stands in).
+	icon: () -> AlienIcons.Icon?,
 	-- A badge before the name for a variant alien; nil for a regular one.
 	variant: () -> Icons.Name?,
 	selected: () -> boolean,
@@ -47,7 +54,7 @@ export type Props = {
 }
 
 local function AlienRow(props: Props): TextButton
-	local pressed = source(false)
+	local press = Press.new({ shrinks = true })
 	local readVariant = props.variant :: () -> Icons.Name?
 	local pressScale = Instance.new("UIScale")
 	local selectionLine = Instance.new("UIStroke")
@@ -58,7 +65,8 @@ local function AlienRow(props: Props): TextButton
 	tierLine.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	tierLine.Thickness = 2
 	Vide.effect(function()
-		pressScale.Scale = if pressed() then PRESSED_SCALE else 1
+		-- Half the press's dip and pop: a whole row shrinking as much as a tile looks like a jump.
+		pressScale.Scale = 1 + (press.scale() - 1) * ROW_PRESS_SHARE
 		selectionLine.Enabled = props.selected()
 		tierLine.Color = props.tierColor():Lerp(NEON.GLASS, TIER_LINE_DARKEN)
 		tierLine.Transparency = if props.dimmed() then DIMMED_TRANSPARENCY else 0
@@ -77,7 +85,7 @@ local function AlienRow(props: Props): TextButton
 		Activated = function()
 			props.onTap()
 		end,
-		Layout.followPress(pressed),
+		press.action,
 		create("UICorner")({ CornerRadius = OUTER_CORNER }),
 		selectionLine,
 		Layout.padding(2, 2),
@@ -102,8 +110,19 @@ local function AlienRow(props: Props): TextButton
 			create("UIListLayout")({
 				FillDirection = Enum.FillDirection.Horizontal,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
-				Padding = UDim.new(0, 5),
+				Padding = UDim.new(0, GAP),
 				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			create("Frame")({
+				Name = "Picture",
+				LayoutOrder = 0,
+				Size = UDim2.fromOffset(PICTURE_SIZE, PICTURE_SIZE),
+				BackgroundTransparency = 1,
+				AlienPicture({
+					icon = props.icon,
+					color = props.tierColor,
+					transparency = textTransparency,
+				}),
 			}),
 			create("ImageLabel")({
 				Name = "Variant",
@@ -124,7 +143,7 @@ local function AlienRow(props: Props): TextButton
 				Name = "Name",
 				LayoutOrder = 2,
 				-- Takes what is left of the row; a long name ends in an ellipsis.
-				Size = UDim2.new(1, -(VARIANT_SIZE + ICON_SIZE + INCOME_TEXT_ROOM), 1, 0),
+				Size = UDim2.new(1, -(PICTURE_SIZE + GAP + VARIANT_SIZE + ICON_SIZE + INCOME_TEXT_ROOM), 1, 0),
 				BackgroundTransparency = 1,
 				FontFace = NEON.FONT,
 				TextSize = NEON.TEXT_BODY,

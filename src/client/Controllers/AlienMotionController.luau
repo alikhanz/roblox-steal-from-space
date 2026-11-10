@@ -27,6 +27,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local ContentProvider = game:GetService("ContentProvider")
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -752,6 +753,43 @@ local function glide(pet: Pet, t: number, parts: { BasePart }, frames: { CFrame 
 	return true
 end
 
+-- Overshoots a little past 1 and settles (an "ease out back").
+local function backOut(u: number): number
+	local c1 = 1.70158
+	local c3 = c1 + 1
+	return 1 + c3 * (u - 1) ^ 3 + c1 * (u - 1) ^ 2
+end
+
+-- A fresh alien (just hatched, crossbred or moved onto a place) pops onto its place: it grows from
+-- a share of its size, a little past full and back, its feet on the pad all the while. Yields for
+-- the pop; its effects and motion begin after it.
+local function popIn(model: Model)
+	local shownAt = model:GetAttribute(BayConfig.ALIEN_SHOWN_AT_ATTRIBUTE)
+	local pop = BayLooks.ALIEN_POP
+	if
+		type(shownAt) ~= "number"
+		or workspace:GetServerTimeNow() - shownAt > pop.freshSeconds
+		or GuiService.ReducedMotionEnabled
+	then
+		return
+	end
+	local pivot = model:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
+	local lift = tonumber(model:GetAttribute(BayConfig.ALIEN_LIFT_ATTRIBUTE)) or 0
+	local stand = (if typeof(pivot) == "CFrame" then pivot else model:GetPivot()) * CFrame.new(0, -lift, 0)
+	local full = model:GetScale()
+	local start = os.clock()
+	while model:IsDescendantOf(workspace) do
+		local u = math.min((os.clock() - start) / pop.seconds, 1)
+		local k = pop.from + (1 - pop.from) * backOut(u)
+		model:ScaleTo(full * k)
+		model:PivotTo(stand * CFrame.new(0, lift * k, 0))
+		if u >= 1 then
+			break
+		end
+		RunService.RenderStepped:Wait()
+	end
+end
+
 function AlienMotionController.new(): AlienMotionController
 	local pets: { [Model]: Pet } = {}
 	local moves: { [Model]: RBXScriptConnection } = {}
@@ -776,6 +814,10 @@ function AlienMotionController.new(): AlienMotionController
 			end
 			-- One standing small on the floor is only its model: no effects, no motion.
 			if instance:GetAttribute(BayConfig.ALIEN_PLAIN_ATTRIBUTE) == true then
+				return
+			end
+			popIn(instance)
+			if not instance:IsDescendantOf(workspace) or pets[instance] then
 				return
 			end
 			-- The server sends it painted; its effects are made here (AlienDress). The greybox

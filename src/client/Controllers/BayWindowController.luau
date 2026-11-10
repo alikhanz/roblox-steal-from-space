@@ -520,6 +520,13 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						return profile.bay().incubatorSlots
 					end,
 					selection = selectionKind,
+					selectedAliens = function()
+						local ids = {}
+						for _, found in selectedRecords() do
+							table.insert(ids, found.record.id)
+						end
+						return ids
+					end,
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
 					end,
@@ -688,7 +695,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 		local function announce(key: Text.Key, alienId: string, location: ProfileState.Location)
 			local args = { name = Names.alien(locale, alienId) or "?", place = placeText(location) }
-			toast(text(key, args), "Alien")
+			toast(text(key, args), "Alien", alienId)
 		end
 		-- Hatches arrive one event each; several at once become one toast.
 		local pendingHatches: { { alienId: string, location: ProfileState.Location } } = {}

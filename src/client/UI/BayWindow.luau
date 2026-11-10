@@ -10,6 +10,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ActionButton = require(script.Parent.ActionButton)
+local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIcons = require(ReplicatedStorage.Shared.Config.AlienIcons)
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
+local AlienPicture = require(script.Parent.AlienPicture)
 local AlienRow = require(script.Parent.AlienRow)
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
@@ -34,6 +38,10 @@ local READY_COLOR = Color3.fromHex("#43CC5F")
 local AFTER_ROWS = 1000
 -- The footer's room for its buttons; the selected alien's words take the rest.
 local FOOTER_BUTTONS_ROOM = 340
+-- The selected aliens' pictures in the footer: this big, this far apart, at most this many.
+local FOOTER_PICK_SIZE = 30
+local FOOTER_PICK_GAP = 4
+local FOOTER_PICKS_MAX = 3
 -- Below the slots: the last row's timer labels hang under them.
 local SLOTS_BOTTOM_ROOM = 8
 
@@ -110,6 +118,8 @@ export type Props = {
 	eggs: () -> { EggSlot },
 	slots: () -> number,
 	selection: () -> Selection,
+	-- The selected aliens' ids, in the order picked: their pictures lead the footer.
+	selectedAliens: () -> { string },
 	isSelected: (uid: number) -> boolean,
 	-- True for an alien that cannot join the current crossbreed selection.
 	isDimmed: (alienId: string) -> boolean,
@@ -275,6 +285,9 @@ local function BayWindow(props: Props): Frame
 				tierColor = function()
 					return row().color
 				end,
+				icon = function()
+					return AlienIcons.iconOf(row().alienId)
+				end,
 				variant = function()
 					return row().variant
 				end,
@@ -302,6 +315,50 @@ local function BayWindow(props: Props): Frame
 		return result
 	end)
 
+	-- The selected aliens' pictures (a crossbreed's three side by side), before their words.
+	local function picksWidth(): number
+		local count = math.min(#props.selectedAliens(), FOOTER_PICKS_MAX)
+		return if count == 0 then 0 else count * (FOOTER_PICK_SIZE + FOOTER_PICK_GAP)
+	end
+
+	local function footerPicks(): Frame
+		local shown = Vide.derive(function(): { string }
+			local ids = props.selectedAliens()
+			return { table.unpack(ids, 1, math.min(#ids, FOOTER_PICKS_MAX)) }
+		end)
+		return create("Frame")({
+			Name = "Picks",
+			LayoutOrder = 0,
+			Size = function()
+				return UDim2.new(0, picksWidth(), 1, 0)
+			end,
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Padding = UDim.new(0, FOOTER_PICK_GAP),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			indexes(shown, function(alienId: () -> string, index: number)
+				return create("Frame")({
+					Name = `Pick{index}`,
+					LayoutOrder = index,
+					Size = UDim2.fromOffset(FOOTER_PICK_SIZE, FOOTER_PICK_SIZE),
+					BackgroundTransparency = 1,
+					AlienPicture({
+						icon = function()
+							return AlienIcons.iconOf(alienId())
+						end,
+						color = function()
+							local alien = AlienConfig.ALIENS[alienId()]
+							return if alien then AlienLooks.TIERS[alien.tier].color else NEON.MUTED
+						end,
+					}),
+				})
+			end),
+		}) :: Frame
+	end
+
 	local function footerInfo(): Frame
 		local function hasOne(): boolean
 			local selection = props.selection()
@@ -310,8 +367,10 @@ local function BayWindow(props: Props): Frame
 		return create("Frame")({
 			Name = "Info",
 			LayoutOrder = 1,
-			-- Takes what the buttons leave.
-			Size = UDim2.new(1, -FOOTER_BUTTONS_ROOM, 1, 0),
+			-- Takes what the pictures and the buttons leave.
+			Size = function()
+				return UDim2.new(1, -(FOOTER_BUTTONS_ROOM + picksWidth()), 1, 0)
+			end,
 			BackgroundTransparency = 1,
 			create("UIListLayout")({
 				FillDirection = Enum.FillDirection.Vertical,
@@ -611,6 +670,7 @@ local function BayWindow(props: Props): Frame
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 				SortOrder = Enum.SortOrder.LayoutOrder,
 			}),
+			footerPicks(),
 			footerInfo(),
 			footerButtons(),
 		},

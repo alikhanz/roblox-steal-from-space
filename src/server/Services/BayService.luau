@@ -318,7 +318,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		body: BasePart,
 		actionText: string,
 		onTriggered: () -> (),
-		attributes: { [string]: number }?
+		attributes: { [string]: number | string }?
 	)
 		local prompt = Instance.new("ProximityPrompt")
 		for name, value in attributes or {} do
@@ -347,7 +347,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		local words = Text.get(Text.localeOf(player), "alien.pickUp.button")
 		addOwnerPrompt(player, body, words, function()
 			pickUp(player, uid, body)
-		end)
+		end, {
+			[BayConfig.PROMPT_ACTION_ATTRIBUTE] = BayConfig.PROMPT_ACTION_PICK_UP,
+		})
 	end
 
 	local function addHatchPrompt(player: Player, part: BasePart, uid: number)

@@ -21,7 +21,7 @@ local FOLDER_NAME = "Aliens"
 -- The fingerprint lune/aliens.luau gives each kind's folder; AlienModels.json lists the repo's.
 local HASH_ATTRIBUTE = "ModelHash"
 -- On a built alien: its pivot's height above the frame it stands on, studs.
-local LIFT_ATTRIBUTE = "StandLift"
+local LIFT_ATTRIBUTE = BayConfig.ALIEN_LIFT_ATTRIBUTE
 local GLOW_RANGE = 10
 local GLOW_BRIGHTNESS = 1.5
 
@@ -192,6 +192,7 @@ function AlienModel.build(alienId: AlienConfig.AlienId, uid: number, cframe: CFr
 	-- How far its pivot stands above where it stands, for moving it later (AlienModel.place).
 	model:SetAttribute(LIFT_ATTRIBUTE, cframe:PointToObjectSpace(model:GetPivot().Position).Y)
 	model:SetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE, model:GetPivot())
+	model:SetAttribute(BayConfig.ALIEN_SHOWN_AT_ATTRIBUTE, workspace:GetServerTimeNow())
 	return model
 end
 

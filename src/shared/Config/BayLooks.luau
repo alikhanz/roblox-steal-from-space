@@ -77,6 +77,25 @@ return table.freeze({
 	-- A new alien on a place reshapes the layout: the places and their aliens glide to their new
 	-- spots in this long, seconds, rather than jump (2026-11-10).
 	LAYOUT_GLIDE_SECONDS = 0.6,
+	-- A hatch (docs/design/screens/buttons.md): the egg bursts in its capsule, a flash of light
+	-- and stars in its colour (drawn only this close to the camera, studs), and the new alien
+	-- pops onto its place from a share of its size, a little past full and back, in this long.
+	HATCH_BURST = table.freeze({
+		seconds = 0.6,
+		stars = 26,
+		starSize = 0.9,
+		starSpeed = 9,
+		lightRange = 14,
+		lightBrightness = 4,
+		maxDistance = 120,
+	}),
+	ALIEN_POP = table.freeze({
+		from = 0.6,
+		seconds = 0.35,
+		-- How new an alien must be to pop (since the server built it), seconds: one streaming in
+		-- later just appears.
+		freshSeconds = 1.5,
+	}),
 
 	-- Terminals (docs/design/screens/terminals.md): a stand with a tilted screen beside each zone,
 	-- in the entrance's wedge, the screen toward the spawn (the places' one: across the path, see

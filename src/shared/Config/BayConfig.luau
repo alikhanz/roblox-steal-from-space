@@ -98,6 +98,11 @@ return table.freeze({
 	-- Where the server stands an alien (its model's pivot, a CFrame): the client moves the pet
 	-- around it and follows it when the bay's layout shifts the alien to another place.
 	ALIEN_PIVOT_ATTRIBUTE = "Pivot",
+	-- How far an alien's pivot stands above where it stands, studs (World/AlienModel).
+	ALIEN_LIFT_ATTRIBUTE = "StandLift",
+	-- When the server built the alien's model (server time): a fresh one pops onto its place on
+	-- the client (docs/design/screens/buttons.md); one that streams in later just appears.
+	ALIEN_SHOWN_AT_ATTRIBUTE = "ShownAt",
 	-- A place's model, and where it stands (its floor frame, a CFrame): when the layout shifts it,
 	-- the client glides it there with its alien.
 	PLACE_TAG = "BayPlace",
@@ -113,6 +118,10 @@ return table.freeze({
 	-- On a bay's prompts (hatch an egg, pick up an alien): the owner's UserId. Only the owner can
 	-- use them, so only the owner's client draws them.
 	PROMPT_OWNER_ATTRIBUTE = "OwnerId",
+	-- On a prompt whose action is not the usual "do it" (green): what it does, for its colour
+	-- (docs/design/screens/buttons.md). A prompt that hatches for Robux is told by its ReadyNowTier.
+	PROMPT_ACTION_ATTRIBUTE = "Action",
+	PROMPT_ACTION_PICK_UP = "PickUp",
 	-- On the prompt of a warming egg that hatches it for Robux: the "Egg ready now" price tier
 	-- (MonetizationConfig.readyNowTierOf). The owner's client words it with the price and asks
 	-- Roblox for the purchase.

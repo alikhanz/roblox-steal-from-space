@@ -15,8 +15,9 @@ local MAX_TOASTS = 4
 
 export type ToastState = {
 	toasts: Vide.Source<{ Toasts.Toast }>,
-	-- Shows `text` for a few seconds, outlined and badged by its `kind` of news.
-	push: (text: string, kind: Toasts.Kind) -> (),
+	-- Shows `text` for a few seconds, outlined and badged by its `kind` of news; about one alien
+	-- (`alienId`), the badge is that alien's picture.
+	push: (text: string, kind: Toasts.Kind, alienId: string?) -> (),
 }
 
 local ToastState = {}
@@ -25,11 +26,11 @@ function ToastState.new(): ToastState
 	local toasts = source({} :: { Toasts.Toast })
 	local counter = 0
 
-	local function push(text: string, kind: Toasts.Kind)
+	local function push(text: string, kind: Toasts.Kind, alienId: string?)
 		counter += 1
 		local id = counter
 		local list = table.clone(toasts())
-		table.insert(list, { id = id, text = text, kind = kind })
+		table.insert(list, { id = id, text = text, kind = kind, alienId = alienId })
 		while #list > MAX_TOASTS do
 			table.remove(list, 1)
 		end

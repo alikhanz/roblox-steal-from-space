@@ -1,8 +1,10 @@
 --!strict
--- Draws every custom-style ProximityPrompt (pick up an alien, hatch an egg, open the shop) in
--- the same look
--- as the egg prompt: a key badge, a hold bar and the action's words. The prompt itself stays
--- an engine prompt; this only replaces its picture. Touch screens press the badge.
+-- Draws every custom-style ProximityPrompt (pick up an alien, hatch an egg, open the shop) as a
+-- neon pill (UI/GrabPrompt, docs/design/screens/buttons.md) in the colour of what it does: hatch
+-- and the shop green, hatch for Robux teal, take blue. The prompt itself stays an engine prompt;
+-- this only replaces its picture. Touch screens press the whole pill: a press goes through at
+-- once, and lifting the finger anywhere ends a hold (a finger slid off the pill used to leave the
+-- prompt held).
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -14,6 +16,7 @@ local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local GrabPrompt = require(script.Parent.Parent.UI.GrabPrompt)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local Theme = require(script.Parent.Parent.UI.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local source = Vide.source
@@ -38,6 +41,44 @@ type View = {
 }
 
 local PromptViewController = {}
+
+local ACTION = Theme.NEON.ACTION
+
+-- What a prompt does, by the attributes its server gave it.
+local function colorOf(prompt: ProximityPrompt): Color3
+	if prompt:GetAttribute(BayConfig.READY_NOW_TIER_ATTRIBUTE) ~= nil then
+		return ACTION.Robux
+	elseif prompt:GetAttribute(BayConfig.PROMPT_ACTION_ATTRIBUTE) == BayConfig.PROMPT_ACTION_PICK_UP then
+		return ACTION.Move
+	end
+	return ACTION.Main
+end
+
+-- A press on the pill: the prompt goes at once; a hold ends when that finger (or button) lifts,
+-- wherever it is by then.
+local function bindPress(prompt: ProximityPrompt, button: GuiButton)
+	button.InputBegan:Connect(function(input)
+		local kind = input.UserInputType
+		if kind ~= Enum.UserInputType.Touch and kind ~= Enum.UserInputType.MouseButton1 then
+			return
+		end
+		prompt:InputHoldBegin()
+		if prompt.HoldDuration <= 0 then
+			task.defer(function()
+				prompt:InputHoldEnd()
+			end)
+			return
+		end
+		local lifted: RBXScriptConnection
+		lifted = input:GetPropertyChangedSignal("UserInputState"):Connect(function()
+			local state = input.UserInputState
+			if state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
+				lifted:Disconnect()
+				prompt:InputHoldEnd()
+			end
+		end)
+	end)
+end
 
 function PromptViewController.new(): PromptViewController
 	local views: { [ProximityPrompt]: View } = {}
@@ -108,13 +149,11 @@ function PromptViewController.new(): PromptViewController
 					local words = actionText()
 					return if words ~= "" then words else Text.get(locale, "egg.grab.hint")
 				end,
-				onBadge = function(badge)
-					badge.MouseButton1Down:Connect(function()
-						prompt:InputHoldBegin()
-					end)
-					badge.MouseButton1Up:Connect(function()
-						prompt:InputHoldEnd()
-					end)
+				color = function()
+					return colorOf(prompt)
+				end,
+				onBadge = function(button)
+					bindPress(prompt, button)
 				end,
 			})
 			-- Under PlayerGui, not the adornee: a BillboardGui in the world draws, but only one

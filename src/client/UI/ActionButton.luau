@@ -1,8 +1,8 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- An action button of the neon style (DESIGN.md, "Кнопка действия"): a rounded pill of dense
--- coloured glass with a word on it. Lights up while pressed; a disabled one fades and does
--- nothing.
+-- coloured glass with a word on it. Lights up while pressed and clicks (UI/Press); a disabled one
+-- fades, does nothing and wobbles when pressed.
 --
 -- The press lights the glass instead of shrinking the button: the button fits its word, and a
 -- size change would move its neighbours in a row (and a picture sized to the button inside a
@@ -12,15 +12,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local IconText = require(script.Parent.IconText)
 local Layout = require(script.Parent.Layout)
+local Press = require(script.Parent.Press)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
-local source = Vide.source
 
 local NEON = Theme.NEON
--- How far a pressed button's glass goes towards white.
-local PRESSED_LIGHTEN = 0.3
 -- A disabled button: how see-through its glass and its word get.
 local DISABLED_TRANSPARENCY = 0.5
 local PADDING_X = 10
@@ -47,7 +45,6 @@ export type Props = {
 }
 
 local function ActionButton(props: Props): TextButton
-	local pressed = source(false)
 	local size = props.size or "Normal"
 	local textSize = TEXT_SIZE[size]
 	local paddingY = PADDING_Y[size]
@@ -55,6 +52,7 @@ local function ActionButton(props: Props): TextButton
 	local function isEnabled(): boolean
 		return if props.enabled then props.enabled() else true
 	end
+	local press = Press.new({ enabled = isEnabled })
 	local function faded(): number
 		return if isEnabled() then 0 else DISABLED_TRANSPARENCY
 	end
@@ -65,8 +63,8 @@ local function ActionButton(props: Props): TextButton
 	Vide.effect(function()
 		local transparency = faded()
 		fill.BackgroundTransparency = transparency
-		fill.BackgroundColor3 = if pressed() and isEnabled()
-			then props.color:Lerp(Color3.new(1, 1, 1), PRESSED_LIGHTEN)
+		fill.BackgroundColor3 = if isEnabled()
+			then props.color:Lerp(Color3.new(1, 1, 1), press.light())
 			else props.color
 		outline.Transparency = transparency
 	end)
@@ -81,12 +79,13 @@ local function ActionButton(props: Props): TextButton
 		Text = "",
 		AutoButtonColor = false,
 		Visible = props.visible or true,
+		Rotation = press.tilt,
 		Activated = function()
 			if isEnabled() then
 				props.onClick()
 			end
 		end,
-		Layout.followPress(pressed),
+		press.action,
 
 		create("UICorner")({ CornerRadius = corner }),
 		glass,

@@ -14,6 +14,7 @@ local CoinBoardController = require(script.Parent.Controllers.CoinBoardControlle
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
 local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseController)
 local EventController = require(script.Parent.Controllers.EventController)
+local FeedbackController = require(script.Parent.Controllers.FeedbackController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GrabState = require(script.Parent.State.GrabState)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
@@ -105,6 +106,7 @@ Lifecycle.run({
 	BayViewController.new({ profile = profileState }),
 	AlienMotionController.new(),
 	PlaceGlideController.new(),
+	FeedbackController.new({ profile = profileState }),
 	BenchController.new(),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),

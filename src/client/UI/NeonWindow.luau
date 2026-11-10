@@ -7,6 +7,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Layout = require(script.Parent.Layout)
+local Press = require(script.Parent.Press)
 local ResourcePill = require(script.Parent.ResourcePill)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -70,6 +71,14 @@ end
 
 local function CloseButton(onClose: () -> ()): TextButton
 	local corner = UDim.new(0.5, 0)
+	local press = Press.new({ shrinks = true })
+	local glass = Layout.glass(NEON.DANGER, corner, true)
+	local fill = glass[1] :: Frame
+	local scale = Instance.new("UIScale")
+	Vide.effect(function()
+		scale.Scale = press.scale()
+		fill.BackgroundColor3 = NEON.DANGER:Lerp(Color3.new(1, 1, 1), press.light())
+	end)
 	return create("TextButton")({
 		Name = "Close",
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -81,8 +90,10 @@ local function CloseButton(onClose: () -> ()): TextButton
 		Activated = function()
 			onClose()
 		end,
+		press.action,
+		scale,
 		create("UICorner")({ CornerRadius = corner }),
-		Layout.glass(NEON.DANGER, corner, true),
+		glass,
 		create("TextLabel")({
 			Name = "Cross",
 			ZIndex = 1,

@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIcons = require(ReplicatedStorage.Shared.Config.AlienIcons)
 local AlienIndex = require(ReplicatedStorage.Shared.Domain.AlienIndex)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
@@ -104,6 +105,7 @@ function IndexController.new(dependencies: Dependencies): IndexController
 			alienId = alienId,
 			state = state,
 			color = AlienLooks.TIERS[alien.tier].color,
+			icon = AlienIcons.iconOf(alienId),
 		}
 	end
 

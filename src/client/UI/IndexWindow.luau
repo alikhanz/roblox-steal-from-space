@@ -4,7 +4,8 @@
 -- the switch of the sections (the usual aliens, the meteor ones) and the four zones with how much
 -- of each is found. Middle: the six guardians of the picked zone, with their set's count and a
 -- dot where a reward waits. Right: the picked guardian's set, a row per kind (its name and a cell
--- per tier; three rows fill the panel, a guardian with more kinds scrolls them: an unknown alien is a dark "?", a found one is drawn in its tier's colour, a new one
+-- per tier; three rows fill the panel, a guardian with more kinds scrolls them: an unknown alien is
+-- its icon's dark silhouette, a found one its icon in a frame of its tier's colour, a new one
 -- glows gold until tapped for its reward) and the set's count, claim button or done mark under
 -- them. The footer counts the section and holds "Claim all". Data and texts come in ready from
 -- the controller; claims are requests to the server.
@@ -12,9 +13,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ActionButton = require(script.Parent.ActionButton)
+local AlienIcons = require(ReplicatedStorage.Shared.Config.AlienIcons)
+local AlienPicture = require(script.Parent.AlienPicture)
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
 local NeonWindow = require(script.Parent.NeonWindow)
+local Press = require(script.Parent.Press)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -49,17 +53,11 @@ local ROWS_SHOWN = 3
 local SCROLL_BAR = 4
 local ROW_PADDING = 8
 local CELL_CORNER = UDim.new(0, 9)
--- The alien in a cell: a ball in its tier's colour with two dark eyes (like the greybox alien
--- in the bay), against the cell's size.
-local ALIEN_WIDTH = 0.66
-local ALIEN_HEIGHT = 0.6
-local EYE_SIZE = Vector2.new(4, 6)
-local EYE_SPREAD = 0.2
-local EYE_HEIGHT = 0.4
-local EYE_COLOR = Color3.fromHex("#14141E")
--- The ball keeps its tier's colour full; the cell's fill behind it stays faint, so it stands out.
-local ALIEN_LIGHTEN = 0
+-- The icon inside its cell's frame, points each side.
+local CELL_INSET = 2
 local GLASS_TRANSPARENCY = 0.965
+-- How much a pressed row's glass thickens (UI/Press light): from faint to clearly lit.
+local PRESS_GLOW = 0.5
 local FOUND_FILL_TRANSPARENCY = 0.86
 local NEW_GLOW_SHARE = 1.9
 local NEW_GLOW_TRANSPARENCY = 0.35
@@ -71,6 +69,8 @@ export type Cell = {
 	state: CellState,
 	-- The tier's colour.
 	color: Color3,
+	-- Its kind's icon at its tier; nil while its guardian has no sheet (the ball stands in).
+	icon: AlienIcons.Icon?,
 }
 
 export type SetState = "Collecting" | "Ready" | "Done"
@@ -220,8 +220,10 @@ local function SectionSwitch(sections: { Section }): Frame
 		local glass = Layout.glass(INDEX_COLOR, corner, true)
 		local fill = glass[1] :: Frame
 		local line = glass[2] :: UIStroke
+		local press = Press.new()
 		Vide.effect(function()
-			fill.Visible = section.active()
+			fill.Visible = section.active() or press.light() > 0
+			fill.BackgroundColor3 = INDEX_COLOR:Lerp(Color3.new(1, 1, 1), press.light())
 			line.Enabled = section.active()
 		end)
 		table.insert(
@@ -236,6 +238,7 @@ local function SectionSwitch(sections: { Section }): Frame
 				Activated = function()
 					section.onClick()
 				end,
+				press.action,
 				create("UICorner")({ CornerRadius = corner }),
 				glass,
 				create("TextLabel")({
@@ -284,6 +287,7 @@ local function ZoneButton(zone: () -> Zone, index: number, props: Props): TextBu
 		stroke.Thickness = if on then NEON.LINE_THICKNESS else 1
 		stroke.Transparency = if on then 0 else 0.7
 	end)
+	local press = Press.new()
 	return create("TextButton")({
 		Name = "Zone",
 		LayoutOrder = index + 1,
@@ -292,13 +296,14 @@ local function ZoneButton(zone: () -> Zone, index: number, props: Props): TextBu
 			return if selected() then INDEX_COLOR else Color3.new(1, 1, 1)
 		end,
 		BackgroundTransparency = function()
-			return if selected() then 0.82 else GLASS_TRANSPARENCY
+			return (if selected() then 0.82 else GLASS_TRANSPARENCY) - press.light() * PRESS_GLOW
 		end,
 		AutoButtonColor = false,
 		Text = "",
 		Activated = function()
 			props.onZone(index)
 		end,
+		press.action,
 		create("UICorner")({ CornerRadius = NEON.CORNER }),
 		stroke,
 		Layout.padding(9, 6),
@@ -383,51 +388,6 @@ local function Side(props: Props): Frame
 	}) :: Frame
 end
 
--- The alien drawn in a cell: a ball with a light spot and two eyes.
-local function Alien(color: () -> Color3): Frame
-	local function eye(name: string, side: number): Frame
-		return create("Frame")({
-			Name = name,
-			ZIndex = 2,
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5 + side * EYE_SPREAD, EYE_HEIGHT),
-			Size = UDim2.fromOffset(EYE_SIZE.X, EYE_SIZE.Y),
-			BackgroundColor3 = EYE_COLOR,
-			BorderSizePixel = 0,
-			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		}) :: Frame
-	end
-	return create("Frame")({
-		Name = "Alien",
-		ZIndex = 1,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.52),
-		Size = UDim2.fromScale(ALIEN_WIDTH, ALIEN_HEIGHT),
-		BackgroundTransparency = 1,
-		create("ImageLabel")({
-			Name = "Body",
-			ZIndex = 1,
-			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			Image = Icons.DISC,
-			ImageColor3 = function()
-				return color():Lerp(Color3.new(1, 1, 1), ALIEN_LIGHTEN)
-			end,
-		}),
-		create("ImageLabel")({
-			Name = "Shine",
-			ZIndex = 2,
-			Position = UDim2.fromScale(0.18, 0.1),
-			Size = UDim2.fromScale(0.28, 0.28),
-			BackgroundTransparency = 1,
-			Image = Icons.DISC,
-			ImageTransparency = 0.55,
-		}),
-		eye("LeftEye", -1),
-		eye("RightEye", 1),
-	}) :: Frame
-end
-
 -- A guardian of the zone: its name and set count; picking it shows its set on the right.
 local function GuardianButton(guardian: () -> Guardian, index: number, props: Props): TextButton
 	local function selected(): boolean
@@ -440,6 +400,7 @@ local function GuardianButton(guardian: () -> Guardian, index: number, props: Pr
 		stroke.Thickness = if on then NEON.LINE_THICKNESS else 1
 		stroke.Transparency = if on then 0 else 0.82
 	end)
+	local press = Press.new()
 	return create("TextButton")({
 		Name = "Guardian",
 		LayoutOrder = index,
@@ -448,13 +409,14 @@ local function GuardianButton(guardian: () -> Guardian, index: number, props: Pr
 			return if selected() then INDEX_COLOR else Color3.new(1, 1, 1)
 		end,
 		BackgroundTransparency = function()
-			return if selected() then 0.82 else GLASS_TRANSPARENCY
+			return (if selected() then 0.82 else GLASS_TRANSPARENCY) - press.light() * PRESS_GLOW
 		end,
 		AutoButtonColor = false,
 		Text = "",
 		Activated = function()
 			props.onGuardian(index)
 		end,
+		press.action,
 		create("UICorner")({ CornerRadius = UDim.new(0, 9) }),
 		stroke,
 		Layout.padding(ROW_PADDING, 0),
@@ -522,6 +484,10 @@ local function CellView(cell: () -> Cell?, index: number, props: Props): Frame
 		local current = cell()
 		return if current then current.color else NEON.MUTED
 	end
+	local function icon(): AlienIcons.Icon?
+		local current = cell()
+		return if current then current.icon else nil
+	end
 	local stroke = outline(NEON.LINE, 1)
 	Vide.effect(function()
 		local current = state()
@@ -538,6 +504,17 @@ local function CellView(cell: () -> Cell?, index: number, props: Props): Frame
 			stroke.Thickness = 1
 			stroke.Transparency = 0.75
 		end
+	end)
+	-- Only a new alien's cell does something (takes its reward).
+	local press = Press.new({
+		shrinks = true,
+		responds = function()
+			return state() == "New"
+		end,
+	})
+	local cellScale = Instance.new("UIScale")
+	Vide.effect(function()
+		cellScale.Scale = press.scale()
 	end)
 	return create("Frame")({
 		Name = `Tier{index}`,
@@ -573,8 +550,9 @@ local function CellView(cell: () -> Cell?, index: number, props: Props): Frame
 			FontFace = NEON.FONT,
 			TextSize = NEON.TEXT_SECTION,
 			TextColor3 = NEON.MUTED,
+			-- An unknown alien is its icon's silhouette; with no icon yet, a "?".
 			Text = function()
-				return if state() == "Unknown" then "?" else ""
+				return if state() == "Unknown" and icon() == nil then "?" else ""
 			end,
 			Activated = function()
 				local current = cell()
@@ -582,16 +560,26 @@ local function CellView(cell: () -> Cell?, index: number, props: Props): Frame
 					props.onClaimAlien(current.alienId)
 				end
 			end,
+			press.action,
+			cellScale,
 			create("UICorner")({ CornerRadius = CELL_CORNER }),
 			stroke,
 			create("Frame")({
 				Name = "Holder",
-				Size = UDim2.fromScale(1, 1),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.new(1, -CELL_INSET * 2, 1, -CELL_INSET * 2),
 				BackgroundTransparency = 1,
 				Visible = function()
-					return state() ~= "Unknown"
+					return state() ~= "Unknown" or icon() ~= nil
 				end,
-				Alien(color),
+				AlienPicture({
+					icon = icon,
+					color = color,
+					silhouette = function()
+						return state() == "Unknown"
+					end,
+				}),
 			}),
 		}),
 	}) :: Frame

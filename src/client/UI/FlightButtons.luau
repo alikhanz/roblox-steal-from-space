@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
+local Press = require(script.Parent.Press)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -26,7 +27,6 @@ local ICON_SHARE = 0.55
 -- The glow ring around the button, against the button's size.
 local GLOW_SHARE = 1.7
 local GLOW_TRANSPARENCY = 0.6
-local PRESSED_SCALE = 0.92
 local COOLDOWN_TRANSPARENCY = 0.35
 -- A disabled button: how see-through its glass gets.
 local DISABLED_TRANSPARENCY = 0.6
@@ -172,10 +172,11 @@ local function KeyCap(keyText: () -> string): TextLabel
 end
 
 local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string, GuiButton) -> ())?): ImageButton
-	local pressed = source(false)
 	local function isEnabled(): boolean
 		return if spec.enabled then spec.enabled() else true
 	end
+	-- Silent: an ability has its own sound and effect.
+	local press = Press.new({ enabled = isEnabled, shrinks = true, silent = true })
 	local function isActive(): boolean
 		return if spec.active then spec.active() else false
 	end
@@ -216,7 +217,7 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 		gradient.Transparency = if lit
 			then NumberSequence.new(LIT_FILL_TOP, LIT_FILL_BOTTOM)
 			else NumberSequence.new(NEON.FILL_TOP, NEON.FILL_BOTTOM)
-		pressScale.Scale = (if pressed() and enabled then PRESSED_SCALE else 1) * motion()
+		pressScale.Scale = (if enabled then press.scale() else 1) * motion()
 	end)
 	-- Appearing (grows in) and pulsing (breathes) are driven frame by frame while they last.
 	if spec.visible or spec.pulse then
@@ -264,7 +265,8 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Visible = isShown,
-		Layout.followPress(pressed),
+		press.action,
+		Rotation = press.tilt,
 		action(function(instance)
 			if onButton then
 				onButton(spec.action, instance :: GuiButton)

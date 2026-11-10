@@ -7,6 +7,10 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIcons = require(ReplicatedStorage.Shared.Config.AlienIcons)
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
+local AlienPicture = require(script.Parent.AlienPicture)
 local IconText = require(script.Parent.IconText)
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
@@ -24,6 +28,8 @@ local PADDING_RIGHT = 14
 local PADDING_Y = 4
 local BADGE_SIZE = 26
 local BADGE_GAP = 8
+-- An alien's picture in the badge, a share of it: a little past the circle, so it reads at 26 points.
+local ALIEN_SHARE = 1.25
 -- The text wraps past this width, points.
 local MAX_TEXT_WIDTH = 380
 -- Denser than the HUD's glass: a toast must read over anything.
@@ -35,6 +41,9 @@ export type Toast = {
 	id: number,
 	text: string,
 	kind: Kind,
+	-- News about one alien (a hatch, a crossbreed): its picture is the badge, on its tier's colour
+	-- (docs/design/screens/alien-icons.md).
+	alienId: string?,
 }
 
 -- Each kind's colour and badge: an icon, or a glyph for the plain good and bad.
@@ -52,18 +61,27 @@ export type Props = {
 	toasts: () -> { Toast },
 }
 
-local function Badge(kind: () -> Kind): Frame
+local function Badge(toast: () -> Toast): Frame
 	local function look()
-		return KINDS[kind()]
+		return KINDS[toast().kind]
+	end
+	-- The alien's icon, when the toast is about one whose guardian has a sheet.
+	local function alienIcon(): AlienIcons.Icon?
+		local alienId = toast().alienId
+		return if alienId then AlienIcons.iconOf(alienId) else nil
+	end
+	local function color(): Color3
+		local alien = AlienConfig.ALIENS[toast().alienId or ""]
+		return if alien and alienIcon() then AlienLooks.TIERS[alien.tier].color else look().color
 	end
 	local corner = UDim.new(0.5, 0)
 	local glass = Layout.glass(NEON.ACTION.Main, corner, true)
 	local fill = glass[1] :: Frame
 	local line = glass[2] :: UIStroke
 	Vide.effect(function()
-		local color = look().color
-		fill.BackgroundColor3 = color
-		line.Color = Layout.lineColor(color)
+		local current = color()
+		fill.BackgroundColor3 = current
+		line.Color = Layout.lineColor(current)
 	end)
 	return create("Frame")({
 		Name = "Badge",
@@ -87,8 +105,20 @@ local function Badge(kind: () -> Kind): Frame
 				return Layout.iconColor(look().color)
 			end,
 			Visible = function()
-				return look().icon ~= nil
+				return look().icon ~= nil and alienIcon() == nil
 			end,
+		}),
+		create("Frame")({
+			Name = "Alien",
+			ZIndex = 1,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(ALIEN_SHARE, ALIEN_SHARE),
+			BackgroundTransparency = 1,
+			Visible = function()
+				return alienIcon() ~= nil
+			end,
+			AlienPicture({ icon = alienIcon, color = color }),
 		}),
 		create("TextLabel")({
 			Name = "Glyph",
@@ -134,9 +164,7 @@ local function ToastView(toast: () -> Toast, index: number): Frame
 			Padding = UDim.new(0, BADGE_GAP),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
-		Badge(function()
-			return toast().kind
-		end),
+		Badge(toast),
 		IconText({
 			name = "Text",
 			layoutOrder = 2,

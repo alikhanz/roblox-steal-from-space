@@ -8,15 +8,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
+local Press = require(script.Parent.Press)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
-local source = Vide.source
 
 local NEON = Theme.NEON
 local ICON_SIZE = 31
-local PRESSED_SCALE = 0.93
 local BADGE_SIZE = 20
 local KEY_SIZE = 17
 -- How far the badge and the key cap stick out of the tile's corners.
@@ -36,11 +35,14 @@ export type Props = {
 }
 
 local function MenuTile(props: Props): ImageButton
-	local pressed = source(false)
+	local press = Press.new({ shrinks = true })
 	-- Vide's typed `create` does not list UIScale, so it is made directly.
 	local pressScale = Instance.new("UIScale")
+	local glass = Layout.glass(props.color, NEON.CORNER)
+	local fill = glass[1] :: Frame
 	Vide.effect(function()
-		pressScale.Scale = if pressed() then PRESSED_SCALE else 1
+		pressScale.Scale = press.scale()
+		fill.BackgroundColor3 = props.color:Lerp(Color3.new(1, 1, 1), press.light())
 	end)
 	return create("ImageButton")({
 		Name = props.name,
@@ -52,7 +54,7 @@ local function MenuTile(props: Props): ImageButton
 		Activated = function()
 			props.onPress()
 		end,
-		Layout.followPress(pressed),
+		press.action,
 
 		-- What is seen shrinks on a press; the tile's place in the row stays, so the neighbours
 		-- do not move.
@@ -64,7 +66,7 @@ local function MenuTile(props: Props): ImageButton
 			BackgroundTransparency = 1,
 			create("UICorner")({ CornerRadius = NEON.CORNER }),
 			pressScale,
-			Layout.glass(props.color, NEON.CORNER),
+			glass,
 			create("ImageLabel")({
 				Name = "Icon",
 				ZIndex = 1,
