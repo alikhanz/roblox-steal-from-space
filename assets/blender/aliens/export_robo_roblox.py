@@ -1,7 +1,8 @@
 # Exports robot pets for a look in Roblox Studio (decision 074): one GLB per pet and a JSON sidecar.
 #
-# Parts are joined by role and material (robo.py tags every part with its role), so each becomes one
-# MeshPart named <role>_<n>: the game can move the ones that move (wings, rotor, drones, orbits,
+# Parts are joined by role and look (robo.py tags every part with its role; a look is the paint code,
+# see KEEP_ROLES for what stays one part per material), so each becomes one MeshPart named
+# <role>_<n>: the game can move the ones that move (wings, rotor, drones, orbits,
 # rays) and paint each from the sidecar (colour and a Roblox material: Neon for glow, Glass for
 # domes and crystals, CrackedLava for a meteor's molten shell, SmoothPlastic for the rest). Parts
 # that only stand in for effects (role "fx": motes, sparkles, embers, comet tails) are left out:
@@ -23,6 +24,7 @@ import bpy  # noqa: E402
 import export_robo_glb  # noqa: E402,F401  (swaps the patterned finishes for flat ones)
 import robo  # noqa: E402
 import robo_kinds  # noqa: E402
+from mathutils import Vector  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT_DIR = ARGS[0] if ARGS else "out/robo_roblox"
@@ -90,9 +92,53 @@ def lava_uvs():
                 layer.data[loop].uv = (point[u] / LAVA_TILE, point[v] / LAVA_TILE)
 
 
+# Merging (docs/plans/ALIEN_MODELS.md, 2б): parts of one role that look the same in game (one paint
+# code) become one mesh, even when Blender gave them copies of a material ("Seam.001", "Seam.002"):
+# every MeshPart is a mesh the player downloads and a part the client moves. Kept as they were (one
+# object per role and material) are the parts the game reads one by one:
+#   * roles whose parts' positions it averages or takes one by one: the rotor (it spins about its
+#     parts' middle), a swarm's little drones (they fly round from theirs), the hinge markers (the
+#     pivot is the part), the rune circle (each piece turns about itself), the candle flames;
+KEEP_ROLES = {"rotor", "halo", "flame"}
+KEEP_ROLE_PREFIXES = ("hinge",)
+#   * parts that each stand for something: the eyes (each blinks), a slime's dome (its jelly floor),
+#     the hidden flame and ray stand-ins and jetpack flames (particles play from each), the wings'
+#     membranes; and a meteor's lava (its own UVs).
+KEEP_SOURCES = {"EyeLight", "Dome", "Jet", "Flame", "FlameCore", "Tongue", "Ray", "RayShort"}
+
+
+def keeps_apart(role, material):
+    source = material.name.split(".")[0]
+    return (
+        role in KEEP_ROLES
+        or role.startswith(KEEP_ROLE_PREFIXES)
+        or (role.startswith("drone") and role[5:].isdigit())
+        or source in KEEP_SOURCES
+        or source.endswith("Wing")
+        or material.name.startswith("Meteor")
+    )
+
+
+def z_span(obj):
+    corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+    return min(c.z for c in corners), max(c.z for c in corners)
+
+
+def jelly_floor(objects):
+    """A slime's jelly floor, as the game finds it (AlienMotionController: a little above the bottom
+    of its dome): what stands above it squashes with the jelly, so a merge never spans it."""
+    for obj in objects:
+        material = obj.data.materials[0]
+        if material.name.split(".")[0] == "Dome":
+            low, high = z_span(obj)
+            return (low + high) / 2 - (high - low) * 0.3
+    return None
+
+
 def join_by_role():
-    """Real meshes with modifiers applied, effect stand-ins dropped, one object per role and material.
-    Works on the objects of the view layer only (a pack keeps finished pets out of it)."""
+    """Real meshes with modifiers applied, effect stand-ins dropped, one object per role and look
+    (see KEEP_ROLES for what stays apart). Works on the objects of the view layer only (a pack keeps
+    finished pets out of it)."""
     for obj in list(bpy.context.view_layer.objects):
         if obj.type not in ("MESH", "CURVE", "META", "FONT") or obj.get("role") == "fx":
             bpy.data.objects.remove(obj)
@@ -101,13 +147,30 @@ def join_by_role():
     roles = {obj.name: obj.get("role", "body") for obj in bpy.context.selected_objects}
     bpy.ops.object.convert(target="MESH")
     lava_uvs()
+    meshes = [obj for obj in bpy.context.view_layer.objects if obj.type == "MESH" and obj.data.materials and obj.data.materials[0]]
+    floor = jelly_floor(meshes)
     groups = {}
-    for obj in bpy.context.view_layer.objects:
-        if obj.type == "MESH" and obj.data.materials and obj.data.materials[0]:
-            key = (roles.get(obj.name, obj.get("role", "body")), obj.data.materials[0].name)
-            groups.setdefault(key, []).append(obj)
+    for obj in meshes:
+        role = roles.get(obj.name, obj.get("role", "body"))
+        material = obj.data.materials[0]
+        if keeps_apart(role, material):
+            look = "m:" + material.name
+        else:
+            look = "p:" + paint_code({**paint_of(material), "source": material.name.split(".")[0]})
+            if floor is not None:
+                low, high = z_span(obj)
+                look += "|above" if low > floor else "|below" if high < floor else "|" + obj.name
+        groups.setdefault((role, look), []).append(obj)
     parts = {}
-    for index, ((role, material), objects) in enumerate(sorted(groups.items())):
+    for index, ((role, _), objects) in enumerate(sorted(groups.items())):
+        first = objects[0].data.materials[0]
+        material = first.name
+        # Copies of one look share the first one's material, so the joined mesh is one primitive.
+        for obj in objects[1:]:
+            own = obj.data.materials[0]
+            for slot, used in enumerate(obj.data.materials):
+                if used == own:
+                    obj.data.materials[slot] = first
         bpy.ops.object.select_all(action="DESELECT")
         for obj in objects:
             obj.select_set(True)
