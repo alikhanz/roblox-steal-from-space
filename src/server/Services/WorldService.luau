@@ -713,6 +713,14 @@ local function configureLighting()
 		atmosphere.Haze = 0
 		atmosphere.Glare = 0
 	end
+
+	-- A Bloom of strength 0 shows nothing but still costs a pass over the screen (measured
+	-- 2026-11-11: the place had one); one with a strength is the place's choice and stays.
+	for _, effect in Lighting:GetChildren() do
+		if effect:IsA("BloomEffect") and effect.Intensity <= 0 then
+			effect.Enabled = false
+		end
+	end
 end
 
 function WorldService.new(): WorldService
