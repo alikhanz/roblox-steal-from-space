@@ -40,6 +40,10 @@ local PLACES_EDGE = Vector3.new(-math.sin(WEDGE), 0, -math.cos(WEDGE))
 local PLACES_EDGE_INWARD = Vector3.new(math.cos(WEDGE), 0, -math.sin(WEDGE))
 local PLACES_TERMINAL_POSITION = PLACES_EDGE * PLACES_TERMINAL_ALONG + PLACES_EDGE_INWARD * PLACES_TERMINAL_OFF_EDGE
 
+-- The shelf's origin (Config/ShelfShape) on the island: right of the spawn, in the entrance's
+-- wedge, clear of the places' horseshoe.
+local SHELF_POSITION = Vector3.new(-21, 0, -52)
+
 -- The incubator in the island's center: a low stand with up to 12 capsules round it.
 local CAPSULE_RING_RADIUS = 8.5
 local CAPSULE_RADIUS = 1.6
@@ -262,16 +266,26 @@ return table.freeze({
 		offColor = Color3.fromRGB(40, 44, 62),
 	}),
 
-	-- The floor: a tray on the right of a player who walks in from the spawn, where aliens with no
-	-- place stand, all small (the first guardian's size) until placed, in a grid filled from the
-	-- entrance's side.
-	PILE_CENTER = Vector3.new(-17, 0, -55),
-	PILE_SIZE = Vector2.new(10, 14),
-	PILE_COLUMNS = 4,
-	PILE_SPACING = 2.3,
-	PILE_COLOR = Color3.fromRGB(154, 163, 194),
-	PILE_ALIEN_SCALE = 1,
-	-- A floor alien wider than this share of the grid's step is made smaller to fit (wings and
-	-- claws would reach into its neighbours).
-	PILE_ALIEN_FILL = 0.9,
+	-- The shelf (docs/design/screens/storage-shelf.md; its shape is Config/ShelfShape): on the right
+	-- of a player who walks in from the spawn, where aliens with no place stand, all small (the
+	-- first guardian's size) until placed. Its frame on the island: its origin, facing the spawn.
+	SHELF_FRAME = CFrame.lookAt(SHELF_POSITION, Vector3.new(0, 0, -StationSize.ISLAND_SPAWN_DISTANCE)),
+	-- Its light (the kit's Glow, the zone line): its own colour, apart from the places' blue, the
+	-- incubator's orange and the trainer's yellow. Deep and leaning blue: a lighter violet (176,
+	-- 128, 255) burnt to white under Bloom, and (120, 60, 255) read magenta in the island's grading
+	-- (Studio, 2026-11-10).
+	SHELF_COLOR = Color3.fromRGB(85, 70, 255),
+	SHELF_GLOW_MATERIAL = Enum.Material.Neon,
+	-- The kit's body: its colours are baked in (white leaves them as they are).
+	SHELF_BODY_MATERIAL = Enum.Material.SmoothPlastic,
+	SHELF_BODY_COLOR = Color3.new(1, 1, 1),
+	-- The zone line on the floor: an arc this far in front of the niches.
+	SHELF_ZONE_GAP = 1.5,
+	-- The greybox shelf, without the kit in the place.
+	SHELF_GREYBOX_COLOR = Color3.fromRGB(120, 130, 160),
+	SHELF_GREYBOX_BACK_COLOR = Color3.fromRGB(30, 36, 64),
+	SHELF_ALIEN_SCALE = 1,
+	-- An alien bigger than this share of its niche's room is made smaller to fit (wings and
+	-- claws would reach into the uprights).
+	SHELF_ALIEN_FILL = 0.9,
 })

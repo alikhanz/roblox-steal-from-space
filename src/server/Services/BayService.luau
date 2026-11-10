@@ -26,6 +26,8 @@ local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
+local Shelf = require(ReplicatedStorage.Shared.Domain.Shelf)
+local ShelfShape = require(ReplicatedStorage.Shared.Config.ShelfShape)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
@@ -167,14 +169,17 @@ function BayService.new(dependencies: Dependencies): BayService
 		return bay.model:FindFirstChild(BayConfig.CONTENTS_NAME) or bay.model
 	end
 
-	-- A floor alien's size: all small, and no wider than its step in the floor's grid.
-	local function floorScale(alienId: AlienConfig.AlienId): number
+	-- The size of an alien with no place: all small, and no bigger than its niche on the shelf.
+	local function shelfScale(alienId: AlienConfig.AlienId): number
+		local scale = BayLooks.SHELF_ALIEN_SCALE
 		if not AlienConfig.ALIENS[alienId] then
-			return BayLooks.PILE_ALIEN_SCALE
+			return scale
 		end
-		local room = BayLooks.PILE_SPACING * BayLooks.PILE_ALIEN_FILL
-		local width = AlienModel.widthOf(alienId, BayLooks.PILE_ALIEN_SCALE)
-		return BayLooks.PILE_ALIEN_SCALE * math.min(1, room / math.max(width, 1e-3))
+		local roomWidth, roomHeight = Shelf.room(ShelfShape)
+		local fill = BayLooks.SHELF_ALIEN_FILL
+		local width = math.max(AlienModel.widthOf(alienId, scale), 1e-3)
+		local height = math.max(AlienModel.heightOf(alienId, scale), 1e-3)
+		return scale * math.min(1, roomWidth * fill / width, roomHeight * fill / height)
 	end
 
 	-- Shows `alien` standing on `cframe` in `bay`, its own size or `scale` (the small ones on the
@@ -498,11 +503,12 @@ function BayService.new(dependencies: Dependencies): BayService
 		-- Floor aliens can be picked up only while the inventory has room: no prompt otherwise.
 		local hasRoom = #data.inventory < BayConfig.INVENTORY_SLOTS
 		for index, alien in data.floor do
-			if index > BayConfig.FLOOR_SHOWN_MAX then
+			-- Past the shelf's last niche an alien is only in the window.
+			local cframe = BayModel.shelfCFrame(bay.origin, index)
+			if not cframe then
 				break
 			end
-			local model =
-				showAlien(bay, alien, BayModel.floorCFrame(bay.origin, index), contents, kept, floorScale(alien.id))
+			local model = showAlien(bay, alien, cframe, contents, kept, shelfScale(alien.id))
 			if model then
 				local prompt = pickUpPromptOf(model)
 				if hasRoom and not prompt then

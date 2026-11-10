@@ -25,12 +25,13 @@ local LIFT_ATTRIBUTE = BayConfig.ALIEN_LIFT_ATTRIBUTE
 local GLOW_RANGE = 10
 local GLOW_BRIGHTNESS = 1.5
 
--- A dressed pet, ready to clone: where its lowest visible point is under the pivot and how wide it
--- stands, studs at the dressing scale.
+-- A dressed pet, ready to clone: where its lowest visible point is under the pivot, how wide it
+-- stands and how tall, studs at the dressing scale.
 type Template = {
 	model: Model,
 	bottom: number,
 	width: number,
+	height: number,
 }
 
 -- Templates by `<kind>-<variant>`; false where the place has no model.
@@ -52,8 +53,9 @@ local function petName(alien: AlienConfig.Alien): string
 	return `{alien.kind}-{if alien.variant == "Meteor" then "m" else ""}{tier}`
 end
 
--- The lowest point and the widest span of the pet's visible parts, in its pivot's frame.
-local function measure(model: Model): (number, number)
+-- The lowest point, the widest span across and the height of the pet's visible parts, in its
+-- pivot's frame.
+local function measure(model: Model): (number, number, number)
 	local pivot = model:GetPivot()
 	local low = Vector3.one * math.huge
 	local high = -low
@@ -74,10 +76,10 @@ local function measure(model: Model): (number, number)
 		end
 	end
 	if low.Y == math.huge then
-		return 0, 0
+		return 0, 0, 0
 	end
 	local span = high - low
-	return low.Y, math.max(span.X, span.Z)
+	return low.Y, math.max(span.X, span.Z), span.Y
 end
 
 local function templateOf(alien: AlienConfig.Alien): Template?
@@ -100,8 +102,8 @@ local function templateOf(alien: AlienConfig.Alien): Template?
 	local model = source:Clone()
 	AlienDress.prepare(model)
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-	local bottom, width = measure(model)
-	local template = { model = model, bottom = bottom, width = width }
+	local bottom, width, height = measure(model)
+	local template = { model = model, bottom = bottom, width = width, height = height }
 	templates[name] = template
 	return template
 end
@@ -163,6 +165,18 @@ function AlienModel.widthOf(alienId: AlienConfig.AlienId, scaleOverride: number?
 		return AlienLooks.widthOf(scale)
 	end
 	return template.width * modelScale(alien, scale) / MODELS.DRESS_SCALE
+end
+
+-- How tall alien `alienId` stands at `scale` (its own by default), studs: what a niche of the
+-- shelf makes room for. The greybox ball is as tall as it is wide.
+function AlienModel.heightOf(alienId: AlienConfig.AlienId, scaleOverride: number?): number
+	local alien = assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
+	local scale = scaleOverride or alien.scale
+	local template = templateOf(alien)
+	if not template then
+		return AlienLooks.widthOf(scale)
+	end
+	return template.height * modelScale(alien, scale) / MODELS.DRESS_SCALE
 end
 
 -- `cframe` is where the alien stands: its lowest point at the frame's origin, facing the frame's

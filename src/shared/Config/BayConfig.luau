@@ -58,11 +58,11 @@ return table.freeze({
 	TRAINER_TOLERANCE = 1.2,
 	TRAINER_PROMPT_DISTANCE = 8,
 
-	-- The bay shows at most this many queued eggs and floor aliens as models; the rest stay in
-	-- the profile and the window (a pile of eighty glowing eggs lit the whole station). The
-	-- incubator shows all of its eggs: no more than MAX_INCUBATOR_SLOTS.
+	-- The bay shows at most this many queued eggs as models; the rest stay in the profile and the
+	-- window (a pile of eighty glowing eggs lit the whole station). The incubator shows all of its
+	-- eggs: no more than MAX_INCUBATOR_SLOTS. Aliens with no place: as many as the shelf has niches
+	-- (Domain/Shelf.capacity), the rest only in the window.
 	WAITING_SHOWN_MAX = 24,
-	FLOOR_SHOWN_MAX = 24,
 
 	-- Bay model attributes and tags (replicated for the client views).
 	TAG = "Bay",
@@ -76,6 +76,8 @@ return table.freeze({
 	SIGN_NAME = "Sign",
 	INCUBATOR_NAME = "Incubator",
 	TRAINER_NAME = "Trainer",
+	-- The shelf where aliens with no place stand (docs/design/screens/storage-shelf.md).
+	SHELF_NAME = "Shelf",
 	CONTENTS_NAME = "Contents",
 	-- The terminals (docs/design/screens/terminals.md) and the part their screen is drawn on.
 	PLACES_TERMINAL_NAME = "PlacesTerminal",
@@ -116,8 +118,8 @@ return table.freeze({
 	-- the client glides it there with its alien.
 	PLACE_TAG = "BayPlace",
 	PLACE_PIVOT_ATTRIBUTE = "Pivot",
-	-- True on an alien standing small on the floor: the client shows only its model (no effects,
-	-- no motion).
+	-- True on an alien standing small on the shelf: the client shows only its model (no effects,
+	-- no motion) and its chip only up close.
 	ALIEN_PLAIN_ATTRIBUTE = "Plain",
 	-- Eggs lying in an incubator (HatchAt is server, Unix, time) and eggs waiting for a slot.
 	INCUBATOR_EGG_TAG = "IncubatorEgg",

@@ -401,12 +401,12 @@ local Strings = {
 		en = "Inventory {count}/{max}",
 	},
 	["bay.floor.title"] = {
-		ru = "На полу: {count}",
-		en = "On the floor: {count}",
+		ru = "На стеллаже: {count}",
+		en = "On the shelf: {count}",
 	},
 	["bay.pickUpFloor.hint"] = {
-		ru = "Подойди и подбери, чтобы положить в инвентарь",
-		en = "Walk over and pick them up to put them in your inventory",
+		ru = "Подойди к стеллажу и подбери, чтобы положить в инвентарь",
+		en = "Walk to the shelf and pick them up for your inventory",
 	},
 	["bay.floorFull.hint"] = {
 		ru = "Инвентарь полный: продай или скрести кого-нибудь, тогда сможешь подбирать",
@@ -489,8 +489,8 @@ local Strings = {
 		en = "to the inventory",
 	},
 	["place.floor.hint"] = {
-		ru = "на пол острова",
-		en = "to the island floor",
+		ru = "на стеллаж",
+		en = "to the shelf",
 	},
 	["alien.tierIncome.hint"] = {
 		ru = "{tier} · ●{income}/с",

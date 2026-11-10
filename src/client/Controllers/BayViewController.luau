@@ -52,6 +52,10 @@ local SIGN_MAX_DISTANCE = 120
 local CONTENTS_MAX_DISTANCE = 35
 -- A grown alien's chip reads from farther, this many studs more per stud of its height.
 local CONTENTS_DISTANCE_PER_HEIGHT = 2
+-- On the shelf (docs/design/screens/storage-shelf.md) 24 chips over each other read as a mess: an
+-- alien there shows its chip only up close, just over its head (under the board above).
+local SHELF_CHIP_MAX_DISTANCE = 12
+local SHELF_CHIP_STUDS_ABOVE = 0.3
 -- Countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
 
@@ -381,6 +385,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		end
 		local alien = AlienConfig.ALIENS[alienId]
 		local income = BigNum.format(alien.income)
+		local onShelf = instance:GetAttribute(BayConfig.ALIEN_PLAIN_ATTRIBUTE) == true
 		-- A short chip: the tier's colour and the income; the full name is in the bay window.
 		label(instance, "Body", function(part)
 			return WorldChip({
@@ -388,8 +393,10 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				dot = AlienLooks.TIERS[alien.tier].color,
 				text = Text.get(locale, "alien.income.hint", { income = income }),
 				-- Over the head: aliens grow with every guardian (decision 068).
-				studsAbove = part.Size.Y / 2 + ALIEN_STUDS_ABOVE,
-				maxDistance = CONTENTS_MAX_DISTANCE + part.Size.Y * CONTENTS_DISTANCE_PER_HEIGHT,
+				studsAbove = part.Size.Y / 2 + (if onShelf then SHELF_CHIP_STUDS_ABOVE else ALIEN_STUDS_ABOVE),
+				maxDistance = if onShelf
+					then SHELF_CHIP_MAX_DISTANCE
+					else CONTENTS_MAX_DISTANCE + part.Size.Y * CONTENTS_DISTANCE_PER_HEIGHT,
 			}),
 				nil
 		end)

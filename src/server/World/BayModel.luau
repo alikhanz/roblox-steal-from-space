@@ -2,7 +2,7 @@
 -- Builds the greybox bay on a player's island (decision 068, docs/design/screens/island.md): the
 -- zone lines on the floor, the owner's sign, the incubator stand and the trainer pad, and knows
 -- where everything on the island stands: places (by Domain/PlaceLayout), capsules and their eggs,
--- waiting eggs, aliens on the floor. The contents themselves are added and replaced by BayService
+-- waiting eggs, aliens on the shelf. The contents themselves are added and replaced by BayService
 -- as the profile changes. The island's floor and dome are WorldService's.
 
 local MaterialService = game:GetService("MaterialService")
@@ -12,10 +12,13 @@ local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local PlaceLayout = require(ReplicatedStorage.Shared.Domain.PlaceLayout)
+local Shelf = require(ReplicatedStorage.Shared.Domain.Shelf)
+local ShelfShape = require(ReplicatedStorage.Shared.Config.ShelfShape)
 local Stand = require(ReplicatedStorage.Shared.Domain.Stand)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local StandKit = require(script.Parent.StandKit)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+local StorageKit = require(script.Parent.StorageKit)
 local TerminalKit = require(script.Parent.TerminalKit)
 
 local BayModel = {}
@@ -219,22 +222,103 @@ function BayModel.waitingEggCFrame(origin: CFrame, index: number): CFrame
 	return origin * CFrame.new(around(BayLooks.INCUBATOR_POSITION, radius, angle) + Vector3.yAxis * WAITING_EGG_LIFT)
 end
 
--- Where floor alien `index` (1-based) waits: in the tray right of the spawn, rows from the
--- entrance's side, facing the island's center. Past the tray's rows they go round again.
-function BayModel.floorCFrame(origin: CFrame, index: number): CFrame
-	local columns = BayLooks.PILE_COLUMNS
-	local spacing = BayLooks.PILE_SPACING
-	local rows = math.max(1, math.floor(BayLooks.PILE_SIZE.Y / spacing))
-	local spot = (index - 1) % (columns * rows)
-	local column = spot % columns
-	local row = spot // columns
-	local center = BayLooks.PILE_CENTER
-	local at = Vector3.new(
-		center.X + (column - (columns - 1) / 2) * spacing,
-		0,
-		center.Z - (rows - 1) / 2 * spacing + row * spacing
-	)
-	return origin * CFrame.lookAt(at, Vector3.new(0, 0, 0))
+-- Where the `index`-th alien with no place (1-based) stands: on its niche's board of the shelf,
+-- facing out of the niche (Domain/Shelf). Nil past the shelf's last niche: that one is only in the
+-- window.
+function BayModel.shelfCFrame(origin: CFrame, index: number): CFrame?
+	local niche = Shelf.niche(index, ShelfShape)
+	if not niche then
+		return nil
+	end
+	local spot = Shelf.spot(niche, ShelfShape)
+	return origin * BayLooks.SHELF_FRAME * CFrame.new(spot.x, spot.y, spot.z) * CFrame.Angles(0, spot.angle, 0)
+end
+
+-- A niche column's frame on the floor: the middle of its arc, facing out of it.
+local function shelfColumnFrame(shelf: CFrame, column: number): CFrame
+	local spot = Shelf.spot({ column = column, tier = 1 }, ShelfShape)
+	return shelf * CFrame.new(spot.x, 0, spot.z) * CFrame.Angles(0, spot.angle, 0)
+end
+
+-- A plain box of the shelf: `size` along the arc, up and deep, at `cframe`.
+local function shelfBox(name: string, size: Vector3, cframe: CFrame, color: Color3, parent: Instance): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = cframe
+	part.Material = Enum.Material.SmoothPlastic
+	part.Color = color
+	part.CanCollide = false
+	scenery(part)
+	part.Parent = parent
+	return part
+end
+
+-- The shelf without its kit: its boards, crowns and backs in greybox boxes.
+local function buildGreyboxShelf(shelf: CFrame, parent: Instance)
+	local shape = ShelfShape
+	local top = shape.BASE_HEIGHT + shape.TIERS * shape.CELL_HEIGHT
+	for column = 1, shape.COLUMNS do
+		local frame = shelfColumnFrame(shelf, column)
+		local width = shape.CELL_WIDTH
+		local grey = BayLooks.SHELF_GREYBOX_COLOR
+		shelfBox(
+			"Base",
+			Vector3.new(width, shape.BASE_HEIGHT, shape.DEPTH),
+			frame * CFrame.new(0, shape.BASE_HEIGHT / 2, 0),
+			grey,
+			parent
+		)
+		for tier = 2, shape.TIERS do
+			local floor = shape.BASE_HEIGHT + (tier - 1) * shape.CELL_HEIGHT
+			local board = Vector3.new(width, shape.BOARD_THICKNESS, shape.DEPTH)
+			shelfBox("Board", board, frame * CFrame.new(0, floor + shape.BOARD_THICKNESS / 2, 0), grey, parent)
+		end
+		local crown = Vector3.new(width, shape.CROWN_HEIGHT, shape.DEPTH)
+		shelfBox("Crown", crown, frame * CFrame.new(0, top + shape.CROWN_HEIGHT / 2, 0), grey, parent)
+		local back = Vector3.new(width, top - shape.BASE_HEIGHT, shape.BACK_THICKNESS)
+		local behind = shape.DEPTH / 2 - shape.BACK_THICKNESS / 2
+		local backFrame = frame * CFrame.new(0, (top + shape.BASE_HEIGHT) / 2, behind)
+		shelfBox("Back", back, backFrame, BayLooks.SHELF_GREYBOX_BACK_COLOR, parent)
+	end
+end
+
+-- The shelf where aliens with no place stand (docs/design/screens/storage-shelf.md): the kit's
+-- pieces (World/StorageKit) or greybox, and a solid invisible block a niche column, so nobody walks
+-- into it; the look itself collides with nothing (prompts and the camera pass into the niches).
+local function buildShelf(origin: CFrame, parent: Instance)
+	local model = Instance.new("Model")
+	model.Name = BayConfig.SHELF_NAME
+	local shelf = origin * BayLooks.SHELF_FRAME
+	local body = StorageKit.piece("Body")
+	local glow = StorageKit.piece("Glow")
+	if body and glow then
+		for _, piece in { body, glow } do
+			piece.part.CanCollide = false
+			scenery(piece.part)
+			piece.part.CFrame = shelf * piece.offset
+			piece.part.Parent = model
+		end
+		body.part.Name = "Body"
+		body.part.Material = BayLooks.SHELF_BODY_MATERIAL
+		body.part.Color = BayLooks.SHELF_BODY_COLOR
+		glow.part.Name = "Glow"
+		glow.part.Material = BayLooks.SHELF_GLOW_MATERIAL
+		glow.part.Color = BayLooks.SHELF_COLOR
+	else
+		buildGreyboxShelf(shelf, model)
+	end
+	local height = Shelf.height(ShelfShape)
+	for column = 1, ShelfShape.COLUMNS do
+		local block = Instance.new("Part")
+		block.Name = "Block"
+		block.Size = Vector3.new(ShelfShape.CELL_WIDTH, height, ShelfShape.DEPTH)
+		block.CFrame = shelfColumnFrame(shelf, column) * CFrame.new(0, height / 2, 0)
+		block.Transparency = 1
+		scenery(block)
+		block.Parent = model
+	end
+	model.Parent = parent
 end
 
 -- A box of the stand at `cframe`.
@@ -729,17 +813,19 @@ local function buildZoneLines(origin: CFrame, parent: Instance)
 		parent
 	)
 
-	local center = BayLooks.PILE_CENTER
-	local halfX, halfZ = BayLooks.PILE_SIZE.X / 2, BayLooks.PILE_SIZE.Y / 2
-	local corners = {
-		center + Vector3.new(-halfX, 0, -halfZ),
-		center + Vector3.new(halfX, 0, -halfZ),
-		center + Vector3.new(halfX, 0, halfZ),
-		center + Vector3.new(-halfX, 0, halfZ),
-	}
-	for index, corner in corners do
-		floorLine(origin, corner, corners[index % #corners + 1], BayLooks.PILE_COLOR, parent)
-	end
+	-- The shelf's: an arc in front of its niches, round the same centre (Domain/Shelf: the arc's
+	-- angle 0 is the shelf's middle, toward +Z from the centre in front of it).
+	local radius = ShelfShape.RADIUS
+	local halfArc = ShelfShape.COLUMNS * ShelfShape.CELL_WIDTH / radius / 2
+	floorArc(
+		origin * BayLooks.SHELF_FRAME,
+		Vector3.new(0, 0, -radius),
+		radius - ShelfShape.DEPTH / 2 - BayLooks.SHELF_ZONE_GAP,
+		-halfArc,
+		halfArc,
+		BayLooks.SHELF_COLOR,
+		parent
+	)
 end
 
 function BayModel.build(slot: number, origin: CFrame): Model
@@ -765,6 +851,7 @@ function BayModel.build(slot: number, origin: CFrame): Model
 	incubator.Parent = model
 
 	buildStand(origin, model)
+	buildShelf(origin, model)
 
 	local places = BayLooks.PLACES_TERMINAL_POSITION
 	local hatchery = BayLooks.INCUBATOR_TERMINAL_POSITION
