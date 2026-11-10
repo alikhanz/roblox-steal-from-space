@@ -37,8 +37,8 @@ local STUDS_ABOVE = 2.4
 local BILLBOARD_WIDTH = 300
 
 export type Props = {
-	-- The thing to hover over; nil hides the prompt.
-	target: () -> BasePart?,
+	-- The thing to hover over (a part, or a point on one); nil hides the prompt.
+	target: () -> (BasePart | Attachment)?,
 	-- Hold progress, 0..1.
 	progress: () -> number,
 	-- The hold's fill; absent for a prompt that is a single press.

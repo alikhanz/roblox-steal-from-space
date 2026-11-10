@@ -44,6 +44,20 @@ local PromptViewController = {}
 
 local ACTION = Theme.NEON.ACTION
 
+-- What a prompt hangs on: a part, or a point on one (the station kiosks' counters); nil for
+-- anything else.
+local function adorneeOf(prompt: ProximityPrompt): (BasePart | Attachment)?
+	local parent = prompt.Parent
+	if parent and (parent:IsA("BasePart") or parent:IsA("Attachment")) then
+		return parent
+	end
+	return nil
+end
+
+local function positionOf(adornee: BasePart | Attachment): Vector3
+	return if adornee:IsA("Attachment") then adornee.WorldPosition else (adornee :: BasePart).Position
+end
+
 -- What a prompt does, by the attributes its server gave it.
 local function colorOf(prompt: ProximityPrompt): Color3
 	if prompt:GetAttribute(BayConfig.READY_NOW_TIER_ATTRIBUTE) ~= nil then
@@ -108,7 +122,7 @@ function PromptViewController.new(): PromptViewController
 	end
 
 	local function show(prompt: ProximityPrompt)
-		local adornee = prompt.Parent
+		local adornee = adorneeOf(prompt)
 		if prompt.Style ~= Enum.ProximityPromptStyle.Custom or views[prompt] then
 			return
 		end
@@ -117,7 +131,7 @@ function PromptViewController.new(): PromptViewController
 		if owner ~= nil and owner ~= Players.LocalPlayer.UserId then
 			return
 		end
-		if not adornee or not adornee:IsA("BasePart") then
+		if not adornee then
 			return
 		end
 		local progress = source(0)
@@ -194,12 +208,12 @@ function PromptViewController.new(): PromptViewController
 			for prompt, view in views do
 				-- The engine hides a prompt the player walked away from; should that signal be
 				-- missed (a respawn, a teleport), the picture must not stay on the wall.
-				local adornee = prompt.Parent
+				local adornee = adorneeOf(prompt)
 				local gone = not prompt.Enabled
-				if adornee and adornee:IsA("BasePart") then
+				if adornee then
 					if root and root:IsA("BasePart") then
 						local reach = prompt.MaxActivationDistance + PROMPT_DISTANCE_SLACK
-						gone = gone or (adornee.Position - root.Position).Magnitude > reach
+						gone = gone or (positionOf(adornee) - root.Position).Magnitude > reach
 					end
 				else
 					gone = true
