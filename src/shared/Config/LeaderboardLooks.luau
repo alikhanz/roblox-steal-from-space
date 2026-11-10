@@ -1,47 +1,45 @@
 --!strict
--- Where the coin board stands on the platform and what its stand looks like: a tall navy panel
--- on two pearl legs over a kiosk's base, in the kiosks' circle (decision 087).
+-- Where the coin board stands on the platform and what it looks like: the "crown" in the middle
+-- of the kiosks' circle (decision 087) — pearl dais, pillar and screen backs, gold glow, navy
+-- screens with the top drawn on them, a gold coin turning on top and a coin hologram turning round
+-- the pillar. Its shape is StationShape's (BOARD_*).
 
 local StationLooks = require("./StationLooks")
-local StationShape = require("./StationShape")
 
--- The coin board takes the kiosks' circle's spare place, facing out like them (decision 087).
-local ANGLE = StationShape.kioskAngle(StationLooks.COIN_BOARD_SLOT)
-local OUTWARD = Vector3.new(math.cos(ANGLE), 0, math.sin(ANGLE))
+local GOLD = Color3.fromRGB(255, 200, 70)
 
 return table.freeze({
-	-- From the platform center, on the floor.
-	POSITION = OUTWARD * StationShape.KIOSK_CIRCLE_RADIUS,
-	FACING = OUTWARD,
+	-- From the platform center, on the floor: the middle. The first screen faces the station's
+	-- spawn (+Z), the rest a quarter turn apart.
+	POSITION = Vector3.zero,
 
-	-- Wide enough for a 20-letter display name next to the coins.
-	PANEL_SIZE = Vector3.new(12, 12, 0.6),
-	-- The panel's bottom edge above the floor.
-	PANEL_LIFT = 1.5,
+	PEARL_COLOR = StationLooks.PEARL_COLOR,
+	PEARL_MATERIAL = StationLooks.PEARL_MATERIAL,
 	PANEL_COLOR = StationLooks.NAVY_COLOR,
-	TRIM_COLOR = Color3.fromRGB(255, 214, 90),
-	TRIM_THICKNESS = 0.3,
-	LEG_SIZE = Vector3.new(0.6, 1.5, 0.6),
-	LEG_COLOR = StationLooks.PEARL_COLOR,
-	-- It stands on a kiosk's base and glowing ring (StationLooks.KIOSK), the ring in the trim's gold.
-	BASE_COLOR = StationLooks.NAVY_COLOR,
+	GLOW_COLOR = GOLD,
+	COIN_COLOR = GOLD,
+	COIN_MATERIAL = Enum.Material.Metal,
+	HOLO_TRANSPARENCY = 0.55,
+	-- The coins turn once in this many seconds (on each client).
+	COIN_TURN_SECONDS = 8,
 
-	-- The drawing on the panel: pixels per stud, and its colors.
-	PIXELS_PER_STUD = 40,
-	TITLE_COLOR = Color3.fromRGB(255, 214, 90),
+	-- The drawing on a screen: pixels per stud, and its colors.
+	PIXELS_PER_STUD = 20,
+	TITLE_COLOR = GOLD,
 	ROW_COLOR = Color3.fromRGB(235, 238, 250),
 	-- Gold, silver and bronze for the first three places.
 	PLACE_COLORS = {
-		Color3.fromRGB(255, 214, 90),
+		GOLD,
 		Color3.fromRGB(205, 214, 230),
 		Color3.fromRGB(222, 150, 95),
 	},
 	-- The local player's own row.
 	OWN_ROW_COLOR = Color3.fromRGB(120, 220, 255),
-	-- The board is not drawn beyond this distance, studs.
-	MAX_DISTANCE = 150,
-	-- The ring's screens (StationShape.SCREEN_*): drawn coarse, so the letters stand big, and
-	-- far enough to show from every island.
-	SCREEN_PIXELS_PER_STUD = 18,
-	SCREEN_MAX_DISTANCE = 800,
+	-- The screens are drawn this far, studs: from every island (the far side of the farthest is
+	-- about 500 off).
+	MAX_DISTANCE = 1000,
+	-- Farther than this from the board, the camera sees the top three big instead of the top ten.
+	FAR_DISTANCE = 110,
+	-- How often each client checks how far it is, seconds.
+	FAR_CHECK_SECONDS = 0.5,
 })

@@ -7,6 +7,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local StationLooks = require(ReplicatedStorage.Shared.Config.StationLooks)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -16,8 +17,6 @@ local PIXELS_PER_STUD = 40
 -- Readable from across the platform and a little beyond; the station's look from the islands is
 -- the ring's, studs.
 local MAX_DISTANCE = 300
--- How far the icon's tint goes from white towards the kiosk's colour.
-local ICON_TINT = 0.35
 -- The badge's icon fills this share of the disc; the hologram's, of its plate's height.
 local BADGE_ICON_SHARE = 0.62
 local HOLO_ICON_SHARE = 0.8
@@ -43,7 +42,7 @@ local function surface(adornee: BasePart, face: Enum.NormalId, child: Instance):
 end
 
 local function tinted(color: Color3): Color3
-	return Color3.new(1, 1, 1):Lerp(color, ICON_TINT)
+	return Color3.new(1, 1, 1):Lerp(color, StationLooks.KIOSK_ICON_TINT)
 end
 
 -- The kiosk's name across its plate's front.

@@ -510,14 +510,15 @@ def render(name):
     print("Wrote", scene.render.filepath)
 
 
-for direction in DIRECTIONS:
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    _cache.clear()
-    space()
-    lights()
-    bpy.ops.mesh.primitive_cylinder_add(radius=80, depth=1, location=(0, 0, -0.5), vertices=96)
-    real.assign(active(), floor_mat())
-    for i, (label, colour, kind) in enumerate(STALLS):
-        BUILDERS[direction]((i - 1.5) * SPACING, label, colour, kind)
-    roblox_player((-0.5 * SPACING + 0.3, -9.5, 0))
-    render(direction)
+if __name__ == "__main__":
+    for direction in DIRECTIONS:
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        _cache.clear()
+        space()
+        lights()
+        bpy.ops.mesh.primitive_cylinder_add(radius=80, depth=1, location=(0, 0, -0.5), vertices=96)
+        real.assign(active(), floor_mat())
+        for i, (label, colour, kind) in enumerate(STALLS):
+            BUILDERS[direction]((i - 1.5) * SPACING, label, colour, kind)
+        roblox_player((-0.5 * SPACING + 0.3, -9.5, 0))
+        render(direction)

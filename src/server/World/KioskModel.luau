@@ -159,12 +159,12 @@ function KioskModel.build(kiosk: StationLooks.Kiosk, frame: CFrame): Model
 	return model
 end
 
--- Where kiosk place `slot` stands: on the platform's circle, its front looking out.
+-- Where kiosk place `slot` stands: on the platform's circle, its front looking in at the middle.
 function KioskModel.frameAt(center: Vector3, slot: number): CFrame
 	local angle = StationShape.kioskAngle(slot)
 	local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
 	local position = center + direction * StationShape.KIOSK_CIRCLE_RADIUS
-	return CFrame.lookAt(position, position + direction)
+	return CFrame.lookAt(position, center)
 end
 
 return table.freeze(KioskModel)

@@ -101,7 +101,37 @@ BUDGET = {
     "KioskDark": 900,
     "KioskGlow": 1500,
     "LabelPlate": 300,
+    "BoardPearl": 3500,
+    "BoardGlow": 3500,
+    "CoinGlow": 1200,
 }
+
+# The coin board in the middle of the platform (decision 087, the "crown"): a dais, a pillar, four
+# screens round it high over the kiosks, tilted down at the players, a gold ring over them and a
+# coin on top. Reference point: the board's spot on the floor. A screen's frame: its face's centre,
+# BOARD_SCREEN_OUT from the pillar and BOARD_SCREEN_MIDDLE up, facing out (-Y for the first),
+# its top leaning out by BOARD_SCREEN_TILT degrees; the game puts the drawn face (a part) there.
+BOARD_DAIS_RADIUS = 14.0
+BOARD_DAIS_HEIGHT = 1.6
+BOARD_PILLAR_RADIUS = 2.0
+BOARD_TOP = 56.0
+BOARD_RING_RADIUS = 30.0
+BOARD_RING_TUBE = 1.0
+BOARD_SCREEN_WIDTH = 36.0
+BOARD_SCREEN_HEIGHT = 26.0
+BOARD_SCREEN_OUT = 20.0
+BOARD_SCREEN_MIDDLE = 38.0
+BOARD_SCREEN_TILT = 22.0
+BOARD_FACE_DEPTH = 0.2  # the drawn face's part, behind the face's plane
+BOARD_RIM = 0.8  # the glowing rim showing round the face
+BOARD_RIM_DEPTH = 0.3
+BOARD_BACK_PAD = 1.4  # the pearl back round the face
+BOARD_BACK_DEPTH = 0.6
+BOARD_ARM_HEIGHTS = (-8.0, 8.0)  # the arms holding a screen, up its face
+# The coin's glow at radius 1 (the game scales it): its rim and a ring on each face.
+COIN_THICKNESS = 0.22
+COIN_RIM_TUBE = 0.09
+COIN_RING = 0.62
 
 
 def new_object(name, mesh):
@@ -416,6 +446,76 @@ def label_plate():
     return finish(obj, 40)
 
 
+def board_screen_matrix(k):
+    """Screen `k`'s frame (0-3, a quarter turn apart round the pillar)."""
+    return (
+        Matrix.Rotation(k * math.pi / 2, 4, "Z")
+        @ Matrix.Translation((0, -BOARD_SCREEN_OUT, BOARD_SCREEN_MIDDLE))
+        @ Matrix.Rotation(math.radians(BOARD_SCREEN_TILT), 4, "X")
+    )
+
+
+def board_screen_part(k, size, depth_from, radius):
+    """A soft slab of screen `k`, `size` (width, height) across its face, from `depth_from` behind
+    the face's plane back by its depth."""
+    width, height, depth = size
+    obj = rounded_box((width, depth, height), radius, (0, depth_from + depth / 2, 0))
+    obj.matrix_world = board_screen_matrix(k) @ obj.matrix_world
+    return obj
+
+
+def cylinder_between(a, b, radius, vertices=12):
+    a, b = Vector(a), Vector(b)
+    axis = b - a
+    bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=axis.length, location=(a + b) / 2)
+    obj = active()
+    obj.rotation_mode = "QUATERNION"
+    obj.rotation_quaternion = axis.to_track_quat("Z", "Y")
+    return obj
+
+
+def board_pearl():
+    """The coin board's pearl: the dais, the pillar, the screens' backs and the arms holding them,
+    the coin's stand on top. Reference point: the board's spot on the floor."""
+    dais = cylinder(BOARD_DAIS_RADIUS, BOARD_DAIS_HEIGHT, (0, 0, BOARD_DAIS_HEIGHT / 2), 48)
+    soft = dais.modifiers.new("Soft", "BEVEL")
+    soft.width, soft.segments, soft.limit_method = 0.5, 2, "ANGLE"
+    parts = [dais, cylinder(BOARD_PILLAR_RADIUS, BOARD_TOP, (0, 0, BOARD_TOP / 2), 20)]
+    bpy.ops.mesh.primitive_cone_add(vertices=20, radius1=BOARD_PILLAR_RADIUS * 1.3, radius2=BOARD_PILLAR_RADIUS * 0.6, depth=2.0, location=(0, 0, BOARD_TOP + 1.0))
+    parts.append(active())
+    back_from = BOARD_FACE_DEPTH + BOARD_RIM_DEPTH
+    for k in range(4):
+        size = (BOARD_SCREEN_WIDTH + 2 * BOARD_BACK_PAD, BOARD_SCREEN_HEIGHT + 2 * BOARD_BACK_PAD, BOARD_BACK_DEPTH)
+        parts.append(board_screen_part(k, size, back_from, 1.6))
+        for up in BOARD_ARM_HEIGHTS:
+            end = board_screen_matrix(k) @ Vector((0, back_from + BOARD_BACK_DEPTH - 0.1, up))
+            start = Vector((end.x, end.y, 0)).normalized() * BOARD_PILLAR_RADIUS * 0.5
+            parts.append(cylinder_between((start.x, start.y, end.z), end, 0.55))
+    return merge("BoardPearl", parts, 40)
+
+
+def board_glow():
+    """Everything on the coin board that glows gold: the ring round the dais, the rims round the
+    screens, the big ring over them. Reference point: the board's spot on the floor."""
+    parts = [
+        torus(BOARD_DAIS_RADIUS, 0.45, (0, 0, BOARD_DAIS_HEIGHT), major_segments=48, minor_segments=6),
+        torus(BOARD_RING_RADIUS, BOARD_RING_TUBE, (0, 0, BOARD_TOP), major_segments=96, minor_segments=8),
+    ]
+    for k in range(4):
+        size = (BOARD_SCREEN_WIDTH + 2 * BOARD_RIM, BOARD_SCREEN_HEIGHT + 2 * BOARD_RIM, BOARD_RIM_DEPTH)
+        parts.append(board_screen_part(k, size, BOARD_FACE_DEPTH - 0.15, 1.0))
+    return merge("BoardGlow", parts, 50)
+
+
+def coin_glow():
+    """A coin's glow at radius 1, the coin standing on its edge facing -Y: the rim round its edge
+    and a ring on each face. Reference point: the coin's centre."""
+    parts = [torus(1.0, COIN_RIM_TUBE, (0, 0, 0), (math.pi / 2, 0, 0), 48, 6)]
+    for side in (-1, 1):
+        parts.append(torus(COIN_RING, COIN_RIM_TUBE * 0.7, (0, side * COIN_THICKNESS / 2, 0), (math.pi / 2, 0, 0), 32, 4))
+    return merge("CoinGlow", parts, 60)
+
+
 def uv(obj):
     """UVs for the Roblox material's texture: a smart projection at the mesh's own scale."""
     select_only(obj)
@@ -437,6 +537,9 @@ def build():
         kiosk_dark(),
         kiosk_glow(),
         label_plate(),
+        board_pearl(),
+        board_glow(),
+        coin_glow(),
     ]
     over = []
     for piece in pieces:
@@ -554,23 +657,32 @@ def preview(pieces, out_dir):
         tip = out * (RING_OUTER - 1.5) + Vector((0, 0, ring_z - RING_HEIGHT / 2))
         rot = (tip - foot).to_track_quat("Z", "Y").to_matrix().to_4x4()
         copy(kit["Pylon"], steel_light, Matrix.Translation(foot) @ rot, (1, 1, (tip - foot).length / PYLON_LENGTH))
-    # Kiosks and the coin board in a circle, facing out.
-    for k in range(5):
-        a = math.pi / 2 + math.pi / 5 + k / 5 * math.tau
+    # The four kiosks in a circle, facing the coin board in the middle.
+    for k in range(4):
+        a = math.pi / 2 + math.pi / 4 + k / 4 * math.tau
         out = Vector((math.cos(a), math.sin(a), 0))
         at = out * 36
-        face = Matrix.Translation(at) @ Matrix.Rotation(a + math.pi / 2, 4, "Z")  # -Y faces out
+        face = Matrix.Translation(at) @ Matrix.Rotation(a - math.pi / 2, 4, "Z")  # -Y faces in
         glow = material(f"Glow{k}", accents[k], emission=4.0)
-        if k < 4:
-            copy(kit["KioskPearl"], pearl, face)
-            copy(kit["KioskDark"], navy, face)
-            copy(kit["KioskGlow"], glow, face)
-            copy(kit["LabelPlate"], navy, face @ Matrix.Translation(PLATE_CENTRE))
-            prim("cyl", navy, face @ Vector((BADGE_CENTRE[0], BADGE_CENTRE[1] + 0.2, BADGE_CENTRE[2])), (2.45, 0.2), (math.pi / 2, 0, a + math.pi / 2))
-        else:
-            prim("cyl", navy, at + Vector((0, 0, 0.35)), (KIOSK_BASE_RADIUS, 0.7))
-            prim("cyl", glow, at + Vector((0, 0, 0.15)), (KIOSK_GLOW_RADIUS, 0.3))
-            prim("box", screen, at + Vector((0, 0, 8.7)), (12, 0.6, 12), (0, 0, a + math.pi / 2))
+        copy(kit["KioskPearl"], pearl, face)
+        copy(kit["KioskDark"], navy, face)
+        copy(kit["KioskGlow"], glow, face)
+        copy(kit["LabelPlate"], navy, face @ Matrix.Translation(PLATE_CENTRE))
+        prim("cyl", navy, face @ Vector((BADGE_CENTRE[0], BADGE_CENTRE[1] + 0.2, BADGE_CENTRE[2])), (2.45, 0.2), (math.pi / 2, 0, a - math.pi / 2))
+    # The coin board: its pearl and gold, the four faces, the coin on top.
+    gold = material("Gold", accents[4], emission=4.0)
+    coin = material("Coin", accents[4], 0.25, 1.0)
+    copy(kit["BoardPearl"], pearl, Matrix.Identity(4))
+    copy(kit["BoardGlow"], gold, Matrix.Identity(4))
+    for k in range(4):
+        frame = board_screen_matrix(k) @ Matrix.Translation((0, BOARD_FACE_DEPTH / 2, 0))
+        bpy.ops.mesh.primitive_cube_add(size=1)
+        face = active()
+        face.matrix_world = frame @ Matrix.Diagonal((BOARD_SCREEN_WIDTH, BOARD_FACE_DEPTH, BOARD_SCREEN_HEIGHT, 1))
+        face.data.materials.append(screen)
+    top = Matrix.Translation((0, 0, BOARD_TOP + 8.0))
+    prim("cyl", coin, top.to_translation(), (5.0, 5.0 * COIN_THICKNESS), (math.pi / 2, 0, 0))
+    copy(kit["CoinGlow"], gold, top, (5.0, 5.0, 5.0))
 
     world = bpy.data.worlds.new("Space")
     world.use_nodes = True
@@ -593,11 +705,17 @@ def preview(pieces, out_dir):
     camera_data.clip_end = 3000
     camera = new_object("Cam", camera_data)
     scene.camera = camera
-    lit = math.pi / 2 + math.pi / 5 + 2 * 2 * math.pi / 5  # a kiosk the sun lights from the front
+    lit = math.pi / 2 + math.pi / 4 + 3 * math.pi / 2  # a kiosk the sun lights from the front
     first = Vector((math.cos(lit), math.sin(lit), 0))
-    kiosk_eye = tuple(first * 62 + Vector((0, 0, 10)))
+    kiosk_eye = tuple(first * 14 + Vector((0, 0, 10)))
     kiosk_at = tuple(first * 36 + Vector((0, 0, 9)))
-    for name, eye, at, lens in (("far", (355, 4, 17), (0, 0, 40), 19), ("near", (60, 30, 12), (0, -4, 14), 18), ("kiosk", kiosk_eye, kiosk_at, 30)):
+    views = (
+        ("far", (355, 4, 17), (0, 0, 40), 19),
+        ("near", (60, 30, 12), (0, -4, 14), 18),
+        ("kiosk", kiosk_eye, kiosk_at, 30),
+        ("board", (6, -55, 6), (0, 0, 30), 16),
+    )
+    for name, eye, at, lens in views:
         camera_data.lens = lens
         camera.location = eye
         camera.rotation_euler = (Vector(at) - Vector(eye)).to_track_quat("-Z", "Y").to_euler()

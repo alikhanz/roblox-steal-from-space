@@ -18,8 +18,8 @@ export type Kiosk = {
 	read color: Color3,
 }
 
--- The kiosks in the circle; the coin board takes the place left over (COIN_BOARD_SLOT). The
--- client gives each its name, icon and window (KioskController).
+-- The kiosks in the circle round the coin board, in the ring banner's order too. The client gives
+-- each its name, icon and window (KioskController).
 local KIOSKS: { Kiosk } = {
 	{ id = "Jetpacks", slot = 1, color = Color3.fromRGB(255, 140, 60) },
 	{ id = "Store", slot = 2, color = Color3.fromRGB(165, 120, 255) },
@@ -29,7 +29,6 @@ local KIOSKS: { Kiosk } = {
 
 return table.freeze({
 	KIOSKS = table.freeze(KIOSKS),
-	COIN_BOARD_SLOT = 5,
 	-- Kiosk models carry this tag and their id in the attribute.
 	KIOSK_TAG = "Kiosk",
 	KIOSK_ATTRIBUTE = "Kiosk",
@@ -40,6 +39,9 @@ return table.freeze({
 	KIOSK_PLATE_NAME = "Plate",
 	KIOSK_HOLO_NAME = "Holo",
 	KIOSK_PROMPT_DISTANCE = ShopConfig.PROMPT_DISTANCE,
+	-- A kiosk's icon (on its badge, in its hologram, on the ring's banner) is white tinted this far
+	-- towards the kiosk's colour.
+	KIOSK_ICON_TINT = 0.35,
 
 	PEARL_COLOR = Color3.fromRGB(237, 239, 246),
 	PEARL_MATERIAL = Enum.Material.SmoothPlastic,
@@ -93,4 +95,16 @@ return table.freeze({
 	SCREEN_COLOR = Color3.fromRGB(22, 32, 96),
 	SCREEN_MATERIAL = Enum.Material.SmoothPlastic,
 	SCREEN_TRANSPARENCY = 0,
+	-- The ring's screens, outside (to the islands) and inside (to the platform), carry this tag;
+	-- each client runs the kiosks' names along them (KioskController, UI/RingBanner).
+	BANNER_TAG = "RingBanner",
+	-- The banner on a screen: pixels per stud (coarse, so the letters stand big), seen this far
+	-- (from every island), one kiosk's name and icon this share of the screen's width, sliding by
+	-- one in this many seconds.
+	BANNER = table.freeze({
+		pixelsPerStud = 18,
+		maxDistance = 800,
+		itemShare = 0.75,
+		secondsPerItem = 3,
+	}),
 })

@@ -18,12 +18,10 @@ return table.freeze({
 
 	-- The board model (replicated for the client, who draws it in its own language).
 	TAG = "CoinBoard",
-	-- The part the board is drawn on, inside the model.
+	-- The parts the board is drawn on (one a screen), inside the model.
 	PANEL_NAME = "Panel",
-	-- The ring's screens over the station (decision 087), one facing each island: the top of the
-	-- same board, drawn by each client.
-	SCREEN_TAG = "CoinScreen",
-	SCREEN_ROWS = 3,
+	-- The folder in the model of the coins each client turns: models, each round its pivot's Y.
+	COINS_FOLDER_NAME = "Coins",
 	-- StringValue in the model: the rows as JSON, [{ userId, name, coins = saved BigNum }], best
 	-- first. Not an attribute: string attributes here take only 50 characters.
 	ROWS_VALUE_NAME = "Rows",

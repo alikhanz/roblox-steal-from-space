@@ -1,14 +1,14 @@
 --!strict
 -- Builds the central station (decision 087, docs/plans/STATION.md): the platform and its rim, the
 -- dome, the cone hull with glowing bands and engines under it, the ring round the dome with a
--- screen facing each island, and the struts holding the ring up. Shapes from the kit
+-- screen facing each island and its twin facing the platform (the kiosks' names run along them),
+-- and the struts holding the ring up. Shapes from the kit
 -- (World/StationKit), sizes from StationShape, looks from StationLooks; without the kit each piece
 -- stands in greybox parts of the same size. The kiosks and the coin board are built elsewhere.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local StationKit = require(script.Parent.StationKit)
 local StationLooks = require(ReplicatedStorage.Shared.Config.StationLooks)
@@ -147,18 +147,25 @@ local function buildRingSegment(parent: Instance, center: Vector3, index: number
 		slab.Parent = parent
 	end
 
-	-- The screen's front face (Front, -Z) looks out at the island.
-	local screen = block(
-		`Screen{index}`,
-		Vector3.new(StationShape.SCREEN_WIDTH, StationShape.SCREEN_HEIGHT, StationShape.SCREEN_THICKNESS),
-		frame * CFrame.new(0, 0, -(StationShape.SCREEN_BACK + StationShape.SCREEN_THICKNESS / 2))
-	)
-	paint(screen, StationLooks.SCREEN_COLOR, StationLooks.SCREEN_MATERIAL)
-	screen.Transparency = StationLooks.SCREEN_TRANSPARENCY
-	scenery(screen, false, false)
-	-- Each client draws the top of the coin board on it (CoinBoardController).
-	CollectionService:AddTag(screen, LeaderboardConfig.SCREEN_TAG)
-	screen.Parent = parent
+	-- The screen's front face (Front, -Z) looks out at the island; its twin inside the ring, turned
+	-- round, looks in over the platform.
+	local size = Vector3.new(StationShape.SCREEN_WIDTH, StationShape.SCREEN_HEIGHT, StationShape.SCREEN_THICKNESS)
+	local half = StationShape.SCREEN_THICKNESS / 2
+	local screens = {
+		[`Screen{index}`] = frame * CFrame.new(0, 0, -(StationShape.SCREEN_BACK + half)),
+		[`InnerScreen{index}`] = frame
+			* CFrame.new(0, 0, -(StationShape.SCREEN_INNER_BACK - half))
+			* CFrame.Angles(0, math.pi, 0),
+	}
+	for name, cframe in screens do
+		local screen = block(name, size, cframe)
+		paint(screen, StationLooks.SCREEN_COLOR, StationLooks.SCREEN_MATERIAL)
+		screen.Transparency = StationLooks.SCREEN_TRANSPARENCY
+		scenery(screen, false, false)
+		-- Each client runs the kiosks' names along it (KioskController).
+		CollectionService:AddTag(screen, StationLooks.BANNER_TAG)
+		screen.Parent = parent
+	end
 end
 
 local function buildPylon(parent: Instance, index: number)

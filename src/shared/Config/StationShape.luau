@@ -26,7 +26,7 @@ local RING_HEIGHT = 14 * SCALE
 local RING_LIFT = StationSize.DOME_RISE + StationSize.DOME_RADIUS * 0.3
 
 -- The circle of kiosks: the spawn at +Z (StationConfig.SPAWN_OFFSET) falls between two of them.
-local KIOSK_SLOTS = 5
+local KIOSK_SLOTS = 4
 local SPAWN_ANGLE = math.pi / 2
 local KIOSK_FIRST_ANGLE = SPAWN_ANGLE + math.pi / KIOSK_SLOTS
 
@@ -70,6 +70,9 @@ return table.freeze({
 	SCREEN_HEIGHT = 10.9 * SCALE,
 	SCREEN_BACK = 92 * SCALE,
 	SCREEN_THICKNESS = 0.2 * SCALE,
+	-- Its twin inside the ring, facing the platform: a flat panel in front of the curved inner
+	-- face, its back this far from the ring's centre (its corners clear the band).
+	SCREEN_INNER_BACK = 89.2 * SCALE,
 
 	-- Struts from under the rim up to the ring's underside, between the screens.
 	PYLON_COUNT = 4,
@@ -81,8 +84,8 @@ return table.freeze({
 	PYLON_TOP_RADIUS = RING_OUTER_RADIUS - 1.5 * SCALE,
 	PYLON_TOP_LIFT = RING_LIFT - RING_HEIGHT / 2,
 
-	-- The kiosks and the coin board stand in a circle on the platform, facing out, so whichever
-	-- side a player lands on, a front greets them (decision 087).
+	-- The kiosks stand in a circle on the platform round the coin board in the middle, facing it
+	-- (decision 087).
 	KIOSK_SLOTS = KIOSK_SLOTS,
 	KIOSK_CIRCLE_RADIUS = StationSize.PLATFORM_RADIUS * 0.6,
 	-- The station's spawn, round the station; the circle starts half a step past it.
@@ -90,4 +93,32 @@ return table.freeze({
 	kioskAngle = kioskAngle,
 	-- A kiosk's footprint: its base with the glowing ring under it.
 	KIOSK_FOOTPRINT_RADIUS = 5.45 * SCALE,
+	-- How tall a kiosk stands, to the top of its badge.
+	KIOSK_HEIGHT = 21.7 * SCALE,
+
+	-- The coin board in the middle (the "crown", decision 087): a dais and a pillar, four screens
+	-- round it high over the kiosks, tilted down at the players, a gold ring over them, a coin on
+	-- top and a coin hologram round the pillar lower down. A screen's frame: its face's centre,
+	-- BOARD_SCREEN_OUT from the pillar and BOARD_SCREEN_MIDDLE up, facing out, its top leaning out
+	-- by BOARD_SCREEN_TILT (radians).
+	BOARD_DAIS_RADIUS = 14 * SCALE,
+	BOARD_DAIS_HEIGHT = 1.6 * SCALE,
+	BOARD_PILLAR_RADIUS = 2 * SCALE,
+	BOARD_TOP = 56 * SCALE,
+	BOARD_RING_RADIUS = 30 * SCALE,
+	BOARD_SCREENS = 4,
+	BOARD_SCREEN_WIDTH = 36 * SCALE,
+	BOARD_SCREEN_HEIGHT = 26 * SCALE,
+	BOARD_SCREEN_OUT = 20 * SCALE,
+	BOARD_SCREEN_MIDDLE = 38 * SCALE,
+	BOARD_SCREEN_TILT = math.rad(22),
+	-- The part the top is drawn on, just behind the face's plane.
+	BOARD_FACE_DEPTH = 0.2 * SCALE,
+	-- The coins: on top of the pillar, and the hologram round it.
+	BOARD_COIN_RADIUS = 5 * SCALE,
+	BOARD_COIN_LIFT = 64 * SCALE,
+	BOARD_HOLO_RADIUS = 8 * SCALE,
+	BOARD_HOLO_LIFT = 17 * SCALE,
+	-- A coin's thickness, of its radius.
+	COIN_THICKNESS = 0.22,
 })

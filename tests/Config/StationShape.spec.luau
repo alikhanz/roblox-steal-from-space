@@ -55,6 +55,19 @@ describe("StationShape", function()
 		expect(StationShape.SCREEN_WIDTH < chord).toBe(true)
 	end)
 
+	it("hangs the inner screen in front of the band, outside the dome", function()
+		local back = StationShape.SCREEN_INNER_BACK
+		local front = back - StationShape.SCREEN_THICKNESS
+		-- Its back corners stay clear of the band's curved inner face.
+		local corner = math.sqrt(back ^ 2 + (StationShape.SCREEN_WIDTH / 2) ^ 2)
+		expect(corner < StationShape.RING_INNER_RADIUS).toBe(true)
+		-- Its front stays outside the dome all the way up and down.
+		local half = StationShape.SCREEN_HEIGHT / 2
+		for y = StationShape.RING_LIFT - half, StationShape.RING_LIFT + half, 0.5 do
+			expect(front > domeRadiusAt(y)).toBe(true)
+		end
+	end)
+
 	it("stands the struts between screens, from the rim up to the ring's underside", function()
 		local segment = 2 * math.pi / StationShape.RING_SEGMENTS
 		for index = 1, StationShape.PYLON_COUNT do
@@ -88,6 +101,24 @@ describe("StationShape", function()
 		end
 	end)
 
+	it("stands the coin board in the middle, its screens over the kiosks' heads", function()
+		local board = StationShape.BOARD_DAIS_RADIUS
+		expect(board < StationShape.KIOSK_CIRCLE_RADIUS - StationShape.KIOSK_FOOTPRINT_RADIUS).toBe(true)
+		expect(board < StationSize.SPAWN_DISTANCE).toBe(true)
+		-- A screen's lowest edge, tilted, is above the kiosks' tops.
+		local half = StationShape.BOARD_SCREEN_HEIGHT / 2
+		local bottom = StationShape.BOARD_SCREEN_MIDDLE - half * math.cos(StationShape.BOARD_SCREEN_TILT)
+		expect(bottom > StationShape.KIOSK_HEIGHT).toBe(true)
+		-- Neighbouring screens don't meet at the corners (each stays within its quarter).
+		expect(StationShape.BOARD_SCREEN_WIDTH / 2 < StationShape.BOARD_SCREEN_OUT).toBe(true)
+		-- The ring is above the screens' tops and the coin above the ring, all under the ring of
+		-- banners round the dome.
+		local top = StationShape.BOARD_SCREEN_MIDDLE + half * math.cos(StationShape.BOARD_SCREEN_TILT)
+		expect(StationShape.BOARD_TOP > top).toBe(true)
+		local coinTop = StationShape.BOARD_COIN_LIFT + StationShape.BOARD_COIN_RADIUS
+		expect(coinTop < StationShape.RING_LIFT - StationShape.RING_HEIGHT / 2).toBe(true)
+	end)
+
 	it("matches the kit Blender models (assets/blender/station/station_kit.py)", function()
 		local source = fs.readFile("assets/blender/station/station_kit.py")
 		local scale = StationShape.SCALE
@@ -105,5 +136,22 @@ describe("StationShape", function()
 		expect(blender(source, "HULL_DEPTH") * scale).toBeCloseTo(StationShape.HULL_DEPTH, 1e-6)
 		expect(blender(source, "ENGINE_COUNT")).toBe(StationShape.ENGINE_COUNT)
 		expect(blender(source, "KIOSK_GLOW_RADIUS") * scale).toBeCloseTo(StationShape.KIOSK_FOOTPRINT_RADIUS, 1e-6)
+		local board: { [string]: number } = {
+			BOARD_DAIS_RADIUS = StationShape.BOARD_DAIS_RADIUS,
+			BOARD_DAIS_HEIGHT = StationShape.BOARD_DAIS_HEIGHT,
+			BOARD_PILLAR_RADIUS = StationShape.BOARD_PILLAR_RADIUS,
+			BOARD_TOP = StationShape.BOARD_TOP,
+			BOARD_RING_RADIUS = StationShape.BOARD_RING_RADIUS,
+			BOARD_SCREEN_WIDTH = StationShape.BOARD_SCREEN_WIDTH,
+			BOARD_SCREEN_HEIGHT = StationShape.BOARD_SCREEN_HEIGHT,
+			BOARD_SCREEN_OUT = StationShape.BOARD_SCREEN_OUT,
+			BOARD_SCREEN_MIDDLE = StationShape.BOARD_SCREEN_MIDDLE,
+			BOARD_FACE_DEPTH = StationShape.BOARD_FACE_DEPTH,
+		}
+		for name, value in board do
+			expect(blender(source, name) * scale).toBeCloseTo(value, 1e-6)
+		end
+		expect(math.rad(blender(source, "BOARD_SCREEN_TILT"))).toBeCloseTo(StationShape.BOARD_SCREEN_TILT, 1e-6)
+		expect(blender(source, "COIN_THICKNESS")).toBeCloseTo(StationShape.COIN_THICKNESS, 1e-6)
 	end)
 end)

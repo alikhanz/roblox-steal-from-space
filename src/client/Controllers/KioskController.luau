@@ -1,6 +1,7 @@
 --!strict
 -- The station's kiosks on the client (decision 087): each one's name on its plate and its icon
--- on its badge and in its hologram, in this client's language; and for the kiosks of the HUD
+-- on its badge and in its hologram, in this client's language, and all their names running along
+-- the ring's screens (UI/RingBanner); and for the kiosks of the HUD
 -- menu's windows (shop, quests, daily gift) the prompt at the counter, which opens the same
 -- window as the menu tile and is hidden while that tile is (no shop in this game, no gift
 -- today). The jetpacks' kiosk is the jetpack shop: its prompt is ShopController's.
@@ -14,6 +15,7 @@ local Icons = require(script.Parent.Parent.UI.Icons)
 local KioskPrompt = require(ReplicatedStorage.Shared.World.KioskPrompt)
 local KioskSign = require(script.Parent.Parent.UI.KioskSign)
 local MenuState = require(script.Parent.Parent.State.MenuState)
+local RingBanner = require(script.Parent.Parent.UI.RingBanner)
 local StationLooks = require(ReplicatedStorage.Shared.Config.StationLooks)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -142,12 +144,30 @@ function KioskController.new(dependencies: Dependencies): KioskController
 		tile.onPress()
 	end
 
+	-- A ring screen: the kiosks' names running along it, in the circle's order.
+	local function watchBanner(screen: Instance)
+		if not screen:IsA("BasePart") then
+			warn(`[KioskController] {screen:GetFullName()} is not a part; no banner`)
+			return
+		end
+		local items: { RingBanner.Item } = {}
+		for _, kiosk in StationLooks.KIOSKS do
+			local ui = KIOSK_UI[kiosk.id]
+			table.insert(items, { name = Text.get(locale, ui.label), icon = Icons.ICONS[ui.icon], color = kiosk.color })
+		end
+		RingBanner.create(screen, items).Parent = screen
+	end
+
 	local function start()
 		locale = Text.localeOf(Players.LocalPlayer)
 		for _, model in CollectionService:GetTagged(StationLooks.KIOSK_TAG) do
 			watch(model)
 		end
 		CollectionService:GetInstanceAddedSignal(StationLooks.KIOSK_TAG):Connect(watch)
+		for _, screen in CollectionService:GetTagged(StationLooks.BANNER_TAG) do
+			watchBanner(screen)
+		end
+		CollectionService:GetInstanceAddedSignal(StationLooks.BANNER_TAG):Connect(watchBanner)
 		ProximityPromptService.PromptTriggered:Connect(onPrompt)
 	end
 
