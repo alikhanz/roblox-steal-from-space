@@ -241,6 +241,8 @@ local SoundLooks = {
 	-- A one-shot frees its voice after this long even if it never ended (an asset that did not
 	-- load), seconds; longer than the longest sound at its slowest.
 	ONESHOT_LIMIT_SECONDS = 8,
+	-- Copies of each sound loaded and waiting from the start (at most RULES.maxCopies).
+	READY_COPIES = 2,
 	-- A loop that stops fades out over this long, seconds.
 	FADE_SECONDS = 0.5,
 	-- A hatch sounds this high for the lowest tier and the highest (playback speed).

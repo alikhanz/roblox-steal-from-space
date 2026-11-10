@@ -66,7 +66,8 @@ function FlightSoundController.new(dependencies: Dependencies): FlightSoundContr
 				and character:GetAttribute(FlightConfig.JETPACK_ON_ATTRIBUTE) == true
 				and character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) == nil
 			if isBurning and character and root then
-				if not burning[player] then
+				-- The own jetpack's start is caught every frame (stepOwnJet).
+				if not burning[player] and player ~= localPlayer then
 					SoundPlayer.play("JetStart", { at = root })
 				end
 				local top = TopSpeed.of(character)
@@ -139,6 +140,21 @@ function FlightSoundController.new(dependencies: Dependencies): FlightSoundContr
 		lastOxygen = oxygen
 	end
 
+	-- The local player's jetpack lights: heard the frame it happens.
+	local ownBurning = false
+	local function stepOwnJet()
+		local character = localPlayer.Character
+		local root = rootOf(character)
+		local isBurning = character ~= nil
+			and root ~= nil
+			and character:GetAttribute(FlightConfig.JETPACK_ON_ATTRIBUTE) == true
+			and character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) == nil
+		if isBurning and not ownBurning and root then
+			SoundPlayer.play("JetStart", { at = root })
+		end
+		ownBurning = isBurning
+	end
+
 	local wasOnStand = false
 	local function stepStand()
 		local character = localPlayer.Character
@@ -164,6 +180,9 @@ function FlightSoundController.new(dependencies: Dependencies): FlightSoundContr
 		end)
 		local waited = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
+			-- What the player does is heard at once; the loops follow a few times a second.
+			stepOwnJet()
+			stepStand()
 			waited += deltaTime
 			if waited < STEP_SECONDS then
 				return
@@ -171,7 +190,6 @@ function FlightSoundController.new(dependencies: Dependencies): FlightSoundContr
 			waited = 0
 			stepJets()
 			stepOxygen(os.clock())
-			stepStand()
 		end)
 	end
 

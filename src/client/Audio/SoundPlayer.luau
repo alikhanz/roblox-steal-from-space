@@ -269,16 +269,18 @@ function SoundPlayer.loop(name: Name, options: Options?): Loop?
 	}
 end
 
--- Loads every sound of this game ahead and keeps one of each ready, so the first of each plays
--- on time. Yields.
+-- Loads every sound of this game ahead and keeps a few of each ready, so even quick repeats
+-- (clicks) start at once. Yields.
 function SoundPlayer.preload()
 	local sounds: { Instance } = {}
 	for name in SoundLooks.SOUNDS do
 		local id = SoundLooks.assetOf(game.GameId, name)
 		if id then
-			local sound = make(name, id)
-			release(name, sound, false)
-			table.insert(sounds, sound)
+			for _ = 1, SoundLooks.READY_COPIES do
+				local sound = make(name, id)
+				release(name, sound, false)
+				table.insert(sounds, sound)
+			end
 		end
 	end
 	local ok, problem = pcall(ContentProvider.PreloadAsync, ContentProvider, sounds)

@@ -142,7 +142,7 @@ Lifecycle.run({
 	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
 	KioskController.new({ menu = menuState, windows = windowState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
-	PvpEffectsController.new(),
+	PvpEffectsController.new({ abilities = abilityState }),
 	NewbieViewController.new(),
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
 	DomeFlightHintController.new({ toast = toastState.push, tutorialDone = tutorialController.isDone }),

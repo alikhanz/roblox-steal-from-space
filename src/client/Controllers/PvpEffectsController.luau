@@ -6,19 +6,28 @@
 -- in workspace[PvpLooks.EFFECTS_FOLDER_NAME], stepped together once a frame.
 -- Also every fight's sounds (docs/design/SOUND.md), heard from where they happen: the strike's
 -- swing (a character's lunge starts) and hit (the server's impact part), the harpoon's shot and
--- grab (as the hook reaches its target), the bomb's throw and blast.
+-- grab (as the hook reaches its target), the bomb's throw and blast. The local player's own shot
+-- and throw sound at the press, as the strike's lunge does, not a round trip later.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local AbilityState = require(script.Parent.Parent.State.AbilityState)
 local BombVisual = require(script.Parent.Parent.World.BombVisual)
+local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HarpoonVisual = require(script.Parent.Parent.World.HarpoonVisual)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpLooks = require(ReplicatedStorage.Shared.Config.PvpLooks)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
+
+export type Dependencies = {
+	abilities: AbilityState.AbilityState,
+}
 
 export type PvpEffectsController = {
 	name: string,
@@ -43,7 +52,8 @@ end
 -- The harpoon: the shot from the shooter, then the grab where the hook lands, as it gets there.
 local function soundHarpoon(shooter: Player, target: Vector3, hit: boolean)
 	local root = rootOf(shooter)
-	if root then
+	-- The local player's own shot sounded at the press.
+	if root and shooter ~= Players.LocalPlayer then
 		SoundPlayer.play("HarpoonShot", { at = root })
 	end
 	if not hit then
@@ -55,7 +65,32 @@ local function soundHarpoon(shooter: Player, target: Vector3, hit: boolean)
 	end)
 end
 
-function PvpEffectsController.new(): PvpEffectsController
+-- The local player's own abilities pressed, sounded at once: the same press the server reads
+-- (FlightInputs), when the ability can go (in space, not stunned, not cooling down).
+local OWN_SOUNDS: { [AbilityState.Kind]: SoundPlayer.Name } = { Harpoon = "HarpoonShot", Bomb = "BombThrow" }
+local OWN_ACTIONS: { [AbilityState.Kind]: string } = { Harpoon = FlightInputs.HARPOON, Bomb = FlightInputs.BOMB }
+
+local function watchOwnPresses(abilities: AbilityState.AbilityState)
+	local player = Players.LocalPlayer
+	local wasPressed: { [AbilityState.Kind]: boolean } = {}
+	RunService.Heartbeat:Connect(function()
+		local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
+		local character = player.Character
+		local root = rootOf(player)
+		local canUse = character ~= nil
+			and character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true
+			and character:GetAttribute(GuardianConfig.HIT_VELOCITY_ATTRIBUTE) == nil
+		for kind, action in OWN_ACTIONS do
+			local isPressed = context ~= nil and FlightInputs.isPressed(context, action)
+			if isPressed and not wasPressed[kind] and canUse and root and not abilities.isCooling(kind) then
+				SoundPlayer.play(OWN_SOUNDS[kind], { at = root })
+			end
+			wasPressed[kind] = isPressed
+		end
+	end)
+end
+
+function PvpEffectsController.new(dependencies: Dependencies): PvpEffectsController
 	local effects: { Effect } = {}
 	local bombs: { [number]: BombVisual.Effect } = {}
 
@@ -83,7 +118,9 @@ function PvpEffectsController.new(): PvpEffectsController
 			end
 		end)
 		Remotes.BombThrown.SetCallback(function(throw)
-			SoundPlayer.play("BombThrow", { at = throw.start })
+			if throw.thrower ~= Players.LocalPlayer then
+				SoundPlayer.play("BombThrow", { at = throw.start })
+			end
 			-- Drawn if it starts or could end near: it flies at most `fuse` seconds.
 			local ending = throw.start + throw.velocity * throw.fuse
 			if not isNear(throw.start) and not isNear(ending) then
@@ -104,6 +141,7 @@ function PvpEffectsController.new(): PvpEffectsController
 			end
 		end)
 		RunService.RenderStepped:Connect(step)
+		watchOwnPresses(dependencies.abilities)
 
 		CollectionService:GetInstanceAddedSignal(PvpConfig.STRIKE_IMPACT_TAG):Connect(function(impact)
 			if impact:IsA("BasePart") then
