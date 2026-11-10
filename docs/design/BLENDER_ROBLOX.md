@@ -71,7 +71,7 @@ Incident: code and comment said "wings swept 38° back", but the rotation sign w
 The game keeps **bare models in the repo** and **dresses them in code**.
 
 - **Bare models:** `assets/aliens/<kind>.rbxm`, a Folder `<kind>` with its ten pets `<kind>-<variant>` (variants `0`–`4`, `m0`–`m4`). A pet holds only what Blender made: MeshParts named `<role>_<n>` with a `Paint` attribute, the pet's data in attributes (`Zone`, `Family`, `Tier`, `Meteor`, `Signature`, `Glow`, `Core`, `TierColor`, `Shell`), the wings' `Dust` points.
-- **Dressing:** `src/server/World/AlienDress.luau` (paint, metal, lava, lights, particles, wings, comets, rune, medal); `World/AlienModel.luau` dresses each kind and variant once, then clones, scales and places it. A change in looks is a code change: no re-export, no re-upload.
+- **Dressing** — `src/shared/World/AlienDress.luau`, in two halves. The server prepares a pet (`prepare`: paint, metal, lava skin, wing colours, dust points, the `Body` box) and `World/AlienModel.luau` clones it per kind and variant; each client adds the effects (`adornLocally`: particles, light, comets, rune, medal, crest) on a local copy at the dressing scale and moves them onto the model. Effects were half of a pet's instances and the heaviest (1776 emitters for 30 pets), so they never cross the network. A floor alien (`Plain` attribute) gets no effects and no motion. A change in looks is a code change: no re-export, no re-upload.
 - **Getting a kind in:**
   1. Export, upload, insert (steps 1–3 of section 5). The pack lands in `ServerStorage.RoboPackIn`.
   2. Select `RoboPackIn` → right click → Save / Export → **Save to File** → `out/RoboPackIn.rbxm`.
