@@ -58,6 +58,10 @@ local RIBBONS = { Aurora = true }
 -- Parts never seen (and hinge markers, `hinge…`: a wing's or a crab jaw's pivot): the floor
 -- ring (the rune circle takes its place) and Blender's sunburst spikes (a medal of light does).
 local HIDDEN_ROLES = { ring = true, rays = true }
+-- The paint source of a part joined from parts of several colours, its colours baked into its mesh.
+-- The export (export_robo_roblox.py, `baked`) bakes the colours this file gives each paint: keep the
+-- two in step (the boosts in `paint`, GOLDS, the sources treated by name above).
+local BAKED = "Baked"
 -- What a dressing adds to the model: taken away before dressing again.
 local ADDED_NAMES = { Fx = true, Body = true, Halo = true, Tip = true, Tail = true }
 -- Particles fade in and out instead of popping: the soft look.
@@ -333,6 +337,11 @@ local function paint(pet: Model, paints: { [string]: Paint }, core: Color3): ({ 
 			part.Color = colour
 			part.Reflectance = 0
 			part.Transparency = 0
+		end
+		-- Parts of several colours joined into one: their colours, as painted above, are in the
+		-- mesh's vertices, and the part's colour multiplies them (export_robo_roblox.py, "Baked").
+		if p.source == BAKED then
+			part.Color = WHITE
 		end
 		-- What the part is in Blender, where a flat Roblox material would get it wrong.
 		local source = p.source

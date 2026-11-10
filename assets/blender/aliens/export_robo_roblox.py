@@ -12,6 +12,7 @@
 # Run headless from the repo root:
 #   blender --background --factory-startup --python assets/blender/aliens/export_robo_roblox.py -- <outdir> <kind id>:<0..4 | m0..m4> ...
 
+import colorsys
 import json
 import os
 import sys
@@ -119,6 +120,62 @@ def keeps_apart(role, material):
     )
 
 
+# Baking (docs/plans/ALIEN_MODELS.md, 2в): Roblox draws a mesh's vertex colours (glTF COLOR_0) times
+# the part's Color, on SmoothPlastic, Neon, Glass and the PetMetal variant alike (tested in Studio,
+# 2026-11-10). So static parts of one role and one class of material (plastic of one reflectance,
+# metal, Neon, glass of one transparency) join into one mesh whatever their colours: each keeps its
+# colour in its vertices, the game paints the joined part white (paint code source "Baked").
+# The colour baked is the one the game gives the paint (AlienDress.paint, kept in step by hand):
+# plastic and metal a touch richer, gold its own bright gold.
+BAKED = "Baked"
+# Materials AlienDress.paint treats by name (crystals, auras, the aurora's ribbons, the nebula): they
+# keep their own paint.
+SPECIAL_SOURCES = KEEP_SOURCES | {
+    "Shard", "IceSpike", "Icicle", "Fringe", "Spout", "Bubble", "Brood",
+    "Hover", "Smoke",
+    "Aurora",
+    "Galaxy",
+}
+GOLD_SOURCES = {"Gold", "GoldArmour", "Crown", "Circlet", "Badge"}
+GOLD = (255 / 255, 190 / 255, 45 / 255)
+# Roles the game colours itself (the core from the pet's colours, the wings in its accent) or hides.
+OWN_COLOUR_ROLES = {"core", "wingL", "wingR", "ring", "rays"}
+
+
+def boost(rgb, saturation, value):
+    """Color3:ToHSV, scaled and clamped, back (AlienDress.boost)."""
+    h, s, v = colorsys.rgb_to_hsv(*rgb)
+    return colorsys.hsv_to_rgb(h, min(1.0, s * saturation), min(1.0, v * value))
+
+
+def baked(role, paint):
+    """The class of look a part joins others of its role in, and the colour (sRGB, 0..1) the game would
+    give it; None for a part that keeps its own paint."""
+    source = paint["source"]
+    if role in OWN_COLOUR_ROLES or source in SPECIAL_SOURCES or source.endswith("Wing"):
+        return None
+    # The paint code's rounded colour: what the game reads.
+    rgb = tuple(round(c * 255) / 255 for c in paint["color"])
+    material = paint["material"]
+    if material == "SmoothPlastic" and paint.get("metal"):
+        return ("S", 0, paint["reflectance"]), GOLD if source in GOLD_SOURCES else boost(rgb, 1.15, 1.05)
+    if material == "SmoothPlastic":
+        return ("S", 0, paint["reflectance"]), boost(rgb, 1.25, 1.12)
+    if material == "Neon":
+        return ("N", 0, 0), rgb
+    if material == "Glass":
+        return ("G", paint["transparency"], 0), rgb
+    return None
+
+
+def bake_colour(obj, rgb):
+    """The object's colour in its vertices (sRGB in Blender, linear in the GLB as glTF wants)."""
+    attribute = obj.data.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
+    for item in attribute.data:
+        item.color_srgb = (*rgb, 1.0)
+    obj.data.color_attributes.active_color = attribute
+
+
 def z_span(obj):
     corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
     return min(c.z for c in corners), max(c.z for c in corners)
@@ -150,21 +207,31 @@ def join_by_role():
     meshes = [obj for obj in bpy.context.view_layer.objects if obj.type == "MESH" and obj.data.materials and obj.data.materials[0]]
     floor = jelly_floor(meshes)
     groups = {}
+    bakes = {}
     for obj in meshes:
         role = roles.get(obj.name, obj.get("role", "body"))
         material = obj.data.materials[0]
         if keeps_apart(role, material):
             look = "m:" + material.name
         else:
-            look = "p:" + paint_code({**paint_of(material), "source": material.name.split(".")[0]})
+            paint = {**paint_of(material), "source": material.name.split(".")[0]}
+            bake = baked(role, paint)
+            if bake:
+                look_class, rgb = bake
+                look = "b:" + ",".join(f"{value:g}" for value in look_class[1:]) + look_class[0]
+                bake_colour(obj, rgb)
+            else:
+                look = "p:" + paint_code(paint)
             if floor is not None:
                 low, high = z_span(obj)
                 look += "|above" if low > floor else "|below" if high < floor else "|" + obj.name
         groups.setdefault((role, look), []).append(obj)
     parts = {}
-    for index, ((role, _), objects) in enumerate(sorted(groups.items())):
+    for index, ((role, look), objects) in enumerate(sorted(groups.items())):
         first = objects[0].data.materials[0]
         material = first.name
+        if look.startswith("b:"):
+            bakes[f"{role}_{index}"] = {**paint_of(first), "color": [1.0, 1.0, 1.0], "source": BAKED}
         # Copies of one look share the first one's material, so the joined mesh is one primitive.
         for obj in objects[1:]:
             own = obj.data.materials[0]
@@ -179,9 +246,11 @@ def join_by_role():
             bpy.ops.object.join()
         joined = bpy.context.view_layer.objects.active
         joined.name = joined.data.name = f"{role}_{index}"
+        if look.startswith("b:"):
+            joined.data.color_attributes.active_color = joined.data.color_attributes["Col"]
         # The Blender material's name goes along, so the game (and a check of the render against
         # the game) knows what a part is, not only its colour.
-        parts[joined.name] = {**paint_of(bpy.data.materials[material]), "source": material.split(".")[0]}
+        parts[joined.name] = bakes.get(joined.name) or {**paint_of(bpy.data.materials[material]), "source": material.split(".")[0]}
     return parts
 
 
@@ -204,6 +273,17 @@ def marker(name, location):
     obj.location = location
     bpy.context.scene.collection.objects.link(obj)
     return obj
+
+
+def export_glb(path):
+    """The selection as a GLB: geometry, the lava's UVs and the baked vertex colours, no materials (the
+    game paints from the paint codes in the names)."""
+    options = dict(filepath=path, export_format="GLB", use_selection=True, export_apply=True, export_yup=True,
+                   export_texcoords=True, export_materials="NONE")
+    try:
+        bpy.ops.export_scene.gltf(**options, export_vertex_color="ACTIVE")
+    except TypeError:
+        bpy.ops.export_scene.gltf(**options, export_colors=True)
 
 
 PACK_VARIANTS = ["0", "1", "2", "3", "4", "m0", "m1", "m2", "m3", "m4"]
@@ -252,8 +332,7 @@ def pack(kind):
     bpy.context.view_layer.layer_collection.children["Packed"].exclude = False
     bpy.ops.object.select_all(action="SELECT")
     path = os.path.join(OUT_DIR, f"pack-{kind_id}.glb")
-    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_apply=True,
-                              export_yup=True, export_texcoords=True, export_materials="NONE")
+    export_glb(path)
     print("Packed", kind_id, len(bpy.context.selected_objects), "nodes", os.path.getsize(path), "bytes")
 
 
@@ -274,8 +353,7 @@ def main():
         parts = join_by_role()
         name = f"{kind_id}-{variant}"
         bpy.ops.object.select_all(action="SELECT")
-        bpy.ops.export_scene.gltf(filepath=os.path.join(OUT_DIR, name + ".glb"), export_format="GLB", use_selection=True,
-                                  export_apply=True, export_yup=True, export_texcoords=True, export_materials="NONE")
+        export_glb(os.path.join(OUT_DIR, name + ".glb"))
         colours = robo.theme(kind[3], kind[4])["colours"]
         meta = {
             "kind": kind_id, "zone": kind[3], "family": kind[2], "tier": tier, "meteor": meteor, "slot": kind[8],

@@ -33,6 +33,53 @@ describe("Alien models", function()
 		expect(#numbers(taken)).toBe(#AlienConfig.TIER_ORDER)
 	end)
 
+	it("bakes the colours the game gives a paint (export_robo_roblox.py against AlienDress)", function()
+		local export = fs.readFile("assets/blender/aliens/export_robo_roblox.py")
+		local dress = fs.readFile("src/shared/World/AlienDress.luau")
+		-- The names of a Lua table literal `local NAME = { A = true, ... }`.
+		local function luaNames(name: string): { string }
+			local body = assert(string.match(dress, `local {name} = (%b\{\})`), `AlienDress has no {name}`)
+			local names = {}
+			for key in string.gmatch(body, "(%a+) = true") do
+				table.insert(names, key)
+			end
+			return names
+		end
+		-- The quoted names in a Python set literal assigned to `name`.
+		local function pythonNames(name: string): { [string]: boolean }
+			local body = assert(string.match(export, `\n{name} = ([^\n]*%b\{\})`), `export has no {name}`)
+			local names = {}
+			for key in string.gmatch(body, '"(%a+)"') do
+				names[key] = true
+			end
+			return names
+		end
+		local kept = pythonNames("SPECIAL_SOURCES")
+		for key in pythonNames("KEEP_SOURCES") do
+			kept[key] = true
+		end
+		-- Every material the dressing treats by name keeps its own paint in the export.
+		for _, set in { "STAND_INS", "CRYSTALS", "AURAS", "RIBBONS" } do
+			for _, key in luaNames(set) do
+				expect(kept[key]).toBe(true)
+			end
+		end
+		expect(kept.Galaxy).toBe(true)
+		expect(kept.Jet).toBe(true)
+		local golds = pythonNames("GOLD_SOURCES")
+		local luaGolds = luaNames("GOLDS")
+		for _, key in luaGolds do
+			expect(golds[key]).toBe(true)
+		end
+		-- The boosts: plastic and metal.
+		expect(string.find(dress, "boost(colour, 1.25, 1.12)", 1, true)).toBeTruthy()
+		expect(string.find(export, "boost(rgb, 1.25, 1.12)", 1, true)).toBeTruthy()
+		expect(string.find(dress, "boost(colour, 1.15, 1.05)", 1, true)).toBeTruthy()
+		expect(string.find(export, "boost(rgb, 1.15, 1.05)", 1, true)).toBeTruthy()
+		expect(string.find(dress, "Color3.fromRGB(255, 190, 45)", 1, true)).toBeTruthy()
+		expect(string.find(export, "GOLD = (255 / 255, 190 / 255, 45 / 255)", 1, true)).toBeTruthy()
+	end)
+
 	it("keeps a file per known kind, listed with its fingerprint, each with its ten pets", function()
 		local manifest = serde.decode("json", fs.readFile(MANIFEST)) :: { [string]: string }
 		local files: { [string]: boolean } = {}
