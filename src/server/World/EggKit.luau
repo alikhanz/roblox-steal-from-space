@@ -1,48 +1,50 @@
 --!strict
--- The egg's kit of meshes (decision 087): the starry shell, its stars, its cracks and a ring, from
--- Blender (assets/blender/eggs/egg_kit.py), in ServerStorage.EggKit of the place (World/MeshKit).
--- The pieces sit where the egg wears them, about the shell's centre, so the kit itself holds where
--- each goes. Without the kit in the place eggs stand in greybox: `piece` returns nil.
+-- The egg's kit of meshes (decision 087): the capsule's base and cap, its seam, window, antenna
+-- and tip, lava cracks and a ring, from Blender (assets/blender/eggs/egg_kit.py), in
+-- ServerStorage.EggKit of the place (World/MeshKit). The pieces sit where a medium egg wears them;
+-- the kit's `Centre` speck marks the egg's centre, so the kit itself holds where each piece goes.
+-- Without the kit in the place eggs stand in greybox: `piece` returns nil.
 --
--- Into the place: the Open Cloud asset of egg-kit.glb inserted into ServerStorage, its MeshParts
--- moved into a Folder `EggKit` without moving them, CollisionFidelity Box. Save the place.
+-- Into the place: Open Cloud asset 101037392998831 (egg-kit.glb) inserted into ServerStorage, its
+-- MeshParts moved into a Folder `EggKit` without moving them (CollisionFidelity stays Default:
+-- an egg's pieces touch nothing). Save the place. Studio downloads fresh meshes slowly: right
+-- after an insert, eggs may show only their small pieces for half a minute.
 
 local MeshKit = require(script.Parent.MeshKit)
 
 local FOLDER = "EggKit"
 
-export type PieceId = "Shell" | "Stars" | "Cracks" | "Ring"
+export type PieceId = "Base" | "Cap" | "Seam" | "Window" | "Antenna" | "Tip" | "Cracks" | "Ring"
 
 export type Piece = {
-	-- A fresh copy, welded to nothing, touching nothing, at the size it was modelled.
+	-- A fresh copy, welded to nothing, touching nothing, at the size of a medium egg.
 	part: MeshPart,
-	-- Where it sits in the shell's frame, at the size it was modelled (the ring: at the centre).
+	-- Where it sits from a medium egg's centre (the ring: at the centre, lying flat).
 	offset: CFrame,
 }
 
 local EggKit = {}
 
--- A copy of `id` and where it goes on the shell; nil without the kit.
+-- A copy of `id` and where it goes on the egg; nil without the kit.
 function EggKit.piece(id: PieceId): Piece?
-	local shell = MeshKit.source(FOLDER, "Shell")
+	local centre = MeshKit.source(FOLDER, "Centre")
 	local source = MeshKit.source(FOLDER, id)
 	local part = MeshKit.piece(FOLDER, id)
-	if not shell or not source or not part then
+	if not centre or not source or not part then
 		return nil
 	end
-	-- What the egg wears is welded to the shell and moves with it.
+	-- What the egg wears is welded to it and moves with it.
 	part.Anchored = false
 	part.CanCollide = false
 	part.CanQuery = false
 	part.Massless = true
 	part.CastShadow = false
-	return { part = part, offset = shell.CFrame:ToObjectSpace(source.CFrame) }
+	return { part = part, offset = centre.CFrame:ToObjectSpace(source.CFrame) }
 end
 
--- The shell's size as modelled: a piece's size and offset scale by the egg's size over this.
-function EggKit.shellSize(): Vector3?
-	local shell = MeshKit.source(FOLDER, "Shell")
-	return if shell then shell.Size else nil
+-- Whether the place has the kit (its centre mark): with it, an egg is built from the kit.
+function EggKit.present(): boolean
+	return MeshKit.source(FOLDER, "Centre") ~= nil
 end
 
 return table.freeze(EggKit)

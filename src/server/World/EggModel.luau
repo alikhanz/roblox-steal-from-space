@@ -1,15 +1,18 @@
 --!strict
--- Builds a space egg (decision 087): a starry shell from the egg kit in its rarity's tint, wearing
--- more the rarer it is (stars, a ring in orbit, glowing cracks, a halo); scaled by its size. Rarer
--- eggs glow, meteor eggs burn with lava in their cracks, lucky ones (the star egg) sparkle.
--- Without the kit in the place (World/EggKit) the egg is the greybox: a stretched ball.
+-- Builds a space egg (decision 087): a ceramic capsule from the egg kit, a pearl base and a cap in
+-- its rarity's colour, wearing more the rarer it is (a lit seam, a lit window, an antenna and a
+-- ring in orbit, a gold cap and a halo); scaled by its size. Rarer eggs glow, meteor eggs are
+-- scorched with lava in their seams and burn, lucky ones (the star egg) sparkle. Without the kit
+-- in the place (World/EggKit) the egg is the greybox: a stretched ball.
 --
--- The egg is one part (the shell) that callers place by its CFrame; what it wears is welded to it
--- and moves with it.
+-- The egg is one part that callers place by its CFrame and size: with the kit an invisible box the
+-- egg's size, the capsule's pieces welded to it. Its look vector is where the window faces.
 
+local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggKit = require(script.Parent.EggKit)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
@@ -37,61 +40,88 @@ local function setUp(part: BasePart)
 	part.CastShadow = false
 end
 
-local function greyboxShell(color: Color3, size: Vector3): BasePart
-	local egg = Instance.new("Part")
-	egg.Size = size
-	egg.Color = color
-	egg.Material = EggLooks.SHELL_MATERIAL
-	-- A sphere mesh stretched to the part's size gives the egg shape.
-	local mesh = Instance.new("SpecialMesh")
-	mesh.MeshType = Enum.MeshType.Sphere
-	mesh.Parent = egg
-	return egg
-end
-
--- Puts `part` at `offset` from the shell and welds it there.
-local function wear(shell: BasePart, part: BasePart, offset: CFrame, name: string)
+-- Puts `part` at `offset` from the egg and welds it there. A Weld, not a WeldConstraint: callers
+-- set the egg's CFrame before it enters the workspace, and a WeldConstraint would switch on with
+-- whatever offset the parts have then; a Weld holds its C0 whenever it switches on.
+local function wear(egg: BasePart, part: BasePart, offset: CFrame, name: string)
 	part.Name = name
-	part.CFrame = shell.CFrame * offset
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = shell
+	part.CFrame = egg.CFrame * offset
+	local weld = Instance.new("Weld")
+	weld.Part0 = egg
 	weld.Part1 = part
+	weld.C0 = offset
 	weld.Parent = part
-	part.Parent = shell
+	part.Parent = egg
 end
 
--- A piece of the kit on the shell where it was modelled, scaled by `k`, in Neon of `color`.
-local function wearPiece(shell: BasePart, id: EggKit.PieceId, k: number, color: Color3)
+-- A piece of the kit where a medium egg wears it, grown by `scale`.
+local function wearPiece(
+	egg: BasePart,
+	id: EggKit.PieceId,
+	scale: number,
+	color: Color3,
+	material: Enum.Material
+): MeshPart?
 	local piece = EggKit.piece(id)
 	if not piece then
-		return
+		return nil
 	end
-	piece.part.Size *= k
-	piece.part.Material = Enum.Material.Neon
+	piece.part.Size *= scale
 	piece.part.Color = color
-	wear(shell, piece.part, piece.offset.Rotation + piece.offset.Position * k, id)
+	piece.part.Material = material
+	wear(egg, piece.part, piece.offset.Rotation + piece.offset.Position * scale, id)
+	return piece.part
 end
 
--- A ring from the kit: `radius` studs, at `frame` from the shell's centre.
-local function wearRing(
-	shell: BasePart,
-	name: string,
-	radius: number,
-	frame: CFrame,
-	color: Color3,
-	transparency: number
-)
+-- A ring from the kit: `radius` studs, at `frame` from the egg's centre.
+local function wearRing(egg: BasePart, name: string, radius: number, frame: CFrame, color: Color3, transparency: number)
 	local piece = EggKit.piece("Ring")
 	if not piece then
 		return
 	end
 	-- The ring is modelled flat: its width across is X (and Z); its thickness is Y.
-	local k = radius * 2 / piece.part.Size.X
-	piece.part.Size *= k
+	piece.part.Size *= radius * 2 / piece.part.Size.X
 	piece.part.Material = Enum.Material.Neon
 	piece.part.Color = color
 	piece.part.Transparency = transparency
-	wear(shell, piece.part, frame, name)
+	wear(egg, piece.part, frame, name)
+end
+
+local function capsule(egg: BasePart, look: EggLooks.RarityLook, scale: number, meteor: boolean)
+	local plastic = EggLooks.SHELL_MATERIAL
+	local neon = Enum.Material.Neon
+	local shell = if meteor then EggLooks.METEOR.shell else EggLooks.PEARL
+	local glow = if meteor then EggLooks.METEOR.lava else look.color
+	wearPiece(egg, "Base", scale, shell, plastic)
+	local cap = wearPiece(egg, "Cap", scale, if meteor then shell else look.cap, plastic)
+	if cap and look.gold and not meteor then
+		-- Polished gold, as the pets' (AlienDress): the metal variant, if the place has it.
+		local variant = AlienLooks.MODELS.METAL_VARIANT
+		if MaterialService:FindFirstChild(variant) then
+			cap.MaterialVariant = variant
+		end
+	end
+	local seamLit = meteor or look.seamLit
+	wearPiece(egg, "Seam", scale, if seamLit then glow else EggLooks.UNLIT, if seamLit then neon else plastic)
+	local windowLit = meteor or look.windowLit
+	wearPiece(egg, "Window", scale, if windowLit then glow else EggLooks.UNLIT, if windowLit then neon else plastic)
+	if meteor then
+		wearPiece(egg, "Cracks", scale, glow, neon)
+		return
+	end
+	if look.antenna then
+		wearPiece(egg, "Antenna", scale, EggLooks.ANTENNA, plastic)
+		wearPiece(egg, "Tip", scale, glow, neon)
+	end
+	if look.orbit then
+		local orbit = EggLooks.ORBIT
+		wearRing(egg, "Orbit", orbit.radius * scale, orbit.tilt, glow, orbit.transparency)
+	end
+	if look.halo then
+		local halo = EggLooks.HALO
+		local above = CFrame.new(0, (EggLooks.EGG_SIZE.Y / 2 + halo.gap) * scale, 0)
+		wearRing(egg, "Halo", halo.radius * scale, above, halo.color, 0)
+	end
 end
 
 function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, options: Options?): BasePart
@@ -100,45 +130,22 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, opti
 	local glow = look.glow * (if options and options.glowScale then options.glowScale else 1)
 	local variant = if options and options.variant then options.variant else "Normal"
 	local meteor = variant == "Meteor"
-	local eggSize = EggLooks.EGG_SIZE * scale
-	local shellColor = if meteor then EggLooks.METEOR.shell else look.shell
 
-	local kitShell = EggKit.piece("Shell")
-	local modelled = EggKit.shellSize()
-	local egg: BasePart
-	if kitShell and modelled then
-		egg = kitShell.part
-		egg.Size = eggSize
-		egg.Color = shellColor
-		egg.Material = EggLooks.SHELL_MATERIAL
-	else
-		egg = greyboxShell(shellColor, eggSize)
-	end
+	local egg = Instance.new("Part")
 	egg.Name = "Egg"
+	egg.Size = EggLooks.EGG_SIZE * scale
 	setUp(egg)
-
-	if kitShell and modelled then
-		-- How much the kit's pieces grow: this egg's height over the shell's as modelled.
-		local k = eggSize.Y / modelled.Y
-		local accent = (if meteor then EggLooks.METEOR.crackColor else look.color):Lerp(
-			Color3.new(1, 1, 1),
-			if meteor then 0 else EggLooks.ACCENT_LIGHTEN
-		)
-		if look.stars and not meteor then
-			wearPiece(egg, "Stars", k, EggLooks.STAR_COLOR)
-		end
-		if look.cracks or meteor then
-			wearPiece(egg, "Cracks", k, accent)
-		end
-		if look.orbit and not meteor then
-			local orbit = EggLooks.ORBIT
-			wearRing(egg, "Orbit", orbit.radius * scale, orbit.tilt, accent, orbit.transparency)
-		end
-		if look.halo and not meteor then
-			local halo = EggLooks.HALO
-			local above = CFrame.new(0, eggSize.Y / 2 + halo.gap * scale, 0)
-			wearRing(egg, "Halo", halo.radius * scale, above, halo.color, 0)
-		end
+	if EggKit.present() then
+		-- The capsule's pieces show the egg; this box only holds them, the light and the tags.
+		egg.Transparency = 1
+		capsule(egg, look, scale, meteor)
+	else
+		egg.Color = if meteor then EggLooks.METEOR.shell else look.cap
+		egg.Material = EggLooks.SHELL_MATERIAL
+		-- A sphere mesh stretched to the part's size gives the egg shape.
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = egg
 	end
 
 	if glow > 0 then
