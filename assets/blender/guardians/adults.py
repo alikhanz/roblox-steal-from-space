@@ -3,16 +3,21 @@
 # longer and heavier, less baby roundness, armour plates, spikes and blades, a scowling visor
 # whose eyes glow in the guardian's state colour (asleep, chasing, going home).
 #
-# A builder draws the adult at base point (x, 0, z) facing -Y, in baby units (the pets' scale in
-# robo.py), and the caller grows it with robo._grow. Draft for the concept review.
+# Each post's adult is grown from its main kind (robo_kinds.py): the same family, colours, shape
+# parameters (a tall acid slime, a crab with one huge claw) and signature parts. A builder draws
+# the adult at base point (x, 0, z) facing -Y and returns the same anchors as a pet family
+# (robo.py: shells, hull, top, centre, radius...), so the pets' signature parts sit on it too.
+# They are sized for a pet, so they are put on while the adult is shrunk to a pet's size
+# (FAMILIES' `pet_scale`); a few signatures have adult versions of their own (ADULT_SIGNATURES).
 
 import math
 
+import bpy
 import real
 import robo
 import robo_kinds
 from mathutils import Euler, Quaternion, Vector
-from robo import cone, cylinder, glow, pill, sphere, torus
+from robo import cone, cylinder, gem, glow, pill, sphere, torus
 
 # Chase red: the state the player meets them in.
 ALARM = (1.0, 0.02, 0.01)
@@ -32,6 +37,13 @@ def metal():
 
 def visor_mat():
     return real.gloss("Visor", (0.012, 0.015, 0.02), 0.04)
+
+
+def spikes_of(zone):
+    """What an adult's spikes are made of: ice in the Ice Rings, metal elsewhere."""
+    if zone == "ice":
+        return lambda theme: real.crystal("Shard", theme["colours"]["glow"], 1.5)
+    return lambda theme: metal()
 
 
 def limb(a, b, radius, mat):
@@ -78,12 +90,6 @@ def slit_eye(hull, point, side, size, brow, eyes=None):
     oriented(sphere(tuple(location + normal * 0.02 + up * size * 0.55), (size * 1.35, 0.12, size * 0.3), brow, 24), normal, twist)
 
 
-def bpy_update():
-    import bpy
-
-    bpy.context.view_layer.update()
-
-
 def _surface(obj, point):
     tree = robo._tree(obj)
     hit = tree.find_nearest(Vector(point))
@@ -99,58 +105,55 @@ def on(obj, point, lift=0.0):
 # --- Slime: the warden ----------------------------------------------------------------------------
 
 
-def slime(x, z, theme):
-    """A tall jelly in a ribbed armoured cage on a heavy base, with gauntlets and a warden's lights."""
+def slime(x, z, theme, p, zone):
+    """A jelly in a ribbed armoured cage on a heavy base, with gauntlets. p: w (width), h (height)."""
+    w, h = p.get("w", 1.0), p.get("h", 1.0)
     shell = theme["shell"]()
     trim = theme["accent_shell"]
     accent = theme["accent"]
-    cylinder((x, 0, z + 0.32), 1.05, 0.64, shell, vertices=48)
+    spiked = spikes_of(zone)
+    base = cylinder((x, 0, z + 0.32), 1.05 * w, 0.64, shell, vertices=48)
     # An armoured skirt of plates round the base, flaring out at the bottom.
     for index in range(14):
         angle = index / 14 * math.tau
-        pill((x + math.cos(angle) * 1.06, math.sin(angle) * 1.06, z + 0.3), (0.2, 0.05, 0.3), shell,
+        pill((x + math.cos(angle) * 1.06 * w, math.sin(angle) * 1.06 * w, z + 0.3), (0.2 * w, 0.05, 0.3), shell,
              (math.radians(-14), 0, angle + math.pi / 2), 0.6)
-    torus((x, 0, z + 0.66), 0.97, 0.12, trim())
-    torus((x, 0, z + 0.48), 1.1, 0.035, glow(accent, 8.0))
-    # Metal spikes round the collar, the face kept clear.
+    torus((x, 0, z + 0.66), 0.97 * w, 0.12, trim())
+    torus((x, 0, z + 0.48), 1.1 * w, 0.035, glow(accent, 8.0))
+    # Spikes round the collar, the face kept clear.
     for index in range(10):
         angle = index / 10 * math.tau
         if abs(math.remainder(angle + math.pi / 2, math.tau)) < 0.5:
             continue
         out = Vector((math.cos(angle), math.sin(angle), 0))
-        spike(Vector((x, 0, z + 0.72)) + out * 0.95, 0.09, 0.42, metal(), out * 0.55 + Vector((0, 0, 1)))
+        spike(Vector((x, 0, z + 0.72)) + out * 0.95 * w, 0.09, 0.42, spiked(theme), out * 0.55 + Vector((0, 0, 1)))
 
-    dome_z = z + 1.55
-    real.blob([(0, 0, 0, 0.92), (0, 0, 0.55, 0.8), (0.12, 0.02, 1.05, 0.55), (-0.3, 0.1, 0.25, 0.6), (0.35, -0.05, 0.2, 0.55)],
-              theme["core"](), (x, 0, z + 1.0), 0.045)
+    dome_z = z + 0.4 + 1.15 * h
+    jelly = [(0, 0, 0, 0.92), (0, 0, 0.55, 0.8), (0.12, 0.02, 1.05, 0.55), (-0.3, 0.1, 0.25, 0.6), (0.35, -0.05, 0.2, 0.55)]
+    if h > 1.2:
+        jelly.append((0.0, 0.0, 1.55, 0.45))
+    real.blob([(ex * w, ey * w, ez * h, r * min(w, h)) for ex, ey, ez, r in jelly], theme["core"](), (x, 0, z + 0.55 + 0.45 * h), 0.045)
     tint = tuple(0.75 + 0.25 * c for c in theme["colours"]["core"])
-    sphere((x, 0, dome_z), (0.95, 0.95, 1.15), robo.shell_glass("Dome", tint), 48)
+    dome = sphere((x, 0, dome_z), (0.95 * w, 0.95 * w, 1.15 * h), robo.shell_glass("Dome", tint), 48)
     # The cage: three hoops over the dome make six ribs, none across the face.
     for turn in (0, 60, 120):
-        rib = torus((x, 0, dome_z), 1.0, 0.06, shell, (math.radians(90), 0, math.radians(turn)))
-        rib.scale = (1.0, 1.15, 1.0)
-    torus((x, 0, dome_z - 0.45), 0.9, 0.04, glow(accent, 8.0))
+        rib = torus((x, 0, dome_z), 1.0 * w, 0.06, shell, (math.radians(90), 0, math.radians(turn)))
+        rib.scale = (1.0, 1.15 * h / w, 1.0)
+    torus((x, 0, dome_z - 0.45 * h), 0.9 * w, 0.04, glow(accent, 8.0))
 
     # The face right on the glass, the scowl over the jelly.
-    scowl((x, -0.97, dome_z - 0.05), 0.46, 0.15, theme, -6)
-    pill((x, -1.07, z + 0.32), (0.18, 0.04, 0.14), real.chrome("Badge", robo.GOLD, 0.25))
-
-    # The warden's light bar on a cap where the ribs meet.
-    top = dome_z + 1.15
-    cylinder((x, 0, top), 0.32, 0.14, shell)
-    pill((x, 0, top + 0.12), (0.5, 0.15, 0.09), real.gloss("Bar", (0.12, 0.13, 0.15), 0.3))
-    for side, colour in ((-1, (1.0, 0.15, 0.15)), (1, (0.2, 0.45, 1.0))):
-        sphere((x + side * 0.27, 0, top + 0.26), (0.17, 0.14, 0.14), real.glow("Siren", colour, 12.0), 16)
+    scowl((x, -0.97 * w, dome_z - 0.05), 0.46 * min(w, 1.15), 0.15, theme, -6)
 
     # Shoulders with spiked pauldrons, and arms ending in heavy gauntlets.
     joint = real.gloss("Joint", (0.1, 0.11, 0.13), 0.25)
+    shells = [base]
     for side in (-1, 1):
-        shoulder = Vector((x + side * 1.12, -0.05, z + 1.0))
-        sphere(tuple(shoulder), (0.3, 0.3, 0.3), shell, 24)
+        shoulder = Vector((x + side * 1.12 * w, -0.05, z + 1.0))
+        shells.append(sphere(tuple(shoulder), (0.3, 0.3, 0.3), shell, 24))
         pill(tuple(shoulder + Vector((side * 0.08, 0, 0.24))), (0.42, 0.36, 0.11), shell, (0, math.radians(side * 28), 0), 0.8)
         pill(tuple(shoulder + Vector((side * 0.1, 0, 0.32))), (0.3, 0.26, 0.05), trim(), (0, math.radians(side * 28), 0), 0.8)
         for dy in (-0.15, 0.18):
-            spike(shoulder + Vector((side * 0.22, dy, 0.36)), 0.08, 0.4, metal(), (side * 0.7, 0, 1))
+            spike(shoulder + Vector((side * 0.22, dy, 0.36)), 0.08, 0.4, spiked(theme), (side * 0.7, 0, 1))
         elbow = shoulder + Vector((side * 0.4, -0.25, -0.45))
         sphere(tuple(elbow), (0.17, 0.17, 0.17), joint, 16)
         limb(shoulder, elbow, 0.13, shell)
@@ -161,31 +164,57 @@ def slime(x, z, theme):
         torus(tuple(fist + Vector((0, 0.2, 0))), 0.24, 0.03, glow(accent, 8.0), (math.radians(90), 0, 0))
         for dx in (-0.12, 0.0, 0.12):
             spike(fist + Vector((dx, -0.27, 0.04)), 0.05, 0.22, metal(), (0, -1, 0))
+    return {"shells": shells, "top": (x, 0, dome_z + 1.15 * h), "center": (x, 0, dome_z - 0.1), "radius": 0.95 * w, "width": 1.2 * w,
+            "hull": ((x, 0, dome_z), (0.95 * w, 0.95 * w, 1.15 * h)), "hull_obj": dome}
+
+
+def siren(info, theme):
+    """The warden's light bar on a cap where the cage's ribs meet."""
+    tx, ty, tz = info["top"]
+    cylinder((tx, ty, tz), 0.32, 0.14, theme["shell"]())
+    pill((tx, ty, tz + 0.12), (0.5, 0.15, 0.09), real.gloss("Bar", (0.12, 0.13, 0.15), 0.3))
+    for side, colour in ((-1, (1.0, 0.15, 0.15)), (1, (0.2, 0.45, 1.0))):
+        sphere((tx + side * 0.27, ty, tz + 0.26), (0.17, 0.14, 0.14), real.glow("Siren", colour, 12.0), 16)
+    # A gold badge on the front of the base (the first shell).
+    base = info["shells"][0]
+    pill(on(base, tuple(base.location - Vector((0, 2.0, 0))), 0.02), (0.18, 0.04, 0.14), real.chrome("Badge", robo.GOLD, 0.25))
 
 
 # --- Crab: the drone ------------------------------------------------------------------------------
 
 
-def crab(x, z, theme):
-    """A wide crab under a dark armoured carapace with a rim of metal spikes, stalk eyes over a
-    scowl, three legs a side ending in metal tips, two big pincers and twin guarded rotors."""
+CRAB_LEGS = {2: (-0.3, 0.35), 3: (-0.45, 0.05, 0.5), 4: (-0.55, -0.2, 0.15, 0.5)}
+
+
+def crab(x, z, theme, p, zone):
+    """A wide crab under a dark armoured carapace with a rim of spikes, stalk eyes over a scowl,
+    legs ending in metal tips and pincers. p: w (width), claws (left, right sizes), legs (per
+    side), boxy (a blocky tank hull)."""
+    w = p.get("w", 1.0)
+    claws = p.get("claws", (1.0, 1.0))
+    legs = CRAB_LEGS[min(4, max(2, p.get("legs", 3)))]
     shell = theme["shell"]()
     trim = theme["accent_shell"]
     accent = theme["accent"]
+    spiked = spikes_of(zone)
     cz = z + 1.05
-    body = sphere((x, 0, cz), (1.35, 1.0, 0.5), shell, 48)
-    sphere((x, 0.15, cz + 0.2), (1.05, 0.78, 0.36), trim(), 48)
-    rim = torus((x, 0, cz), 1.33, 0.035, glow(accent, 8.0))
-    rim.scale = (1.0, 0.75, 1.0)
-    # Metal spikes round the rim, the front kept clear; a short ridge down the back.
+    if p.get("boxy"):
+        body = pill((x, 0, cz), (1.35 * w, 1.0, 0.5), shell, roundness=0.45)
+        pill((x, 0.15, cz + 0.4), (1.0 * w, 0.75, 0.16), trim(), roundness=0.6)
+    else:
+        body = sphere((x, 0, cz), (1.35 * w, 1.0, 0.5), shell, 48)
+        sphere((x, 0.15, cz + 0.2), (1.05 * w, 0.78, 0.36), trim(), 48)
+    rim = torus((x, 0, cz), 1.33 * w, 0.035, glow(accent, 8.0))
+    rim.scale = (1.0, 0.75 / w, 1.0)
+    # Spikes round the rim, the front kept clear; a short ridge down the back.
     for index in range(14):
         angle = index / 14 * math.tau
         if abs(math.remainder(angle + math.pi / 2, math.tau)) < 0.75:
             continue
-        out = Vector((math.cos(angle) * 1.35, math.sin(angle) * 1.0, 0))
-        spike(on(body, (x + out.x, out.y, cz + 0.05), -0.04), 0.07, 0.32, metal(), out.normalized() + Vector((0, 0, 0.25)))
+        out = Vector((math.cos(angle) * 1.35 * w, math.sin(angle) * 1.0, 0))
+        spike(on(body, (x + out.x, out.y, cz + 0.05), -0.04), 0.07, 0.32, spiked(theme), out.normalized() + Vector((0, 0, 0.25)))
     for dy in (0.0, 0.4, 0.75):
-        spike(on(body, (x, dy, cz + 0.8), -0.03), 0.1, 0.42 - 0.08 * dy, metal(), (0, 0.6, 1))
+        spike(on(body, (x, dy, cz + 0.8), -0.03), 0.1, 0.42 - 0.08 * dy, spiked(theme), (0, 0.6, 1))
 
     scowl((x, -1.0, cz + 0.02), 0.55, 0.16, theme, -8)
     joint = real.gloss("Joint", (0.1, 0.11, 0.13), 0.25)
@@ -195,12 +224,13 @@ def crab(x, z, theme):
         sphere(tuple(stalk), (0.1, 0.1, 0.1), visor_mat(), 16)
         sphere(tuple(stalk + Vector((0, -0.06, 0))), (0.07, 0.05, 0.07), eye_mat(), 16)
 
+    shells = [body]
     for side in (-1, 1):
-        # Three legs a side: out to a knee, down to a metal tip.
-        for dy in (-0.45, 0.05, 0.5):
-            hip = Vector(on(body, (x + side * 1.3, dy, cz - 0.1), -0.05))
-            knee = Vector((x + side * 1.95, dy * 1.15, cz + 0.5))
-            foot = Vector((x + side * 2.85, dy * 1.45, z + 0.02))
+        # Legs out to a knee, down to a metal tip.
+        for dy in legs:
+            hip = Vector(on(body, (x + side * 1.3 * w, dy, cz - 0.1), -0.05))
+            knee = Vector((x + side * (1.95 * w), dy * 1.15, cz + 0.5))
+            foot = Vector((x + side * (2.25 * w + 0.6), dy * 1.45, z + 0.02))
             ankle = knee + (foot - knee) * 0.65
             sphere(tuple(hip), (0.14, 0.14, 0.14), joint, 16)
             limb(hip, knee, 0.11, shell)
@@ -208,84 +238,114 @@ def crab(x, z, theme):
             limb(knee, ankle, 0.09, shell)
             spike(ankle, 0.09, (foot - ankle).length, metal(), foot - ankle)
             torus(tuple(ankle), 0.095, 0.02, glow(accent, 8.0), tuple((foot - ankle).to_track_quat("Z", "Y").to_euler()))
-        # A big pincer on an arm held up in front: a palm, a fixed lower finger and an open
-        # upper one, both with metal tips.
-        shoulder = Vector((x + side * 1.0, -0.7, cz - 0.05))
-        elbow = Vector((x + side * 1.65, -1.2, cz + 0.15))
-        palm = Vector((x + side * 1.35, -1.95, cz + 0.25))
+        # A pincer on an arm held up in front: a palm, a fixed lower finger and an open upper one,
+        # both with metal tips. A kind may grow one much bigger.
+        size = claws[0] if side < 0 else claws[1]
+        if size <= 0:
+            continue
+        grow = size - 1
+        shoulder = Vector((x + side * 1.0 * w, -0.7, cz - 0.05))
+        elbow = Vector((x + side * (1.65 * w + 0.2 * grow), -1.2 - 0.15 * grow, cz + 0.15 + 0.1 * grow))
+        palm = Vector((x + side * (1.35 * w + 0.35 * grow), -1.95 - 0.45 * grow, cz + 0.25 + 0.25 * grow))
         for a, b in ((shoulder, elbow), (elbow, palm)):
-            limb(a, b, 0.13, shell)
+            limb(a, b, 0.13 * max(1.0, size * 0.8), shell)
         sphere(tuple(shoulder), (0.17, 0.17, 0.17), joint, 16)
         sphere(tuple(elbow), (0.17, 0.17, 0.17), joint, 16)
         toe_in = math.radians(-side * 12)
-        sphere(tuple(palm), (0.42, 0.55, 0.38), shell, 32, (0, 0, toe_in))
-        torus(tuple(palm + Vector((0, 0.42, 0))), 0.3, 0.03, glow(accent, 8.0), (math.radians(90), 0, 0))
-        for offset, size, pitch, mat in (((side * 0.12, -0.55, -0.14), (0.14, 0.52, 0.13), 8, shell),
-                                         ((-side * 0.04, -0.5, 0.16), (0.16, 0.6, 0.15), -16, trim())):
+        shells.append(sphere(tuple(palm), (0.42 * size, 0.55 * size, 0.38 * size), shell, 32, (0, 0, toe_in)))
+        torus(tuple(palm + Vector((0, 0.42 * size, 0))), 0.3 * size, 0.03, glow(accent, 8.0), (math.radians(90), 0, 0))
+        for offset, finger, pitch, mat in (((side * 0.12, -0.55, -0.14), (0.14, 0.52, 0.13), 8, shell),
+                                           ((-side * 0.04, -0.5, 0.16), (0.16, 0.6, 0.15), -16, trim())):
             turn = Euler((math.radians(pitch), 0, toe_in))
-            centre = palm + Vector(offset)
-            sphere(tuple(centre), size, mat, 32, tuple(turn))
-            tip = centre + turn.to_matrix() @ Vector((0, -size[1] * 0.9, 0))
-            spike(tip, 0.06, 0.22, metal(), turn.to_matrix() @ Vector((0, -1, 0)))
+            centre = palm + Vector(offset) * size
+            finger = tuple(f * size for f in finger)
+            sphere(tuple(centre), finger, mat, 32, tuple(turn))
+            tip = centre + turn.to_matrix() @ Vector((0, -finger[1] * 0.9, 0))
+            spike(tip, 0.06 * size, 0.22 * size, metal(), turn.to_matrix() @ Vector((0, -1, 0)))
         for dy in (-0.1, 0.2):
-            spike(palm + Vector((side * 0.15, dy, 0.33)), 0.06, 0.26, metal(), (side * 0.5, 0, 1))
+            spike(palm + Vector((side * 0.15, dy, 0.33)) * 1.0, 0.06, 0.26, spiked(theme), (side * 0.5, 0, 1))
+    return {"shells": shells, "top": (x, 0.1, cz + 0.9), "center": (x, 0, cz), "radius": 1.3 * w, "width": 1.9 * w,
+            "hull": ((x, 0, cz), (1.35 * w, 1.0, 0.5)), "hull_obj": body}
 
-    # Twin rotors behind guard rings, on masts from the back.
+
+def rotors(info, theme):
+    """Twin rotors behind guard rings, on masts from the back."""
+    (cx, cy, cz) = info["center"]
     mast = real.gloss("Mast", (0.15, 0.16, 0.18), 0.3)
     blade = real.gloss("Blade", (0.92, 0.93, 0.96), 0.2)
     for side in (-1, 1):
-        rx, ry = x + side * 0.6, 0.55
+        rx, ry = cx + side * 0.6, cy + 0.55
         cylinder((rx, ry, cz + 0.75), 0.06, 0.7, mast)
-        torus((rx, ry, cz + 1.1), 0.72, 0.045, trim())
+        torus((rx, ry, cz + 1.1), 0.72, 0.045, theme["accent_shell"]())
         for spin in (25, 115):
             b = pill((rx, ry, cz + 1.12), (0.66, 0.08, 0.02), blade)
             b.rotation_euler = (math.radians(5), 0, math.radians(spin + side * 20))
-        sphere((rx, ry, cz + 1.14), (0.11, 0.11, 0.07), glow(accent, 10.0), 16)
+        sphere((rx, ry, cz + 1.14), (0.11, 0.11, 0.07), glow(theme["accent"], 10.0), 16)
 
 
-# --- Worm: the ice serpent ------------------------------------------------------------------------
+# --- Worm: the serpent ----------------------------------------------------------------------------
 
 
+# The spine from under the head back to the tail's end: (x, y, z, radius).
 WORM_SPINE = [(0.0, -0.15, 1.75, 0.6), (0.1, 0.3, 1.25, 0.58), (0.3, 0.72, 0.82, 0.56), (0.45, 1.12, 0.58, 0.53), (0.3, 1.55, 0.5, 0.5),
-              (0.0, 1.95, 0.46, 0.46), (-0.3, 2.3, 0.42, 0.42), (-0.45, 2.65, 0.38, 0.37), (-0.4, 2.95, 0.34, 0.32)]
+              (0.0, 1.95, 0.46, 0.46), (-0.3, 2.3, 0.42, 0.42), (-0.45, 2.65, 0.38, 0.37), (-0.4, 2.95, 0.34, 0.32),
+              (-0.2, 3.22, 0.3, 0.28), (0.05, 3.45, 0.27, 0.24)]
 
 
-def worm(x, z, theme):
-    """A long serpent rearing up: armoured segments with crystal spikes, an open jaw with
-    mandibles and fangs, a crest of horns."""
+def worm(x, z, theme, p, zone):
+    """A long serpent rearing up: armoured segments with spikes, an open jaw with mandibles and
+    fangs, a crest of horns. p: segments (the pet's; the adult has four more), r (thickness),
+    faceted (crystal segments)."""
+    count = min(len(WORM_SPINE), max(8, p.get("segments", 5) + 4))
+    rs = p.get("r", 1.0)
+    faceted = p.get("faceted", False)
     shell = theme["shell"]()
     trim = theme["accent_shell"]
     accent = theme["accent"]
-    ice = real.crystal("Shard", theme["colours"]["glow"], 1.5)
+    spiked = spikes_of(zone)
+    shells = []
     previous = None
-    for px, py, pz, r in WORM_SPINE:
-        centre = Vector((x + px, py, z + pz))
-        sphere(tuple(centre), (r * 1.05, r * 0.9, r * 0.95), shell, 32)
-        sphere(tuple(centre + Vector((0, 0.05, r * 0.7))), (r * 0.78, r * 0.5, r * 0.28), trim(), 32, (math.radians(-10), 0, 0))
-        spike(centre + Vector((0, 0.1, r * 0.85)), r * 0.24, r * 1.0, ice, (0, 0.4, 1))
+    for index, (px, py, pz, r) in enumerate(WORM_SPINE[:count]):
+        r *= rs
+        centre = Vector((x + px, py * max(1.0, rs * 0.9), z + max(pz, r * 0.95)))
+        if faceted:
+            shells.append(gem(tuple(centre), (r * 1.1, r, r * 1.15), shell, (0.3 * index, 0.5, 0.2 * index)))
+            sphere(tuple(centre), (r * 0.45,) * 3, theme["core"](), 16)
+        else:
+            shells.append(sphere(tuple(centre), (r * 1.05, r * 0.9, r * 0.95), shell, 32))
+            sphere(tuple(centre + Vector((0, 0.05, r * 0.7))), (r * 0.78, r * 0.5, r * 0.28), trim(), 32, (math.radians(-10), 0, 0))
+        spike(centre + Vector((0, 0.1, r * 0.85)), r * 0.24, r * 1.0, spiked(theme), (0, 0.4, 1))
         for side in (-1, 1):
-            spike(centre + Vector((side * r * 0.85, 0.05, r * 0.25)), r * 0.13, r * 0.5, ice, (side, 0.3, 0.5))
-        if previous is not None:
+            spike(centre + Vector((side * r * 0.85, 0.05, r * 0.25)), r * 0.13, r * 0.5, spiked(theme), (side, 0.3, 0.5))
+        if previous is not None and not faceted:
             between = (previous + centre) / 2
             ring = torus(tuple(between), r * 0.82, 0.04, glow(accent, 8.0))
             ring.rotation_euler = (centre - previous).to_track_quat("Z", "Y").to_euler()
         previous = centre
-    spike(previous + Vector((0, 0.2, 0)), 0.2, 0.8, ice, (0, 1, -0.1))
+    spike(previous + Vector((0, 0.2, 0)), 0.2 * rs, 0.8, spiked(theme), (0, 1, -0.1))
 
-    hx, hy, hz = x, -0.6, z + 2.35
-    sphere((hx, hy, hz), (0.62, 0.8, 0.55), shell, 48)
-    sphere((hx, hy + 0.15, hz + 0.38), (0.48, 0.6, 0.22), trim(), 32, (math.radians(-8), 0, 0))
+    hs = min(rs, 1.25)
+    hx, hy, hz = x, -0.6, z + 2.35 + 0.4 * (rs - 1)
+    head_r = 0.62 * hs
+    if faceted:
+        head = gem((hx, hy, hz), (0.62 * hs, 0.8 * hs, 0.55 * hs), shell, (0.2, 0.4, 0.1))
+    else:
+        head = sphere((hx, hy, hz), (0.62 * hs, 0.8 * hs, 0.55 * hs), shell, 48)
+        sphere((hx, hy + 0.15, hz + 0.38 * hs), (0.48 * hs, 0.6 * hs, 0.22 * hs), trim(), 32, (math.radians(-8), 0, 0))
     # The open jaw, its throat glowing, mandibles out to the sides and fangs from the top.
-    sphere((hx, hy - 0.25, hz - 0.45), (0.5, 0.6, 0.16), trim(), 32, (math.radians(16), 0, 0))
-    sphere((hx, hy - 0.45, hz - 0.3), (0.32, 0.3, 0.13), theme["core"](), 24)
+    sphere((hx, hy - 0.25 * hs, hz - 0.45 * hs), (0.5 * hs, 0.6 * hs, 0.16 * hs), trim(), 32, (math.radians(16), 0, 0))
+    sphere((hx, hy - 0.45 * hs, hz - 0.3 * hs), (0.32 * hs, 0.3 * hs, 0.13 * hs), glow(MAW, 4.0), 24)
     fang = metal()
     for side in (-1, 1):
-        spike((hx + side * 0.4, hy - 0.6, hz - 0.45), 0.1, 0.6, fang, (-side * 0.35, -1, 0.25))
-        spike((hx + side * 0.2, hy - 0.62, hz - 0.18), 0.06, 0.32, fang, (0, -0.2, -1))
-    scowl((hx, hy - 0.73, hz + 0.12), 0.45, 0.14, theme, -10)
-    # A crest of crystal horns swept back.
+        spike((hx + side * 0.4 * hs, hy - 0.6 * hs, hz - 0.45 * hs), 0.1 * hs, 0.6 * hs, fang, (-side * 0.35, -1, 0.25))
+        spike((hx + side * 0.2 * hs, hy - 0.62 * hs, hz - 0.18 * hs), 0.06 * hs, 0.32 * hs, fang, (0, -0.2, -1))
+    scowl((hx, hy - 0.73 * hs, hz + 0.12 * hs), 0.45 * hs, 0.14 * hs, theme, -10)
+    # A crest of horns swept back.
     for dx, length in ((-0.3, 0.6), (0.0, 0.75), (0.3, 0.6)):
-        spike((hx + dx, hy + 0.2, hz + 0.45), 0.12, length, ice, (dx * 0.9, 0.9, 0.5))
+        spike((hx + dx * hs, hy + 0.2 * hs, hz + 0.45 * hs), 0.12 * hs, length * hs, spiked(theme), (dx * 0.9, 0.9, 0.5))
+    return {"shells": shells + [head], "top": (hx, hy, hz + 0.55 * hs + 0.3), "center": (x + 0.15, 1.0, z + 1.0), "radius": 0.95 * rs, "width": 1.4 * rs,
+            "head": (hx, hy, hz), "head_r": head_r,
+            "hull": ((hx, hy, hz), (0.62 * hs, 0.8 * hs, 0.55 * hs)), "flank": (hx, hy, hz - 0.1), "flank_r": head_r * 1.2, "hull_obj": head}
 
 
 # --- Swarm: the hive ------------------------------------------------------------------------------
@@ -308,66 +368,89 @@ def _hunter(x, y, z, size, theme, shell):
     return body
 
 
-def swarm(x, z, theme):
+# Where the hunters fly round the queen (x, y, z from her thorax, size), in the order they join.
+HUNTER_SPOTS = [(-2.1, -0.5, 1.0, 1.0), (2.2, -0.3, 0.8, 1.0), (-2.5, 0.7, -0.6, 0.85), (2.4, 0.9, -0.5, 0.9),
+                (-1.2, -1.3, -1.2, 0.8), (1.3, -1.4, -1.1, 0.85), (0.0, 1.2, 1.6, 0.8)]
+
+
+def swarm(x, z, theme, p, zone):
     """A hive queen-drone: a helmeted thorax with jaws, a banded abdomen with a sting, four blade
-    wings, and attack drones round her."""
+    wings, and attack drones round her. p: main (her size), count (the hunters)."""
+    q = p.get("main", 1.2) / 1.2
     shell = theme["shell"]()
     trim = theme["accent_shell"]
     accent = theme["accent"]
-    cz = z + 1.9
-    thorax = sphere((x, 0, cz), (0.85, 0.8, 0.75), shell, 48)
-    sphere((x, 0.12, cz + 0.32), (0.78, 0.72, 0.5), trim(), 48)
+    spiked = spikes_of(zone)
+    cz = z + 0.8 + 1.1 * q
+    thorax = sphere((x, 0, cz), (0.85 * q, 0.8 * q, 0.75 * q), shell, 48)
+    sphere((x, 0.12 * q, cz + 0.32 * q), (0.78 * q, 0.72 * q, 0.5 * q), trim(), 48)
     # The abdomen hangs back and down, banded dark with glowing seams, a sting at its end.
-    centre = Vector((x, 1.2, cz - 0.3))
+    centre = Vector((x, 1.2 * q, cz - 0.3 * q))
     tilt = math.radians(-20)
     axis = Vector((0, math.cos(tilt), math.sin(tilt)))
-    sphere(tuple(centre), (0.7, 1.05, 0.65), shell, 48, (tilt, 0, 0))
+    abdomen = sphere(tuple(centre), (0.7 * q, 1.05 * q, 0.65 * q), shell, 48, (tilt, 0, 0))
     band_turn = axis.to_track_quat("Z", "Y").to_euler()
     for t in (-0.45, -0.1, 0.25, 0.58):
-        reach = math.sqrt(1 - t * t)
-        torus(tuple(centre + axis * t * 1.05), 0.68 * reach, 0.07, trim(), tuple(band_turn))
+        torus(tuple(centre + axis * t * 1.05 * q), 0.68 * q * math.sqrt(1 - t * t), 0.07 * q, trim(), tuple(band_turn))
         after = min(t + 0.1, 0.95)
-        torus(tuple(centre + axis * after * 1.05), 0.68 * math.sqrt(1 - after * after), 0.025, glow(accent, 9.0), tuple(band_turn))
-    spike(centre + axis * 1.0, 0.13, 0.75, metal(), axis + Vector((0, 0, -0.35)))
-    sphere(on(thorax, (x, 0.0, cz - 0.9), -0.1), (0.45, 0.45, 0.15), theme["core"](), 24)
+        torus(tuple(centre + axis * after * 1.05 * q), 0.68 * q * math.sqrt(1 - after * after), 0.025, glow(accent, 9.0), tuple(band_turn))
+    spike(centre + axis * 1.0 * q, 0.13 * q, 0.75 * q, metal(), axis + Vector((0, 0, -0.35)))
+    sphere(on(thorax, (x, 0.0, cz - 0.9), -0.1), (0.45 * q, 0.45 * q, 0.15 * q), theme["core"](), 24)
 
-    scowl((x, -0.78, cz + 0.02), 0.5, 0.16, theme, -6)
+    scowl((x, -0.78 * q, cz + 0.02), 0.5 * q, 0.16 * q, theme, -6)
     for side in (-1, 1):
-        root = Vector((x + side * 0.35, -0.62, cz - 0.4))
-        spike(root, 0.14, 0.55, metal(), (-side * 0.2, -1, -0.15))
-        spike(root + Vector((-side * 0.1, -0.5, -0.07)), 0.09, 0.4, metal(), (-side * 1.0, -0.7, 0.0))
-        spike(on(thorax, (x + side * 0.4, 0.0, cz + 0.9)), 0.1, 0.5, metal(), (side * 0.4, 0.5, 1))
+        root = Vector((x + side * 0.35 * q, -0.62 * q, cz - 0.4 * q))
+        spike(root, 0.14 * q, 0.55 * q, metal(), (-side * 0.2, -1, -0.15))
+        spike(root + Vector((-side * 0.1, -0.5, -0.07)) * q, 0.09 * q, 0.4 * q, metal(), (-side * 1.0, -0.7, 0.0))
+        spike(on(thorax, (x + side * 0.4 * q, 0.0, cz + 0.9)), 0.1 * q, 0.5 * q, spiked(theme), (side * 0.4, 0.5, 1))
         # Two pairs of blade wings, raised and swept back.
         for lift, reach, sweep, size in ((0.6, 1.3, 28, 1.0), (0.4, 1.05, 45, 0.75)):
-            sphere((x + side * reach, 0.45 + 0.25 * (1 - size), cz + lift), (1.3 * size, 0.36 * size, 0.02), wing_mat(), 24,
+            sphere((x + side * reach * q, (0.45 + 0.25 * (1 - size)) * q, cz + lift * q), (1.3 * size * q, 0.36 * size * q, 0.02), wing_mat(), 24,
                    (0, math.radians(-side * 22), math.radians(side * sweep)))
-    spike(on(thorax, (x, 0.1, cz + 0.9)), 0.12, 0.6, metal(), (0, 0.4, 1))
+    spike(on(thorax, (x, 0.1, cz + 0.9)), 0.12 * q, 0.6 * q, spiked(theme), (0, 0.4, 1))
 
-    for dx, dy, dz, size in ((-2.1, -0.5, 1.0, 1.0), (2.2, -0.3, 0.8, 1.0), (-2.5, 0.7, -0.6, 0.85), (2.4, 0.9, -0.5, 0.9),
-                             (-1.2, -1.3, -1.2, 0.8), (1.3, -1.4, -1.1, 0.85)):
-        _hunter(x + dx, dy, cz + dz, size, theme, shell)
+    reach = max(q, 0.9)
+    for dx, dy, dz, size in HUNTER_SPOTS[:p.get("count", 3) + 3]:
+        _hunter(x + dx * reach, dy * reach, cz + dz * reach, size, theme, shell)
+    return {"shells": [thorax, abdomen], "top": (x, 0, cz + 0.85 * q), "center": (x, 0, cz), "radius": 0.9 * q, "width": 1.0 * q,
+            "lead": (x, 0, cz), "lead_size": 0.85 * q / 0.55, "engine_z": -0.05,
+            "hull": ((x, 0, cz), (0.85 * q, 0.8 * q, 0.75 * q)), "shoulders": False, "hull_obj": thorax}
+
+
+def no_mandibles(info, theme):
+    """An adult swarm has its own jaws."""
+
+
+def queen(info, theme):
+    """A queen's crest and glowing brood pods under her (her jaws are the adult's own)."""
+    robo_kinds.crest(info, theme)
+    (lx, ly, lz), size = robo_kinds._lead(info)
+    snap = robo._flank(info)[2]
+    pod = real.jelly("Brood", theme["colours"]["core"], glow=3.0, clear=True)
+    for dx, dy in ((-0.35, 0.1), (0.0, 0.25), (0.35, 0.1)):
+        sphere(snap((lx + dx * size, ly + dy, lz - 0.75 * size), 0.06), (0.14, 0.14, 0.18), pod, 20)
 
 
 # --- Ray: the glider ------------------------------------------------------------------------------
 
 
-# Half the wing's outline seen from above (x out, y back), the nose to the tail root.
+# Half the wing's outline seen from above (x out, y back), the nose to the tail root, at span 1.
 RAY_OUTLINE = [(0.0, -0.9), (0.6, -0.95), (1.1, -0.7), (1.6, -0.35), (2.2, 0.15), (2.85, 0.62), (2.35, 0.72), (1.7, 0.62),
                (1.15, 0.7), (0.7, 0.95), (0.35, 1.15), (0.0, 1.2)]
 RAY_TIP = 2.85
 
 
-def _wing_height(reach):
-    """How high the wing's middle stands at `reach` out from the body (the tips curl up)."""
-    r = reach / RAY_TIP
-    return 0.3 * r * r - 0.05 * r
+def _wing_height(reach, span, droop):
+    """How high the wing's middle stands `reach` out from the body: the tips curl up on a flat
+    ray, down on one with a deep droop."""
+    r = reach / (RAY_TIP * span)
+    return (0.35 - 0.025 * droop) * r * r - 0.05 * r
 
 
-def _wing_sheet(x, zc, mat, grow=1.0, thickness=0.2):
+def _wing_sheet(x, zc, mat, span, droop, grow=1.0, thickness=0.2):
     import bmesh
-    import bpy
 
-    half = [(px * grow, py * grow + (grow - 1) * 0.1) for px, py in RAY_OUTLINE]
+    half = [(px * span * grow, py * grow + (grow - 1) * 0.1) for px, py in RAY_OUTLINE]
     outline = half + [(-px, py) for px, py in reversed(half[1:-1])]
     mesh = bpy.data.meshes.new("RayWing")
     bm = bmesh.new()
@@ -376,7 +459,7 @@ def _wing_sheet(x, zc, mat, grow=1.0, thickness=0.2):
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
     bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=3, use_grid_fill=True)
     for v in bm.verts:
-        v.co.z = zc + _wing_height(abs(v.co.x - x))
+        v.co.z = zc + _wing_height(abs(v.co.x - x), span, droop)
     bm.to_mesh(mesh)
     bm.free()
     obj = bpy.data.objects.new("RayWing", mesh)
@@ -391,44 +474,59 @@ def _wing_sheet(x, zc, mat, grow=1.0, thickness=0.2):
     return robo._tag(real.assign(obj, mat))
 
 
-def ray(x, z, theme):
+def ray(x, z, theme, p, zone):
     """A manta glider: wings swept to points over a glowing edge, gold horns forward, a ridge of
-    spikes, a whip tail with a glowing blade, gold stars on the wings."""
+    spikes, a whip tail with a glowing blade. p: span (wing size), droop (wing curl), tail."""
+    span, droop = p.get("span", 1.0), p.get("droop", 12)
     shell = theme["shell"]()
-    accent = theme["accent"]
+    spiked = spikes_of(zone)
     zc = z + 1.2
-    _wing_sheet(x, zc, shell)
     edge = theme["colours"]["core"]
-    _wing_sheet(x, zc - 0.03, glow(edge, 4.0), 1.04, 0.05)
-    sphere((x, 0.05, zc + 0.05), (0.72, 1.2, 0.36), shell, 48)
+    wing = _wing_sheet(x, zc, shell, span, droop)
+    _wing_sheet(x, zc - 0.03, glow(edge, 4.0), span, droop, 1.04, 0.05)
+    body = sphere((x, 0.05, zc + 0.05), (0.72, 1.2, 0.36), shell, 48)
     sphere((x, 0.3, zc + 0.22), (0.38, 0.55, 0.2), theme["core"](), 32)
     gold = real.chrome("Horn", robo.GOLD, 0.25)
-    star = real.chrome("Star", robo.GOLD, 0.25)
     for side in (-1, 1):
         spike((x + side * 0.42, -0.95, zc), 0.14, 0.75, gold, (side * 0.12, -1, 0.2))
-        for reach, dy in ((1.0, -0.2), (1.6, 0.15), (2.2, 0.42)):
-            robo_kinds.star(x + side * reach, dy, zc + _wing_height(reach) + 0.12, 0.1, star)
     for dy in (-0.55, -0.15, 0.25, 0.65):
         top = zc + 0.05 + 0.36 * math.sqrt(max(0.0, 1 - ((dy - 0.05) / 1.2) ** 2))
-        spike((x, dy, top - 0.04), 0.09, 0.38, gold, (0, 0.6, 1))
+        spike((x, dy, top - 0.04), 0.09, 0.38, spiked(theme), (0, 0.6, 1))
     scowl((x, -1.12, zc + 0.02), 0.42, 0.12, theme, -10)
 
-    # A whip tail of shrinking beads, ending in a glowing blade.
-    for step in range(16):
-        r = 0.13 - 0.0055 * step
-        sphere((x, 1.15 + step * 0.15, zc - 0.02 * step), (r, r * 1.3, r), shell, 16)
-    sphere((x, 3.75, zc - 0.32), (0.17, 0.42, 0.03), glow(edge, 5.0), 24)
+    if p.get("tail", True):
+        # A whip tail of shrinking beads, ending in a glowing blade.
+        for step in range(16):
+            r = 0.13 - 0.0055 * step
+            sphere((x, 1.15 + step * 0.15, zc - 0.02 * step), (r, r * 1.3, r), shell, 16)
+        sphere((x, 3.75, zc - 0.32), (0.17, 0.42, 0.03), glow(edge, 5.0), 24)
     for side in (-1, 1):
         spike((x + side * 0.05, 1.25, zc + 0.1), 0.08, 0.4, metal(), (side * 0.8, 0.6, 0.4))
+    return {"shells": [wing, body], "top": (x, 0.05, zc + 0.45), "center": (x, 0.1, zc), "radius": 1.6 * span, "width": 2.6 * span,
+            # As a pet's span: its wings reach about twice it.
+            "span": RAY_TIP * span / 2.0, "wing_height": lambda reach: zc + _wing_height(reach, span, droop),
+            "hull": ((x, 0.05, zc + 0.05), (0.72, 1.2, 0.36)), "shoulders": False, "hull_obj": body}
+
+
+def stars(info, theme):
+    """Gold stars along the wings' top."""
+    cx = info["center"][0]
+    star = real.chrome("Star", robo.GOLD, 0.25)
+    span = info["span"] * 2.0 / RAY_TIP
+    for side in (-1, 1):
+        for reach, dy in ((1.0, -0.2), (1.6, 0.15), (2.2, 0.42)):
+            reach *= span
+            robo_kinds.star(cx + side * reach, dy, info["wing_height"](reach) + 0.12, 0.1, star)
 
 
 # --- Whale: the leviathan -------------------------------------------------------------------------
 
 
-def whale(x, z, theme):
+def whale(x, z, theme, p, zone):
     """A long armoured leviathan: a flat head with an open maw full of metal teeth and a glowing
-    throat, small deep-set eyes under heavy gold brows, horns swept back, a ridge of big spikes
-    round a nebula window, clawed flippers and spiked flukes, twin thrusters."""
+    throat, small deep-set eyes under heavy gold brows, horns swept back, a ridge of big spikes,
+    clawed flippers and spiked flukes, twin thrusters. p: fins (flipper size)."""
+    fins = p.get("fins", 1.0)
     shell = theme["shell"]()
     trim = theme["accent_shell"]
     accent = theme["accent"]
@@ -441,8 +539,7 @@ def whale(x, z, theme):
 
     # The head: a flat skull over a dropped jaw, the throat glowing between them.
     skull = sphere((x, -1.35, cz + 0.2), (0.95, 1.12, 0.6), shell, 48)
-    jaw_tilt = math.radians(14)
-    jaw = sphere((x, -1.2, cz - 0.55), (0.85, 1.05, 0.32), trim(), 48, (jaw_tilt, 0, 0))
+    jaw = sphere((x, -1.2, cz - 0.55), (0.85, 1.05, 0.32), trim(), 48, (math.radians(14), 0, 0))
     sphere((x, -1.65, cz - 0.38), (0.62, 0.55, 0.2), glow(MAW, 5.0), 32)
     # Teeth: down from the skull's rim, up from the jaw's, round the front.
     fang = metal()
@@ -460,8 +557,7 @@ def whale(x, z, theme):
     # A gold keel down the brow.
     sphere((x, -1.45, cz + 0.72), (0.14, 0.85, 0.16), gold, 32, (math.radians(-10), 0, 0))
 
-    # A ridge of big spikes round the nebula window.
-    sphere(on(body, (x, 0.7, cz + 1.0), -0.12), (0.38, 0.95, 0.18), theme["core"](), 32)
+    # A ridge of big spikes down the back.
     for dy, length in ((-0.75, 0.55), (-0.2, 0.7), (1.6, 0.65), (2.15, 0.5), (2.6, 0.35)):
         spike(on(body, (x, dy, cz + 1.0), -0.04), 0.13, length, gold, (0, 0.45, 1))
     for side in (-1, 1):
@@ -470,48 +566,105 @@ def whale(x, z, theme):
             oriented(sphere(tuple(location), (0.7, 0.05, 0.08), gold, 32), normal)
         # Long flippers, angled down and swept back, glowing along the front, clawed behind.
         sweep = math.radians(side * 30)
-        flipper = sphere((x + side * 1.4, -0.3, cz - 0.4), (0.82, 0.3, 0.06), shell, 32, (0, math.radians(side * 28), sweep))
-        limb((x + side * 0.9, -0.55, cz - 0.15), (x + side * 2.0, 0.05, cz - 0.72), 0.03, glow(accent, 8.0))
+        flipper = sphere((x + side * (0.95 + 0.45 * fins), -0.3, cz - 0.4), (0.82 * fins, 0.3 * fins, 0.06), shell, 32,
+                         (0, math.radians(side * 28), sweep))
+        limb((x + side * 0.9, -0.55, cz - 0.15), (x + side * (1.1 + 0.9 * fins), 0.05, cz - 0.15 - 0.57 * fins), 0.03, glow(accent, 8.0))
         # Claws on the trailing edge, on its outer half (the flipper's own frame: its local +Y is
         # its back edge; the outer end is whichever end of local X lies further out).
-        bpy_update()
+        bpy.context.view_layer.update()
         frame = flipper.matrix_world
         outer = 1 if (frame @ Vector((1, 0, 0))).x * side > (frame @ Vector((-1, 0, 0))).x * side else -1
         back = (frame.to_3x3() @ Vector((0, 1, 0))).normalized()
         for u in (0.3, 0.55, 0.8):
-            root = frame @ Vector((outer * u, math.sqrt(1 - u * u) * 0.9, 0))
-            spike(root, 0.05, 0.28, fang, back + Vector((side * 0.3, 0, 0)))
+            spike(frame @ Vector((outer * u, math.sqrt(1 - u * u) * 0.9, 0)), 0.05, 0.28, fang, back + Vector((side * 0.3, 0, 0)))
         # Flukes with spiked tips, and twin thrusters on the tail stock.
         sphere((x + side * 0.85, 3.25, cz + 0.15), (1.0, 0.34, 0.06), shell, 32, (0, 0, math.radians(side * 34)))
         spike((x + side * 1.6, 3.7, cz + 0.15), 0.07, 0.4, gold, (side * 0.85, 0.6, 0))
         cylinder((x + side * 0.4, 2.6, cz - 0.25), 0.18, 0.4, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3), (math.radians(90), 0, 0))
         sphere((x + side * 0.4, 2.81, cz - 0.25), (0.14, 0.05, 0.14), glow(accent, 12.0), 24)
     sphere((x, 2.75, cz + 0.12), (0.38, 0.65, 0.3), shell, 32)
+    return {"shells": [body, skull], "top": (x, -0.6, cz + 1.0), "center": (x, 0.5, cz), "radius": 1.2, "width": 1.5, "size": 1.2,
+            "hull": ((x, 0.5, cz), (1.0, 2.3, 0.85)), "hull_obj": body}
+
+
+def galaxy(info, theme):
+    """A nebula window down the back and stars over it."""
+    body = info["hull_obj"]
+    cx, cy, cz = info["center"]
+    sphere(on(body, (cx, cy + 0.2, cz + 1.0), -0.12), (0.38, 0.95, 0.18), theme["core"](), 32)
     star = real.glow("BackStar", (1.0, 0.95, 0.85), 12.0)
     for index in range(8):
         angle = index * 2.4
-        sphere(on(body, (x + math.cos(angle) * 0.65, 0.7 + math.sin(angle) * 1.3, cz + 0.8), 0.01), (0.03,) * 3, star, 10)
+        sphere(on(body, (cx + math.cos(angle) * 0.65, cy + 0.2 + math.sin(angle) * 1.3, cz + 0.8), 0.01), (0.03,) * 3, star, 10)
 
 
-# Each base and the post whose main kind is its baby (the six posts that set a body kind).
+# --- Building -------------------------------------------------------------------------------------
+
+
+# family: (builder, pet_scale: how much bigger than its pet the adult's body is, growth: to guardian
+# size in the concept sheets).
 FAMILIES = {
-    "slime": (slime, "slimeWarden", 2.2),
-    "crab": (crab, "crabDrone", 2.0),
-    "worm": (worm, "iceWorm", 2.0),
-    "swarm": (swarm, "devourerSwarm", 1.9),
-    "ray": (ray, "starRay", 2.0),
-    "whale": (whale, "spaceWhale", 1.8),
+    "slime": (slime, 1.2, 2.2),
+    "crab": (crab, 1.3, 2.0),
+    "worm": (worm, 1.2, 2.0),
+    "swarm": (swarm, 1.25, 1.9),
+    "ray": (ray, 1.4, 2.0),
+    "whale": (whale, 1.3, 1.8),
 }
 
+# A pet signature's adult version, drawn on the full-size adult instead of the pet's.
+ADULT_SIGNATURES = {"siren": siren, "rotor": rotors, "stars": stars, "galaxy": galaxy, "mandibles": no_mandibles}
+# Pet signatures with an adult version drawn at the pet's size.
+PET_SIZE_OVERRIDES = {"queen": queen}
 
-def build(family, x, z):
-    """The adult guardian of `family` (its post's colours and zone), grown to guardian size."""
-    import bpy
+POINT_KEYS = ("top", "center", "head", "lead", "flank")
+LENGTH_KEYS = ("radius", "width", "head_r", "lead_size", "span", "size", "flank_r")
 
-    make, kind_id, growth = FAMILIES[family]
-    kind = next(k for k in robo_kinds.KINDS if k[0] == kind_id)
-    _, _, _, zone, look = kind[:5]
+
+def _scaled(info, x, z, factor):
+    """The anchors of an adult whose parts were scaled by `factor` about its base point."""
+    base = Vector((x, 0, z))
+
+    def point(p):
+        return tuple(base + (Vector(p) - base) * factor)
+
+    out = {key: value for key, value in info.items() if not key.startswith("_")}
+    for key in POINT_KEYS:
+        if key in out:
+            out[key] = point(out[key])
+    for key in LENGTH_KEYS:
+        if key in out:
+            out[key] = out[key] * factor
+    if "hull" in out:
+        centre, radii = out["hull"]
+        out["hull"] = (point(centre), tuple(r * factor for r in radii))
+    if "wing_height" in out:
+        height = info["wing_height"]
+        out["wing_height"] = lambda reach: z + (height(reach / factor) - z) * factor
+    return out
+
+
+def kind_of(kind_id):
+    return next(k for k in robo_kinds.KINDS if k[0] == kind_id)
+
+
+def build(kind, x, z, growth=None):
+    """The adult guardian of a post, from its main kind: the family's adult in the kind's colours,
+    shape and signature parts, grown to guardian size."""
+    _, _, family, zone, look, shape, signature = kind[:7]
+    make, pet_scale, default_growth = FAMILIES[family]
+    paint = robo.theme(zone, look)
     before = set(bpy.data.objects)
-    make(x, z, robo.theme(zone, look))
-    robo._grow(set(bpy.data.objects) - before, x, z, growth)
-    return kind
+    info = make(x, z, paint, shape or {}, zone)
+    info["tier"] = 2
+    for part in signature:
+        if part.__name__ in ADULT_SIGNATURES:
+            ADULT_SIGNATURES[part.__name__](info, paint)
+    # The pets' own signature parts, on the adult shrunk to a pet's size.
+    robo._grow(set(bpy.data.objects) - before, x, z, 1 / pet_scale)
+    small = _scaled(info, x, z, 1 / pet_scale)
+    for part in signature:
+        if part.__name__ not in ADULT_SIGNATURES:
+            PET_SIZE_OVERRIDES.get(part.__name__, part)(small, paint)
+    robo._grow(set(bpy.data.objects) - before, x, z, pet_scale * (growth or default_growth))
+    return info
