@@ -7,6 +7,9 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BorderLooks = require(ReplicatedStorage.Shared.Config.BorderLooks)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local LeaderboardModel = require(script.Parent.Parent.World.LeaderboardModel)
 local MeteorLooks = require(ReplicatedStorage.Shared.Config.MeteorLooks)
@@ -17,6 +20,7 @@ local SkyLooks = require(ReplicatedStorage.Shared.Config.SkyLooks)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.WorldConfig)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
+local ZoneKit = require(script.Parent.Parent.World.ZoneKit)
 local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
 local Zones = require(ReplicatedStorage.Shared.Domain.Zones)
 
@@ -31,11 +35,6 @@ local RIM_COLOR = Color3.fromRGB(90, 200, 255)
 -- The map edge: a faint shell so players see where space ends (Bounds stops them there).
 local BOUNDARY_COLOR = Color3.fromRGB(150, 90, 255)
 local BOUNDARY_TRANSPARENCY = 0.9
-local NEST_BOWL_RADIUS = 4.5
-local NEST_BOWL_THICKNESS = 1.2
-local NEST_BOWL_COLOR = Color3.fromRGB(92, 66, 110)
--- Height of an egg's center above the bowl's center.
-local NEST_EGG_LIFT = 1.5
 
 export type NestSite = {
 	id: string,
@@ -252,51 +251,118 @@ local function buildAsteroids(parent: Instance)
 	folder.Parent = parent
 end
 
--- A nest asteroid with a bowl on top.
+-- How a nest looks: its rock and pad (the zone's, ZoneLooks) and its accent, the rim and the
+-- cradle (its guardian's colour).
+type NestLook = {
+	rockMaterial: Enum.Material,
+	rockColor: Color3,
+	padMaterial: Enum.Material,
+	padColor: Color3,
+	accent: Color3,
+}
+
+-- A part of a nest: anchored; the rock, pillar and pad are solid, the rim and cradle only a look.
+local function nestPart(part: BasePart, model: Model, collides: boolean)
+	part.Anchored = true
+	part.CanTouch = false
+	part.CanCollide = collides
+	part.CanQuery = collides
+	part.Parent = model
+end
+
+-- A ring of the kit lying flat, `radius` out to its middle; nil without the kit.
+local function ring(name: string, center: Vector3, radius: number, thickness: number): MeshPart?
+	local part = ZoneKit.piece("Ring")
+	if not part then
+		return nil
+	end
+	part.Name = name
+	part.Size = Vector3.new(radius * 2 + thickness, thickness, radius * 2 + thickness)
+	part.CFrame = CFrame.new(center)
+	return part
+end
+
+-- A nest (ZoneLooks.NEST): a flat-topped rock `size` wide, a pillar, a wide landing pad with a
+-- glowing rim and a cradle in the middle where the egg lies. Without the zones' kit in the place
+-- the rock is a ball and the rim and cradle are left out.
 local function buildNest(
 	name: string,
 	zone: ZoneConfig.ZoneId,
 	center: Vector3,
 	size: number,
-	material: Enum.Material,
-	color: Color3
+	look: NestLook,
+	random: Random
 ): NestSite
+	local shape = ZoneLooks.NEST
 	local model = Instance.new("Model")
 	model.Name = name
 
-	local rock = Instance.new("Part")
+	local rock: BasePart
+	local kitRock = ZoneKit.piece(if random:NextNumber() < 0.5 then "NestRock1" else "NestRock2")
+	if kitRock then
+		kitRock.Size = shape.rockStretch * size
+		kitRock.CFrame = CFrame.new(center) * CFrame.Angles(0, random:NextNumber(0, math.pi * 2), 0)
+		rock = kitRock
+	else
+		local ball = Instance.new("Part")
+		ball.Shape = Enum.PartType.Ball
+		ball.Size = Vector3.one * size
+		ball.CFrame = CFrame.new(center)
+		rock = ball
+	end
 	rock.Name = "Rock"
-	rock.Shape = Enum.PartType.Ball
-	rock.Size = Vector3.one * size
-	rock.CFrame = CFrame.new(center)
-	rock.Material = material
-	rock.Color = color
-	rock.Anchored = true
-	rock.CanTouch = false
-	rock.Parent = model
+	rock.Material = look.rockMaterial
+	rock.Color = look.rockColor
+	nestPart(rock, model, true)
 
-	-- The bowl sits a little into the rock's top so it looks embedded.
-	local top = center + Vector3.yAxis * (size / 2 - 0.6)
-	local bowl = disc("Bowl", top, NEST_BOWL_RADIUS, NEST_BOWL_THICKNESS)
-	bowl.Material = Enum.Material.Basalt
-	bowl.Color = NEST_BOWL_COLOR
-	bowl.Anchored = true
-	bowl.CanTouch = false
-	bowl.Parent = model
+	-- The pillar stands a little into the rock's top so it looks rooted.
+	local rockTop = center.Y + rock.Size.Y / 2 - 0.3
+	local pillarCenter = Vector3.new(center.X, rockTop + shape.pillarHeight / 2, center.Z)
+	local pillar = disc("Pillar", pillarCenter, shape.pillarRadius, shape.pillarHeight + 0.3)
+	pillar.Material = look.padMaterial
+	pillar.Color = look.padColor
+	nestPart(pillar, model, true)
+
+	local padCenter = pillarCenter + Vector3.yAxis * (shape.pillarHeight / 2 + shape.padThickness / 2)
+	local pad = disc("Pad", padCenter, shape.padRadius, shape.padThickness)
+	pad.Material = look.padMaterial
+	pad.Color = look.padColor
+	nestPart(pad, model, true)
+
+	local padTop = padCenter + Vector3.yAxis * (shape.padThickness / 2)
+	local rim = ring("Rim", padTop, shape.padRadius - shape.rimThickness / 2, shape.rimThickness)
+	if rim then
+		rim.Material = Enum.Material.Neon
+		rim.Color = look.accent
+		nestPart(rim, model, false)
+	end
+	local cradle = ring("Cradle", padTop, shape.cradleRadius, shape.cradleThickness)
+	if cradle then
+		cradle.Material = shape.cradleMaterial
+		cradle.Color = look.accent
+		nestPart(cradle, model, false)
+	end
 
 	model.PrimaryPart = rock
 	return {
 		id = name,
 		model = model,
 		zone = zone,
-		eggCFrame = CFrame.new(top + Vector3.yAxis * NEST_EGG_LIFT),
+		-- Where a medium egg lies; any egg stands on its bottom there (EggLooks.liftOf).
+		eggCFrame = CFrame.new(padTop + Vector3.yAxis * (shape.eggGap + EggLooks.EGG_SIZE.Y / 2)),
 	}
 end
 
 -- A meteor's crater: a small scorched nest rock, glowing (MeteorLooks.CRATER).
 local function buildCrater(name: string, zone: ZoneConfig.ZoneId, center: Vector3): NestSite
 	local looks = MeteorLooks.CRATER
-	local site = buildNest(name, zone, center, looks.rockSize, looks.rockMaterial, looks.rockColor)
+	local site = buildNest(name, zone, center, looks.rockSize, {
+		rockMaterial = looks.rockMaterial,
+		rockColor = looks.rockColor,
+		padMaterial = looks.rockMaterial,
+		padColor = looks.rockColor,
+		accent = looks.glowColor,
+	}, Random.new())
 	local glow = Instance.new("PointLight")
 	glow.Color = looks.glowColor
 	glow.Range = looks.glowRange
@@ -312,6 +378,8 @@ local function buildNests(parent: Instance): { NestSite }
 	local function roll(): number
 		return random:NextNumber()
 	end
+	-- The rocks' shapes and turns roll apart, so the nests stay where they were.
+	local shapes = Random.new(WorldConfig.SEED + 3)
 	local folder = Instance.new("Folder")
 	folder.Name = NESTS_FOLDER_NAME
 	local sites: { NestSite } = {}
@@ -323,8 +391,14 @@ local function buildNests(parent: Instance): { NestSite }
 			local center = StationConfig.PLATFORM_CENTER
 				+ Vector3.new(math.cos(spot.angle) * spot.distance, spot.height, math.sin(spot.angle) * spot.distance)
 			local size = random:NextNumber(WorldConfig.NEST_ASTEROID_MIN_SIZE, WorldConfig.NEST_ASTEROID_MAX_SIZE)
-			local color = look.rockColors[random:NextInteger(1, #look.rockColors)]
-			local site = buildNest(`{zoneId}Nest{index}`, zoneId, center, size, look.rockMaterial, color)
+			local post = GuardianConfig.POSTS[ZoneConfig.postIndex(zoneId, spot.post)]
+			local site = buildNest(`{zoneId}Nest{index}`, zoneId, center, size, {
+				rockMaterial = look.rockMaterial,
+				rockColor = look.rockColors[random:NextInteger(1, #look.rockColors)],
+				padMaterial = look.padMaterial,
+				padColor = look.padColor,
+				accent = GuardianLooks.POSTS[post.id].color,
+			}, shapes)
 			site.post = spot.post
 			site.model.Parent = folder
 			table.insert(sites, site)

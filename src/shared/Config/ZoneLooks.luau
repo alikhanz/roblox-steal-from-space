@@ -7,33 +7,68 @@ local WorldConfig = require("./WorldConfig")
 local ZoneConfig = require("./ZoneConfig")
 
 export type ZoneLook = {
+	-- A nest's rock (one of the colours, at random) and the landing pad on it (docs/plans/ZONES.md).
 	read rockColors: { Color3 },
 	read rockMaterial: Enum.Material,
+	read padColor: Color3,
+	read padMaterial: Enum.Material,
 }
 
 local rgb = Color3.fromRGB
 
 local ZONES: { [ZoneConfig.ZoneId]: ZoneLook } = {
+	-- A scrapyard: grey rock, a steel plate to land on.
 	DebrisBelt = {
-		rockColors = { rgb(96, 92, 104), rgb(120, 112, 118), rgb(78, 80, 92), rgb(110, 98, 90) },
+		rockColors = { rgb(124, 118, 128), rgb(140, 128, 120), rgb(106, 108, 120), rgb(150, 112, 90) },
 		rockMaterial = Enum.Material.Slate,
+		padColor = rgb(150, 156, 166),
+		padMaterial = Enum.Material.DiamondPlate,
 	},
+	-- Frost: blue ice rock, a snowy pad.
 	IceRings = {
-		rockColors = { rgb(190, 225, 245), rgb(160, 205, 235), rgb(215, 240, 255) },
-		rockMaterial = Enum.Material.Ice,
+		rockColors = { rgb(150, 200, 235), rgb(120, 180, 225), rgb(175, 215, 240) },
+		rockMaterial = Enum.Material.Glacier,
+		padColor = rgb(225, 238, 250),
+		padMaterial = Enum.Material.Snow,
 	},
+	-- Warm gas: magma-cracked basalt, an obsidian pad.
 	RedNebula = {
-		rockColors = { rgb(140, 50, 50), rgb(110, 40, 60), rgb(170, 70, 50) },
-		rockMaterial = Enum.Material.Basalt,
+		rockColors = { rgb(120, 52, 44), rgb(100, 40, 48), rgb(135, 64, 46) },
+		rockMaterial = Enum.Material.CrackedLava,
+		padColor = rgb(48, 34, 36),
+		padMaterial = Enum.Material.Basalt,
 	},
+	-- The dark edge: black-violet rock, a dark pad.
 	EventHorizon = {
-		rockColors = { rgb(40, 36, 52), rgb(28, 26, 38), rgb(55, 40, 70) },
+		rockColors = { rgb(62, 54, 82), rgb(48, 42, 64), rgb(76, 58, 98) },
 		rockMaterial = Enum.Material.Slate,
+		padColor = rgb(40, 36, 54),
+		padMaterial = Enum.Material.Basalt,
 	},
 }
 
 return table.freeze({
 	ZONES = table.freeze(ZONES),
+
+	-- A nest (docs/plans/ZONES.md): a rock with a flat top, a short pillar on it and a wide landing
+	-- pad, wide enough to land on for a theft (user, 2026-11-08). The pad's rim and the cradle the
+	-- egg lies in take the colour of the nest's guardian (GuardianLooks.POSTS), seen from afar.
+	-- Studs; the rock's width is the nest's size (WorldConfig.NEST_ASTEROID_MIN/MAX_SIZE).
+	NEST = table.freeze({
+		-- The rock's shape against its width: flattened, a little longer one way.
+		rockStretch = Vector3.new(1.15, 0.6, 1),
+		pillarRadius = 2.4,
+		pillarHeight = 2.2,
+		padRadius = 7,
+		padThickness = 0.8,
+		rimThickness = 0.45,
+		-- The cradle holds a large egg (decision 084).
+		cradleRadius = 1.9,
+		cradleThickness = 0.8,
+		cradleMaterial = Enum.Material.SmoothPlastic,
+		-- How high over the pad the egg's bottom floats.
+		eggGap = 0.15,
+	}),
 
 	-- How far the sign over a guardian shows, studs. Nests stand farther apart in the far zones
 	-- (about 170 studs in the Debris Belt, 300 in the Ice Rings, 430 in the Red Nebula, 510 on
