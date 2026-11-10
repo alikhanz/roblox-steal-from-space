@@ -56,10 +56,15 @@ def look_of(mat):
 
 
 def bake(obj, rgb):
+    """Bakes a material colour (Blender's linear) into the vertices as Roblox will read it.
+
+    Roblox reads COLOR_0 as sRGB numbers, not linear (BLENDER_ROBLOX.md, section 2), so the sRGB
+    numbers go through the linear setter: the GLB then holds them unchanged. color_srgb would store
+    them linear again and the jetpack would come out darker and richer than its material."""
     attribute = obj.data.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
     colour = (srgb(rgb[0]), srgb(rgb[1]), srgb(rgb[2]), 1.0)
     for item in attribute.data:
-        item.color_srgb = colour
+        item.color = colour
     obj.data.color_attributes.active_color = attribute
 
 
