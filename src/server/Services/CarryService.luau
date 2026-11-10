@@ -44,8 +44,10 @@ end
 -- The server accepts a grab a little beyond the reach, for latency between client and server.
 local REACH_TOLERANCE = 3
 local LOOSE_FOLDER_NAME = "LooseEggs"
--- Carried egg position in front of the chest, relative to the UpperTorso.
-local CARRY_OFFSET = CFrame.new(0, -0.2, -1.4)
+-- Carried egg position in front of the chest, relative to the UpperTorso: this low, and with
+-- this much room between the chest's centre and the egg's back, so a large egg stays out of it.
+local CARRY_DROP = 0.2
+local CARRY_CHEST_ROOM = 0.6
 
 -- An egg out of its nest, carried or floating loose.
 export type Egg = {
@@ -185,7 +187,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		local model = EggModel.build(egg.rarity, egg.size, { variant = egg.variant, luck = egg.luck })
 		model.Name = "CarriedEgg"
 		CollectionService:AddTag(model, EggConfig.CARRIED_EGG_TAG)
-		model.CFrame = torso.CFrame * CARRY_OFFSET
+		model.CFrame = torso.CFrame * CFrame.new(0, -CARRY_DROP, -(CARRY_CHEST_ROOM + model.Size.Z / 2))
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = torso
 		weld.Part1 = model

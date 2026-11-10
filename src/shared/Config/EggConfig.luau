@@ -33,9 +33,10 @@ export type Size = {
 }
 
 local SIZES: { [SizeId]: Size } = {
-	Small = { weightFactor = 0.7, scale = 0.8, luck = 0 },
+	-- Scales set apart (decision 084): a large egg is plainly the bigger prize, as in games like it.
+	Small = { weightFactor = 0.7, scale = 0.65, luck = 0 },
 	Medium = { weightFactor = 1, scale = 1, luck = 0.15 },
-	Large = { weightFactor = 1.4, scale = 1.25, luck = 0.3 },
+	Large = { weightFactor = 1.4, scale = 1.5, luck = 0.3 },
 }
 
 -- The magnetic grab: holding the grab input in reach locks the flyer onto the egg.

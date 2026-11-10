@@ -44,8 +44,8 @@ local BOARD_PIXELS_PER_STUD = 50
 local BOARD_PADDING = 12
 -- Over the top of the alien's head.
 local ALIEN_STUDS_ABOVE = 1
--- Each egg's countdown, just over it.
-local EGG_STUDS_ABOVE = 1.6
+-- Each egg's countdown, just over its top (eggs come in three sizes).
+local EGG_STUDS_ABOVE_TOP = 0.55
 -- The owner's name reads from across the island; what stands on it only up close, or the
 -- labels pile up on each other.
 local SIGN_MAX_DISTANCE = 120
@@ -413,7 +413,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				iconColor = color,
 				text = remaining,
 				color = color,
-				studsAbove = EGG_STUDS_ABOVE,
+				studsAbove = part.Size.Y / 2 + EGG_STUDS_ABOVE_TOP,
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),
 				tick
@@ -428,7 +428,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				iconColor = eggColor(part),
 				text = Text.get(locale, "egg.waiting.hint"),
 				color = Theme.NEON.MUTED,
-				studsAbove = EGG_STUDS_ABOVE,
+				studsAbove = part.Size.Y / 2 + EGG_STUDS_ABOVE_TOP,
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),
 				nil

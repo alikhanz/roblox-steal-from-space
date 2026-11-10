@@ -127,8 +127,8 @@ return table.freeze({
 	-- Roblox for the purchase.
 	READY_NOW_TIER_ATTRIBUTE = "ReadyNowTier",
 	-- On a prompt: how high over its part's centre the client draws it, studs (default: at the
-	-- centre). An egg's prompt hangs low, on the capsule's stand: the timer and "Ready!" chips of
-	-- the ring of capsules sit over the eggs and used to cover it.
+	-- centre). An egg's prompt hangs low, this far under the egg, on the capsule's stand: the
+	-- timer and "Ready!" chips of the ring of capsules sit over the eggs and used to cover it.
 	PROMPT_STUDS_ABOVE_ATTRIBUTE = "StudsAbove",
-	EGG_PROMPT_STUDS_ABOVE = -1.8,
+	EGG_PROMPT_BELOW = 0.75,
 })

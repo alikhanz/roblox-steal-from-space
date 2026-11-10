@@ -19,6 +19,7 @@ local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local BayModel = require(script.Parent.Parent.World.BayModel)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
@@ -238,6 +239,10 @@ function BayService.new(dependencies: Dependencies): BayService
 		ready: boolean?
 	): (BasePart?, boolean)
 		local state = if hatchAt == nil then "waiting" elseif ready then "ready" else "warming"
+		-- `cframe` is where a medium egg lies; every egg stands on its bottom there.
+		if EggConfig.SIZES[egg.size :: EggConfig.SizeId] then
+			cframe += Vector3.yAxis * EggLooks.liftOf(egg.size :: EggConfig.SizeId)
+		end
 		local shown = bay.eggs[egg.uid]
 		if shown and shown.state == state and shown.part.Parent then
 			kept[egg.uid] = true
@@ -352,6 +357,12 @@ function BayService.new(dependencies: Dependencies): BayService
 		})
 	end
 
+	-- An egg's prompt hangs this far over the egg's centre: the same distance under its bottom
+	-- whatever its size.
+	local function eggPromptHeight(part: BasePart): number
+		return -(part.Size.Y / 2 + BayConfig.EGG_PROMPT_BELOW)
+	end
+
 	local function addHatchPrompt(player: Player, part: BasePart, uid: number)
 		local words = Text.get(Text.localeOf(player), "egg.hatch.button")
 		addOwnerPrompt(player, part, words, function()
@@ -359,7 +370,7 @@ function BayService.new(dependencies: Dependencies): BayService
 				hatchReady(player, uid)
 			end
 		end, {
-			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = BayConfig.EGG_PROMPT_STUDS_ABOVE,
+			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = eggPromptHeight(part),
 		})
 	end
 
@@ -378,7 +389,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		local words = Text.get(locale, "egg.hatchNow.button", { price = unknown })
 		addOwnerPrompt(player, part, words, function() end, {
 			[BayConfig.READY_NOW_TIER_ATTRIBUTE] = tier,
-			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = BayConfig.EGG_PROMPT_STUDS_ABOVE,
+			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = eggPromptHeight(part),
 		})
 	end
 

@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local NestCycle = require(ReplicatedStorage.Shared.Domain.NestCycle)
@@ -91,7 +92,7 @@ function NestService.new(dependencies: Dependencies): NestService
 	)
 		local egg = EggModel.build(rarity, size, { variant = variant })
 		egg.Anchored = true
-		egg.CFrame = nest.site.eggCFrame
+		egg.CFrame = nest.site.eggCFrame + Vector3.yAxis * EggLooks.liftOf(size)
 		egg.Parent = nest.site.model
 		nest.rarity = rarity
 		nest.size = size

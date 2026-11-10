@@ -18,10 +18,19 @@ local RARITIES: { [EggConfig.RarityId]: RarityLook } = {
 	Legendary = { color = Color3.fromRGB(255, 200, 60), glow = 2 },
 }
 
+-- Egg size, studs (an elongated sphere), before the size's scale.
+local EGG_SIZE = Vector3.new(1.6, 2.1, 1.6)
+
+-- How much higher an egg of `size` sits than a medium one where it rests on something (a nest,
+-- a capsule, the floor), studs: every egg stands on its bottom, not its middle (decision 084).
+local function liftOf(size: EggConfig.SizeId): number
+	return EGG_SIZE.Y / 2 * (EggConfig.SIZES[size].scale - 1)
+end
+
 return table.freeze({
 	RARITIES = table.freeze(RARITIES),
-	-- Egg size, studs (an elongated sphere), before the size's scale.
-	EGG_SIZE = Vector3.new(1.6, 2.1, 1.6),
+	EGG_SIZE = EGG_SIZE,
+	liftOf = liftOf,
 
 	-- The glowing ribbon behind an egg on the move, in the egg's color. It always faces the
 	-- camera, so it is seen from behind too. Width is studs across; lifetime is how long a piece
