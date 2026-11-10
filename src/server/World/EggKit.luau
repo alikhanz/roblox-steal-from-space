@@ -35,7 +35,13 @@ function EggKit.piece(id: string): Piece?
 	if not centre or not source or not part then
 		return nil
 	end
-	-- What the egg wears is welded to it and moves with it.
+	-- What the egg wears is welded to it and moves with it. Never the root of its assembly: callers
+	-- place an egg by its CFrame before it enters the workspace, where no joint moves the pieces
+	-- along, and on entering the solver lines the assembly up on its root. With a piece as root the
+	-- egg jumped back to its pieces, left where it was built, and a thief carried it welded hundreds
+	-- of studs away, swinging round as they turned (2026-11-10; Studio: 2311 studs off with
+	-- priority 0, 2.3 with -127).
+	part.RootPriority = -127
 	part.Anchored = false
 	part.CanCollide = false
 	part.CanQuery = false

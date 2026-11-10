@@ -66,25 +66,6 @@ local function wear(egg: BasePart, id: string, scale: number, color: Color3, mat
 	return part
 end
 
--- Keeps the capsule on the egg while the egg is out of the workspace. Callers place an egg by its
--- CFrame before parenting it (a nest, a capsule, a thief's chest), and out of the workspace no
--- joint moves the pieces along: when it then enters, the solver may pull the egg back to its
--- pieces instead (a carried egg ended up welded to its thief hundreds of studs away, at the nest
--- it came from, 2026-11-10). In the workspace the welds carry the pieces.
-local function follow(egg: BasePart)
-	egg:GetPropertyChangedSignal("CFrame"):Connect(function()
-		if egg:IsDescendantOf(workspace) then
-			return
-		end
-		for _, child in egg:GetChildren() do
-			local weld = child:FindFirstChildWhichIsA("Weld")
-			if child:IsA("BasePart") and weld and weld.Part0 == egg then
-				child.CFrame = egg.CFrame * weld.C0
-			end
-		end
-	end)
-end
-
 local function capsule(egg: BasePart, rarity: EggConfig.RarityId, scale: number, meteor: boolean)
 	local kind: EggKit.Kind = if meteor then "Meteor" else rarity
 	-- White: the body's colours are baked in its vertices.
@@ -118,7 +99,6 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, opti
 		-- The capsule shows the egg; this box only holds it, the light and the tags.
 		egg.Transparency = 1
 		capsule(egg, rarity, scale, meteor)
-		follow(egg)
 	else
 		egg.Color = if meteor then EggLooks.METEOR.lava else look.color
 		egg.Material = EggLooks.SHELL_MATERIAL
