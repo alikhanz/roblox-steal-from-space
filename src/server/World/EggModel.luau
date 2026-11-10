@@ -67,14 +67,15 @@ local function wear(egg: BasePart, id: string, scale: number, color: Color3, mat
 end
 
 local function capsule(egg: BasePart, rarity: EggConfig.RarityId, scale: number, meteor: boolean)
-	local kind: EggKit.Kind = if meteor then "Meteor" else rarity
+	-- A meteor egg wears its rarity's outfit on a scorched capsule, glowing lava.
+	local kind = if meteor then `Meteor{rarity}` else rarity
 	-- White: the body's colours are baked in its vertices.
 	wear(egg, `Body{kind}`, scale, Color3.new(1, 1, 1), EggLooks.SHELL_MATERIAL)
 	local glow = if meteor then EggLooks.METEOR.lava else EggLooks.RARITIES[rarity].color
 	if kind ~= "Common" then
 		wear(egg, `Glow{kind}`, scale, glow, Enum.Material.Neon)
 	end
-	if kind == "Legendary" then
+	if rarity == "Legendary" then
 		local cap = wear(egg, "CapGold", scale, EggLooks.GOLD, EggLooks.SHELL_MATERIAL)
 		-- Polished gold, as the pets' (AlienDress): the metal variant, if the place has it.
 		local variant = AlienLooks.MODELS.METAL_VARIANT

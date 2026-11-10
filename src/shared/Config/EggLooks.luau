@@ -3,10 +3,11 @@
 -- calculator and tests), where Roblox datatypes do not exist.
 --
 -- An egg is a ceramic capsule (decision 088) from the egg kit (World/EggKit): its plastic body
--- with the colours baked in (pearl base, the cap in the rarity's colour) and what each rarity
--- wears are in the meshes (assets/blender/eggs/egg_kit.py: a lit seam from uncommon, a lit window
--- from rare, an antenna and an orbit from epic, a gold cap and a halo for legendary). Here: what
--- the game paints on them.
+-- with the colours baked in and what each rarity wears are in the meshes
+-- (assets/blender/eggs/egg_kit.py): common is plain matte grey; uncommon a pearl capsule with a
+-- coloured cap and a lit seam; rare adds a lit window and foot ring; epic glowing stripes on the
+-- cap, an antenna and an orbit; legendary a gold crowned cap, two orbits and a halo. A meteor egg
+-- wears the same on a scorched capsule, glowing lava. Here: what the game paints on them.
 
 local EggConfig = require("./EggConfig")
 

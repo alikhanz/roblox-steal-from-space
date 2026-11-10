@@ -54,13 +54,20 @@ RIM = (0.25, 0.33, 0.08)
 GLASS = (0.19, 0.27, 0.07)
 # The antenna's rod and tip.
 ANTENNA_TOP = HALF_HEIGHT - 0.02
-# The orbit round epic and legendary eggs (radius, turn), the legendary halo (radius, gap above
-# the top: clear of the antenna).
-ORBIT = (1.1, (math.radians(72), math.radians(14), 0))
+# The orbits round epic and legendary eggs (radius, thickness, turns: legendary wears both, crossed),
+# the legendary halo (radius, gap above the top: clear of the crown).
+ORBIT = (1.12, 0.045, [(math.radians(72), math.radians(14), math.radians(-28)), (math.radians(72), math.radians(-14), math.radians(28))])
 HALO = (0.36, 0.55)
+# Glowing stripes down the epic cap: how many, their thickness.
+STRIPES = (4, 0.028)
+# The legendary crown: how many teeth round the top, their height.
+CROWN = (6, 0.22)
 
 # Baked colours, sRGB 0..255. The rarities' caps match their colours in EggLooks.RARITIES.
 PEARL = (236, 239, 245)
+# A common egg is plain matte grey all over: nothing about it shines (user, 2026-11-10: rarity
+# should read at a glance).
+DULL = (150, 154, 164)
 UNLIT = (64, 66, 77)
 ROD = (77, 82, 97)
 FOOT = (94, 96, 102)
@@ -68,18 +75,20 @@ WINDOW_RIM = (60, 62, 70)
 SCORCHED = (90, 58, 48)
 SCORCHED_DARK = (45, 30, 26)
 CAPS = {
-    "Common": PEARL,
+    "Common": DULL,
     "Uncommon": (71, 217, 107),
     "Rare": (64, 140, 255),
     "Epic": (173, 77, 255),
 }
-# What each rarity wears: lit seam, lit window, antenna and orbit, gold cap and halo.
+# Each rarity adds something seen from afar, in its silhouette, not only its colour (user,
+# 2026-11-10): a lit seam; a saucer belt, a lit window and foot ring; glowing stripes
+# on the cap, an antenna and an orbit; a gold crowned cap, a second orbit and a halo.
 LADDER = {
-    "Common": dict(seam=False, window=False, antenna=False, halo=False),
-    "Uncommon": dict(seam=True, window=False, antenna=False, halo=False),
-    "Rare": dict(seam=True, window=True, antenna=False, halo=False),
-    "Epic": dict(seam=True, window=True, antenna=True, halo=False),
-    "Legendary": dict(seam=True, window=True, antenna=True, halo=True),
+    "Common": dict(seam=False, window=False, foot=False, stripes=False, antenna=False, orbits=0, crown=False, belt=False),
+    "Uncommon": dict(seam=True, window=False, foot=False, stripes=False, antenna=False, orbits=0, crown=False, belt=False),
+    "Rare": dict(seam=True, window=True, foot=True, stripes=False, antenna=False, orbits=0, crown=False, belt=True),
+    "Epic": dict(seam=True, window=True, foot=True, stripes=True, antenna=True, orbits=1, crown=False, belt=True),
+    "Legendary": dict(seam=True, window=True, foot=True, stripes=False, antenna=False, orbits=2, crown=True, belt=True),
 }
 
 
@@ -231,9 +240,58 @@ def tip():
     return apply(smooth(bpy.context.active_object))
 
 
-def ring(radius, location=(0, 0, 0), rotation=(0, 0, 0)):
-    bpy.ops.mesh.primitive_torus_add(major_radius=radius, minor_radius=0.03, major_segments=32, minor_segments=4, location=location, rotation=rotation)
+def ring(radius, location=(0, 0, 0), rotation=(0, 0, 0), minor=0.03):
+    bpy.ops.mesh.primitive_torus_add(major_radius=radius, minor_radius=minor, major_segments=32, minor_segments=4, location=location, rotation=rotation)
     return apply(smooth(bpy.context.active_object))
+
+
+def stripes():
+    """Glowing bands running down the cap from near its top to the seam, between the window's
+    sides (so none crosses the front)."""
+    count, radius = STRIPES
+    parts = []
+    for index in range(count):
+        angle = math.radians(45 + index * 360 / count)
+        z0, z1 = SEAM_Z + GAP + 0.03, HALF_HEIGHT * 0.86
+        points = [(angle, z0 + (z1 - z0) * step / 8) for step in range(9)]
+        parts.append(tube(points, radius))
+    return join("Stripes", parts)
+
+
+def crown():
+    """A band round the top of the cap with teeth standing up from it, leaning a little out."""
+    count, height = CROWN
+    z = HALF_HEIGHT * 0.84
+    band_radius = radius_at(z)
+    parts = [ring(band_radius, location=(0, 0, z), minor=0.045)]
+    for index in range(count):
+        angle = math.radians(index * 360 / count)
+        base = Vector((band_radius * math.cos(angle), band_radius * math.sin(angle), z))
+        lean = Vector((math.cos(angle), math.sin(angle), 0)) * 0.3 + Vector((0, 0, 1))
+        bpy.ops.mesh.primitive_cone_add(vertices=6, radius1=0.07, depth=height, location=base + lean.normalized() * height / 2)
+        cone = bpy.context.active_object
+        cone.rotation_euler = lean.to_track_quat("Z", "Y").to_euler()
+        parts.append(apply(cone))
+    return join("Crown", parts)
+
+
+def belt():
+    """The rare mark (user, 2026-11-10, over rocket fins and side lamps): a flying saucer's rim
+    round the egg just under the seam, lights along its edge. Returns (plastic rim, lights)."""
+    z = SEAM_Z - GAP - 0.09
+    major, minor = radius_at(z) + 0.08, 0.1
+    bpy.ops.mesh.primitive_torus_add(location=(0, 0, z), major_radius=major, minor_radius=minor, major_segments=24, minor_segments=6)
+    rim = bpy.context.active_object
+    rim.scale = (1, 1, 0.4)
+    rim = apply(smooth(rim))
+    lights = []
+    count = 8
+    for index in range(count):
+        angle = math.radians(index * 360 / count + 22.5)
+        at = Vector((math.cos(angle), math.sin(angle), 0)) * (major + minor * 0.92) + Vector((0, 0, z))
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.045, location=at, segments=6, ring_count=4)
+        lights.append(apply(bpy.context.active_object))
+    return rim, join("BeltLights", lights)
 
 
 def crack_path(rng, angle, z, steps):
@@ -286,49 +344,81 @@ def cracks(seed=21):
 # --- The kit -------------------------------------------------------------------------------------
 
 
-def body(rarity):
-    """The capsule's plastic for `rarity`: everything that does not glow, colours baked."""
+def mix(a, b, t):
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
+
+
+def kind(rarity, meteor):
+    """A piece's kind: the rarity, or Meteor<Rarity> for a meteor egg of that rarity."""
+    return f"Meteor{rarity}" if meteor else rarity
+
+
+def body(rarity, meteor=False):
+    """The capsule's plastic for `rarity`: everything that does not glow, colours baked. A meteor
+    egg is scorched, its cap a burnt shade of the rarity's colour, and its seam and window are
+    lava whatever its rarity."""
     wears = LADDER[rarity]
-    parts = [paint(lower_shell(), PEARL), paint(foot(), FOOT), paint(window_rim(), WINDOW_RIM)]
+    shell = SCORCHED if meteor else DULL if rarity == "Common" else PEARL
+    dark = SCORCHED_DARK if meteor else None
+    parts = [paint(lower_shell(), shell), paint(window_rim(), dark or WINDOW_RIM)]
     if rarity != "Legendary":
-        parts.append(paint(upper_shell(), CAPS[rarity]))
-    if not wears["seam"]:
+        cap = mix(CAPS[rarity], SCORCHED, 0.55) if meteor else CAPS[rarity]
+        parts.append(paint(upper_shell(), cap))
+        # The belt in the cap's colour (the legendary's is gold, with its cap).
+        if wears["belt"]:
+            plastic, lights = belt()
+            remove(lights)
+            parts.append(paint(plastic, cap))
+    if not wears["foot"]:
+        parts.append(paint(foot(), dark or FOOT))
+    if not wears["seam"] and not meteor:
         parts.append(paint(seam_band(), UNLIT))
-    if not wears["window"]:
+    if not wears["window"] and not meteor:
         parts.append(paint(window_glass(), UNLIT))
     if wears["antenna"]:
-        parts.append(paint(rod(), ROD))
-    return join(f"Body{rarity}", parts)
+        parts.append(paint(rod(), dark or ROD))
+    return join(f"Body{kind(rarity, meteor)}", parts)
 
 
-def glow(rarity):
-    """All that glows on `rarity`'s egg, one Neon piece (white: the game colours it)."""
+def glow(rarity, meteor=False):
+    """All that glows on `rarity`'s egg, one Neon piece (white: the game colours it, lava for a
+    meteor egg, which also glows in its cracks)."""
     wears = LADDER[rarity]
     parts = []
-    if wears["seam"]:
+    if wears["seam"] or meteor:
         parts.append(seam_band())
-    if wears["window"]:
+    if wears["window"] or meteor:
         parts.append(window_glass())
+    if meteor:
+        parts.append(cracks())
+    if wears["foot"]:
+        parts.append(foot())
+    if wears["stripes"]:
+        parts.append(stripes())
+    if wears["belt"]:
+        plastic, lights = belt()
+        remove(plastic)
+        parts.append(lights)
     if wears["antenna"]:
-        radius, turn = ORBIT
-        parts += [tip(), ring(radius, rotation=turn)]
-    if wears["halo"]:
-        radius, gap = HALO
-        parts.append(ring(radius, location=(0, 0, HALF_HEIGHT + gap)))
-    return paint(join(f"Glow{rarity}", parts), WHITE)
-
-
-def meteor():
-    base = join("BodyMeteor", [paint(lower_shell(), SCORCHED), paint(upper_shell(), SCORCHED),
-                               paint(foot(), SCORCHED_DARK), paint(window_rim(), SCORCHED_DARK)])
-    lava = paint(join("GlowMeteor", [seam_band(), window_glass(), cracks()]), WHITE)
-    return [base, lava]
+        parts.append(tip())
+    radius, thickness, turns = ORBIT
+    for turn in turns[: wears["orbits"]]:
+        parts.append(ring(radius, rotation=turn, minor=thickness))
+    if wears["crown"]:
+        halo_radius, gap = HALO
+        parts.append(ring(halo_radius, location=(0, 0, HALF_HEIGHT + gap), minor=0.04))
+    return paint(join(f"Glow{kind(rarity, meteor)}", parts), WHITE)
 
 
 def gold_cap():
-    obj = paint(upper_shell(), WHITE)
-    obj.name = obj.data.name = "CapGold"
-    return obj
+    """The legendary cap with its crown and its belt, all polished gold."""
+    plastic, lights = belt()
+    remove(lights)
+    return paint(join("CapGold", [upper_shell(), crown(), plastic]), WHITE)
+
+
+def remove(obj):
+    bpy.data.objects.remove(obj, do_unlink=True)
 
 
 def centre():
@@ -342,7 +432,8 @@ def centre():
 def build():
     pieces = [body(rarity) for rarity in LADDER]
     pieces += [glow(rarity) for rarity in LADDER if rarity != "Common"]
-    pieces += meteor()
+    pieces += [body(rarity, meteor=True) for rarity in LADDER]
+    pieces += [glow(rarity, meteor=True) for rarity in LADDER]
     pieces += [gold_cap(), centre()]
     for piece in pieces:
         # Each piece's origin is the egg's centre (see apply): the sheet wears copies there.
@@ -370,10 +461,12 @@ def export(pieces, path):
     counts = {piece.name: triangles(piece) for piece in pieces}
     print("Wrote", path, len(pieces), "pieces", sum(counts.values()), "triangles", os.path.getsize(path), "bytes")
     print("Triangles:", ", ".join(f"{name} {count}" for name, count in counts.items()))
-    for rarity in list(LADDER) + ["Meteor"]:
-        worn = [f"Body{rarity}", f"Glow{rarity}"] + (["CapGold"] if rarity == "Legendary" else [])
-        total = sum(counts.get(name, 0) for name in worn)
-        print(f"  {rarity}: {total} triangles in {sum(1 for name in worn if name in counts)} parts")
+    for meteor in (False, True):
+        for rarity in LADDER:
+            name = kind(rarity, meteor)
+            worn = [f"Body{name}", f"Glow{name}"] + (["CapGold"] if rarity == "Legendary" else [])
+            total = sum(counts.get(piece, 0) for piece in worn)
+            print(f"  {name}: {total} triangles in {sum(1 for piece in worn if piece in counts)} parts")
 
 
 # --- The check sheet: the eggs as the game shows them --------------------------------------------
@@ -384,8 +477,8 @@ GLOW_COLORS = {
     "Rare": (90, 170, 255),
     "Epic": (200, 90, 255),
     "Legendary": (255, 200, 60),
-    "Meteor": (255, 120, 30),
 }
+LAVA = (255, 120, 30)
 GOLD = (255, 190, 45)
 
 
@@ -444,12 +537,13 @@ def place(piece, location, mat, scale=1.0):
     return copy
 
 
-def dress(kit, bottom, rarity, scale=1.0):
+def dress(kit, bottom, rarity, scale=1.0, meteor=False):
     """One egg standing on `bottom`, as the game builds it (World/EggModel)."""
     centre_at = bottom + Vector((0, 0, HALF_HEIGHT * scale))
-    place(kit[f"Body{rarity}"], centre_at, baked(), scale)
-    if f"Glow{rarity}" in kit:
-        place(kit[f"Glow{rarity}"], centre_at, neon(GLOW_COLORS[rarity]), scale)
+    name = kind(rarity, meteor)
+    place(kit[f"Body{name}"], centre_at, baked(), scale)
+    if f"Glow{name}" in kit:
+        place(kit[f"Glow{name}"], centre_at, neon(LAVA if meteor else GLOW_COLORS[rarity]), scale)
     if rarity == "Legendary":
         place(kit["CapGold"], centre_at, metal(GOLD), scale)
 
@@ -475,18 +569,18 @@ def sheet(pieces, path):
     kit = {piece.name: piece for piece in pieces}
     for piece in pieces:
         piece.hide_render = True
-    spacing = 2.9
-    row = 4.6
-    for index, rarity in enumerate(list(LADDER) + ["Meteor"]):
-        dress(kit, Vector((index * spacing, 0, row)), rarity)
-        label(NAMES[rarity], (index * spacing, -1.4, row - 0.75), 0.28)
-    for name, scale, x in (("Маленькое", 0.65, 0.0), ("Среднее", 1.0, 2.4), ("Большое", 1.5, 5.6)):
+    spacing = 3.2
+    row = 4.4
+    # Top: the five rarities; middle: the same rarities as meteor eggs; bottom: the sizes.
+    for index, rarity in enumerate(LADDER):
+        dress(kit, Vector((index * spacing, 0, 2 * row)), rarity)
+        label(NAMES[rarity], (index * spacing, -1.4, 2 * row - 0.75), 0.28)
+        dress(kit, Vector((index * spacing, 0, row)), rarity, meteor=True)
+        label(f"{NAMES[rarity]} метеоритное", (index * spacing, -1.4, row - 0.75), 0.24)
+    for name, scale, x in (("Маленькое", 0.65, 0.6), ("Среднее", 1.0, 3.6), ("Большое", 1.5, 7.6)):
         dress(kit, Vector((x, 0, 0)), "Rare", scale)
         label(name, (x, -1.4, -0.75), 0.28)
-    for rarity, x in (("Epic", 9.6), ("Legendary", 13.6)):
-        dress(kit, Vector((x, 0, 0)), rarity, 1.5)
-        label(f"{NAMES[rarity]}, большое", (x, -1.4, -0.75), 0.28)
-    render(Vector((7.3, 0, row / 2 + 1.0)), path)
+    render(Vector((2 * spacing, 0, row + 1.0)), path, size=(2400, 2100), distance=30)
 
 
 def render(target, path, size=(2700, 1500), distance=28):
