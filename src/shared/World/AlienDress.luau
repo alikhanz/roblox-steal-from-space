@@ -1151,6 +1151,7 @@ local function carrier(pet: Model, cf: CFrame, size: Vector3): (BasePart, Attach
 	fx:SetAttribute("Role", "body")
 	ghost(fx)
 	fx.Transparency = 1
+	fx.CastShadow = false
 	fx.Size = size * 0.7
 	fx.CFrame = cf
 	fx.Parent = pet
