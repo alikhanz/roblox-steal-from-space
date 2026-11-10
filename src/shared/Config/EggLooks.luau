@@ -18,14 +18,47 @@ export type RarityLook = {
 	-- A light round the egg: 0 for none. Lights are dear on phones and the Neon already shows the
 	-- rarity: only the rarest eggs carry a faint one, so they are spotted from afar.
 	read glow: number,
+	-- A nest's beacon, seen from afar in flight (EggBeaconController): a column of light over the
+	-- egg, taller the rarer it is, and an egg badge of a fixed size on screen above it. None for a
+	-- common egg: no beacon reads as common.
+	read beacon: BeaconLook?,
+}
+
+export type BeaconLook = {
+	-- The column: studs tall plus this many pixels (so far off it still stands over its badge,
+	-- taller the rarer the egg, at any distance), studs wide (plus a few pixels:
+	-- BEACON.glowMinPixels).
+	read height: number,
+	read pixels: number,
+	read width: number,
+	-- The badge over the egg, pixels across.
+	read dot: number,
+	-- Whether the badge's glow pulses (the rarest).
+	read pulse: boolean?,
 }
 
 local RARITIES: { [EggConfig.RarityId]: RarityLook } = {
 	Common = { color = Color3.fromRGB(226, 230, 240), glow = 0 },
-	Uncommon = { color = Color3.fromRGB(120, 235, 130), glow = 0 },
-	Rare = { color = Color3.fromRGB(90, 170, 255), glow = 0 },
-	Epic = { color = Color3.fromRGB(200, 90, 255), glow = 0.6 },
-	Legendary = { color = Color3.fromRGB(255, 200, 60), glow = 1 },
+	Uncommon = {
+		color = Color3.fromRGB(120, 235, 130),
+		glow = 0,
+		beacon = { height = 22, pixels = 30, width = 1.6, dot = 18 },
+	},
+	Rare = {
+		color = Color3.fromRGB(90, 170, 255),
+		glow = 0,
+		beacon = { height = 38, pixels = 55, width = 2.2, dot = 26 },
+	},
+	Epic = {
+		color = Color3.fromRGB(200, 90, 255),
+		glow = 0.6,
+		beacon = { height = 58, pixels = 85, width = 2.8, dot = 34, pulse = true },
+	},
+	Legendary = {
+		color = Color3.fromRGB(255, 200, 60),
+		glow = 1,
+		beacon = { height = 85, pixels = 125, width = 3.6, dot = 42, pulse = true },
+	},
 }
 
 -- Egg size, studs, before the size's scale (a medium egg: the kit is modelled at this size).
@@ -63,6 +96,32 @@ return table.freeze({
 	-- The legendary cap: polished gold, as the pets' (AlienDress); bright and saturated, or dark
 	-- space turns it olive.
 	GOLD = Color3.fromRGB(255, 190, 45),
+	-- Nest beacons (EggBeaconController).
+	BEACON = table.freeze({
+		-- Where the column starts and the badge hangs over the egg's centre, studs.
+		foot = 1.4,
+		badgeAbove = 2.6,
+		-- How far off a badge still shows, studs.
+		badgeDistance = 3000,
+		-- The badge's disc behind the egg icon: the interface's deep navy.
+		discColor = Color3.fromRGB(14, 18, 40),
+		-- The column: a coloured glow round a core whitened by this much, each at least this many
+		-- pixels wide on top of its width in studs (far off it keeps a few pixels instead of
+		-- thinning to nothing: Beams did, and vanished in flight, Studio 2026-11-10); their
+		-- transparency at the foot (both fade out to the top). Dense: a see-through column got
+		-- lost against the bright nebulae.
+		glowMinPixels = 8,
+		coreMinPixels = 3,
+		coreWidth = 0.35,
+		glowTransparency = 0.2,
+		coreTransparency = 0,
+		coreWhiten = 0.6,
+		-- The rarest badges' glow grows and shrinks by this much, this fast (radians a second);
+		-- how often the pulse is updated, seconds.
+		pulse = 0.18,
+		pulseSpeed = 3,
+		updateSeconds = 0.05,
+	}),
 	-- An egg with extra luck (the star egg) sparkles, wherever it is: in hands, loose, in the
 	-- incubator. Greybox.
 	LUCKY_SPARKLE_COLOR = Color3.fromRGB(190, 170, 255),

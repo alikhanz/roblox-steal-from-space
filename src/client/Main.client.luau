@@ -11,6 +11,7 @@ local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local BenchController = require(script.Parent.Controllers.BenchController)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
+local EggBeaconController = require(script.Parent.Controllers.EggBeaconController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
 local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseController)
 local EventController = require(script.Parent.Controllers.EventController)
@@ -137,6 +138,7 @@ Lifecycle.run({
 	eventController,
 	SerpentController.new({ events = eventController }),
 	EggEffectsController.new(),
+	EggBeaconController.new(),
 	HitEffectsController.new(),
 	JetpackEffectsController.new(),
 	{
