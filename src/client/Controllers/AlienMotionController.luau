@@ -23,6 +23,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local PetMotion = require(ReplicatedStorage.Shared.Domain.PetMotion)
@@ -133,6 +134,16 @@ local function squashedSize(size: Vector3, frame: CFrame, sy: number, sxz: numbe
 		return math.sqrt((v.X * sxz) ^ 2 + (v.Y * sy) ^ 2 + (v.Z * sxz) ^ 2)
 	end
 	return Vector3.new(size.X * along(Vector3.xAxis), size.Y * along(Vector3.yAxis), size.Z * along(Vector3.zAxis))
+end
+
+-- Whether `model` is a real pet model (its parts carry their paint), not the greybox blob.
+local function isPainted(model: Model): boolean
+	for _, part in model:GetChildren() do
+		if part:IsA("MeshPart") and part:GetAttribute("Paint") ~= nil then
+			return true
+		end
+	end
+	return false
 end
 
 local function between(random: Random, range: { number }): number
@@ -566,6 +577,15 @@ function AlienMotionController.new(): AlienMotionController
 			if not (instance:IsA("Model") and instance:IsDescendantOf(workspace)) then
 				return
 			end
+			-- One standing small on the floor is only its model: no effects, no motion.
+			if instance:GetAttribute(BayConfig.ALIEN_PLAIN_ATTRIBUTE) == true then
+				return
+			end
+			-- The server sends it painted; its effects are made here (AlienDress). The greybox
+			-- blob has no painted parts and none.
+			if instance:FindFirstChild(LABEL_PART) and isPainted(instance) then
+				AlienDress.adornLocally(instance)
+			end
 			local pet = petOf(instance)
 			if not pet then
 				return
@@ -574,9 +594,17 @@ function AlienMotionController.new(): AlienMotionController
 			-- The bay's layout moved it to another place: the motion goes round its new pivot.
 			moves[instance] = instance:GetAttributeChangedSignal(BayConfig.ALIEN_PIVOT_ATTRIBUTE):Connect(function()
 				local pivot = instance:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
-				if typeof(pivot) == "CFrame" then
-					pet.base = pivot
+				if typeof(pivot) ~= "CFrame" then
+					return
 				end
+				pet.base = pivot
+				-- The server moved its own parts; the effects made here move along at once (a far
+				-- pet is not moved every frame).
+				local frames: { CFrame } = {}
+				for index in pet.parts do
+					frames[index] = pivot * pet.offsets[index]
+				end
+				workspace:BulkMoveTo(pet.parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
 			end)
 			-- Many new meshes at once: ask for them all, or some stay unloaded (half a pet missing).
 			local meshes: { Instance } = {}

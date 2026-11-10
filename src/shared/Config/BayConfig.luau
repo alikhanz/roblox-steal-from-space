@@ -98,6 +98,9 @@ return table.freeze({
 	-- Where the server stands an alien (its model's pivot, a CFrame): the client moves the pet
 	-- around it and follows it when the bay's layout shifts the alien to another place.
 	ALIEN_PIVOT_ATTRIBUTE = "Pivot",
+	-- True on an alien standing small on the floor: the client shows only its model (no effects,
+	-- no motion).
+	ALIEN_PLAIN_ATTRIBUTE = "Plain",
 	-- Eggs lying in an incubator (HatchAt is server, Unix, time) and eggs waiting for a slot.
 	INCUBATOR_EGG_TAG = "IncubatorEgg",
 	WAITING_EGG_TAG = "WaitingEgg",

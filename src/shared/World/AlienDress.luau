@@ -1,19 +1,25 @@
 --!strict
 -- Dresses a bare pet model (assets/aliens, lune/aliens.luau) for the game, as the pet gallery
--- prototype did (docs/design/prototypes/pet-look/dress.luau, the look the user approved):
--- paint and materials from each part's Paint code, a soft light low under the body, particles by
--- zone and signature (soft: fading in and out), fairy wings with a see-through membrane and dust,
--- comets with particle tails, a turning rune circle on the floor; a meteor gets a smouldering
--- basalt shell, fireball comets, a comet tail of fire, smoke and sparks and a crest of fire behind
--- its head; a legendary glows under a turning medal of rays.
+-- prototype did (docs/design/prototypes/pet-look/dress.luau, the look the user approved), in two
+-- halves so that the network carries only the first:
+--   * prepare (the server, World/AlienModel): paint and materials from each part's Paint code
+--     (metal, glass, lava, the wings' glowing edge and faint membrane), the hidden parts, the wing
+--     dust points, and the Body box the bay's label and prompts hang on. Part properties only, and
+--     the lava skin: nothing heavy goes to the clients.
+--   * adorn (each client, AlienMotionController, on a local copy: adornLocally): a soft light low
+--     under the body, particles by zone and signature (soft: fading in and out), the jetpacks'
+--     flames, wing sparkles and dust, comets with particle tails, a turning rune circle on the
+--     floor; a meteor's comet tail of fire, smoke and sparks, fireball comets and a crest of fire
+--     behind its head; a legendary's glow under a turning medal of rays. These were half of a
+--     pet's instances and the heaviest ones (2026-11-10).
 --
 -- The pet comes with its data in attributes (Zone, Family, Tier 0-4, Meteor, Signature, Core,
 -- TierColor) and each part's paint in its Paint attribute:
--- <kind letter><r>,<g>,<b>,<transparency>,<reflectance>,<Blender material>. Dressing is total: a
--- dressed pet dressed again comes out the same. Everything is made at AlienLooks.MODELS.DRESS_SCALE
--- (where it was tuned); World/AlienModel scales the dressed pet to its size. Motion (bobbing,
--- wings, comets, the medal's turn) is the client's: the parts carry their Role, the comets their
--- orbit (in studs at the dressing scale), the pictures their Spin or Sway.
+-- <kind letter><r>,<g>,<b>,<transparency>,<reflectance>,<Blender material>. Preparing is total: a
+-- prepared pet prepared again comes out the same. Everything is made at
+-- AlienLooks.MODELS.DRESS_SCALE (where it was tuned); the pet is scaled to its size after. Motion
+-- (bobbing, wings, comets, the medal's turn) is the client's: the parts carry their Role, the
+-- comets their orbit (in studs at the dressing scale), the pictures their Spin or Sway.
 
 local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -891,17 +897,24 @@ end
 -- wing's edge: the dust markers from Blender (or the Dust points a bare model keeps) become
 -- emitters on the membrane (so they flap with it), throwing fine glowing dust in the wing's colour
 -- along the stroke, forwards as the wing opens and back as it folds (the client fires them).
-local function wings(pet: Model, fx: BasePart, wingParts: { MeshPart }, paints: { [string]: Paint }, accent: Color3)
-	for _, side in { "wingL", "wingR" } do
-		-- The membrane is the part of the wing material (EnergyWing, GoldWing); the edge and veins
-		-- are the glowing lines.
-		local membrane: MeshPart? = nil
-		for _, part in wingParts do
-			local source = if paints[part.Name] then paints[part.Name].source else ""
-			if part:GetAttribute("Role") == side and string.match(source, "Wing$") then
-				membrane = part
-			end
+-- The membrane of a wing (`side`): the part of the wing material (EnergyWing, GoldWing); the edge
+-- and veins are the glowing lines.
+local function membraneOf(side: string, wingParts: { MeshPart }, paints: { [string]: Paint }): MeshPart?
+	local membrane: MeshPart? = nil
+	for _, part in wingParts do
+		local source = if paints[part.Name] then paints[part.Name].source else ""
+		if part:GetAttribute("Role") == side and string.match(source, "Wing$") then
+			membrane = part
 		end
+	end
+	return membrane
+end
+
+-- The wings' colour (the server): the edge and veins glow in the accent, the membrane is a faint
+-- tint. Blender's dust markers become Dust points on the membrane (so they flap with it).
+local function colorWings(pet: Model, wingParts: { MeshPart }, paints: { [string]: Paint }, accent: Color3)
+	for _, side in { "wingL", "wingR" } do
+		local membrane = membraneOf(side, wingParts, paints)
 		if not membrane then
 			continue
 		end
@@ -916,6 +929,27 @@ local function wings(pet: Model, fx: BasePart, wingParts: { MeshPart }, paints: 
 		membrane.Color = boost(accent, 1.2, 1.1)
 		membrane.Transparency = 0.8
 		membrane.CastShadow = false
+	end
+	for _, marker in pet:GetDescendants() do
+		if marker:IsA("MeshPart") and string.match(marker.Name, "^dust[LR]") then
+			local host = membraneOf("wing" .. string.sub(marker.Name, 5, 5), wingParts, paints)
+			if host then
+				local point = Instance.new("Attachment")
+				point.Name = "Dust"
+				point.Parent = host
+				point.WorldPosition = marker.Position
+			end
+			marker:Destroy()
+		end
+	end
+end
+
+local function wings(pet: Model, fx: BasePart, wingParts: { MeshPart }, paints: { [string]: Paint }, accent: Color3)
+	for _, side in { "wingL", "wingR" } do
+		local membrane = membraneOf(side, wingParts, paints)
+		if not membrane then
+			continue
+		end
 		-- Outwards is the side the wing really sits on (the import turns the pet round, so
 		-- Blender's left wing is at +X here), not its role's name.
 		local sign = if fx.CFrame:PointToObjectSpace(membrane.Position).X > 0 then 1 else -1
@@ -933,31 +967,11 @@ local function wings(pet: Model, fx: BasePart, wingParts: { MeshPart }, paints: 
 		})
 	end
 
-	for _, marker in pet:GetDescendants() do
-		local at: Attachment? = nil
-		if marker:IsA("MeshPart") and string.match(marker.Name, "^dust[LR]") then
-			local side = "wing" .. string.sub(marker.Name, 5, 5)
-			local host: MeshPart? = nil
-			for _, part in wingParts do
-				if part:GetAttribute("Role") == side and part.Material == Enum.Material.SmoothPlastic then
-					host = part
-				end
-			end
-			if host then
-				local point = Instance.new("Attachment")
-				point.Name = "Dust"
-				point.Parent = host
-				point.WorldPosition = marker.Position
-				at = point
-			end
-			marker:Destroy()
-		elseif marker:IsA("Attachment") and marker.Name == "Dust" then
-			at = marker
-			marker:ClearAllChildren()
-		end
-		if not at then
+	for _, at in pet:GetDescendants() do
+		if not (at:IsA("Attachment") and at.Name == "Dust") then
 			continue
 		end
+		at:ClearAllChildren()
 		local dust = boost(accent, 0.8, 1.2)
 		-- The dust follows the stroke: opening, the wing edge sweeps forward (the pet faces -Z, so
 		-- forward is Front); folding, it sweeps back over the pet's back.
@@ -1034,6 +1048,28 @@ local function rune(pet: Model, cf: CFrame, size: Vector3, tier: number, accent:
 	halo.Parent = pet
 end
 
+-- The parts the effects need, as prepare left them: the wings, Blender's flame tongues and the
+-- jetpack flames.
+local function partsOf(pet: Model, paints: { [string]: Paint }): ({ MeshPart }, { MeshPart }, { MeshPart })
+	local wingParts, flameParts, jetParts = {}, {}, {}
+	for _, instance in pet:GetDescendants() do
+		if not instance:IsA("MeshPart") then
+			continue
+		end
+		local role = instance:GetAttribute("Role")
+		if role == "wingL" or role == "wingR" then
+			table.insert(wingParts, instance)
+		elseif role == "flame" then
+			table.insert(flameParts, instance)
+		end
+		local code = paints[instance.Name]
+		if code and code.source == "Jet" then
+			table.insert(jetParts, instance)
+		end
+	end
+	return wingParts, flameParts, jetParts
+end
+
 -- Each part's paint, from its Paint code.
 local function paintsOf(pet: Model): { [string]: Paint }
 	local paints: { [string]: Paint } = {}
@@ -1057,21 +1093,48 @@ local function paintsOf(pet: Model): { [string]: Paint }
 	return paints
 end
 
--- Dresses `pet` (a bare or already dressed model) at the dressing scale.
-function AlienDress.dress(pet: Model)
-	undress(pet)
-	pet:ScaleTo(MODELS.DRESS_SCALE)
-	local zone = tostring(pet:GetAttribute("Zone"))
+-- What a pet's look hangs on: its tier, whether it is a meteor one, its colours.
+local function looksOf(pet: Model): (number, boolean, Color3, Color3, Color3)
 	local tier = tonumber(pet:GetAttribute("Tier")) or 0
 	local meteor = pet:GetAttribute("Meteor") == true
-	local signature = tostring(pet:GetAttribute("Signature") or "")
 	local core, tierColor = rgb(pet:GetAttribute("Core")), rgb(pet:GetAttribute("TierColor"))
+	local accent = if meteor then FIRE elseif tier == 4 then GOLD else tierColor
+	return tier, meteor, core, tierColor, accent
+end
+
+-- The server's half (a bare or already prepared model, scaled to the dressing scale): paint,
+-- materials, wings, dust points, the Body box.
+function AlienDress.prepare(pet: Model)
+	undress(pet)
+	pet:ScaleTo(MODELS.DRESS_SCALE)
+	local _, _, core, _, accent = looksOf(pet)
 	local paints = paintsOf(pet)
-	local wingParts, flameParts, jetParts = paint(pet, paints, core)
+	local wingParts = paint(pet, paints, core)
+	colorWings(pet, wingParts, paints, accent)
+
+	-- What the bay's label and prompts hang on (BayViewController, "Body"): the pet's whole box.
+	local cf, size = pet:GetBoundingBox()
+	local body = Instance.new("Part")
+	body.Name = "Body"
+	ghost(body)
+	body.Transparency = 1
+	body.CastShadow = false
+	body.Size = size
+	body.CFrame = cf
+	body.Parent = pet
+	pet.PrimaryPart = body
+end
+
+-- The client's half, on a prepared pet at the dressing scale: every effect.
+function AlienDress.adorn(pet: Model)
+	local zone = tostring(pet:GetAttribute("Zone"))
+	local signature = tostring(pet:GetAttribute("Signature") or "")
+	local tier, meteor, core, tierColor, accent = looksOf(pet)
+	local paints = paintsOf(pet)
+	local wingParts, flameParts, jetParts = partsOf(pet, paints)
 
 	local cf, size = pet:GetBoundingBox()
 	local radius = math.max(size.X, size.Z) / 2
-	local accent = if meteor then FIRE elseif tier == 4 then GOLD else tierColor
 
 	-- The effects carrier: an invisible box over the body, moving with it.
 	local fx = Instance.new("Part")
@@ -1089,7 +1152,7 @@ function AlienDress.dress(pet: Model)
 	jets(fx, jetParts, paints)
 
 	-- Light low under the body: it lights the floor round the pet (a bright light on the body burns
-	-- its colours to white under Bloom). Its range is set again for the pet's size (AlienModel).
+	-- its colours to white under Bloom). Its range is set again for the pet's size (adornLocally).
 	local light = Instance.new("PointLight")
 	light.Name = "CoreLight"
 	light.Color = if meteor then FIRE elseif tier == 4 then GOLD else boost(core, 1.2, 1)
@@ -1114,17 +1177,45 @@ function AlienDress.dress(pet: Model)
 		end
 	end
 	rune(pet, cf, size, tier, accent)
+end
 
-	-- What the bay's label hangs on (BayViewController, "Body"): the pet's whole box.
-	local body = Instance.new("Part")
-	body.Name = "Body"
-	ghost(body)
-	body.Transparency = 1
-	body.CastShadow = false
-	body.Size = size
-	body.CFrame = cf
-	body.Parent = pet
-	pet.PrimaryPart = body
+-- Adorns `model`, a prepared pet the server placed at its own size, on this client only. The
+-- effects are tuned at the dressing scale, so they are made on a local copy scaled there; the copy
+-- is scaled back and what was made on it moves onto the model (a part's attachments onto the same
+-- part of the model: a copy keeps its children in order). The glow under it does not grow with it.
+function AlienDress.adornLocally(model: Model)
+	local copy = model:Clone()
+	local twins: { [Instance]: Instance } = {}
+	local function pair(a: Instance, b: Instance)
+		twins[a] = b
+		local theirs = b:GetChildren()
+		for index, child in a:GetChildren() do
+			local other = theirs[index]
+			if other then
+				pair(child, other)
+			end
+		end
+	end
+	pair(copy, model)
+	local scale = model:GetScale()
+	copy:ScaleTo(MODELS.DRESS_SCALE)
+	AlienDress.adorn(copy)
+	copy:ScaleTo(scale)
+	copy:PivotTo(model:GetPivot())
+	local ratio = scale / MODELS.DRESS_SCALE
+	for _, made in copy:GetDescendants() do
+		local parent = made.Parent
+		local home = if twins[made] == nil and parent then twins[parent] else nil
+		if home then
+			made.Parent = home
+		end
+	end
+	for _, light in model:GetDescendants() do
+		if light:IsA("PointLight") then
+			light.Range = math.clamp(light.Range * ratio, MODELS.LIGHT_RANGE_MIN, MODELS.LIGHT_RANGE_MAX)
+		end
+	end
+	copy:Destroy()
 end
 
 return table.freeze(AlienDress)

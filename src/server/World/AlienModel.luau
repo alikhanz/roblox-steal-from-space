@@ -1,16 +1,16 @@
 --!strict
 -- Builds an alien for the bay: its kind's model from ServerStorage.Aliens (assets/aliens,
--- lune/aliens.luau), dressed by AlienDress, at its own size (decision 068). Each kind and variant
--- is dressed once and cloned after. A kind whose model is not in the place stands as the greybox
--- blob (a squat ball in its tier's colour with two eyes): a new kind can be added to the registry
--- before its model.
+-- lune/aliens.luau), prepared by AlienDress (paint and materials; each client adds the effects
+-- itself), at its own size (decision 068). Each kind and variant is prepared once and cloned after.
+-- A kind whose model is not in the place stands as the greybox blob (a squat ball in its tier's
+-- colour with two eyes): a new kind can be added to the registry before its model.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
-local AlienDress = require(script.Parent.AlienDress)
+local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 
@@ -98,7 +98,7 @@ local function templateOf(alien: AlienConfig.Alien): Template?
 		return nil
 	end
 	local model = source:Clone()
-	AlienDress.dress(model)
+	AlienDress.prepare(model)
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local bottom, width = measure(model)
 	local template = { model = model, bottom = bottom, width = width }
@@ -180,18 +180,15 @@ function AlienModel.build(alienId: AlienConfig.AlienId, uid: number, cframe: CFr
 		model:ScaleTo(factor)
 		local ratio = factor / MODELS.DRESS_SCALE
 		model:PivotTo(cframe * CFrame.new(0, -template.bottom * ratio, 0))
-		-- The glow under it does not grow with it.
-		for _, light in model:GetDescendants() do
-			if light:IsA("PointLight") then
-				light.Range = math.clamp(light.Range * ratio, MODELS.LIGHT_RANGE_MIN, MODELS.LIGHT_RANGE_MAX)
-			end
-		end
 	else
 		model = greybox(alien, cframe, scale)
 	end
 	model.Name = `Alien{uid}`
 	model:SetAttribute(BayConfig.ALIEN_ID_ATTRIBUTE, alienId)
 	model:SetAttribute(BayConfig.ALIEN_UID_ATTRIBUTE, uid)
+	-- One standing small on the floor is only its model: no effects, no motion (the client reads
+	-- this; user, 2026-11-10).
+	model:SetAttribute(BayConfig.ALIEN_PLAIN_ATTRIBUTE, scaleOverride ~= nil)
 	-- How far its pivot stands above where it stands, for moving it later (AlienModel.place).
 	model:SetAttribute(LIFT_ATTRIBUTE, cframe:PointToObjectSpace(model:GetPivot().Position).Y)
 	model:SetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE, model:GetPivot())
