@@ -192,6 +192,9 @@ local GAMES: { [number]: { [Name]: string } } = {
 		Denied = "rbxassetid://124834334922261",
 	},
 }
+-- Prod (Fly & Steal Space Eggs, owned by the community) plays the same uploads: they were shared
+-- with it in the Creator Hub (asset permissions, 2026-11-11).
+GAMES[10775754016] = GAMES[10774871729]
 
 local RULES: SoundVoices.Rules = {
 	-- A phone mixes few sounds at once without mud.
@@ -220,7 +223,10 @@ local CHASE: SoundVoices.Chase = {
 }
 
 for _, ids in GAMES do
-	table.freeze(ids)
+	-- Prod shares Dev's table: freeze it once.
+	if not table.isfrozen(ids) then
+		table.freeze(ids)
+	end
 end
 
 local SoundLooks = {
