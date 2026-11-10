@@ -34,9 +34,13 @@ def baked_material():
     nodes = mat.node_tree.nodes
     attribute = nodes.new("ShaderNodeVertexColor")
     attribute.layer_name = "Col"
+    # The bake holds sRGB numbers (as Roblox reads them): back to linear for Blender's shading.
+    gamma = nodes.new("ShaderNodeGamma")
+    gamma.inputs["Gamma"].default_value = 2.2
     bsdf = nodes.get("Principled BSDF")
     bsdf.inputs["Roughness"].default_value = 0.3
-    mat.node_tree.links.new(attribute.outputs["Color"], bsdf.inputs["Base Color"])
+    mat.node_tree.links.new(attribute.outputs["Color"], gamma.inputs["Color"])
+    mat.node_tree.links.new(gamma.outputs["Color"], bsdf.inputs["Base Color"])
     return mat
 
 

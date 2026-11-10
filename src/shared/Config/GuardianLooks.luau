@@ -1,7 +1,7 @@
 --!strict
 -- How guardians look. Kept apart from GuardianConfig so the numbers there load in Lune (the
 -- balance calculator and tests), where Roblox datatypes do not exist. The greybox body: a body
--- kind gives the shape, the post the color and size; the real model (MODELS, decision 087) is
+-- kind gives the shape, the post the color and size; the real model (MODELS, decision 090) is
 -- fitted to that size and moves by the guardian's state (STATE_MOTION).
 
 local GuardianBrain = require("../Domain/GuardianBrain")

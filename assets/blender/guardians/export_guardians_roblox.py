@@ -39,6 +39,20 @@ ONLY = set(ARGS[1:])
 robo.DETAIL = 0.5
 # The game paints these by name: the eyes by the guardian's state, the throat brighter in a chase.
 pets.SPECIAL_SOURCES = pets.SPECIAL_SOURCES | {"GuardianEye", "Maw"}
+
+
+def bake_colour(obj, rgb):
+    """The object's colour in its vertices as Roblox reads it: Roblox takes glTF COLOR_0 as sRGB
+    numbers, so the sRGB numbers go into the linear setter and the GLB holds them unchanged (the
+    pets' `color_srgb` bake arrives darker and richer than its Color3; BLENDER_ROBLOX.md, section 2.
+    The pets keep theirs: their look was approved as it shows)."""
+    attribute = obj.data.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
+    for item in attribute.data:
+        item.color = (*rgb, 1.0)
+    obj.data.color_attributes.active_color = attribute
+
+
+pets.bake_colour = bake_colour
 # The phone budget per guardian (plan, step 2).
 MAX_PARTS = 40
 MAX_TRIANGLES = 8000
