@@ -26,14 +26,10 @@
 local fs = require("@lune/fs")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
-local serde = require("@lune/serde")
 
+local ModelPack = require("./lib/ModelPack")
 local Shell = require("./lib/Shell")
 
--- @lune/roblox has the datatypes at run time, but its type definitions do not list them.
-local CFrame = (roblox :: any).CFrame
-local Vector3 = (roblox :: any).Vector3
-local Enum = (roblox :: any).Enum
 local Instance = roblox.Instance
 
 type Instance = roblox.Instance
@@ -42,7 +38,6 @@ local OUT_DIR = "assets/aliens"
 local MANIFEST = "src/server/World/AlienModels.json"
 -- Every kind in one file, for the place.
 local BUNDLE = "out/Aliens.rbxm"
-local HASH_ATTRIBUTE = "ModelHash"
 local VARIANTS = { "0", "1", "2", "3", "4", "m0", "m1", "m2", "m3", "m4" }
 -- The pet's data the dressing reads (unpack below writes them from the meta markers).
 local PET_ATTRIBUTES = { "Zone", "Family", "Tier", "Meteor", "Signature", "Glow", "Core", "TierColor", "Shell" }
@@ -61,108 +56,11 @@ local function isDressPart(instance: Instance): boolean
 		and (instance.Name == "Fx" or instance.Name == "Halo" or string.match(instance.Name, "^Wisp") ~= nil)
 end
 
--- A part's eight corners in `frame`'s space, folded into `low`/`high`.
-local function grow(frame: any, part: any, low: any, high: any): (any, any)
-	local local_ = frame:ToObjectSpace(part.CFrame)
-	local half = part.Size / 2
-	for _, x in { -1, 1 } do
-		for _, y in { -1, 1 } do
-			for _, z in { -1, 1 } do
-				local corner = local_ * Vector3.new(half.X * x, half.Y * y, half.Z * z)
-				low = Vector3.new(math.min(low.X, corner.X), math.min(low.Y, corner.Y), math.min(low.Z, corner.Z))
-				high = Vector3.new(math.max(high.X, corner.X), math.max(high.Y, corner.Y), math.max(high.Z, corner.Z))
-			end
-		end
-	end
-	return low, high
-end
-
--- Pets need no collision geometry (nothing touches or queries them): a box keeps the file small
--- (the hull data was most of it) and the physics light.
-local function bare(part: any)
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanTouch = false
-	part.CanQuery = false
-	part.CollisionFidelity = Enum.CollisionFidelity.Box
-	part.PhysicalConfigData = ""
-end
-
--- A part's role: its name before its number (`wingL_12` → wingL, `drone2_41` → drone2).
-local function roleOf(name: string): string
-	return string.match(name, "^(.-)_%d+$") or name
-end
-
--- The Blender material a part's paint code names (`…,GoldWing` → GoldWing).
-local function sourceOf(part: Instance): string
-	local code = part:GetAttribute("Paint")
-	return if type(code) == "string" then string.match(code, ",(%a*)$") or "" else ""
-end
-
 -- A point the game reads, kept as an attachment: it scales with the pet (Model:ScaleTo) and needs
 -- no mesh. Hinge points are named after their marker's role (`hingeJawL`), fairy dust points `Dust`.
 local function isPoint(instance: Instance): boolean
 	return instance.ClassName == "Attachment"
 		and (instance.Name == "Dust" or string.match(instance.Name, "^hinge") ~= nil)
-end
-
--- Blender's marker parts become points (attachments): a hinge marker `hinge<X>` (the pivot a wing,
--- a jaw, a leg or a fin turns on) a point of that name on a part of the body that never moves; a
--- fairy dust marker `dust<L|R><n>` a point `Dust` on its wing's membrane (so it flaps with it). A
--- marker is a MeshPart all the same: a mesh to download and a part to send, ~12 a pet (8654 of the
--- 720 pets' 35379 parts; 2026-11-10). AlienMotionController and AlienDress read the points.
-local function markersToPoints(pet: Instance)
-	local anchor: any = nil
-	local membranes: { [string]: any } = {}
-	local hinges: { [string]: { any } } = {}
-	local hingeOrder: { string } = {}
-	local dusts: { any } = {}
-	for _, part in pet:GetDescendants() do
-		if part.ClassName ~= "MeshPart" then
-			continue
-		end
-		local role = roleOf(part.Name)
-		if string.match(role, "^hinge") then
-			if not hinges[role] then
-				hinges[role] = {}
-				table.insert(hingeOrder, role)
-			end
-			table.insert(hinges[role], part)
-		elseif string.match(role, "^dust[LR]") then
-			table.insert(dusts, part)
-		elseif (role == "wingL" or role == "wingR") and string.match(sourceOf(part), "Wing$") then
-			membranes[role] = membranes[role] or part
-		elseif role == "body" and not anchor then
-			anchor = part
-		end
-	end
-	table.sort(hingeOrder)
-	for _, role in hingeOrder do
-		local parts = hinges[role]
-		assert(anchor, `{pet.Name}: a hinge marker but no body part to hold its point`)
-		local sum = Vector3.new(0, 0, 0)
-		for _, part in parts do
-			-- Lune keeps a part's CFrame, not its Position (a derived property).
-			sum += (part :: any).CFrame.Position
-		end
-		local point = Instance.new("Attachment")
-		point.Name = role;
-		(point :: any).CFrame = anchor.CFrame:ToObjectSpace(CFrame.new(sum / #parts))
-		point.Parent = anchor
-		for _, part in parts do
-			part:Destroy()
-		end
-	end
-	for _, marker in dusts do
-		local host = membranes["wing" .. string.sub(roleOf(marker.Name), 5, 5)]
-		if host then
-			local point = Instance.new("Attachment")
-			point.Name = "Dust"
-			(point :: any).CFrame = host.CFrame:ToObjectSpace(CFrame.new(marker.CFrame.Position))
-			point.Parent = host
-		end
-		marker:Destroy()
-	end
 end
 
 -- Strips a dressed pet back to its model.
@@ -179,10 +77,10 @@ local function strip(pet: Instance)
 			instance:Destroy()
 		end
 	end
-	markersToPoints(pet)
+	ModelPack.markersToPoints(pet)
 	for _, part in pet:GetDescendants() do
 		if part.ClassName == "MeshPart" then
-			bare(part)
+			ModelPack.bare(part)
 		end
 	end
 end
@@ -228,19 +126,13 @@ local function unpack(pack: Instance, kind: string): Instance
 			assert(name and code, `{kind}: a part named {part.Name} has no role or paint`)
 			part.Name = name
 			part:SetAttribute("Paint", code)
-			bare(part)
+			ModelPack.bare(part)
 			part.Parent = pet
 		end
 	end
 	for _, pet in pets do
-		markersToPoints(pet)
-		local low, high = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
-		local frame = CFrame.new() * turn
-		for _, part in pet:GetChildren() do
-			low, high = grow(frame, part, low, high)
-		end
-		local centre = frame * ((low + high) / 2);
-		(pet :: any).WorldPivotData = CFrame.new(centre) * turn
+		ModelPack.markersToPoints(pet)
+		ModelPack.centrePivot(pet, turn)
 		pet.Parent = folder
 	end
 	return folder
@@ -313,15 +205,8 @@ if not path then
 	Shell.fail("usage: lune run aliens <model or place saved from Studio>")
 	process.exit(1)
 end
-local source = fs.readFile(path)
-local roots: { Instance }
-if string.match(path, "%.rbxlx?$") then
-	roots = { roblox.deserializePlace(source) :: any }
-else
-	roots = roblox.deserializeModel(source)
-end
 
-local kinds = kindsIn(roots)
+local kinds = kindsIn(ModelPack.read(path))
 if #kinds == 0 then
 	Shell.fail(`no packs or pets found in {path}`)
 	process.exit(1)
@@ -330,7 +215,7 @@ local failed = false
 if not fs.isDir(OUT_DIR) then
 	fs.writeDir(OUT_DIR)
 end
-local manifest: { [string]: string } = if fs.isFile(MANIFEST) then serde.decode("json", fs.readFile(MANIFEST)) else {}
+local manifest = ModelPack.readManifest(MANIFEST)
 for _, folder in kinds do
 	local problems = check(folder)
 	if #problems > 0 then
@@ -340,40 +225,13 @@ for _, folder in kinds do
 		failed = true
 		continue
 	end
-	folder.Parent = nil
-	folder:SetAttribute(HASH_ATTRIBUTE, nil)
-	local hash = string.sub(serde.hash("sha256", roblox.serializeModel({ folder })), 1, 16)
-	folder:SetAttribute(HASH_ATTRIBUTE, hash)
+	local hash, bytes = ModelPack.fingerprint(folder)
 	manifest[folder.Name] = hash
-	local bytes = roblox.serializeModel({ folder })
 	fs.writeFile(`{OUT_DIR}/{folder.Name}.rbxm`, bytes)
 	print(`{folder.Name}: {#folder:GetChildren()} pets, {math.floor(#bytes / 1024)} KB`)
 end
-local kindIds: { string } = {}
-for kind in manifest do
-	table.insert(kindIds, kind)
-end
-table.sort(kindIds)
-local lines: { string } = {}
-for _, kind in kindIds do
-	table.insert(lines, `\t"{kind}": "{manifest[kind]}"`)
-end
-fs.writeFile(MANIFEST, "{\n" .. table.concat(lines, ",\n") .. "\n}\n")
-
-local bundle = Instance.new("Folder")
-bundle.Name = "Aliens"
-for _, file in fs.readDir(OUT_DIR) do
-	if string.match(file, "%.rbxm$") then
-		for _, root in roblox.deserializeModel(fs.readFile(`{OUT_DIR}/{file}`)) do
-			root.Parent = bundle
-		end
-	end
-end
-if not fs.isDir("out") then
-	fs.writeDir("out")
-end
-fs.writeFile(BUNDLE, roblox.serializeModel({ bundle }))
-print(`{BUNDLE}: {#bundle:GetChildren()} kinds`)
+ModelPack.writeManifest(MANIFEST, manifest)
+print(`{BUNDLE}: {ModelPack.writeBundle(OUT_DIR, "Aliens", BUNDLE)} kinds`)
 if failed then
 	process.exit(1)
 end
