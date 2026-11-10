@@ -1140,18 +1140,9 @@ local function clusters(pet: Model, cf: CFrame, size: Vector3)
 	end
 end
 
--- The client's half, on a prepared pet at the dressing scale: every effect.
-function AlienDress.adorn(pet: Model)
-	local zone = tostring(pet:GetAttribute("Zone"))
-	local signature = tostring(pet:GetAttribute("Signature") or "")
-	local tier, meteor, core, tierColor, accent = looksOf(pet)
-	local paints = paintsOf(pet)
-	local wingParts, flameParts, jetParts = partsOf(pet, paints)
-
-	local cf, size = pet:GetBoundingBox()
-	local radius = math.max(size.X, size.Z) / 2
-
-	-- The effects carrier: an invisible box over the body, moving with it.
+-- The effects carrier: an invisible box over the body (`cf`, `size`: its box), moving with it,
+-- with the points on top and at the back the effects start from.
+local function carrier(pet: Model, cf: CFrame, size: Vector3): (BasePart, Attachment, Attachment)
 	local fx = Instance.new("Part")
 	fx.Name = "Fx"
 	fx:SetAttribute("Role", "body")
@@ -1163,6 +1154,20 @@ function AlienDress.adorn(pet: Model)
 	local top = attachment(fx, "Top", Vector3.new(0, size.Y * 0.5, 0))
 	-- The back of the pet: it faces -Z, so its back is +Z (signatures that trail behind start here).
 	local back = attachment(fx, "Back", Vector3.new(0, size.Y * 0.05, size.Z * 0.45))
+	return fx, top, back
+end
+
+-- The client's half, on a prepared pet at the dressing scale: every effect.
+function AlienDress.adorn(pet: Model)
+	local zone = tostring(pet:GetAttribute("Zone"))
+	local signature = tostring(pet:GetAttribute("Signature") or "")
+	local tier, meteor, core, tierColor, accent = looksOf(pet)
+	local paints = paintsOf(pet)
+	local wingParts, flameParts, jetParts = partsOf(pet, paints)
+
+	local cf, size = pet:GetBoundingBox()
+	local radius = math.max(size.X, size.Z) / 2
+	local fx, top, back = carrier(pet, cf, size)
 
 	jets(fx, jetParts, paints)
 
@@ -1193,6 +1198,18 @@ function AlienDress.adorn(pet: Model)
 	end
 	rune(pet, cf, size, accent)
 	clusters(pet, cf, size)
+end
+
+-- A guardian's effects (decision 090), on a model painted by paintModel, at the dressing scale:
+-- only its kind's signature (flames, bubbles, a spout, smoke...) and its jets, the pet's; no aura,
+-- light, comets or rune: 132 guardians stand on the map.
+function AlienDress.adornSignature(model: Model, core: Color3)
+	local paints = paintsOf(model)
+	local _, flameParts, jetParts = partsOf(model, paints)
+	local cf, size = model:GetBoundingBox()
+	local fx, top, back = carrier(model, cf, size)
+	jets(fx, jetParts, paints)
+	signatures(fx, top, back, tostring(model:GetAttribute("Signature") or ""), core, flameParts)
 end
 
 -- Adorns `model`, a prepared pet the server placed at its own size, on this client only. The

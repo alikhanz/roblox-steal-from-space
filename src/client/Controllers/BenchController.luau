@@ -1,7 +1,7 @@
 --!strict
 -- The bench's buttons (decision 082): fill the island with 30 aliens to measure it on a
--- phone, and take them away; set the Event Horizon's 42 guardians round the player and take them
--- away (BenchService.showGuardians). Shown only while the server marks the player as allowed
+-- phone, and take them away; set the Event Horizon's 42 guardians round the player, or a gallery
+-- of one guardian a post, and take them away (BenchService.showGuardians). Shown only while the server marks the player as allowed
 -- (DevConfig.BENCH_ATTRIBUTE: Studio, or the Dev game's creator). A developer's tool, not a
 -- player's screen: plain instances, no brief, no localization (the labels are the commands' names).
 
@@ -56,7 +56,7 @@ function BenchController.new(): BenchController
 		local column = Instance.new("Frame")
 		column.AnchorPoint = Vector2.new(1, 0.5)
 		column.Position = UDim2.new(1, -12, 0.5, 0)
-		column.Size = UDim2.fromOffset(BUTTON_SIZE.X.Offset, BUTTON_SIZE.Y.Offset * 4 + 6 * 3)
+		column.Size = UDim2.fromOffset(BUTTON_SIZE.X.Offset, BUTTON_SIZE.Y.Offset * 5 + 6 * 4)
 		column.BackgroundTransparency = 1
 		column.Parent = gui
 		local layout = Instance.new("UIListLayout")
@@ -70,10 +70,13 @@ function BenchController.new(): BenchController
 			Remotes.Bench.Fire(false)
 		end)
 		button(column, "/bench guardians", 3, function()
-			Remotes.BenchGuardians.Fire(true)
+			Remotes.BenchGuardians.Fire("Bench")
 		end)
-		button(column, "/bench guardians clear", 4, function()
-			Remotes.BenchGuardians.Fire(false)
+		button(column, "/gallery guardians", 4, function()
+			Remotes.BenchGuardians.Fire("Gallery")
+		end)
+		button(column, "/bench guardians clear", 5, function()
+			Remotes.BenchGuardians.Fire("Off")
 		end)
 		gui.Parent = playerGui
 

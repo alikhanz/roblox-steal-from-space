@@ -518,11 +518,18 @@ event Bench = {
 	data: boolean,
 }
 
--- The guardian bench (BenchService.showGuardians): true sets the Event Horizon's 42 guardians in a
--- ring round the player, false takes them away. The server ignores anyone not allowed.
+-- Display guardians round the player (BenchService.showGuardians): Bench sets the Event Horizon's
+-- 42 guardians for a phone measurement, Gallery one guardian of every post to look at, Off takes
+-- either away. The server ignores anyone not allowed.
+type GuardianDisplay = enum {
+	Off,
+	Bench,
+	Gallery,
+}
+
 event BenchGuardians = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,
-	data: boolean,
+	data: GuardianDisplay,
 }

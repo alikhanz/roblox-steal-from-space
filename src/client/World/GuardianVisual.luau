@@ -11,6 +11,7 @@ local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
@@ -49,6 +50,9 @@ export type Visual = {
 	-- Whether its parts move now (near the camera), and its throat's glow as last drawn.
 	moving: boolean,
 	glow: number,
+	-- Its signature's particles and beams: they play only while its parts move (near the camera).
+	effects: { ParticleEmitter | Beam },
+	effectsOn: boolean,
 	-- Where it was carried last (a far one still is not moved again).
 	origin: CFrame?,
 }
@@ -79,7 +83,13 @@ local function templateOf(postId: string): Template?
 		return nil
 	end
 	local model = source:Clone()
-	AlienDress.paintModel(model, colourOf(model:GetAttribute("Core")))
+	local core = colourOf(model:GetAttribute("Core"))
+	AlienDress.paintModel(model, core)
+	-- Its kind's effects, made at the scale the pets' were tuned at; they scale with the model.
+	local scale = model:GetScale()
+	model:ScaleTo(AlienLooks.MODELS.DRESS_SCALE)
+	AlienDress.adornSignature(model, core)
+	model:ScaleTo(scale)
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") then
 			-- 132 guardians: their shadows would cost more than they show in open space.
@@ -120,7 +130,12 @@ function GuardianVisual.attach(body: BasePart, post: GuardianConfig.Post, parent
 	local eyes: { BasePart } = {}
 	local maws: { Maw } = {}
 	local meshes: { Instance } = {}
+	local effects: { ParticleEmitter | Beam } = {}
 	for _, part in model:GetDescendants() do
+		if part:IsA("ParticleEmitter") or part:IsA("Beam") then
+			part.Enabled = false
+			table.insert(effects, part)
+		end
 		if not part:IsA("BasePart") then
 			continue
 		end
@@ -149,6 +164,8 @@ function GuardianVisual.attach(body: BasePart, post: GuardianConfig.Post, parent
 		strikeAt = nil,
 		moving = false,
 		glow = -1,
+		effects = effects,
+		effectsOn = false,
 		origin = nil,
 	}
 	-- Many new meshes at once: ask for them all, or some stay unloaded.
@@ -204,6 +221,12 @@ function GuardianVisual.step(visuals: { [any]: Visual }, now: number, dt: number
 		local distance = (origin.Position - eye).Magnitude
 		local reach = MODELS.MOTION_DISTANCE + visual.radius + (if visual.moving then MODELS.MOTION_MARGIN else 0)
 		visual.moving = distance <= reach
+		if visual.moving ~= visual.effectsOn then
+			visual.effectsOn = visual.moving
+			for _, effect in visual.effects do
+				effect.Enabled = visual.moving
+			end
+		end
 		if visual.moving then
 			RigMotion.pose(rig, visual.clock, origin, origin, nil, parts, frames)
 		elseif visual.origin ~= visual.body.CFrame then
