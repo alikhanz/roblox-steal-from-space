@@ -59,6 +59,13 @@ def spike(base, radius, length, mat, direction):
     return cone(tuple(base), radius, length, mat, tuple(direction))
 
 
+def hinge(name, point):
+    """The point a moving part turns about: a tiny marker in role `hinge<Name>` (`hingeArmL` turns
+    `armL`), which the unpacking turns into an attachment (BLENDER_ROBLOX.md, section 3)."""
+    with robo.role("hinge" + name):
+        sphere(tuple(point), (0.03, 0.03, 0.03), real.gloss("Joint", (0.1, 0.11, 0.13), 0.25), 8)
+
+
 def scowl(centre, width, height, theme, tilt=0.0, eyes=None):
     """A dark visor with slit eyes slanted down to the middle under a V of brow plates: the
     adult's scowl. `centre` is on the face, which looks towards -Y."""
@@ -132,7 +139,7 @@ def slime(x, z, theme, p, zone):
     jelly = [(0, 0, 0, 0.92), (0, 0, 0.55, 0.8), (0.12, 0.02, 1.05, 0.55), (-0.3, 0.1, 0.25, 0.6), (0.35, -0.05, 0.2, 0.55)]
     if h > 1.2:
         jelly.append((0.0, 0.0, 1.55, 0.45))
-    real.blob([(ex * w, ey * w, ez * h, r * min(w, h)) for ex, ey, ez, r in jelly], theme["core"](), (x, 0, z + 0.55 + 0.45 * h), 0.045)
+    real.blob([(ex * w, ey * w, ez * h, r * min(w, h)) for ex, ey, ez, r in jelly], theme["core"](), (x, 0, z + 0.55 + 0.45 * h), 0.045 / robo.DETAIL)
     tint = tuple(0.75 + 0.25 * c for c in theme["colours"]["core"])
     dome = sphere((x, 0, dome_z), (0.95 * w, 0.95 * w, 1.15 * h), robo.shell_glass("Dome", tint), 48)
     # The cage: three hoops over the dome make six ribs, none across the face.
@@ -150,20 +157,24 @@ def slime(x, z, theme, p, zone):
     for side in (-1, 1):
         shoulder = Vector((x + side * 1.12 * w, -0.05, z + 1.0))
         shells.append(sphere(tuple(shoulder), (0.3, 0.3, 0.3), shell, 24))
-        pill(tuple(shoulder + Vector((side * 0.08, 0, 0.24))), (0.42, 0.36, 0.11), shell, (0, math.radians(side * 28), 0), 0.8)
+        pauldron = pill(tuple(shoulder + Vector((side * 0.08, 0, 0.24))), (0.42, 0.36, 0.11), shell, (0, math.radians(side * 28), 0), 0.8)
         pill(tuple(shoulder + Vector((side * 0.1, 0, 0.32))), (0.3, 0.26, 0.05), trim(), (0, math.radians(side * 28), 0), 0.8)
         for dy in (-0.15, 0.18):
-            spike(shoulder + Vector((side * 0.22, dy, 0.36)), 0.08, 0.4, spiked(theme), (side * 0.7, 0, 1))
-        elbow = shoulder + Vector((side * 0.4, -0.25, -0.45))
-        sphere(tuple(elbow), (0.17, 0.17, 0.17), joint, 16)
-        limb(shoulder, elbow, 0.13, shell)
-        fist = elbow + Vector((side * -0.05, -0.45, -0.15))
-        limb(elbow, fist, 0.12, shell)
-        sphere(tuple(fist), (0.3, 0.32, 0.28), shell, 32)
-        sphere(tuple(fist + Vector((0, -0.05, 0.12))), (0.22, 0.26, 0.12), trim(), 24)
-        torus(tuple(fist + Vector((0, 0.2, 0))), 0.24, 0.03, glow(accent, 8.0), (math.radians(90), 0, 0))
-        for dx in (-0.12, 0.0, 0.12):
-            spike(fist + Vector((dx, -0.27, 0.04)), 0.05, 0.22, metal(), (0, -1, 0))
+            spike(on(pauldron, tuple(shoulder + Vector((side * 0.22, dy, 0.6))), -0.03), 0.08, 0.4, spiked(theme), (side * 0.7, 0, 1))
+        # The arm swings from the shoulder (role armL / armR).
+        name = "L" if side < 0 else "R"
+        with robo.role("arm" + name):
+            elbow = shoulder + Vector((side * 0.4, -0.25, -0.45))
+            sphere(tuple(elbow), (0.17, 0.17, 0.17), joint, 16)
+            limb(shoulder, elbow, 0.13, shell)
+            fist = elbow + Vector((side * -0.05, -0.45, -0.15))
+            limb(elbow, fist, 0.12, shell)
+            sphere(tuple(fist), (0.3, 0.32, 0.28), shell, 32)
+            sphere(tuple(fist + Vector((0, -0.05, 0.12))), (0.22, 0.26, 0.12), trim(), 24)
+            torus(tuple(fist + Vector((0, 0.2, 0))), 0.24, 0.03, glow(accent, 8.0), (math.radians(90), 0, 0))
+            for dx in (-0.12, 0.0, 0.12):
+                spike(fist + Vector((dx, -0.27, 0.04)), 0.05, 0.22, metal(), (0, -1, 0))
+        hinge("Arm" + name, shoulder)
     return {"shells": shells, "top": (x, 0, dome_z + 1.15 * h), "center": (x, 0, dome_z - 0.1), "radius": 0.95 * w, "width": 1.2 * w,
             "hull": ((x, 0, dome_z), (0.95 * w, 0.95 * w, 1.15 * h)), "hull_obj": dome}
 
@@ -226,18 +237,21 @@ def crab(x, z, theme, p, zone):
 
     shells = [body]
     for side in (-1, 1):
-        # Legs out to a knee, down to a metal tip.
-        for dy in legs:
+        # Legs out to a knee, down to a metal tip. Each is a role of its own (legLA… from the
+        # front back), hinged at its hip, so the game can make the crab step, as a pet's.
+        name = "L" if side < 0 else "R"
+        for index, dy in enumerate(legs):
             hip = Vector(on(body, (x + side * 1.3 * w, dy, cz - 0.1), -0.05))
             knee = Vector((x + side * (1.95 * w), dy * 1.15, cz + 0.5))
             foot = Vector((x + side * (2.25 * w + 0.6), dy * 1.45, z + 0.02))
             ankle = knee + (foot - knee) * 0.65
             sphere(tuple(hip), (0.14, 0.14, 0.14), joint, 16)
-            limb(hip, knee, 0.11, shell)
-            sphere(tuple(knee), (0.14, 0.14, 0.14), joint, 16)
-            limb(knee, ankle, 0.09, shell)
-            spike(ankle, 0.09, (foot - ankle).length, metal(), foot - ankle)
-            torus(tuple(ankle), 0.095, 0.02, glow(accent, 8.0), tuple((foot - ankle).to_track_quat("Z", "Y").to_euler()))
+            with robo.role("leg" + name + "ABCD"[index]):
+                limb(hip, knee, 0.11, shell)
+                sphere(tuple(knee), (0.14, 0.14, 0.14), shell, 16)
+                limb(knee, ankle, 0.09, shell)
+                spike(ankle, 0.09, (foot - ankle).length, metal(), foot - ankle)
+            hinge("Leg" + name + "ABCD"[index], hip)
         # A pincer on an arm held up in front: a palm, a fixed lower finger and an open upper one,
         # both with metal tips. A kind may grow one much bigger.
         size = claws[0] if side < 0 else claws[1]
@@ -252,18 +266,23 @@ def crab(x, z, theme, p, zone):
         sphere(tuple(shoulder), (0.17, 0.17, 0.17), joint, 16)
         sphere(tuple(elbow), (0.17, 0.17, 0.17), joint, 16)
         toe_in = math.radians(-side * 12)
-        shells.append(sphere(tuple(palm), (0.42 * size, 0.55 * size, 0.38 * size), shell, 32, (0, 0, toe_in)))
+        hand = sphere(tuple(palm), (0.42 * size, 0.55 * size, 0.38 * size), shell, 32, (0, 0, toe_in))
+        shells.append(hand)
         torus(tuple(palm + Vector((0, 0.42 * size, 0))), 0.3 * size, 0.03, glow(accent, 8.0), (math.radians(90), 0, 0))
-        for offset, finger, pitch, mat in (((side * 0.12, -0.55, -0.14), (0.14, 0.52, 0.13), 8, shell),
-                                           ((-side * 0.04, -0.5, 0.16), (0.16, 0.6, 0.15), -16, trim())):
+        # The fingers snap as a pet's jaws: jawBot (the fixed lower one) and jawTop, on a hinge
+        # inside the palm's front.
+        for offset, finger, pitch, mat, jaw in (((side * 0.12, -0.55, -0.14), (0.14, 0.52, 0.13), 8, shell, "jawBot"),
+                                                ((-side * 0.04, -0.5, 0.16), (0.16, 0.6, 0.15), -16, trim(), "jawTop")):
             turn = Euler((math.radians(pitch), 0, toe_in))
             centre = palm + Vector(offset) * size
             finger = tuple(f * size for f in finger)
-            sphere(tuple(centre), finger, mat, 32, tuple(turn))
-            tip = centre + turn.to_matrix() @ Vector((0, -finger[1] * 0.9, 0))
-            spike(tip, 0.06 * size, 0.22 * size, metal(), turn.to_matrix() @ Vector((0, -1, 0)))
+            with robo.role(jaw + name):
+                sphere(tuple(centre), finger, mat, 32, tuple(turn))
+                tip = centre + turn.to_matrix() @ Vector((0, -finger[1] * 0.9, 0))
+                spike(tip, 0.06 * size, 0.22 * size, metal(), turn.to_matrix() @ Vector((0, -1, 0)))
+        hinge("Jaw" + name, palm + Vector((0, -0.3 * size, 0)))
         for dy in (-0.1, 0.2):
-            spike(palm + Vector((side * 0.15, dy, 0.33)) * 1.0, 0.06, 0.26, spiked(theme), (side * 0.5, 0, 1))
+            spike(on(hand, tuple(palm + Vector((side * 0.15, dy, 0.6)) * size), -0.03), 0.06, 0.26, spiked(theme), (side * 0.5, 0, 1))
     return {"shells": shells, "top": (x, 0.1, cz + 0.9), "center": (x, 0, cz), "radius": 1.3 * w, "width": 1.9 * w,
             "hull": ((x, 0, cz), (1.35 * w, 1.0, 0.5)), "hull_obj": body}
 
@@ -277,10 +296,12 @@ def rotors(info, theme):
         rx, ry = cx + side * 0.6, cy + 0.55
         cylinder((rx, ry, cz + 0.75), 0.06, 0.7, mast)
         torus((rx, ry, cz + 1.1), 0.72, 0.045, theme["accent_shell"]())
-        for spin in (25, 115):
-            b = pill((rx, ry, cz + 1.12), (0.66, 0.08, 0.02), blade)
-            b.rotation_euler = (math.radians(5), 0, math.radians(spin + side * 20))
-        sphere((rx, ry, cz + 1.14), (0.11, 0.11, 0.07), glow(theme["accent"], 10.0), 16)
+        # Each rotor spins about its own parts' middle (rotorL, rotorR).
+        with robo.role("rotor" + ("L" if side < 0 else "R")):
+            for spin in (25, 115):
+                b = pill((rx, ry, cz + 1.12), (0.66, 0.08, 0.02), blade)
+                b.rotation_euler = (math.radians(5), 0, math.radians(spin + side * 20))
+            sphere((rx, ry, cz + 1.14), (0.11, 0.11, 0.07), glow(theme["accent"], 10.0), 16)
 
 
 # --- Worm: the serpent ----------------------------------------------------------------------------
@@ -308,21 +329,26 @@ def worm(x, z, theme, p, zone):
     for index, (px, py, pz, r) in enumerate(WORM_SPINE[:count]):
         r *= rs
         centre = Vector((x + px, py * max(1.0, rs * 0.9), z + max(pz, r * 0.95)))
-        if faceted:
-            shells.append(gem(tuple(centre), (r * 1.1, r, r * 1.15), shell, (0.3 * index, 0.5, 0.2 * index)))
-            sphere(tuple(centre), (r * 0.45,) * 3, theme["core"](), 16)
-        else:
-            shells.append(sphere(tuple(centre), (r * 1.05, r * 0.9, r * 0.95), shell, 32))
-            sphere(tuple(centre + Vector((0, 0.05, r * 0.7))), (r * 0.78, r * 0.5, r * 0.28), trim(), 32, (math.radians(-10), 0, 0))
-        spike(centre + Vector((0, 0.1, r * 0.85)), r * 0.24, r * 1.0, spiked(theme), (0, 0.4, 1))
-        for side in (-1, 1):
-            spike(centre + Vector((side * r * 0.85, 0.05, r * 0.25)), r * 0.13, r * 0.5, spiked(theme), (side, 0.3, 0.5))
-        if previous is not None and not faceted:
-            between = (previous + centre) / 2
-            ring = torus(tuple(between), r * 0.82, 0.04, glow(accent, 8.0))
-            ring.rotation_euler = (centre - previous).to_track_quat("Z", "Y").to_euler()
+        # The segments with what they wear make six roles (segA under the head to segF at the tail),
+        # so the game runs a wave down the worm, as a pet's, with few parts to move.
+        with robo.role("seg" + "ABCDEF"[index * 6 // count]):
+            if faceted:
+                segment = gem(tuple(centre), (r * 1.1, r, r * 1.15), shell, (0.3 * index, 0.5, 0.2 * index))
+                sphere(tuple(centre), (r * 0.45,) * 3, theme["core"](), 16)
+            else:
+                segment = sphere(tuple(centre), (r * 1.05, r * 0.9, r * 0.95), shell, 32)
+                sphere(tuple(centre + Vector((0, 0.05, r * 0.7))), (r * 0.78, r * 0.5, r * 0.28), trim(), 32, (math.radians(-10), 0, 0))
+            shells.append(segment)
+            spike(on(segment, tuple(centre + Vector((0, 0.1, r * 1.5))), -0.03), r * 0.24, r * 1.0, spiked(theme), (0, 0.4, 1))
+            for side in (-1, 1):
+                spike(on(segment, tuple(centre + Vector((side * r * 1.5, 0.05, r * 0.45))), -0.03), r * 0.13, r * 0.5, spiked(theme), (side, 0.3, 0.5))
+            if previous is not None and not faceted:
+                between = (previous + centre) / 2
+                ring = torus(tuple(between), r * 0.82, 0.04, glow(accent, 8.0))
+                ring.rotation_euler = (centre - previous).to_track_quat("Z", "Y").to_euler()
+            if index == count - 1:
+                spike(centre + Vector((0, 0.2, 0)), 0.2 * rs, 0.8, spiked(theme), (0, 1, -0.1))
         previous = centre
-    spike(previous + Vector((0, 0.2, 0)), 0.2 * rs, 0.8, spiked(theme), (0, 1, -0.1))
 
     hs = min(rs, 1.25)
     hx, hy, hz = x, -0.6, z + 2.35 + 0.4 * (rs - 1)
@@ -332,13 +358,18 @@ def worm(x, z, theme, p, zone):
     else:
         head = sphere((hx, hy, hz), (0.62 * hs, 0.8 * hs, 0.55 * hs), shell, 48)
         sphere((hx, hy + 0.15, hz + 0.38 * hs), (0.48 * hs, 0.6 * hs, 0.22 * hs), trim(), 32, (math.radians(-8), 0, 0))
-    # The open jaw, its throat glowing, mandibles out to the sides and fangs from the top.
-    sphere((hx, hy - 0.25 * hs, hz - 0.45 * hs), (0.5 * hs, 0.6 * hs, 0.16 * hs), trim(), 32, (math.radians(16), 0, 0))
-    sphere((hx, hy - 0.45 * hs, hz - 0.3 * hs), (0.32 * hs, 0.3 * hs, 0.13 * hs), glow(MAW, 4.0), 24)
-    fang = metal()
+    # The neck: the head and all it wears turn about its centre as the worm looks round.
+    hinge("Head", (hx, hy, hz))
+    # The open jaw with its mandibles (role jaw, hinged at its back), the throat glowing behind
+    # it, fangs from the top.
+    with robo.role("jaw"):
+        sphere((hx, hy - 0.25 * hs, hz - 0.45 * hs), (0.5 * hs, 0.6 * hs, 0.16 * hs), trim(), 32, (math.radians(16), 0, 0))
+        for side in (-1, 1):
+            spike((hx + side * 0.4 * hs, hy - 0.6 * hs, hz - 0.45 * hs), 0.1 * hs, 0.6 * hs, metal(), (-side * 0.35, -1, 0.25))
+    hinge("Jaw", (hx, hy + 0.25 * hs, hz - 0.4 * hs))
+    sphere((hx, hy - 0.45 * hs, hz - 0.3 * hs), (0.32 * hs, 0.3 * hs, 0.13 * hs), real.glow("Maw", MAW, 4.0), 24)
     for side in (-1, 1):
-        spike((hx + side * 0.4 * hs, hy - 0.6 * hs, hz - 0.45 * hs), 0.1 * hs, 0.6 * hs, fang, (-side * 0.35, -1, 0.25))
-        spike((hx + side * 0.2 * hs, hy - 0.62 * hs, hz - 0.18 * hs), 0.06 * hs, 0.32 * hs, fang, (0, -0.2, -1))
+        spike((hx + side * 0.2 * hs, hy - 0.62 * hs, hz - 0.18 * hs), 0.06 * hs, 0.32 * hs, metal(), (0, -0.2, -1))
     scowl((hx, hy - 0.73 * hs, hz + 0.12 * hs), 0.45 * hs, 0.14 * hs, theme, -10)
     # A crest of horns swept back.
     for dx, length in ((-0.3, 0.6), (0.0, 0.75), (0.3, 0.6)):
@@ -356,13 +387,15 @@ def wing_mat():
 
 
 def _hunter(x, y, z, size, theme, shell):
-    """A little attack drone: a dark helmet, a metal sting, blade wings, a slit stare."""
+    """A little attack drone: a dark helmet, a metal sting, blade wings, a slit stare. Its wings
+    are vanes, not "Wing": they do not buzz, so they join the other hunters' glass."""
     body = sphere((x, y, z), (0.32 * size, 0.42 * size, 0.28 * size), shell, 24)
     sphere((x, y + 0.05 * size, z + 0.1 * size), (0.26 * size, 0.34 * size, 0.2 * size), theme["accent_shell"](), 24)
     spike((x, y - 0.35 * size, z - 0.02 * size), 0.15 * size, 0.45 * size, metal(), (0, -1, -0.05))
+    vane = real.iridescent("Vane", (1.0, 0.8, 0.9), transmission=0.6)
     for side in (-1, 1):
         sphere((x + side * 0.12 * size, y - 0.33 * size, z + 0.06 * size), (0.09 * size, 0.02, 0.035 * size), eye_mat(), 12, (0, math.radians(-side * 25), 0))
-        sphere((x + side * 0.5 * size, y + 0.1 * size, z + 0.25 * size), (0.5 * size, 0.16 * size, 0.015), wing_mat(), 16,
+        sphere((x + side * 0.42 * size, y + 0.1 * size, z + 0.22 * size), (0.5 * size, 0.16 * size, 0.015), vane, 16,
                (0, math.radians(-side * 30), math.radians(side * 25)))
     sphere((x, y + 0.42 * size, z), (0.1 * size, 0.04, 0.1 * size), glow(theme["accent"], 10.0), 12)
     return body
@@ -399,19 +432,28 @@ def swarm(x, z, theme, p, zone):
 
     scowl((x, -0.78 * q, cz + 0.02), 0.5 * q, 0.16 * q, theme, -6)
     for side in (-1, 1):
+        name = "L" if side < 0 else "R"
+        # The jaws snap as a devourer pet's mandibles (mandL, mandR, hinged at their root).
         root = Vector((x + side * 0.35 * q, -0.62 * q, cz - 0.4 * q))
-        spike(root, 0.14 * q, 0.55 * q, metal(), (-side * 0.2, -1, -0.15))
-        spike(root + Vector((-side * 0.1, -0.5, -0.07)) * q, 0.09 * q, 0.4 * q, metal(), (-side * 1.0, -0.7, 0.0))
+        with robo.role("mand" + name):
+            spike(root, 0.14 * q, 0.55 * q, metal(), (-side * 0.2, -1, -0.15))
+            spike(root + Vector((-side * 0.1, -0.5, -0.07)) * q, 0.09 * q, 0.4 * q, metal(), (-side * 1.0, -0.7, 0.0))
+        hinge("Mand" + name, root)
         spike(on(thorax, (x + side * 0.4 * q, 0.0, cz + 0.9)), 0.1 * q, 0.5 * q, spiked(theme), (side * 0.4, 0.5, 1))
-        # Two pairs of blade wings, raised and swept back.
-        for lift, reach, sweep, size in ((0.6, 1.3, 28, 1.0), (0.4, 1.05, 45, 0.75)):
-            sphere((x + side * reach * q, (0.45 + 0.25 * (1 - size)) * q, cz + lift * q), (1.3 * size * q, 0.36 * size * q, 0.02), wing_mat(), 24,
-                   (0, math.radians(-side * 22), math.radians(side * sweep)))
+        # Two pairs of blade wings, raised and swept back, buzzing from their roots (buzzL, buzzR).
+        with robo.role("buzz" + name):
+            for lift, reach, sweep, size in ((0.6, 1.3, 28, 1.0), (0.4, 1.05, 45, 0.75)):
+                sphere((x + side * reach * q, (0.45 + 0.25 * (1 - size)) * q, cz + lift * q), (1.3 * size * q, 0.36 * size * q, 0.02), wing_mat(), 24,
+                       (0, math.radians(-side * 22), math.radians(side * sweep)))
+        hinge("Buzz" + name, (x + side * 0.3 * q, 0.45 * q, cz + 0.5 * q))
     spike(on(thorax, (x, 0.1, cz + 0.9)), 0.12 * q, 0.6 * q, spiked(theme), (0, 0.4, 1))
 
+    # The hunters fly round her as one flock (role hunters): one set of parts for them all, so a
+    # phone draws a handful of meshes for the whole swarm, not a few per drone.
     reach = max(q, 0.9)
-    for dx, dy, dz, size in HUNTER_SPOTS[:p.get("count", 3) + 3]:
-        _hunter(x + dx * reach, dy * reach, cz + dz * reach, size, theme, shell)
+    with robo.role("hunters"):
+        for dx, dy, dz, size in HUNTER_SPOTS[:p.get("count", 3) + 3]:
+            _hunter(x + dx * reach, dy * reach, cz + dz * reach, size, theme, shell)
     return {"shells": [thorax, abdomen], "top": (x, 0, cz + 0.85 * q), "center": (x, 0, cz), "radius": 0.9 * q, "width": 1.0 * q,
             "lead": (x, 0, cz), "lead_size": 0.85 * q / 0.55, "engine_z": -0.05,
             "hull": ((x, 0, cz), (0.85 * q, 0.8 * q, 0.75 * q)), "shoulders": False, "hull_obj": thorax}
@@ -447,17 +489,21 @@ def _wing_height(reach, span, droop):
     return (0.35 - 0.025 * droop) * r * r - 0.05 * r
 
 
-def _wing_sheet(x, zc, mat, span, droop, grow=1.0, thickness=0.2):
+def _wing_sheet(x, zc, mat, span, droop, side, grow=1.0, thickness=0.2):
+    """One wing (side -1 or 1): the outline's half, its root edge inside the body so the halves
+    meet there, raised by the wing's curl, thickened and smoothed."""
     import bmesh
 
     half = [(px * span * grow, py * grow + (grow - 1) * 0.1) for px, py in RAY_OUTLINE]
-    outline = half + [(-px, py) for px, py in reversed(half[1:-1])]
+    # The root runs inside the body, clear of its middle (the two wings beat apart).
+    half[0] = (0.3, half[0][1])
+    half[-1] = (0.3, half[-1][1])
     mesh = bpy.data.meshes.new("RayWing")
     bm = bmesh.new()
-    verts = [bm.verts.new((x + px, py, 0)) for px, py in outline]
-    bm.faces.new(verts)
+    verts = [bm.verts.new((x + side * px, py, 0)) for px, py in half]
+    bm.faces.new(verts if side > 0 else list(reversed(verts)))
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
-    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=3, use_grid_fill=True)
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=2, use_grid_fill=True)
     for v in bm.verts:
         v.co.z = zc + _wing_height(abs(v.co.x - x), span, droop)
     bm.to_mesh(mesh)
@@ -468,7 +514,7 @@ def _wing_sheet(x, zc, mat, span, droop, grow=1.0, thickness=0.2):
     solid.thickness = thickness
     solid.offset = 0.0
     sub = obj.modifiers.new("Subdivision", "SUBSURF")
-    sub.levels = sub.render_levels = 2
+    sub.levels = sub.render_levels = 1 if robo.DETAIL < 1 else 2
     for poly in mesh.polygons:
         poly.use_smooth = True
     return robo._tag(real.assign(obj, mat))
@@ -482,8 +528,14 @@ def ray(x, z, theme, p, zone):
     spiked = spikes_of(zone)
     zc = z + 1.2
     edge = theme["colours"]["core"]
-    wing = _wing_sheet(x, zc, shell, span, droop)
-    _wing_sheet(x, zc - 0.03, glow(edge, 4.0), span, droop, 1.04, 0.05)
+    wings = []
+    for side in (-1, 1):
+        # Each wing beats from its root by the body (finL, finR), as a pet's inner fin.
+        name = "L" if side < 0 else "R"
+        with robo.role("fin" + name):
+            wings.append(_wing_sheet(x, zc, shell, span, droop, side))
+            _wing_sheet(x, zc - 0.03, glow(edge, 4.0), span, droop, side, 1.04, 0.05)
+        hinge("Fin" + name, (x + side * 0.45, 0.1, zc))
     body = sphere((x, 0.05, zc + 0.05), (0.72, 1.2, 0.36), shell, 48)
     sphere((x, 0.3, zc + 0.22), (0.38, 0.55, 0.2), theme["core"](), 32)
     gold = real.chrome("Horn", robo.GOLD, 0.25)
@@ -495,14 +547,17 @@ def ray(x, z, theme, p, zone):
     scowl((x, -1.12, zc + 0.02), 0.42, 0.12, theme, -10)
 
     if p.get("tail", True):
-        # A whip tail of shrinking beads, ending in a glowing blade.
+        # A whip tail of shrinking beads, ending in a glowing blade: six roles from the body back
+        # (tailA… tailF), so the game wags it as a wave, as a pet's.
         for step in range(16):
             r = 0.13 - 0.0055 * step
-            sphere((x, 1.15 + step * 0.15, zc - 0.02 * step), (r, r * 1.3, r), shell, 16)
-        sphere((x, 3.75, zc - 0.32), (0.17, 0.42, 0.03), glow(edge, 5.0), 24)
+            with robo.role("tail" + "ABCDEF"[step * 6 // 16]):
+                sphere((x, 1.15 + step * 0.15, zc - 0.02 * step), (r, r * 1.3, r), shell, 16)
+        with robo.role("tailF"):
+            sphere((x, 3.75, zc - 0.32), (0.17, 0.42, 0.03), glow(edge, 5.0), 24)
     for side in (-1, 1):
         spike((x + side * 0.05, 1.25, zc + 0.1), 0.08, 0.4, metal(), (side * 0.8, 0.6, 0.4))
-    return {"shells": [wing, body], "top": (x, 0.05, zc + 0.45), "center": (x, 0.1, zc), "radius": 1.6 * span, "width": 2.6 * span,
+    return {"shells": wings + [body], "top": (x, 0.05, zc + 0.45), "center": (x, 0.1, zc), "radius": 1.6 * span, "width": 2.6 * span,
             # As a pet's span: its wings reach about twice it.
             "span": RAY_TIP * span / 2.0, "wing_height": lambda reach: zc + _wing_height(reach, span, droop),
             "hull": ((x, 0.05, zc + 0.05), (0.72, 1.2, 0.36)), "shoulders": False, "hull_obj": body}
@@ -539,16 +594,20 @@ def whale(x, z, theme, p, zone):
 
     # The head: a flat skull over a dropped jaw, the throat glowing between them.
     skull = sphere((x, -1.35, cz + 0.2), (0.95, 1.12, 0.6), shell, 48)
-    jaw = sphere((x, -1.2, cz - 0.55), (0.85, 1.05, 0.32), trim(), 48, (math.radians(14), 0, 0))
-    sphere((x, -1.65, cz - 0.38), (0.62, 0.55, 0.2), glow(MAW, 5.0), 32)
-    # Teeth: down from the skull's rim, up from the jaw's, round the front.
+    sphere((x, -1.65, cz - 0.38), (0.62, 0.55, 0.2), real.glow("Maw", MAW, 5.0), 32)
+    # Teeth: down from the skull's rim, up from the jaw's, round the front. The jaw with its
+    # teeth is a role of its own (jaw), hinged at its back, so it opens wider in a chase.
     fang = metal()
-    for index in range(9):
-        angle = math.radians(-155 + index * (130 / 8))
+    angles = [math.radians(-155 + index * (130 / 8)) for index in range(9)]
+    for index, angle in enumerate(angles):
         top = on(skull, (x + math.cos(angle) * 0.85, -1.35 + math.sin(angle) * 1.0, cz - 0.3), -0.02)
         spike(top, 0.06, 0.24 if index % 2 else 0.32, fang, (0, 0, -1))
-        low = on(jaw, (x + math.cos(angle) * 0.72, -1.2 + math.sin(angle) * 0.9, cz - 0.3), -0.02)
-        spike(low, 0.05, 0.2, fang, (0, -0.15, 1))
+    with robo.role("jaw"):
+        jaw = sphere((x, -1.2, cz - 0.55), (0.85, 1.05, 0.32), trim(), 48, (math.radians(14), 0, 0))
+        for angle in angles:
+            low = on(jaw, (x + math.cos(angle) * 0.72, -1.2 + math.sin(angle) * 0.9, cz - 0.3), -0.02)
+            spike(low, 0.05, 0.2, fang, (0, -0.15, 1))
+    hinge("Jaw", (x, -0.4, cz - 0.45))
 
     for side in (-1, 1):
         slit_eye(skull, (x + side * 0.6, -1.95, cz + 0.32), side, 0.16, gold)
@@ -564,24 +623,32 @@ def whale(x, z, theme, p, zone):
         for dy, dz in ((-0.1, 0.4), (0.7, 0.45), (1.5, 0.35)):
             location, normal = _surface(body, (x + side * 1.1, dy, cz + dz))
             oriented(sphere(tuple(location), (0.7, 0.05, 0.08), gold, 32), normal)
-        # Long flippers, angled down and swept back, glowing along the front, clawed behind.
-        sweep = math.radians(side * 30)
-        flipper = sphere((x + side * (0.95 + 0.45 * fins), -0.3, cz - 0.4), (0.82 * fins, 0.3 * fins, 0.06), shell, 32,
-                         (0, math.radians(side * 28), sweep))
-        limb((x + side * 0.9, -0.55, cz - 0.15), (x + side * (1.1 + 0.9 * fins), 0.05, cz - 0.15 - 0.57 * fins), 0.03, glow(accent, 8.0))
-        # Claws on the trailing edge, on its outer half (the flipper's own frame: its local +Y is
-        # its back edge; the outer end is whichever end of local X lies further out).
-        bpy.context.view_layer.update()
-        frame = flipper.matrix_world
-        outer = 1 if (frame @ Vector((1, 0, 0))).x * side > (frame @ Vector((-1, 0, 0))).x * side else -1
-        back = (frame.to_3x3() @ Vector((0, 1, 0))).normalized()
-        for u in (0.3, 0.55, 0.8):
-            spike(frame @ Vector((outer * u, math.sqrt(1 - u * u) * 0.9, 0)), 0.05, 0.28, fang, back + Vector((side * 0.3, 0, 0)))
-        # Flukes with spiked tips, and twin thrusters on the tail stock.
-        sphere((x + side * 0.85, 3.25, cz + 0.15), (1.0, 0.34, 0.06), shell, 32, (0, 0, math.radians(side * 34)))
-        spike((x + side * 1.6, 3.7, cz + 0.15), 0.07, 0.4, gold, (side * 0.85, 0.6, 0))
-        cylinder((x + side * 0.4, 2.6, cz - 0.25), 0.18, 0.4, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3), (math.radians(90), 0, 0))
-        sphere((x + side * 0.4, 2.81, cz - 0.25), (0.14, 0.05, 0.14), glow(accent, 12.0), 24)
+        # Long flippers, angled down and swept back, glowing along the front, clawed behind; each
+        # rows from its root (flipperL, flipperR).
+        name = "L" if side < 0 else "R"
+        with robo.role("flipper" + name):
+            sweep = math.radians(side * 30)
+            flipper = sphere((x + side * (0.95 + 0.45 * fins), -0.3, cz - 0.4), (0.82 * fins, 0.3 * fins, 0.06), shell, 32,
+                             (0, math.radians(side * 28), sweep))
+            limb((x + side * 0.9, -0.55, cz - 0.15), (x + side * (1.1 + 0.9 * fins), 0.05, cz - 0.15 - 0.57 * fins), 0.03, glow(accent, 8.0))
+            # Claws on the trailing edge, on its outer half (the flipper's own frame: its local +Y
+            # is its back edge; the outer end is whichever end of local X lies further out).
+            bpy.context.view_layer.update()
+            frame = flipper.matrix_world
+            outer = 1 if (frame @ Vector((1, 0, 0))).x * side > (frame @ Vector((-1, 0, 0))).x * side else -1
+            back = (frame.to_3x3() @ Vector((0, 1, 0))).normalized()
+            for u in (0.3, 0.55, 0.8):
+                spike(frame @ Vector((outer * u, math.sqrt(1 - u * u) * 0.9, 0)), 0.05, 0.28, fang, back + Vector((side * 0.3, 0, 0)))
+        hinge("Flipper" + name, (x + side * 0.9, -0.35, cz - 0.3))
+        # The flukes with spiked tips beat together (one role, flukes).
+        with robo.role("flukes"):
+            sphere((x + side * 0.85, 3.25, cz + 0.15), (1.0, 0.34, 0.06), shell, 32, (0, 0, math.radians(side * 34)))
+            spike((x + side * 1.6, 3.7, cz + 0.15), 0.07, 0.4, gold, (side * 0.85, 0.6, 0))
+        # Twin thrusters under the tail stock fire down: two round glows facing back would read
+        # as a second pair of eyes from behind (BLENDER_ROBLOX.md, section 2).
+        cylinder((x + side * 0.38, 2.45, cz - 0.45), 0.16, 0.36, real.gloss("Engine", (0.1, 0.11, 0.13), 0.3))
+        sphere((x + side * 0.38, 2.45, cz - 0.64), (0.12, 0.12, 0.04), glow(accent, 12.0), 24)
+    hinge("Flukes", (x, 2.95, cz + 0.15))
     sphere((x, 2.75, cz + 0.12), (0.38, 0.65, 0.3), shell, 32)
     return {"shells": [body, skull], "top": (x, -0.6, cz + 1.0), "center": (x, 0.5, cz), "radius": 1.2, "width": 1.5, "size": 1.2,
             "hull": ((x, 0.5, cz), (1.0, 2.3, 0.85)), "hull_obj": body}
@@ -666,5 +733,7 @@ def build(kind, x, z, growth=None):
     for part in signature:
         if part.__name__ not in ADULT_SIGNATURES:
             PET_SIZE_OVERRIDES.get(part.__name__, part)(small, paint)
-    robo._grow(set(bpy.data.objects) - before, x, z, pet_scale * (growth or default_growth))
+    # Small parts on a moving part (a star on a fin, an icicle on a segment) move with it.
+    robo._carry_riders(set(bpy.data.objects) - before, small)
+    robo._grow(set(bpy.data.objects) - before, x, z, pet_scale * (growth if growth is not None else default_growth))
     return info

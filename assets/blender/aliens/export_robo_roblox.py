@@ -366,4 +366,5 @@ def main():
         print("Exported", name, len(parts), "parts")
 
 
-main()
+if __name__ == "__main__":
+    main()

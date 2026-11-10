@@ -43,7 +43,9 @@ Incident: code and comment said "wings swept 38° back", but the rotation sign w
 - **A MeshPart has one colour and one material**, so joining stops at one part per role and paint: about 45–55 parts a pet. Fewer would need a colour atlas (UVs into a swatch texture, `MeshPart.TextureID`) or hinge markers turned into attributes.
 - **Merged parts can't be split in Studio.** The jetpack flame shared material and colour with the tank's band and merged with it, so hiding only the flame was impossible; all kinds had to be re-exported. Rule: anything the game will move, hide or emit from gets **its own role or material** in Blender.
 - **Only separate roles move:** `wingL/R`, `rotor`, `drone{n}`, `orbit`, `rays`, `wisp`, `halo`, `ring`. Marker points are tiny parts with roles of their own: `hingeL/R` (wing pivot), `hinge<Part>` (a jaw's, leg's, fin's, head's pivot), `dust{L|R}{n}` (fairy dust). `lune run aliens` turns them into attachments when it unpacks (`markersToPoints`): a hinge point named after its marker on a `body` part, a `Dust` point on the wing's membrane. A marker is a MeshPart all the same — a mesh to download, a part to send: 8654 of the 720 pets' 35379 parts were markers (2026-11-10). Attachments scale with `Model:ScaleTo` and move with their part, so no scale bookkeeping is needed.
-- Pet data travels in GLB node names and, after unpacking, in attributes. **String attributes: max 50 characters.**
+- Pet data travels in GLB node names and, after unpacking, in attributes. **String attributes: max 50 characters.** Blender cuts object names at 63 bytes, and the exporters stop at 62: pack colours as hex (`ff8040`), not `255,128,64` (a guardian's four colours overflowed; 2026-11-10).
+- **Budget a model at export, in numbers.** The guardian exporter prints parts and triangles per model and flags any over the phone budget (40 MeshParts, 8000 triangles). Measured on the first pass (2026-11-10): guardians had 16–52 parts but 10–28k triangles. The hogs: a metaball blob (the slime's jelly, thousands), beveled-cube `pill`s (a 14-plate skirt ≈ 4k), tori (64×16 segments ≈ 2k each), 48-segment spheres. Fixes, in order: lower `robo.DETAIL` for the export (0.5 for guardians, 0.8 for pets) and scale the blob resolution with it; then thin the joined meshes with collapse decimation to a target (`fit_budget`: one ratio for all parts over 150 triangles, never below 0.2), which kept the look in front/side/back renders.
+- **A flock is one role.** Six attack drones as `drone{n}` roles would be ~5 parts each (plastic, metal, eyes, glow, wings) — 30 parts for the flock alone. As one role (`hunters`) with static vanes instead of `…Wing` membranes (those stay apart), the whole flock is 5 parts; it moves as one round its leader.
 
 ## 4. Placing parts on the body
 
@@ -53,7 +55,8 @@ Incident: code and comment said "wings swept 38° back", but the rotation sign w
   - `_crown_spot(info)` → hull top height;
   - `stick(info, point)` → nearest body shell (ray wings, claws).
 - **A part may look attached only because a neighbour passes through it.** The wing hinge was an offset from the centre and hung behind flat rays and worm heads; the forward-swept wing cut through the body, so the check counted it attached. Swept back, it floated. Root every part on the hull (`snap`, slightly sunk).
-- **Part check:** `check_robo_parts.py` (~6 min for all kinds) reports floating groups, parts hidden inside another, and parts cutting others. By-design floaters are excluded via `LOOSE_*`/`SOFT_*`. Run after every shape change and `diff` against the last report: anything new means breakage. Wing intersections are not checked (`SOFT_GROUPS`) — inspect them visually.
+- **Snap small parts to the part they sit on, not to an offset from its centre.** The guardians' first part check found 32 spikes floating over pauldrons and claws or sunk in them: placed at "centre + offset" on a tilted or toed-in part. `adults.on(part, point, lift)` moves a point onto that part's own surface (its BVH); give it a point outside the part and a small negative lift.
+- **Part check:** `check_robo_parts.py` (~6 min for all kinds; `check_guardian_parts.py` for the guardians, ~1 min) reports floating groups, parts hidden inside another, and parts cutting others. By-design floaters are excluded via `LOOSE_*`/`SOFT_*`. Run after every shape change and `diff` against the last report: anything new means breakage. Wing intersections are not checked (`SOFT_GROUPS`) — inspect them visually.
 - **Inspect from every side and through the whole motion:** front, side, back (artefacts hide at the back), every tier and the meteor variant. Moving parts at the extremes of their motion, not only at rest.
 
 ## 5. Getting models into Roblox
@@ -158,6 +161,11 @@ Cross-checked with [roblox-brain](https://github.com/TabooHarmony/roblox-brain) 
 - **Decorative meshes need no collision:** `CanCollide`/`CanQuery`/`CanTouch = false` (pets already do), otherwise `CollisionFidelity = Box`.
 - **Read the model back after insertion** (count meshes, `SurfaceAppearance`, attachments, emitters) instead of trusting the insert: that is how unloaded meshes and missing jets are caught.
 - **Inserting an asset permanently grants the experience access to it** — insert only our own assets.
+
+## 7a. Blender scripts
+
+- **Give every script module a name unique across `assets/blender/`.** Scripts put several folders on `sys.path` (`lib`, `aliens`, their own); a module whose name exists in two of them resolves by path order, and that order changes when another import inserts its folders again. `guardians/sheet.py` worked in one script and was shadowed by `lib/sheet.py` in another (renamed `guardian_sheet.py`).
+- **A script other scripts import ends in `if __name__ == "__main__": main()`** (Blender runs `--python` scripts as `__main__`): `export_robo_roblox.py` and `check_robo_parts.py` are reused by the guardians' exporter and check.
 
 ## 8. Workflow
 

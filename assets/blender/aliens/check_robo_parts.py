@@ -112,6 +112,11 @@ def check(kind, variant, tier, meteor):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     signature = [_labelled(part, "sig:" + part.__name__) for part in kind[6]]
     robo_kinds.build((*kind[:6], signature, *kind[7:]), tier, 0.0, 0.0, meteor)
+    return findings()
+
+
+def findings():
+    """What is wrong with the parts in the scene: one built pet (or guardian), at the origin."""
     depsgraph = bpy.context.evaluated_depsgraph_get()
     parts = []
     for obj in bpy.context.scene.objects:
@@ -121,7 +126,7 @@ def check(kind, variant, tier, meteor):
         tree = world_tree(obj, depsgraph)
         if tree:
             parts.append((obj, tree))
-    findings = []
+    problems = []
     links = {id(obj): set() for obj, _ in parts}
     crossed = set()
     for i, (a, ta) in enumerate(parts):
@@ -137,9 +142,9 @@ def check(kind, variant, tier, meteor):
                     continue
                 # Outfit pieces cutting each other, or an outfit piece through the face or a wing.
                 if ga != "body" and gb != "body":
-                    findings.append(("cuts", label(a), label(b)))
+                    problems.append(("cuts", label(a), label(b)))
                 elif (ga == "body" and material_of(a).startswith(FACE_MATERIALS)) or (gb == "body" and material_of(b).startswith(FACE_MATERIALS)):
-                    findings.append(("cuts face", label(a), label(b)))
+                    problems.append(("cuts face", label(a), label(b)))
             elif min(tb[0].find_nearest(v)[3] or 1.0 for v in ta[3]) < TOUCH:
                 links[id(a)].add(id(b))
                 links[id(b)].add(id(a))
@@ -155,7 +160,7 @@ def check(kind, variant, tier, meteor):
             found = other_tree[0].find_nearest(centre)
             if found[0] is not None and (centre - found[0]).dot(found[1]) < 0:
                 if not material_of(other).startswith(CLEAR_MATERIALS):
-                    findings.append(("hidden", label(obj), label(other)))
+                    problems.append(("hidden", label(obj), label(other)))
                 links[id(obj)].add(id(other))
                 break
     # Pieces held together but not to the pet float as a whole (a crown over a crab's shell): the
@@ -188,8 +193,8 @@ def check(kind, variant, tier, meteor):
         # Where it hangs, for finding it (the pet stands at the origin, facing -y).
         low, high = by_id[group[0]][1][1], by_id[group[0]][1][2]
         at = (low + high) / 2
-        findings.append(("floats", "+".join(names[:3]), f"{len(group)} at {at.x:.2f},{at.y:.2f},{at.z:.2f}"))
-    return findings
+        problems.append(("floats", "+".join(names[:3]), f"{len(group)} at {at.x:.2f},{at.y:.2f},{at.z:.2f}"))
+    return problems
 
 
 def main():
@@ -206,4 +211,5 @@ def main():
     print("Findings", len(rows), "->", OUT)
 
 
-main()
+if __name__ == "__main__":
+    main()
