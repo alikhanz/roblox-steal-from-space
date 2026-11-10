@@ -475,6 +475,10 @@ local function buildTerminal(origin: CFrame, name: string, position: Vector3, co
 	)
 	screen.Transparency = BayLooks.TERMINAL_SCREEN_TRANSPARENCY
 	screen.CanCollide = false
+	-- Queried, unlike the rest of the scenery: a click reaches a SurfaceGui's buttons only through
+	-- a ray that hits its part. While the screen still collided, CanQuery = false did not apply
+	-- (Roblox ignores it on colliding parts); once it stopped colliding, the buttons went dead.
+	screen.CanQuery = true
 	local bar = BayLooks.TERMINAL_FRAME_WIDTH
 	local halfWidth, halfHeight = (screenSize.X + bar) / 2, (screenSize.Y + bar) / 2
 	for _, side in { -1, 1 } do
