@@ -48,25 +48,30 @@ export type Props = {
 }
 
 -- The header's tint: a horizontal cyan-to-pink wash. Rounded on top only: a second, square
--- piece covers the lower corners.
-local function headerTint(): { Instance }
+-- piece covers the lower corners. The pieces are opaque in a group that is see-through as a
+-- whole, so where they overlap the tint is not doubled (it was: a lighter band over the lower
+-- half, its edge across the close button, made it look off-centre; user, 2026-11-10).
+local function headerTint(): CanvasGroup
 	local function piece(name: string, position: UDim2, size: UDim2, rounded: boolean): Frame
 		return create("Frame")({
 			Name = name,
 			Position = position,
 			Size = size,
 			BackgroundColor3 = Color3.new(1, 1, 1),
-			BackgroundTransparency = HEADER_TRANSPARENCY,
 			BorderSizePixel = 0,
-			ZIndex = 0,
 			if rounded then create("UICorner")({ CornerRadius = NEON.WINDOW_CORNER }) else nil,
 			create("UIGradient")({ Color = ColorSequence.new(HEADER_FROM, HEADER_TO) }),
 		}) :: Frame
 	end
-	return {
-		piece("Tint", UDim2.new(), UDim2.fromScale(1, 1), true),
-		piece("TintSquare", UDim2.fromScale(0, 0.5), UDim2.fromScale(1, 0.5), false),
-	}
+	return create("CanvasGroup")({
+		Name = "Tint",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		GroupTransparency = HEADER_TRANSPARENCY,
+		ZIndex = 0,
+		piece("Rounded", UDim2.new(), UDim2.fromScale(1, 1), true),
+		piece("Square", UDim2.fromScale(0, 0.5), UDim2.fromScale(1, 0.5), false),
+	}) :: CanvasGroup
 end
 
 local function CloseButton(onClose: () -> ()): TextButton
