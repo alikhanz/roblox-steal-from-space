@@ -12,6 +12,7 @@ local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local PlaceLayout = require(ReplicatedStorage.Shared.Domain.PlaceLayout)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+local TerminalKit = require(script.Parent.TerminalKit)
 
 local BayModel = {}
 
@@ -375,65 +376,163 @@ local function buildSign(origin: CFrame, parent: Instance)
 	end
 end
 
--- A terminal beside a zone (docs/design/screens/terminals.md): a base with a glow in the zone's
--- `color`, a column and a tilted screen in a glowing frame, the screen toward the spawn. The
--- client draws the screen (the part named BayConfig.TERMINAL_SCREEN_NAME, its front face).
--- `faces`: the point its screen turns to, in the island's frame (the spawn by default).
+-- A terminal beside a zone (docs/design/screens/terminals.md, version 2: a holo projector): on a
+-- round foot a knee-high console with a glowing stripe and an emitter on its cap, and over it the
+-- screen hanging in the air in a thin glowing frame, a cone of light from the emitter up to it; the
+-- glow is the zone's `color`, the screen toward the spawn. The console's rounded shapes come from
+-- World/TerminalKit (greybox blocks without it). The client draws the screen (the part named
+-- BayConfig.TERMINAL_SCREEN_NAME, its front face). `faces`: the point its screen turns to, in the
+-- island's frame (the spawn by default).
 local function buildTerminal(origin: CFrame, name: string, position: Vector3, color: Color3, faces: Vector3?): Model
 	local model = Instance.new("Model")
 	model.Name = name
 	local facing = faces or BayLooks.TERMINAL_FACES
+	-- Its -Z (look vector) toward the spawn: the front.
 	local frame = origin * CFrame.lookAt(position, Vector3.new(facing.X, position.Y, facing.Z))
 
-	local function piece(pieceName: string, size: Vector3, cframe: CFrame, pieceColor: Color3, material: Enum.Material)
-		local part = Instance.new("Part")
+	local function finish(
+		part: BasePart,
+		pieceName: string,
+		cframe: CFrame,
+		pieceColor: Color3,
+		material: Enum.Material
+	)
 		part.Name = pieceName
-		part.Size = size
 		part.CFrame = cframe
 		part.Color = pieceColor
 		part.Material = material
 		scenery(part)
 		part.Parent = model
+	end
+	local function piece(pieceName: string, size: Vector3, cframe: CFrame, pieceColor: Color3, material: Enum.Material)
+		local part = Instance.new("Part")
+		part.Size = size
+		finish(part, pieceName, cframe, pieceColor, material)
 		return part
 	end
+	-- A shape of the kit if the place has it, else a block of the same size.
+	local function shape(id: TerminalKit.PieceId, size: Vector3, cframe: CFrame, pieceColor: Color3): BasePart
+		local part: BasePart = TerminalKit.piece(id) or Instance.new("Part")
+		part.Size = size
+		finish(part, id, cframe, pieceColor, Enum.Material.Metal)
+		return part
+	end
+	local function glowing(part: BasePart)
+		part.Material = Enum.Material.Neon
+		part.CanCollide = false
+	end
 
-	local base = BayLooks.TERMINAL_BASE_SIZE
-	local glowSize = base + Vector3.new(2, 0, 2) * BayLooks.TERMINAL_GLOW_MARGIN - Vector3.yAxis * base.Y * 0.5
-	local glow = piece("Glow", glowSize, frame * CFrame.new(0, glowSize.Y / 2, 0), color, Enum.Material.Neon)
-	glow.CanCollide = false
-	local stand =
-		piece("Base", base, frame * CFrame.new(0, base.Y / 2, 0), BayLooks.TERMINAL_BASE_COLOR, Enum.Material.Metal)
-	local column = BayLooks.TERMINAL_COLUMN_SIZE
-	piece(
-		"Column",
-		column,
-		frame * CFrame.new(0, base.Y + column.Y / 2, 0),
-		BayLooks.TERMINAL_COLOR,
-		Enum.Material.Metal
+	local console = BayLooks.TERMINAL_CONSOLE
+	local footHeight = BayLooks.TERMINAL_FOOT_HEIGHT
+	local foot = disc("Foot", frame * CFrame.new(0, footHeight / 2, 0), BayLooks.TERMINAL_FOOT_RADIUS, footHeight)
+	finish(foot, "Foot", foot.CFrame, BayLooks.TERMINAL_FOOT_COLOR, Enum.Material.Metal)
+	local body = console.body
+	shape("ConsoleBody", body, frame * CFrame.new(0, footHeight + body.Y / 2, 0), BayLooks.TERMINAL_HULL_COLOR)
+	-- The stripe on the console's flat front, sunk a little into it.
+	local stripe = BayLooks.TERMINAL_STRIPE_SIZE
+	glowing(
+		piece(
+			"Stripe",
+			stripe,
+			frame * CFrame.new(0, footHeight + BayLooks.TERMINAL_STRIPE_HEIGHT, -(body.Z + stripe.Z / 2) / 2),
+			color,
+			Enum.Material.Neon
+		)
 	)
+	-- The cap, its top sloped toward the player (-Z), and on it the emitter: a ring and a lens.
+	local capFrame = frame
+		* CFrame.new(0, footHeight + body.Y + console.cap.Y / 2 - console.capSink, 0)
+		* CFrame.Angles(-math.rad(console.capTilt), 0, 0)
+	shape("ConsoleCap", console.cap, capFrame, BayLooks.TERMINAL_CAP_COLOR)
+	local capTop = capFrame * CFrame.new(0, console.cap.Y / 2, 0)
+	local ringWidth = console.emitterRadius * 2 + console.emitterThickness
+	local ring = TerminalKit.piece("EmitterRing")
+	if ring then
+		ring.Size = Vector3.new(ringWidth, console.emitterThickness, ringWidth)
+		finish(ring, "EmitterRing", capTop, color, Enum.Material.Neon)
+		glowing(ring)
+	else
+		local flat = disc("EmitterRing", capTop, ringWidth / 2, console.emitterThickness / 2)
+		finish(flat, "EmitterRing", flat.CFrame, color, Enum.Material.Neon)
+		glowing(flat)
+	end
+	local lens =
+		disc("Lens", capTop * CFrame.new(0, console.lensThickness / 2, 0), console.lensRadius, console.lensThickness)
+	finish(lens, "Lens", lens.CFrame, color:Lerp(Color3.new(1, 1, 1), console.lensLighten), Enum.Material.Neon)
+	glowing(lens)
 
+	-- The screen: dim glass in the air, its frame of thin glowing bars with lights at the corners.
 	local screenSize = BayLooks.TERMINAL_SCREEN_SIZE
 	local screenFrame = frame
 		* CFrame.new(0, BayLooks.TERMINAL_SCREEN_HEIGHT, 0)
 		* CFrame.Angles(math.rad(BayLooks.TERMINAL_SCREEN_TILT), 0, 0)
-	local margin = BayLooks.TERMINAL_FRAME_MARGIN
-	local rim = piece(
-		"Rim",
-		screenSize + Vector3.new(margin * 2, margin * 2, -screenSize.Z / 2),
-		screenFrame * CFrame.new(0, 0, screenSize.Z / 4),
-		color,
-		Enum.Material.Neon
-	)
-	rim.CanCollide = false
-	piece(
+	local screen = piece(
 		BayConfig.TERMINAL_SCREEN_NAME,
 		screenSize,
 		screenFrame,
 		BayLooks.TERMINAL_SCREEN_COLOR,
 		Enum.Material.SmoothPlastic
 	)
+	screen.Transparency = BayLooks.TERMINAL_SCREEN_TRANSPARENCY
+	screen.CanCollide = false
+	local bar = BayLooks.TERMINAL_FRAME_WIDTH
+	local halfWidth, halfHeight = (screenSize.X + bar) / 2, (screenSize.Y + bar) / 2
+	for _, side in { -1, 1 } do
+		glowing(
+			piece(
+				"Frame",
+				Vector3.new(screenSize.X + bar * 2, bar, bar),
+				screenFrame * CFrame.new(0, side * halfHeight, 0),
+				color,
+				Enum.Material.Neon
+			)
+		)
+		glowing(
+			piece(
+				"Frame",
+				Vector3.new(bar, screenSize.Y, bar),
+				screenFrame * CFrame.new(side * halfWidth, 0, 0),
+				color,
+				Enum.Material.Neon
+			)
+		)
+		for _, level in { -1, 1 } do
+			local corner = piece(
+				"Corner",
+				Vector3.one * BayLooks.TERMINAL_CORNER_SIZE,
+				screenFrame * CFrame.new(side * halfWidth, level * halfHeight, 0),
+				color,
+				Enum.Material.Neon
+			)
+			corner.Shape = Enum.PartType.Ball
+			glowing(corner)
+		end
+	end
 
-	model.PrimaryPart = stand
+	-- The cone of light from the lens to the screen's bottom edge, turned to whoever looks at it.
+	local beamLooks = BayLooks.TERMINAL_BEAM
+	local from = Instance.new("Attachment")
+	from.Name = "BeamFrom"
+	from.Parent = lens
+	local to = Instance.new("Attachment")
+	to.Name = "BeamTo"
+	to.Position = Vector3.new(0, -screenSize.Y / 2, 0)
+	to.Parent = screen
+	local beam = Instance.new("Beam")
+	beam.Name = "Beam"
+	beam.Attachment0 = from
+	beam.Attachment1 = to
+	beam.FaceCamera = true
+	beam.Segments = 1
+	beam.Width0 = beamLooks.width0
+	beam.Width1 = beamLooks.width1
+	beam.Color = ColorSequence.new(color)
+	beam.LightEmission = 1
+	beam.LightInfluence = 0
+	beam.Transparency = NumberSequence.new(beamLooks.transparency0, beamLooks.transparency1)
+	beam.Parent = screen
+
+	model.PrimaryPart = foot
 	return model
 end
 

@@ -106,20 +106,56 @@ return table.freeze({
 	INCUBATOR_TERMINAL_POSITION = Vector3.new(5, 0, -17.5),
 	TRAINER_TERMINAL_POSITION = Vector3.new(17, 0, -46),
 	TERMINAL_FACES = Vector3.new(0, 0, -StationSize.ISLAND_SPAWN_DISTANCE),
-	TERMINAL_BASE_SIZE = Vector3.new(3.4, 0.3, 3.4),
-	TERMINAL_COLUMN_SIZE = Vector3.new(0.8, 3.4, 0.8),
+	-- A holo projector (version 2 of the brief, user 2026-11-10): a knee-high console on a round
+	-- foot, an emitter on its cap sloped toward the player, and over it a screen of light hanging in
+	-- the air in a thin glowing frame, a cone of light from the emitter up to it. The eye passes
+	-- over the console, so what stands behind a terminal shows past it.
+	TERMINAL_FOOT_RADIUS = 1.9,
+	TERMINAL_FOOT_HEIGHT = 0.3,
+	-- The console's rounded shapes (World/TerminalKit, sizes as modelled in
+	-- assets/blender/terminals/terminal_kit.py: keep them in step): the body on the foot, the cap
+	-- on the body, sunk a little into it and sloped toward the player, the emitter's ring on the cap.
+	TERMINAL_CONSOLE = table.freeze({
+		body = Vector3.new(3, 1.3, 2.2),
+		cap = Vector3.new(2.6, 0.3, 1.8),
+		capSink = 0.1,
+		capTilt = 12,
+		emitterRadius = 0.7,
+		emitterThickness = 0.17,
+		-- The lens inside the ring: a glowing disc in a lighter shade of the zone's colour.
+		lensRadius = 0.55,
+		lensThickness = 0.08,
+		lensLighten = 0.6,
+	}),
+	-- A glowing stripe across the console's front, this high above the foot: on the flat of the
+	-- face, inside its rounded edges.
+	TERMINAL_STRIPE_SIZE = Vector3.new(1.8, 0.14, 0.08),
+	TERMINAL_STRIPE_HEIGHT = 0.65,
 	-- Wide and big: on a phone the price must read from a few steps away (user, 2026-11-08). Its
 	-- width to height is the screen canvas's (UI/TerminalScreen).
-	TERMINAL_SCREEN_SIZE = Vector3.new(6, 4, 0.3),
+	TERMINAL_SCREEN_SIZE = Vector3.new(6, 4, 0.1),
 	-- The screen's center above the floor (a player's head), and its tilt back, degrees.
 	TERMINAL_SCREEN_HEIGHT = 5,
 	TERMINAL_SCREEN_TILT = 15,
-	-- The glowing frame round the screen and the glow under the base, studs past their part.
-	TERMINAL_FRAME_MARGIN = 0.15,
-	TERMINAL_GLOW_MARGIN = 0.1,
-	TERMINAL_COLOR = Color3.fromRGB(58, 67, 112),
-	TERMINAL_BASE_COLOR = Color3.fromRGB(27, 33, 64),
+	-- The screen itself is dim glass: it stays when the writing fades out far away, and from
+	-- behind (where there is no writing).
 	TERMINAL_SCREEN_COLOR = Color3.fromRGB(22, 32, 96),
+	TERMINAL_SCREEN_TRANSPARENCY = 0.6,
+	-- The thin glowing frame round the screen, and the lights at its corners (diameter), studs.
+	TERMINAL_FRAME_WIDTH = 0.08,
+	TERMINAL_CORNER_SIZE = 0.24,
+	-- The cone of light from the lens to the screen's bottom edge: a Beam, narrow at the lens.
+	TERMINAL_BEAM = table.freeze({
+		width0 = 0.9,
+		width1 = 5.4,
+		transparency0 = 0.55,
+		transparency1 = 0.85,
+	}),
+	-- The station's grey-blue steel (its hull, light cap and dark trim), so the terminal reads as the
+	-- station's own kit.
+	TERMINAL_HULL_COLOR = Color3.fromRGB(149, 155, 173),
+	TERMINAL_CAP_COLOR = Color3.fromRGB(222, 225, 235),
+	TERMINAL_FOOT_COLOR = Color3.fromRGB(97, 101, 122),
 
 	-- The incubator: a disc under the capsules; eggs in its slots lie in the capsules.
 	INCUBATOR_POSITION = Vector3.zero,

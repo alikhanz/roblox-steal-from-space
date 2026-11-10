@@ -9,7 +9,7 @@
 -- ServerStorage, its MeshParts moved into a Folder `ZoneKit`; the rocks get CollisionFidelity Hull
 -- (Studio only: a game server can't set it), the crystals and the ring Box. Save the place.
 
-local ServerStorage = game:GetService("ServerStorage")
+local MeshKit = require(script.Parent.MeshKit)
 
 local FOLDER_NAME = "ZoneKit"
 
@@ -36,23 +36,9 @@ local ZoneKit = {}
 -- piece's size times w / SIZE, keeping its proportions.
 ZoneKit.SIZE = 10
 
-local warned = false
-
 -- A fresh copy of `id`, anchored and touching nothing; nil (with one warning) without the kit.
 function ZoneKit.piece(id: PieceId): MeshPart?
-	local folder = ServerStorage:FindFirstChild(FOLDER_NAME)
-	local source = folder and folder:FindFirstChild(id)
-	if not source or not source:IsA("MeshPart") then
-		if not warned then
-			warned = true
-			warn(`[ZoneKit] No {id} in ServerStorage.{FOLDER_NAME}; the world stands in greybox`)
-		end
-		return nil
-	end
-	local part = source:Clone()
-	part.Anchored = true
-	part.CanTouch = false
-	return part
+	return MeshKit.piece(FOLDER_NAME, id)
 end
 
 return ZoneKit

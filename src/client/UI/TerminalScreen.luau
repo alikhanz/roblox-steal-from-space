@@ -21,7 +21,8 @@ local create = Vide.create
 
 local NEON = Theme.NEON
 -- The canvas in screen pixels, in the screen part's proportions (BayLooks.TERMINAL_SCREEN_SIZE,
--- 6 x 4 studs), scaled up to fill it.
+-- 6 x 4 studs), scaled up to fill it. Only the front face has writing: from behind the screen is
+-- the part's dim glass.
 local CANVAS = Vector2.new(180, 120)
 local PIXELS_PER_STUD = 100
 -- Screens fade out beyond this distance, as the signs before them, studs.
@@ -31,6 +32,9 @@ local VALUE_SIZE = 26
 local HINT_SIZE = 13
 local SCREEN_TOP = Color3.fromRGB(22, 32, 96)
 local SCREEN_BOTTOM = Color3.fromRGB(10, 13, 44)
+-- The screen is a hologram's glass (brief version 2): the scene shows faintly through it. Over
+-- the screen part's own dim glass (BayLooks.TERMINAL_SCREEN_TRANSPARENCY).
+local GLASS_TRANSPARENCY = 0.25
 local DONE_COLOR = NEON.SHIELD
 -- How far the title's colour goes towards white: the zone's colour, readable on the dark glass.
 local TITLE_LIGHTEN = 0.45
@@ -112,6 +116,7 @@ local function TerminalScreen(props: Props): SurfaceGui
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(CANVAS.X, CANVAS.Y),
 			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = GLASS_TRANSPARENCY,
 			BorderSizePixel = 0,
 			scaleTo(props.adornee.Size.X * PIXELS_PER_STUD / CANVAS.X),
 			edge,
