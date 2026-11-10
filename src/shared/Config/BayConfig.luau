@@ -82,6 +82,10 @@ return table.freeze({
 	INCUBATOR_TERMINAL_NAME = "IncubatorTerminal",
 	TRAINER_TERMINAL_NAME = "TrainerTerminal",
 	TERMINAL_SCREEN_NAME = "Screen",
+	-- The attachments on the screen part where the client's beam starts (the lens) and ends (the
+	-- screen's bottom edge).
+	TERMINAL_BEAM_FROM_NAME = "BeamFrom",
+	TERMINAL_BEAM_TO_NAME = "BeamTo",
 	-- The jetpack stand (docs/design/screens/jetpack-stand.md): one model of all its parts, the
 	-- trainer's platform its primary part (what the tutorial lights up), and the parts the client
 	-- lights up inside it.

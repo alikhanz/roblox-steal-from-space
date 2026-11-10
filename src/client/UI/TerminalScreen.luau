@@ -3,13 +3,17 @@
 -- The screen of a terminal on a player's island (docs/design/screens/terminals.md): a SurfaceGui
 -- on the terminal's screen part with a title in the zone's colour, a big number, a hint, and for
 -- the owner a full-width button with just the price (or a line once everything is bought): the
--- title already says what it buys, and a big price reads on a phone from a few steps away.
+-- title already says what it buys, and a big price reads on a phone from a few steps away. With
+-- the screen comes the fan of light up to it from the terminal's lens.
 --
 -- The canvas is laid out at screen size and scaled up to the part (UIScale), so the neon
 -- components (ActionButton, IconText) keep their own sizes and proportions.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 
 local ActionButton = require(script.Parent.ActionButton)
 local IconText = require(script.Parent.IconText)
@@ -62,6 +66,33 @@ export type Props = {
 	doneText: string?,
 }
 
+-- The fan of light from the terminal's lens up to its screen (decision 086), between the
+-- attachments the server put on the screen part: an effect, so each client makes its own. Nil when
+-- the screen has no attachments.
+local function beamFor(screen: BasePart, color: Color3): Beam?
+	local from = screen:FindFirstChild(BayConfig.TERMINAL_BEAM_FROM_NAME)
+	local to = screen:FindFirstChild(BayConfig.TERMINAL_BEAM_TO_NAME)
+	if not (from and from:IsA("Attachment") and to and to:IsA("Attachment")) then
+		return nil
+	end
+	local looks = BayLooks.TERMINAL_BEAM
+	local beam = Instance.new("Beam")
+	beam.Name = "TerminalBeam"
+	beam.Attachment0 = from
+	beam.Attachment1 = to
+	-- Fixed in the screen's plane by the attachments' secondary axis, not turned to the camera.
+	beam.FaceCamera = false
+	beam.Segments = 1
+	beam.Width0 = looks.width0
+	beam.Width1 = looks.width1
+	beam.Color = ColorSequence.new(color)
+	beam.LightEmission = 1
+	beam.LightInfluence = 0
+	beam.Transparency = NumberSequence.new(looks.transparency0, looks.transparency1)
+	beam.Parent = screen
+	return beam
+end
+
 -- Vide's create does not know UIScale.
 local function scaleTo(scale: number): UIScale
 	local instance = Instance.new("UIScale")
@@ -73,6 +104,12 @@ local function TerminalScreen(props: Props): SurfaceGui
 	local button = props.button
 	local done = props.done or function()
 		return false
+	end
+	local beam = beamFor(props.adornee, props.color)
+	if beam then
+		Vide.cleanup(function()
+			beam:Destroy()
+		end)
 	end
 	-- A purchase went through (docs/design/screens/buttons.md): the number it raised flashes gold
 	-- and fades back, and the screen's edge glows gold a moment. The number changes only when the
