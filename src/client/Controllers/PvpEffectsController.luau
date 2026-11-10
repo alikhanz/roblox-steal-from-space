@@ -4,14 +4,21 @@
 -- NetService: HarpoonShot, BombThrown, BombExploded) and this draws it, nearer than
 -- PvpLooks.DRAW_DISTANCE to the camera (World/HarpoonVisual, World/BombVisual). Client-only parts
 -- in workspace[PvpLooks.EFFECTS_FOLDER_NAME], stepped together once a frame.
+-- Also every fight's sounds (docs/design/SOUND.md), heard from where they happen: the strike's
+-- swing (a character's lunge starts) and hit (the server's impact part), the harpoon's shot and
+-- grab (as the hook reaches its target), the bomb's throw and blast.
 
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local BombVisual = require(script.Parent.Parent.World.BombVisual)
 local HarpoonVisual = require(script.Parent.Parent.World.HarpoonVisual)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpLooks = require(ReplicatedStorage.Shared.Config.PvpLooks)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
+local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
 
 export type PvpEffectsController = {
 	name: string,
@@ -25,6 +32,27 @@ local PvpEffectsController = {}
 local function isNear(position: Vector3): boolean
 	local camera = workspace.CurrentCamera
 	return camera ~= nil and (camera.CFrame.Position - position).Magnitude <= PvpLooks.DRAW_DISTANCE
+end
+
+local function rootOf(player: Player): BasePart?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	return if root and root:IsA("BasePart") then root else nil
+end
+
+-- The harpoon: the shot from the shooter, then the grab where the hook lands, as it gets there.
+local function soundHarpoon(shooter: Player, target: Vector3, hit: boolean)
+	local root = rootOf(shooter)
+	if root then
+		SoundPlayer.play("HarpoonShot", { at = root })
+	end
+	if not hit then
+		return
+	end
+	local flight = if root then (target - root.Position).Magnitude / PvpLooks.HARPOON.hookSpeed else 0
+	task.delay(flight, function()
+		SoundPlayer.play("HarpoonGrab", { at = target })
+	end)
 end
 
 function PvpEffectsController.new(): PvpEffectsController
@@ -45,6 +73,7 @@ function PvpEffectsController.new(): PvpEffectsController
 		folder.Parent = workspace
 
 		Remotes.HarpoonShot.SetCallback(function(shot)
+			soundHarpoon(shot.shooter, shot.target, shot.hit)
 			if not isNear(shot.target) then
 				return
 			end
@@ -54,6 +83,7 @@ function PvpEffectsController.new(): PvpEffectsController
 			end
 		end)
 		Remotes.BombThrown.SetCallback(function(throw)
+			SoundPlayer.play("BombThrow", { at = throw.start })
 			-- Drawn if it starts or could end near: it flies at most `fuse` seconds.
 			local ending = throw.start + throw.velocity * throw.fuse
 			if not isNear(throw.start) and not isNear(ending) then
@@ -64,6 +94,7 @@ function PvpEffectsController.new(): PvpEffectsController
 			table.insert(effects, effect)
 		end)
 		Remotes.BombExploded.SetCallback(function(blast)
+			SoundPlayer.play("BombBoom", { at = blast.center })
 			local bomb = bombs[blast.id]
 			bombs[blast.id] = nil
 			if bomb then
@@ -73,6 +104,31 @@ function PvpEffectsController.new(): PvpEffectsController
 			end
 		end)
 		RunService.RenderStepped:Connect(step)
+
+		CollectionService:GetInstanceAddedSignal(PvpConfig.STRIKE_IMPACT_TAG):Connect(function(impact)
+			if impact:IsA("BasePart") then
+				SoundPlayer.play("StrikeHit", { at = impact.Position })
+			end
+		end)
+		-- A strike swings as its lunge starts (simulation state on the character: polled).
+		local lunging: { [Player]: boolean } = {}
+		RunService.Heartbeat:Connect(function()
+			for _, player in Players:GetPlayers() do
+				local character = player.Character
+				local lunge = character and character:GetAttribute(PvpConfig.STRIKE_LUNGE_ATTRIBUTE)
+				local isLunging = type(lunge) == "number" and lunge > 0
+				if isLunging and not lunging[player] then
+					local root = rootOf(player)
+					if root then
+						SoundPlayer.play("StrikeSwing", { at = root })
+					end
+				end
+				lunging[player] = isLunging or nil
+			end
+		end)
+		Players.PlayerRemoving:Connect(function(player)
+			lunging[player] = nil
+		end)
 	end
 
 	return {

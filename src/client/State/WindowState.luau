@@ -15,6 +15,8 @@ export type WindowState = {
 	name: string,
 	start: () -> (),
 	slot: (id: string) -> Slot,
+	-- The open window's id, or nil (reactive).
+	current: () -> string?,
 }
 
 local WindowState = {}
@@ -26,6 +28,7 @@ function WindowState.new(): WindowState
 	return {
 		name = "WindowState",
 		start = function() end,
+		current = read,
 		slot = function(id: string): Slot
 			return function(value: boolean?): boolean
 				if value == true then

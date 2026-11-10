@@ -12,7 +12,7 @@ local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Sounds = require(script.Parent.Sounds)
+local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local source = Vide.source
@@ -34,7 +34,7 @@ export type Options = {
 	enabled: (() -> boolean)?,
 	-- Shrinks under the finger and pops on a click (a button whose size its row does not read).
 	shrinks: boolean?,
-	-- No click sound (a flight button: the ability has its own).
+	-- No click or refusal sound (a flight button: the ability has its own).
 	silent: boolean?,
 	-- False while a press would do nothing at all, not even be refused (an index cell with no
 	-- reward): no feel then. Always by default.
@@ -140,12 +140,15 @@ function Press.new(options: Options?): Press
 			if enabled and not enabled() then
 				refusedAt = now
 				run(motion, WOBBLE_SECONDS)
+				if not silent then
+					SoundPlayer.play("Denied")
+				end
 				return
 			end
 			clickedAt = now
 			run(motion, math.max(POP_SECONDS, FLASH_SECONDS))
 			if not silent then
-				Sounds.play("Click")
+				SoundPlayer.play("Click")
 			end
 		end)
 	end)

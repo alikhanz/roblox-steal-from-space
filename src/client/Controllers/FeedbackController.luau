@@ -1,23 +1,30 @@
 --!strict
 -- Shows how a press ended (docs/design/screens/buttons.md, "Видно, чем кончилось"): a hatched
--- egg bursts in its capsule (a flash of light and stars in the egg's colour) with a pop sound,
--- a crossbreed pops too, and anything bought with coins (a place, a capsule, the trainer, a
--- jetpack) chimes. The buttons' own feel is UI/Press; the toasts still say what happened.
+-- egg bursts in its capsule (a flash of light and stars in the egg's colour). And how it sounds
+-- (docs/design/SOUND.md): a hatch higher for a rarer alien, with a fanfare for the rarest; a
+-- crossbreed; anything bought with coins (a place, a capsule, the trainer, a jetpack) or with
+-- Robux; a reward (quest, login gift, index, time away). The buttons' own feel is UI/Press; the
+-- toasts still say what happened.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
-local Sounds = require(script.Parent.Parent.UI.Sounds)
+local PurchaseState = require(script.Parent.Parent.State.PurchaseState)
+local SoundLooks = require(ReplicatedStorage.Shared.Config.SoundLooks)
+local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
+local SoundVoices = require(ReplicatedStorage.Shared.Domain.SoundVoices)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local STAR_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds"
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
+	purchases: PurchaseState.PurchaseState,
 }
 
 export type FeedbackController = {
@@ -78,12 +85,31 @@ function FeedbackController.new(dependencies: Dependencies): FeedbackController
 	local profile = dependencies.profile
 
 	local function start()
-		profile.hatched.connect(function()
-			Sounds.play("Hatch")
+		profile.hatched.connect(function(alienId)
+			local alien = AlienConfig.ALIENS[alienId]
+			local tier = if alien then alien.tier else nil
+			local position = if tier then AlienConfig.TIER_POSITIONS[tier] else 1
+			local speed = SoundLooks.HATCH_SPEED
+			SoundPlayer.play("Hatch", {
+				speed = SoundVoices.tierSpeed(position, #AlienConfig.TIER_ORDER, speed.lowest, speed.highest),
+			})
+			if tier and SoundLooks.RARE_TIERS[tier] then
+				SoundPlayer.play("HatchRare")
+			end
 		end)
 		profile.crossbred.connect(function()
-			Sounds.play("Hatch")
+			SoundPlayer.play("Crossbreed")
 		end)
+		dependencies.purchases.granted.connect(function()
+			SoundPlayer.play("BuyRobux")
+		end)
+		local function rewarded()
+			SoundPlayer.play("Reward")
+		end
+		profile.questRewarded.connect(rewarded)
+		profile.giftRewarded.connect(rewarded)
+		profile.indexRewarded.connect(rewarded)
+		profile.offlineReward.connect(rewarded)
 
 		-- A ready egg leaves its capsule only when it hatches: burst where it lay. (A warming egg
 		-- is rebuilt when it becomes ready; that one is not ready yet.)
@@ -115,7 +141,7 @@ function FeedbackController.new(dependencies: Dependencies): FeedbackController
 				end
 				for index, value in now do
 					if value > before[index] then
-						Sounds.play("Buy")
+						SoundPlayer.play("BuyCoins")
 						return
 					end
 				end

@@ -176,6 +176,8 @@ return table.freeze({
 	-- Guardian model attributes (replicated for the client view).
 	POST_ATTRIBUTE = "Post",
 	STATE_ATTRIBUTE = "State",
+	-- The UserId of the player it chases, while it chases.
+	TARGET_ATTRIBUTE = "Target",
 	-- Server clock of the last catch; clients play the strike when it changes.
 	LAST_CATCH_ATTRIBUTE = "LastCatchAt",
 	RECOMMENDED_MANTISSA_ATTRIBUTE = "RecommendedMantissa",

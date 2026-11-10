@@ -24,6 +24,7 @@ local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SerpentHunt = require(ReplicatedStorage.Shared.Domain.SerpentHunt)
 local SerpentLooks = require(ReplicatedStorage.Shared.Config.SerpentLooks)
 local SerpentVisual = require(script.Parent.Parent.World.SerpentVisual)
+local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 
 local WORLD_WAIT_TIMEOUT = 30
@@ -135,6 +136,12 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 			local egg = read(SerpentConfig.EGG_ATTRIBUTE)
 			if egg == "Out" and lastEgg == "Inside" then
 				events.say("Serpent", text("serpent.knocked.announce", { name = byName() }))
+				local world = workspace:FindFirstChild("World")
+				local serpent = world and world:FindFirstChild(SerpentConfig.MODEL_NAME)
+				local head = serpent and serpent:FindFirstChild(SerpentConfig.HEAD_NAME)
+				if head and head:IsA("BasePart") then
+					SoundPlayer.play("StarEggOut", { at = head.Position })
+				end
 			elseif egg == "Inside" and lastEgg == "Out" then
 				events.say("Serpent", text("serpent.returned.announce"))
 			elseif egg == "Delivered" and lastEgg ~= "Delivered" then
@@ -235,6 +242,9 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 				connections,
 				part:GetAttributeChangedSignal(SerpentConfig.LAST_HIT_ATTRIBUTE):Connect(function()
 					flash(if current then current.model else model, if current then nil else body)
+					if part:IsA("BasePart") then
+						SoundPlayer.play("SerpentHit", { at = part })
+					end
 				end)
 			)
 		end

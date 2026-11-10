@@ -155,6 +155,8 @@ return table.freeze({
 	-- and the user id of the player who dropped it (the tutorial leads them back to it).
 	LOOSE_EGG_GRADE_ATTRIBUTE = "Grade",
 	LOOSE_EGG_DROPPED_BY_ATTRIBUTE = "DroppedBy",
+	-- Server time it came loose: a fresh drop is news (its sound), one streaming in is not.
+	LOOSE_EGG_DROPPED_AT_ATTRIBUTE = "DroppedAt",
 	-- On every egg part: the alien variant it hatches into (AlienConfig.VariantId).
 	EGG_VARIANT_ATTRIBUTE = "Variant",
 

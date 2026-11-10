@@ -229,6 +229,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		part.CFrame = CFrame.new(outsideDomes(position))
 		part:SetAttribute(EggConfig.LOOSE_EGG_GRADE_ATTRIBUTE, dependencies.getHomeGrade(egg.nestId))
 		part:SetAttribute(EggConfig.LOOSE_EGG_DROPPED_BY_ATTRIBUTE, if owner then owner.UserId else nil)
+		part:SetAttribute(EggConfig.LOOSE_EGG_DROPPED_AT_ATTRIBUTE, workspace:GetServerTimeNow())
 		part.Parent = folder
 		CollectionService:AddTag(part, EggConfig.LOOSE_EGG_TAG)
 		loose[part.Name] = {

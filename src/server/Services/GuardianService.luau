@@ -194,6 +194,11 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			distanceToHome = (guardian.body.Position - guardian.home).Magnitude,
 		}
 		setState(guardian, GuardianBrain.next(guardian.state, situation, GuardianConfig.BRAIN))
+		-- Whom it chases, for the chased player's alarm (clients' AlarmSoundController).
+		local chased = if guardian.state == "Chase" and carrier then carrier.UserId else nil
+		if guardian.model:GetAttribute(GuardianConfig.TARGET_ATTRIBUTE) ~= chased then
+			guardian.model:SetAttribute(GuardianConfig.TARGET_ATTRIBUTE, chased)
+		end
 
 		if guardian.state == "Chase" and carrier and character and root then
 			local speed = chaseSpeedFor(guardian, carrier, character)

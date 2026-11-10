@@ -3,6 +3,7 @@
 -- the art pass. The harpoon and the bomb are drawn by the clients (World/HarpoonVisual,
 -- World/BombVisual; brief docs/design/screens/pvp-abilities.md).
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -41,6 +42,8 @@ function PvpEffects.strikeImpact(position: Vector3)
 	burst.CanQuery = false
 	burst.CastShadow = false
 	burst.Parent = effectsFolder()
+	-- Clients sound it (PvpEffectsController).
+	CollectionService:AddTag(burst, PvpConfig.STRIKE_IMPACT_TAG)
 	local grow = TweenInfo.new(PvpConfig.STRIKE_IMPACT_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	TweenService:Create(burst, grow, {
 		Size = Vector3.one * PvpConfig.STRIKE_IMPACT_RADIUS * 2,

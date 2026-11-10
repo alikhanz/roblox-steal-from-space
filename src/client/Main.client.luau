@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AbilityState = require(script.Parent.State.AbilityState)
 local AimController = require(script.Parent.Controllers.AimController)
+local AlarmSoundController = require(script.Parent.Controllers.AlarmSoundController)
 local AlienMotionController = require(script.Parent.Controllers.AlienMotionController)
 local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
@@ -15,8 +16,10 @@ local DomeFlightHintController = require(script.Parent.Controllers.DomeFlightHin
 local EggBeaconController = require(script.Parent.Controllers.EggBeaconController)
 local EggEffectsController = require(script.Parent.Controllers.EggEffectsController)
 local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseController)
+local EggSoundController = require(script.Parent.Controllers.EggSoundController)
 local EventController = require(script.Parent.Controllers.EventController)
 local FeedbackController = require(script.Parent.Controllers.FeedbackController)
+local FlightSoundController = require(script.Parent.Controllers.FlightSoundController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GrabState = require(script.Parent.State.GrabState)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
@@ -46,6 +49,7 @@ local StoreController = require(script.Parent.Controllers.StoreController)
 local ToastState = require(script.Parent.State.ToastState)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
 local TutorialController = require(script.Parent.Controllers.TutorialController)
+local UiSoundController = require(script.Parent.Controllers.UiSoundController)
 local WindowState = require(script.Parent.State.WindowState)
 local ZoneTintController = require(script.Parent.Controllers.ZoneTintController)
 
@@ -111,7 +115,11 @@ Lifecycle.run({
 	BayViewController.new({ profile = profileState }),
 	AlienMotionController.new(),
 	PlaceGlideController.new(),
-	FeedbackController.new({ profile = profileState }),
+	FeedbackController.new({ profile = profileState, purchases = purchaseState }),
+	AlarmSoundController.new(),
+	EggSoundController.new({ profile = profileState }),
+	FlightSoundController.new({ profile = profileState }),
+	UiSoundController.new({ windows = windowState, toasts = toastState }),
 	BenchController.new(),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),

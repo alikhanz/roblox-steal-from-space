@@ -6,6 +6,10 @@
 -- (AlienConfig.VARIANTS.Meteor). Looks in MeteorLooks and EggLooks.METEOR.
 
 return table.freeze({
+	-- A falling meteor's tag and the point it lands on (a Vector3 attribute): clients sound its
+	-- fall there.
+	METEOR_TAG = "Meteor",
+	METEOR_TARGET_ATTRIBUTE = "Target",
 	-- Eggs in one shower: this many per active player on the server (ActivityService: players
 	-- away from the keyboard do not count), within the bounds; shared out among the zones, from
 	-- the station outwards.

@@ -70,4 +70,6 @@ return table.freeze({
 	-- harpoon's and the bomb's looks are PvpLooks.
 	STRIKE_IMPACT_RADIUS = 3,
 	STRIKE_IMPACT_SECONDS = 0.25,
+	-- The impact part's tag: clients play the hit's sound where it appears.
+	STRIKE_IMPACT_TAG = "StrikeImpact",
 })

@@ -8,6 +8,7 @@
 -- goes as soon as its egg is back in it (at once if nobody took it); an egg on its way to a
 -- station keeps its crater and guardian until it is delivered or comes back.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -142,7 +143,9 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		trail.FaceCamera = true
 		trail.Transparency = NumberSequence.new(0, 1)
 		trail.Parent = meteor
+		meteor:SetAttribute(MeteorConfig.METEOR_TARGET_ATTRIBUTE, target)
 		meteor.Parent = folder
+		CollectionService:AddTag(meteor, MeteorConfig.METEOR_TAG)
 
 		local tween = TweenService:Create(
 			meteor,

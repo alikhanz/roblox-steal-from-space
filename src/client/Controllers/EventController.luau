@@ -7,6 +7,7 @@
 -- (Domain/EventSpots), and each new spot is announced; pins are moved apart so none covers
 -- another (Domain/ScreenMarker).
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,8 +17,11 @@ local EventBanner = require(script.Parent.Parent.UI.EventBanner)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventLooks = require(ReplicatedStorage.Shared.Config.EventLooks)
 local EventSpots = require(ReplicatedStorage.Shared.Domain.EventSpots)
+local MeteorConfig = require(ReplicatedStorage.Shared.Config.MeteorConfig)
 local ScreenMarker = require(ReplicatedStorage.Shared.Domain.ScreenMarker)
 local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
+local SoundLooks = require(ReplicatedStorage.Shared.Config.SoundLooks)
+local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
@@ -28,6 +32,12 @@ local PLAYER_GUI_WAIT_TIMEOUT = 30
 local FOLDER_WAIT_TIMEOUT = 30
 -- Countdowns are whole seconds; four times a second keeps them from lagging behind.
 local REFRESH_SECONDS = 0.25
+
+-- The sound of an announcement, by phase and event (docs/design/SOUND.md).
+local EVENT_SOUNDS: { [string]: { [EventConfig.EventId]: SoundLooks.Name } } = {
+	Warning = { Storm = "EventWarning", Meteor = "EventWarning", Serpent = "EventWarning" },
+	Active = { Storm = "StormStart", Meteor = "EventWarning", Serpent = "SerpentAppear" },
+}
 
 export type EventController = {
 	name: string,
@@ -132,6 +142,10 @@ function EventController.new(): EventController
 	end
 
 	local function announce(entry: Seen, phase: string)
+		local sound = EVENT_SOUNDS[phase] and EVENT_SOUNDS[phase][entry.event.id]
+		if sound then
+			SoundPlayer.play(sound)
+		end
 		local name = nameOf(entry.event)
 		local message: string
 		if phase == "Warning" then
@@ -360,6 +374,14 @@ function EventController.new(): EventController
 			return
 		end
 		watch(folder, playerGui)
+
+		-- A meteor falling: its whistle and the impact as it lands, heard from where it lands.
+		CollectionService:GetInstanceAddedSignal(MeteorConfig.METEOR_TAG):Connect(function(meteor)
+			local target = meteor:GetAttribute(MeteorConfig.METEOR_TARGET_ATTRIBUTE)
+			if typeof(target) == "Vector3" then
+				SoundPlayer.play("MeteorFall", { at = target })
+			end
+		end)
 
 		local sinceRefresh = 0
 		RunService.RenderStepped:Connect(function(deltaTime)
