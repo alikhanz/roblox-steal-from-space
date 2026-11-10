@@ -111,6 +111,18 @@ local MOTION = table.freeze({
 	HOP_EVERY = table.freeze({ 5, 10 }),
 	BLINK_EVERY = table.freeze({ 2, 6 }),
 	JAW_EVERY = table.freeze({ 1.8, 4.5 }),
+	-- Fairy wings (AlienDress.wings): each beat sheds this many dust grains and stars from every
+	-- dust point (there are ~16 on a winged pet), and the wing tip draws a glowing stroke: a ribbon
+	-- from the tip `edge` of the wing down its edge, fading over `seconds`. It was 10 grains and 2
+	-- stars a point and a spray of sparkles at the tip: ~400 particles a winged pet (2026-11-10).
+	WING_DUST = 4,
+	WING_DUST_STARS = 1,
+	WING_STROKE = table.freeze({
+		edge = 0.12,
+		seconds = 0.35,
+		transparency = 0.25,
+		brightness = 1.5,
+	}),
 	-- A crab's jaws open this far before they snap shut, radians.
 	JAW_OPEN = 0.45,
 	-- A pet turns to a player this close (studs past its own size), at most this far (degrees).

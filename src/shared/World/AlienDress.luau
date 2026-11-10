@@ -31,6 +31,7 @@ local AlienDress = {}
 
 local MODELS = AlienLooks.MODELS
 local TEX = MODELS.TEXTURES
+local WING_STROKE = AlienLooks.MOTION.WING_STROKE
 local GOLD = Color3.fromRGB(255, 200, 70)
 local FIRE = Color3.fromRGB(255, 120, 30)
 local WHITE = Color3.new(1, 1, 1)
@@ -896,18 +897,29 @@ local function wings(pet: Model, fx: BasePart, wingParts: { MeshPart }, paints: 
 		-- Outwards is the side the wing really sits on (the import turns the pet round, so
 		-- Blender's left wing is at +X here), not its role's name.
 		local sign = if fx.CFrame:PointToObjectSpace(membrane.Position).X > 0 then 1 else -1
-		-- The forewing's sharp tip: up and out.
+		-- The forewing's sharp tip (up and out) leaves a glowing stroke behind it as the wing beats:
+		-- a ribbon from the tip a little way down the wing's edge, fading in a moment. It was a spray
+		-- of sparkles: one ribbon draws the beat softer for a fraction of the particles (2026-11-10).
 		local tip = attachment(membrane, "Tip", Vector3.new(sign * membrane.Size.X * 0.45, membrane.Size.Y * 0.45, 0))
-		emitter(tip, "TipSparkles", {
-			Texture = TEX.star,
-			Color = colours({ { 0, WHITE }, { 1, accent } }),
-			Size = seq({ { 0, 0 }, { 0.3, 0.45 }, { 1, 0 } }),
-			Lifetime = NumberRange.new(0.6, 1.1),
-			Rate = 25,
-			Speed = NumberRange.new(0.3, 1),
-			Acceleration = Vector3.new(0, -1.5, 0),
-			SpreadAngle = Vector2.new(180, 180),
-		})
+		local edge = WING_STROKE.edge
+		local inner = attachment(
+			membrane,
+			"TipEdge",
+			Vector3.new(sign * membrane.Size.X * (0.45 - edge), membrane.Size.Y * (0.45 - edge), 0)
+		)
+		local stroke = Instance.new("Trail")
+		stroke.Name = "WingStroke"
+		stroke.Attachment0 = tip
+		stroke.Attachment1 = inner
+		stroke.Lifetime = WING_STROKE.seconds
+		stroke.MinLength = 0
+		stroke.LightEmission = 1
+		stroke.LightInfluence = 0
+		stroke.Brightness = WING_STROKE.brightness
+		stroke.Color = colours({ { 0, WHITE }, { 0.25, accent }, { 1, accent } })
+		stroke.Transparency = seq({ { 0, WING_STROKE.transparency }, { 1, 1 } })
+		stroke.WidthScale = seq({ { 0, 1 }, { 1, 0.3 } })
+		stroke.Parent = tip
 	end
 
 	for _, at in pet:GetDescendants() do

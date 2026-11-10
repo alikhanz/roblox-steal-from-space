@@ -162,8 +162,8 @@ type Pet = {
 	dustFold: { Dust },
 	pictures: { Picture },
 	-- Steady particle layers: the secondary ones and the main ones (AlienLooks.MOTION.MAIN_EFFECTS).
-	effects: { ParticleEmitter },
-	mainEffects: { ParticleEmitter },
+	effects: { ParticleEmitter | Trail },
+	mainEffects: { ParticleEmitter | Trail },
 	boards: { BillboardGui },
 	-- How much of it is drawn and moved now (PetMotion.detail); nil until first seen.
 	detail: number?,
@@ -466,7 +466,10 @@ local function petOf(model: Model): Pet?
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
 		elseif item:IsA("ParticleEmitter") and string.match(item.Name, "^Dust") then
-			local dust = { emitter = item, count = if string.match(item.Name, "Star$") then 2 else 10 }
+			local dust = {
+				emitter = item,
+				count = if string.match(item.Name, "Star$") then MOTION.WING_DUST_STARS else MOTION.WING_DUST,
+			}
 			table.insert(if string.match(item.Name, "^DustOpen") then pet.dustOpen else pet.dustFold, dust)
 		elseif item:IsA("ImageLabel") and (item:GetAttribute("Spin") or item:GetAttribute("Sway")) then
 			table.insert(pet.pictures, {
@@ -477,7 +480,7 @@ local function petOf(model: Model): Pet?
 		end
 		-- What the detail turns off and on: the steady particle layers (the wing dust only bursts on
 		-- a beat, so it is left alone), the main ones apart; the pictures (medal, crest).
-		if item:IsA("ParticleEmitter") and item.Rate > 0 then
+		if (item:IsA("ParticleEmitter") and item.Rate > 0) or item:IsA("Trail") then
 			table.insert(if MOTION.MAIN_EFFECTS[item.Name] then pet.mainEffects else pet.effects, item)
 		elseif item:IsA("BillboardGui") then
 			table.insert(pet.boards, item)
