@@ -336,6 +336,37 @@ function JetpackEffectsController.new(): JetpackEffectsController
 	-- Players on their stand this frame, with their flame's scale (cleared every frame).
 	local standsLit: { [Player]: number } = {}
 
+	-- What each stand shows now: its owner's flame scale, false while empty. Written only when it
+	-- changes; a part that streams in or a rebuilt stand is written afresh. A plain table, cleared
+	-- as a stand goes.
+	local standShows: { [Instance]: number | false } = {}
+	local standWatched: { [Instance]: RBXScriptConnection } = {}
+
+	local function watchStand(stand: Instance)
+		if standWatched[stand] then
+			return
+		end
+		-- Also sweep for stands that left without Destroying (streamed out; rare).
+		for other, connection in standWatched do
+			if not other.Parent then
+				connection:Disconnect()
+				standWatched[other] = nil
+				standShows[other] = nil
+			end
+		end
+		standWatched[stand] = stand.ChildAdded:Connect(function()
+			standShows[stand] = nil
+		end)
+		stand.Destroying:Once(function()
+			local connection = standWatched[stand]
+			if connection then
+				connection:Disconnect()
+			end
+			standWatched[stand] = nil
+			standShows[stand] = nil
+		end)
+	end
+
 	-- The jetpack stands on the islands (docs/design/screens/jetpack-stand.md): the blast grate
 	-- glows while its owner trains, the pilot lights burn while the stand is empty.
 	local function lightStands()
@@ -347,6 +378,12 @@ function JetpackEffectsController.new(): JetpackEffectsController
 			if not stand then
 				continue
 			end
+			watchStand(stand)
+			local shows = scale or false
+			if standShows[stand] == shows then
+				continue
+			end
+			standShows[stand] = shows
 			for _, part in stand:GetChildren() do
 				if not part:IsA("BasePart") then
 					continue

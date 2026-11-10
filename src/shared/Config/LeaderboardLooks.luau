@@ -20,8 +20,11 @@ return table.freeze({
 	COIN_COLOR = GOLD,
 	COIN_MATERIAL = Enum.Material.Metal,
 	HOLO_TRANSPARENCY = 0.55,
-	-- The coins turn once in this many seconds (on each client).
+	-- The coins turn once in this many seconds (on each client), while the camera is within
+	-- COIN_TURN_DISTANCE studs of the board: farther, a coin ~10 studs across is under 0.6° of the
+	-- view, and its turn is not seen (decision 101).
 	COIN_TURN_SECONDS = 8,
+	COIN_TURN_DISTANCE = 1000,
 
 	-- The drawing on a screen: pixels per stud, and its colors.
 	PIXELS_PER_STUD = 20,

@@ -67,7 +67,11 @@ function LeaderboardService.new(dependencies: Dependencies): LeaderboardService
 	local stored: { Leaderboard.Entry } = {}
 	-- Display names of players who are not on this server, by user id.
 	local names: { [number]: string } = {}
-	local publishedRows = ""
+	-- The rows as the board last showed them: who, in what order, and the coins as the client
+	-- formats them (CoinBoardController). Coins of a player here change every second, but the
+	-- board shows three digits, so the rows go out only when what they show changes (each change
+	-- is sent to every client; decision 101).
+	local publishedShown = ""
 
 	-- Names for stored rows of players who are not here, in one request.
 	local function fetchNames(entries: { Leaderboard.Entry })
@@ -94,7 +98,8 @@ function LeaderboardService.new(dependencies: Dependencies): LeaderboardService
 		end
 	end
 
-	-- Rebuilds the rows from the stored top and the players here; sends them out when changed.
+	-- Rebuilds the rows from the stored top and the players here; sends them out when what the
+	-- board shows changed.
 	local function publish()
 		local board = dependencies.getCoinBoard()
 		if not board then
@@ -107,22 +112,25 @@ function LeaderboardService.new(dependencies: Dependencies): LeaderboardService
 			here[player.UserId] = player
 		end
 		local rows: { Row } = {}
+		local shown: { string } = {}
 		for _, entry in Leaderboard.top(stored, live, LeaderboardConfig.TOP_SIZE) do
 			local player = here[entry.userId]
 			local state = if player then tracked[player] else nil
 			-- Players here show their exact count; stored rows are as precise as a score.
 			local coins = if state then state.earned else Leaderboard.coinsOf(entry.score)
+			local name = if player then player.DisplayName else names[entry.userId] or "?"
 			table.insert(rows, {
 				userId = entry.userId,
-				name = if player then player.DisplayName else names[entry.userId] or "?",
+				name = name,
 				coins = { mantissa = coins.mantissa, exponent = coins.exponent },
 			})
+			table.insert(shown, `{entry.userId}|{name}|{BigNum.format(coins)}`)
 		end
-		local encoded = HttpService:JSONEncode(rows)
+		local key = table.concat(shown, "\n")
 		local value = board:FindFirstChild(LeaderboardConfig.ROWS_VALUE_NAME)
-		if encoded ~= publishedRows and value and value:IsA("StringValue") then
-			publishedRows = encoded
-			value.Value = encoded
+		if key ~= publishedShown and value and value:IsA("StringValue") then
+			publishedShown = key
+			value.Value = HttpService:JSONEncode(rows)
 		end
 	end
 

@@ -1270,6 +1270,13 @@ function AlienDress.adornLocally(model: Model)
 		local at = halo.Position
 		halo.CFrame = halo.CFrame - at + Vector3.new(at.X, feet + MODELS.RUNE_LIFT - halo.Size.Y / 2, at.Z)
 	end
+	if halo and halo:IsA("BasePart") then
+		for _, gui in halo:GetChildren() do
+			if gui:IsA("SurfaceGui") then
+				gui.MaxDistance = halo.Size.X * MODELS.RUNE_MAX_WIDTHS
+			end
+		end
+	end
 	copy:Destroy()
 end
 

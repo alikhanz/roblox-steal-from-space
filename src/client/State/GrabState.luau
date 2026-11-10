@@ -2,7 +2,8 @@
 -- What the grab button shows (docs/design/screens/grab-button.md), read every frame from the
 -- local character: the egg the button offers or the grab is locked on, and the grab's progress.
 -- The simulation owns the grab (Grab.nextEngaged, character attributes); this only mirrors it
--- with the same egg search, so the button, the prompt over the egg and the tutorial agree.
+-- with the same egg search, so the button, the prompt over the egg and the tutorial agree. While
+-- no egg is anywhere near, the search runs only a few times a second (EggConfig.GRAB_SEARCH_*).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -47,6 +48,25 @@ function GrabState.new(): GrabState
 			progress(value)
 		end
 	end
+	-- When to look for an egg to offer next (os.clock()): every frame while one is near, else a
+	-- few times a second, far enough out that no egg slips in between (Grab.watchRange).
+	local searchAt = 0
+
+	local function nearest(position: Vector3, range: number, topSpeed: number): EggTargets.Target?
+		local now = os.clock()
+		if now < searchAt then
+			return nil
+		end
+		local watch = Grab.watchRange(
+			range,
+			topSpeed * EggConfig.GRAB_SEARCH_SPEED_SLACK,
+			EggConfig.DROP_SPEED,
+			EggConfig.GRAB_SEARCH_SECONDS
+		)
+		local near = EggTargets.nearest(position, watch)
+		searchAt = if near then now else now + EggConfig.GRAB_SEARCH_SECONDS
+		return if near and (near.position - position).Magnitude <= range then near else nil
+	end
 
 	local function update()
 		local character = Players.LocalPlayer.Character
@@ -61,15 +81,22 @@ function GrabState.new(): GrabState
 			end
 			setEngaged(false)
 			setProgress(0)
+			-- Able to grab again (out in space, hands free): look at once.
+			searchAt = 0
 			return
 		end
-		local lockRange = Grab.lockRange(TopSpeed.of(character), EggConfig.GRAB_REACH, EggConfig.LOCK_LEAD_SECONDS)
+		local topSpeed = TopSpeed.of(character)
+		local lockRange = Grab.lockRange(topSpeed, EggConfig.GRAB_REACH, EggConfig.LOCK_LEAD_SECONDS)
 		local range = Grab.buttonRange(lockRange, EggConfig.GRAB_BUTTON_RANGE)
 		local engagedId = character:GetAttribute(EggConfig.GRAB_ENGAGED_ATTRIBUTE)
 		local locked = if type(engagedId) == "string"
 			then EggTargets.find(engagedId, root.Position, range * EggConfig.GRAB_RELEASE_FACTOR)
 			else nil
-		local found = locked or EggTargets.nearest(root.Position, range)
+		if locked then
+			-- No search while locked on; once it lets go, the next egg is looked for at once.
+			searchAt = 0
+		end
+		local found = locked or nearest(root.Position, range, topSpeed)
 		local previous = Vide.untrack(readTarget)
 		-- A new table every frame: the button only needs a change of egg.
 		if (previous and previous.id) ~= (found and found.id) then

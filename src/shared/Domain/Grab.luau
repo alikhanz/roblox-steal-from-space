@@ -62,6 +62,14 @@ function Grab.buttonRange(lockRange: number, buttonRange: number): number
 	return math.max(lockRange, buttonRange)
 end
 
+-- How far to look for eggs so that a search every `seconds` misses none: an egg farther than this
+-- from a flyer going at most `flyerSpeed` cannot come within `range` (buttonRange) before the
+-- next search, even drifting towards it at `eggSpeed` (a knocked-out egg). One found within it
+-- is searched for again every frame.
+function Grab.watchRange(range: number, flyerSpeed: number, eggSpeed: number, seconds: number): number
+	return range + (flyerSpeed + eggSpeed) * seconds
+end
+
 -- Progress 0..1 after one step. `holding`: the grab is locked on (nextEngaged); `locked`: its
 -- egg is found;
 -- `inReach`: that egg is within the plain grab reach. Locked but not yet in reach (the magnet

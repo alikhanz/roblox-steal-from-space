@@ -22,6 +22,13 @@ local START_STUDS_ABOVE = 1.6
 local RISE_STUDS = 2
 local SCATTER_STUDS = 0.8
 local RISE_SECONDS = 1.1
+local TEXT_STROKE_TRANSPARENCY = 0.4
+local PLAYER_GUI_WAIT_TIMEOUT = 30
+
+type Pop = {
+	gui: BillboardGui,
+	label: TextLabel,
+}
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
@@ -36,16 +43,19 @@ local TrainingViewController = {}
 
 function TrainingViewController.new(dependencies: Dependencies): TrainingViewController
 	local random = Random.new()
+	-- Pops are reused (four a second while training; CONVENTIONS: frequent effects come from a
+	-- pool). They live in PlayerGui, adorned to the head, so a respawn takes none of them away.
+	local free: { Pop } = {}
+	local playerGui: Instance? = nil
 
-	local function pop(head: BasePart, text: string)
+	local function make(parent: Instance): Pop
 		local gui = Instance.new("BillboardGui")
 		gui.Name = "TrainingPop"
-		gui.Adornee = head
 		gui.Size = LABEL_SIZE
 		gui.AlwaysOnTop = true
 		gui.LightInfluence = 0
-		local scatter = random:NextNumber(-SCATTER_STUDS, SCATTER_STUDS)
-		gui.StudsOffset = Vector3.new(scatter, START_STUDS_ABOVE, 0)
+		gui.ResetOnSpawn = false
+		gui.Enabled = false
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
@@ -53,21 +63,41 @@ function TrainingViewController.new(dependencies: Dependencies): TrainingViewCon
 		label.FontFace = Theme.FONT
 		label.TextSize = TEXT_SIZE
 		label.TextColor3 = Theme.SPEED
-		label.TextStrokeTransparency = 0.4
-		label.Text = text
 		label.Parent = gui
-		gui.Parent = head
+		gui.Parent = parent
+		return { gui = gui, label = label }
+	end
+
+	local function pop(head: BasePart, text: string)
+		local parent = playerGui
+		if not parent then
+			return
+		end
+		local item = table.remove(free) or make(parent)
+		local gui, label = item.gui, item.label
+		gui.Adornee = head
+		local scatter = random:NextNumber(-SCATTER_STUDS, SCATTER_STUDS)
+		gui.StudsOffset = Vector3.new(scatter, START_STUDS_ABOVE, 0)
+		label.Text = text
+		label.TextTransparency = 0
+		label.TextStrokeTransparency = TEXT_STROKE_TRANSPARENCY
+		gui.Enabled = true
 
 		local rise = TweenInfo.new(RISE_SECONDS, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 		TweenService:Create(gui, rise, { StudsOffset = Vector3.new(scatter, START_STUDS_ABOVE + RISE_STUDS, 0) }):Play()
 		local fade = TweenInfo.new(RISE_SECONDS, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
 		TweenService:Create(label, fade, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 		task.delay(RISE_SECONDS, function()
-			gui:Destroy()
+			gui.Enabled = false
+			table.insert(free, item)
 		end)
 	end
 
 	local function start()
+		playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
+		if not playerGui then
+			warn("[TrainingViewController] PlayerGui did not appear; no training pops")
+		end
 		local locale = Text.localeOf(Players.LocalPlayer)
 		dependencies.profile.trained.connect(function(gain)
 			local character = Players.LocalPlayer.Character

@@ -125,6 +125,11 @@ return table.freeze({
 	-- A locked-on grab lets go once its egg is this many button ranges away (it moved off, or
 	-- the flyer got thrown), so a grab never pulls from across the map.
 	GRAB_RELEASE_FACTOR = 1.5,
+	-- The HUD looks for the egg to offer at least this often, seconds, while none is near
+	-- (Grab.watchRange; every frame while one is): all 132 nests are walked each time.
+	GRAB_SEARCH_SECONDS = 0.1,
+	-- Within one search's time the flyer may go this many times its top speed (a strike's lunge).
+	GRAB_SEARCH_SPEED_SLACK = 2,
 	-- Steering away from the egg lets go of the grab: move input at least this strong, pointing
 	-- away from the egg (its direction's dot with the way to the egg at most this).
 	GRAB_LEAVE_MOVE = 0.5,

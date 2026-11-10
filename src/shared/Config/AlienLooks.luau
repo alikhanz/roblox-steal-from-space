@@ -47,6 +47,10 @@ local MODELS = table.freeze({
 	-- small pet's rune scaled with it sank into its place's pad (only its rim showed round the pad,
 	-- a plain ring; user, 2026-11-10).
 	RUNE_LIFT = 0.08,
+	-- The rune and its glow are drawn only within this many of their own widths of the camera:
+	-- there they are under half a degree across, a speck seen edge-on (decision 101). Every pet on
+	-- the map has two such screens.
+	RUNE_MAX_WIDTHS = 120,
 	-- Particle and picture textures (assets/fx).
 	TEXTURES = table.freeze({
 		star = "rbxassetid://113891832030197",

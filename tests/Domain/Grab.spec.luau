@@ -173,3 +173,12 @@ describe("Grab.buttonRange", function()
 		expect(Grab.buttonRange(50, 30)).toBe(50)
 	end)
 end)
+
+describe("Grab.watchRange", function()
+	it("looks as far as flyer and egg can close in before the next search", function()
+		-- Button range 50, 250 studs/s, a drifting egg at 40, searched every 0.1 s.
+		expect(Grab.watchRange(50, 250, 40, 0.1)).toBeCloseTo(79, 1e-9)
+		-- Searched every frame (no time between): the range itself.
+		expect(Grab.watchRange(50, 250, 40, 0)).toBe(50)
+	end)
+end)

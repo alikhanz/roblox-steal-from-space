@@ -68,27 +68,47 @@ function CoinBoardController.new(): CoinBoardController
 	-- so each frame turns whichever are there, from the pivot each had when first seen. The
 	-- pivots are kept in a plain table, cleared as a coin goes: in a weak one Luau drops a coin's
 	-- entry while the coin lives, its turned pivot is taken for the rest one, and the coin jumps
-	-- (playtest 2026-11-10).
-	local function turnCoins(board: Instance, folder: Instance)
+	-- (playtest 2026-11-10). They turn only while the camera is near enough to see it
+	-- (LeaderboardLooks.COIN_TURN_DISTANCE), checked now and then.
+	local function turnCoins(board: Instance, folder: Instance, middle: Vector3)
 		if GuiService.ReducedMotionEnabled then
 			return
 		end
-		local pivots: { [Instance]: CFrame } = {}
+		local pivots: { [Model]: CFrame } = {}
+		local function add(child: Instance)
+			if child:IsA("Model") and not pivots[child] then
+				pivots[child] = child:GetPivot()
+			end
+		end
+		for _, child in folder:GetChildren() do
+			add(child)
+		end
+		local added = folder.ChildAdded:Connect(add)
 		local removed = folder.ChildRemoved:Connect(function(child)
-			pivots[child] = nil
+			if child:IsA("Model") then
+				pivots[child] = nil
+			end
 		end)
-		local turning = RunService.RenderStepped:Connect(function()
+		local near = true
+		local sinceCheck = math.huge
+		local turning = RunService.RenderStepped:Connect(function(delta: number)
+			sinceCheck += delta
+			local camera = workspace.CurrentCamera
+			if sinceCheck >= LeaderboardLooks.FAR_CHECK_SECONDS and camera then
+				sinceCheck = 0
+				near = (camera.CFrame.Position - middle).Magnitude <= LeaderboardLooks.COIN_TURN_DISTANCE
+			end
+			if not near then
+				return
+			end
 			local turn = CFrame.Angles(0, os.clock() / LeaderboardLooks.COIN_TURN_SECONDS * math.pi * 2, 0)
-			for _, child in folder:GetChildren() do
-				if child:IsA("Model") then
-					local pivot = pivots[child] or child:GetPivot()
-					pivots[child] = pivot
-					child:PivotTo(pivot * turn)
-				end
+			for coin, pivot in pivots do
+				coin:PivotTo(pivot * turn)
 			end
 		end)
 		board.Destroying:Once(function()
 			turning:Disconnect()
+			added:Disconnect()
 			removed:Disconnect()
 		end)
 	end
@@ -154,7 +174,7 @@ function CoinBoardController.new(): CoinBoardController
 			instance.ChildAdded:Connect(draw)
 			local coins = instance:WaitForChild(LeaderboardConfig.COINS_FOLDER_NAME, PART_WAIT_TIMEOUT)
 			if coins then
-				turnCoins(instance, coins)
+				turnCoins(instance, coins, middle)
 			end
 		end)
 	end
