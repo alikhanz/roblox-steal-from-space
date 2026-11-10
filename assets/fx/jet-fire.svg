@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Fire (jetpacks 0-2, decision 086): ragged tongues streaming along X, soft across Y. Tiles
+       along X, so the beam can scroll it. White on transparency, tinted in game. -->
+  <defs>
+    <filter id="soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="7 5"/></filter>
+    <linearGradient id="across" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.3" stop-color="#fff" stop-opacity="0.6"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.9"/>
+      <stop offset="0.7" stop-color="#fff" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <g id="tongues" fill="#fff">
+      <path d="M-10 128 C30 80 70 92 96 112 C80 120 70 132 100 150 C60 170 20 160 -10 128 Z"/>
+      <path d="M90 124 C120 70 170 86 190 104 C170 118 168 128 196 146 C160 182 116 170 90 124 Z"/>
+      <ellipse cx="226" cy="130" rx="44" ry="30"/>
+      <ellipse cx="140" cy="96" rx="22" ry="10"/>
+      <ellipse cx="50" cy="168" rx="26" ry="10"/>
+      <ellipse cx="200" cy="168" rx="20" ry="9"/>
+    </g>
+  </defs>
+  <rect width="256" height="256" fill="url(#across)" opacity="0.4"/>
+  <g filter="url(#soft)" opacity="0.95">
+    <use href="#tongues" x="-256"/><use href="#tongues"/><use href="#tongues" x="256"/>
+  </g>
+</svg>

@@ -213,6 +213,15 @@ def nozzle_marker(location):
 # --- Pieces -------------------------------------------------------------------------------------
 
 
+def _straps(m):
+    """Straps over the shoulders: for the renders only — in game they would sink into the torso
+    (and the avatar's clothes) and only cost triangles."""
+    if LOW_POLY:
+        return
+    for side in (-1, 1):
+        pill((side * 0.55, BACK - 0.5, 0.72), (0.09, 0.55, 0.04), "trim", m["dark"])
+
+
 def _nozzle(x, y, top, g, m, size=1.0):
     """One engine nozzle hanging from `top` (Z) at (x, y): a collar, the bell, a hot throat."""
     kind = g["nozzle"]
@@ -262,9 +271,7 @@ def _tanks(g, m):
         # A nose cone over both tanks, like a comet's head.
         pill((0, y, 0.68), (0.72, 0.31, 0.16), "trim", m["trim"], roundness=0.95)
         sphere((0, y + 0.28, 0.68), 0.06, "glow", m["glow"])
-    # Straps over the shoulders.
-    for side in (-1, 1):
-        pill((side * 0.55, BACK - 0.5, 0.72), (0.09, 0.55, 0.04), "trim", m["dark"])
+    _straps(m)
 
 
 def _engine(g, m):
@@ -288,8 +295,7 @@ def _engine(g, m):
         pill((0, y + 0.05, 0.0), (0.13, 0.2, 0.62), "body", m["body"], roundness=0.8)
         for i in range(4):
             pill((0, y + 0.25, 0.36 - i * 0.24), (0.07, 0.015, 0.05), "glow", m["glow"], roundness=0.9)
-    for side in (-1, 1):
-        pill((side * 0.55, BACK - 0.5, 0.72), (0.09, 0.55, 0.04), "trim", m["dark"])
+    _straps(m)
 
 
 def _lemniscate(center, width, height, thickness, mat, role):
@@ -407,8 +413,7 @@ def _shell(g, m):
         _lemniscate(center, 0.95, 0.4, 0.06, m["gold"], "trim")
         _lemniscate(center + Vector((0, 0.02, 0)), 0.95, 0.4, 0.026, m["hot"], "glow")
         cylinder((0, y + 0.3, 0.72), 0.05, 0.22, "metal", m["gold"])
-    for side in (-1, 1):
-        pill((side * 0.55, BACK - 0.5, 0.72), (0.09, 0.55, 0.04), "trim", m["dark"])
+    _straps(m)
 
 
 def build(grade, location=(0, 0, 0), yaw=0.0):

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Plasma (jetpacks 3-5, decision 086): a smooth even jet with bright rings across it, two to a
+       tile; scrolled, the rings run out of the nozzle. Tiles along X. White on transparency. -->
+  <defs>
+    <linearGradient id="across" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.25" stop-color="#fff" stop-opacity="0.45"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.8"/>
+      <stop offset="0.75" stop-color="#fff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="ring" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.6" stop-color="#fff" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" fill="url(#across)"/>
+  <g fill="url(#ring)">
+    <ellipse cx="0" cy="128" rx="20" ry="104"/><ellipse cx="128" cy="128" rx="20" ry="104"/>
+    <ellipse cx="256" cy="128" rx="20" ry="104"/>
+  </g>
+</svg>

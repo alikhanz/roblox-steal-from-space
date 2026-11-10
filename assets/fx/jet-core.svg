@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A jetpack's white-hot core along a Beam (JetpackLooks, decision 086): a narrow bright line
+       along X, soft across Y, with faint streaks so it shimmers when it scrolls. Tiles along X.
+       White on transparency, tinted in game. -->
+  <defs>
+    <linearGradient id="across" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.32" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="0.68" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="8 3"/></filter>
+  </defs>
+  <rect width="256" height="256" fill="url(#across)"/>
+  <g filter="url(#soft)" fill="#fff" opacity="0.7">
+    <rect x="-20" y="118" width="90" height="6"/><rect x="70" y="132" width="120" height="5"/>
+    <rect x="160" y="112" width="70" height="5"/><rect x="236" y="118" width="90" height="6"/>
+  </g>
+</svg>
