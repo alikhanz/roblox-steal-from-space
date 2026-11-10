@@ -2,6 +2,7 @@
 
 local Test = require("../../lune/lib/Test")
 local Tutorial = require("../../src/shared/Domain/Tutorial")
+local TutorialConfig = require("../../src/shared/Config/TutorialConfig")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 local STRONGER = 2
@@ -65,6 +66,12 @@ describe("Tutorial.hatchSeconds", function()
 		expect(Tutorial.hatchSeconds(Tutorial.NOT_STARTED, 95, 10)).toBe(10)
 		expect(Tutorial.hatchSeconds(Tutorial.NOT_STARTED, 6, 10)).toBe(6)
 		expect(Tutorial.hatchSeconds(Tutorial.DELIVERED, 95, 10)).toBe(95)
+	end)
+
+	it("makes the first egg ready at once with the game's setting", function()
+		expect(TutorialConfig.FIRST_EGG_SECONDS).toBe(0)
+		expect(Tutorial.hatchSeconds(Tutorial.NOT_STARTED, 95, TutorialConfig.FIRST_EGG_SECONDS)).toBe(0)
+		expect(Tutorial.hatchSeconds(Tutorial.DELIVERED, 95, TutorialConfig.FIRST_EGG_SECONDS)).toBe(95)
 	end)
 end)
 

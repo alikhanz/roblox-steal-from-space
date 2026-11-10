@@ -56,8 +56,8 @@ function Tutorial.afterSpeed(progress: number, reached: boolean): number
 	return if progress == Tutorial.HATCHED and reached then Tutorial.TRAINED else progress
 end
 
--- How long an egg delivered at `progress` warms: the very first one is quick, so the hatch step
--- is not a wait.
+-- How long an egg delivered at `progress` warms: the very first one no longer than
+-- `firstEggSeconds` (0: ready at once), so the hatch step is not a wait.
 function Tutorial.hatchSeconds(progress: number, seconds: number, firstEggSeconds: number): number
 	return if progress == Tutorial.NOT_STARTED then math.min(seconds, firstEggSeconds) else seconds
 end

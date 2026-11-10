@@ -1201,8 +1201,8 @@ local Strings = {
 		en = "Fly the egg home. The guardian stops at the station border",
 	},
 	["tutorial.hatch.hint"] = {
-		ru = "Яйцо греется в инкубаторе. Когда будет готово, вылупи его",
-		en = "Your egg is warming in the incubator. Hatch it when it's ready",
+		ru = "Яйцо готово! Беги к инкубатору и вылупи его",
+		en = "Your egg is ready! Go to the incubator and hatch it",
 	},
 	-- {speed}: the next guardian's recommended speed ("42").
 	["tutorial.train.hint"] = {

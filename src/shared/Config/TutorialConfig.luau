@@ -9,8 +9,9 @@ local TutorialConfig = {}
 -- farther) to finish. The training step asks for its recommended speed.
 TutorialConfig.STRONGER_GRADE = 2
 TutorialConfig.TRAINING_TARGET = GuardianConfig.recommendedFor(TutorialConfig.STRONGER_GRADE)
--- The first delivered egg is ready this soon (a common one warms 10 s to 2 min).
-TutorialConfig.FIRST_EGG_SECONDS = 10
+-- The first delivered egg is ready this soon (a common one warms 10 s to 2 min): at once, so
+-- the hatch step sends the player to an egg that is ready (playtest 2026-11-10).
+TutorialConfig.FIRST_EGG_SECONDS = 0
 -- How long the last hint ("you are on your own now") stays before the panel goes away.
 TutorialConfig.DONE_HINT_SECONDS = 8
 
