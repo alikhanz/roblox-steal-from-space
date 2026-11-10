@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
 local Press = require(script.Parent.Press)
+local ProgressRing = require(script.Parent.ProgressRing)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -94,58 +95,6 @@ export type Props = {
 	-- Called once with each created button so it can be bound to its input action.
 	onButton: (actionName: string, button: GuiButton) -> (),
 }
-
--- One half of a sector: a disc clipped to the left or right half of its parent, with a gradient
--- that leaves only the part of the circle covered so far. Together the halves cover the circle
--- clockwise from twelve o'clock by `fraction`: dark over a cooling button, light for a ring of
--- progress.
-local function sectorHalf(
-	side: "Left" | "Right",
-	fraction: () -> number,
-	name: string,
-	color: Color3,
-	transparency: number,
-	zIndex: number
-): Frame
-	local gradient = Instance.new("UIGradient")
-	gradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.5, 0),
-		NumberSequenceKeypoint.new(0.501, 1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	Vide.effect(function()
-		local share = fraction()
-		if side == "Right" then
-			gradient.Rotation = if share <= 0.5 then 360 * share else 180
-		else
-			gradient.Rotation = 360 * share
-		end
-	end)
-	return create("Frame")({
-		Name = `{name}{side}`,
-		ZIndex = zIndex,
-		Position = if side == "Left" then UDim2.fromScale(0, 0) else UDim2.fromScale(0.5, 0),
-		Size = UDim2.fromScale(0.5, 1),
-		BackgroundTransparency = 1,
-		ClipsDescendants = true,
-		Visible = function()
-			local share = fraction()
-			return if side == "Right" then share > 0 else share > 0.5
-		end,
-		create("ImageLabel")({
-			Name = "Disc",
-			ZIndex = zIndex,
-			Position = if side == "Left" then UDim2.fromScale(0, 0) else UDim2.fromScale(-1, 0),
-			Size = UDim2.fromScale(2, 1),
-			BackgroundTransparency = 1,
-			Image = Icons.DISC,
-			ImageColor3 = color,
-			ImageTransparency = transparency,
-			gradient,
-		}),
-	}) :: Frame
-end
 
 -- The key cap on a button's bottom-right corner (the PC and gamepad row).
 local function KeyCap(keyText: () -> string): TextLabel
@@ -300,16 +249,7 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 			-- The ring of progress: a light sector round the button, over a solid base that hides
 			-- its middle under the see-through glass.
 			if spec.progress
-				then create("Frame")({
-					Name = "Ring",
-					ZIndex = -1,
-					AnchorPoint = Vector2.new(0.5, 0.5),
-					Position = UDim2.fromScale(0.5, 0.5),
-					Size = UDim2.fromScale(RING_SHARE, RING_SHARE),
-					BackgroundTransparency = 1,
-					sectorHalf("Left", progress, "Ring", NEON.TEXT, 0, -1),
-					sectorHalf("Right", progress, "Ring", NEON.TEXT, 0, -1),
-				})
+				then ProgressRing({ fraction = progress, color = NEON.TEXT, share = RING_SHARE, zIndex = -1 })
 				else nil,
 			if spec.progress
 				then create("ImageLabel")({
@@ -355,8 +295,14 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 					Layout.textStroke(),
 				})
 				else nil,
-			sectorHalf("Left", fraction, "Cooldown", Color3.new(0, 0, 0), COOLDOWN_TRANSPARENCY, 3),
-			sectorHalf("Right", fraction, "Cooldown", Color3.new(0, 0, 0), COOLDOWN_TRANSPARENCY, 3),
+			-- The dark sector over a cooling button.
+			ProgressRing({
+				fraction = fraction,
+				color = Color3.new(0, 0, 0),
+				share = 1,
+				zIndex = 3,
+				transparency = COOLDOWN_TRANSPARENCY,
+			}),
 			create("TextLabel")({
 				Name = "Seconds",
 				ZIndex = 4,

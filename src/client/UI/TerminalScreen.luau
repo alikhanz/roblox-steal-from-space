@@ -9,6 +9,7 @@
 -- components (ActionButton, IconText) keep their own sizes and proportions.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local ActionButton = require(script.Parent.ActionButton)
 local IconText = require(script.Parent.IconText)
@@ -33,6 +34,9 @@ local SCREEN_BOTTOM = Color3.fromRGB(10, 13, 44)
 local DONE_COLOR = NEON.SHIELD
 -- How far the title's colour goes towards white: the zone's colour, readable on the dark glass.
 local TITLE_LIGHTEN = 0.45
+-- A purchase's flash: how long the gold fades, seconds, and the edge's thickness, pixels.
+local FLASH_SECONDS = 0.8
+local FLASH_EDGE = 3
 
 export type ButtonProps = {
 	text: () -> string,
@@ -66,6 +70,30 @@ local function TerminalScreen(props: Props): SurfaceGui
 	local done = props.done or function()
 		return false
 	end
+	-- A purchase went through (docs/design/screens/buttons.md): the number it raised flashes gold
+	-- and fades back, and the screen's edge glows gold a moment. The number changes only when the
+	-- server has it, so the flash marks a real purchase, not a press.
+	local valueLabel: TextLabel? = nil
+	local edge = Instance.new("UIStroke")
+	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	edge.Color = NEON.ACTION.Coins
+	edge.Thickness = FLASH_EDGE
+	edge.Transparency = 1
+	local shown: string? = nil
+	Vide.effect(function()
+		local now = props.value()
+		local before = shown
+		shown = now
+		local label = valueLabel
+		if before == nil or before == now or not label then
+			return
+		end
+		local fade = TweenInfo.new(FLASH_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		label.TextColor3 = NEON.ACTION.Coins
+		TweenService:Create(label, fade, { TextColor3 = NEON.TEXT }):Play()
+		edge.Transparency = 0
+		TweenService:Create(edge, fade, { Transparency = 1 }):Play()
+	end)
 	return create("SurfaceGui")({
 		Name = "TerminalScreen",
 		Adornee = props.adornee,
@@ -86,6 +114,7 @@ local function TerminalScreen(props: Props): SurfaceGui
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BorderSizePixel = 0,
 			scaleTo(props.adornee.Size.X * PIXELS_PER_STUD / CANVAS.X),
+			edge,
 			create("UIGradient")({
 				Rotation = 90,
 				Color = ColorSequence.new(SCREEN_TOP, SCREEN_BOTTOM),
@@ -120,6 +149,9 @@ local function TerminalScreen(props: Props): SurfaceGui
 				TextColor3 = NEON.TEXT,
 				Text = props.value,
 				Layout.textStroke(),
+				Vide.action(function(instance)
+					valueLabel = instance :: TextLabel
+				end),
 			}),
 			-- Amounts of ⚡ show their icon (Locale/Marks).
 			IconText({

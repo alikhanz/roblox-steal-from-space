@@ -4,12 +4,13 @@
 -- action button, a round badge on its left (the key to press, or a hand on a touch screen) and the
 -- action's word on its right ("Hatch", "Take"). The whole pill is the button, with room to spare
 -- round it, so a finger cannot miss; it presses and clicks like every button (UI/Press). A prompt
--- that is held fills the pill from the left as the hold goes on (an egg's grab).
+-- that is held draws a ring of progress round its badge as the hold goes on (an egg's grab).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Layout = require(script.Parent.Layout)
 local Press = require(script.Parent.Press)
+local ProgressRing = require(script.Parent.ProgressRing)
 local Theme = require(script.Parent.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -26,8 +27,10 @@ local GAP = 8
 local WORD_END = 16
 -- Invisible room round the pill that still presses it, points.
 local SLACK = 8
--- The fill of a held prompt's progress, over the glass.
-local PROGRESS_TRANSPARENCY = 0.45
+-- A held prompt's progress ring round the badge: its size against the badge, and how far its
+-- colour goes towards white.
+local RING_SHARE = 1.28
+local RING_LIGHTEN = 0.35
 -- Height of the prompt above the egg's center, studs.
 local STUDS_ABOVE = 2.4
 -- The billboard's room: the widest pill there may be (a price in the word), points.
@@ -125,22 +128,6 @@ local function GrabPrompt(props: Props): BillboardGui
 				create("UICorner")({ CornerRadius = corner }),
 				least,
 				glass,
-				-- A held prompt's progress: the pill fills from the left.
-				create("Frame")({
-					Name = "Progress",
-					ZIndex = 1,
-					Size = function()
-						return UDim2.fromScale(math.clamp(props.progress(), 0, 1), 1)
-					end,
-					BackgroundColor3 = function()
-						return color()
-					end,
-					BackgroundTransparency = PROGRESS_TRANSPARENCY,
-					Visible = function()
-						return holding() and props.progress() > 0
-					end,
-					create("UICorner")({ CornerRadius = corner }),
-				}),
 				create("Frame")({
 					Name = "Content",
 					ZIndex = 2,
@@ -154,18 +141,34 @@ local function GrabPrompt(props: Props): BillboardGui
 						Padding = UDim.new(0, GAP),
 						SortOrder = Enum.SortOrder.LayoutOrder,
 					}),
-					create("TextLabel")({
-						Name = "Badge",
+					-- The badge, with a held prompt's progress as a ring round it (as the grab button's).
+					create("Frame")({
+						Name = "BadgeHolder",
 						LayoutOrder = 1,
-						ZIndex = 2,
 						Size = UDim2.fromOffset(BADGE_SIZE, BADGE_SIZE),
-						BackgroundColor3 = NEON.GLASS,
-						BackgroundTransparency = 0.25,
-						FontFace = NEON.FONT,
-						TextSize = BADGE_SIZE * 0.5,
-						TextColor3 = NEON.TEXT,
-						Text = props.badgeText,
-						create("UICorner")({ CornerRadius = corner }),
+						BackgroundTransparency = 1,
+						ProgressRing({
+							fraction = function()
+								return if holding() then math.clamp(props.progress(), 0, 1) else 0
+							end,
+							color = function()
+								return color():Lerp(Color3.new(1, 1, 1), RING_LIGHTEN)
+							end,
+							share = RING_SHARE,
+							zIndex = 2,
+						}),
+						create("TextLabel")({
+							Name = "Badge",
+							ZIndex = 3,
+							Size = UDim2.fromScale(1, 1),
+							BackgroundColor3 = NEON.GLASS,
+							BackgroundTransparency = 0.1,
+							FontFace = NEON.FONT,
+							TextSize = BADGE_SIZE * 0.5,
+							TextColor3 = NEON.TEXT,
+							Text = props.badgeText,
+							create("UICorner")({ CornerRadius = corner }),
+						}),
 					}),
 					create("TextLabel")({
 						Name = "Hint",
