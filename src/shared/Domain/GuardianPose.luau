@@ -35,6 +35,21 @@ function GuardianPose.follow(drawn: Vector3, velocity: Vector3, target: Vector3,
 	return predicted + (target - predicted) * GuardianPose.share(dt, seconds)
 end
 
+-- How near the camera, studs to its middle, a guardian `length` studs long wears its model
+-- (GuardianLooks.MODELS): at least `minDistance` past its half length, and as far as `lengths` of
+-- its own lengths, so that where its look changes it is no bigger than 1 / `lengths` radians of
+-- the view, whatever its size (a whale's model shows from farther than a slime's).
+function GuardianPose.wearReach(length: number, minDistance: number, lengths: number): number
+	return math.max(minDistance, lengths * length) + length / 2
+end
+
+-- Whether a guardian `distance` studs from the camera wears its model, `wearing` it now: within
+-- `reach` (wearReach) it puts it on, and takes it off only `margin` farther, so that a camera on
+-- the line does not swap the model and the greybox back and forth.
+function GuardianPose.wears(wearing: boolean, distance: number, reach: number, margin: number): boolean
+	return distance <= reach + (if wearing then margin else 0)
+end
+
 -- Share of a catch's time the lunge takes to reach its furthest; the rest it draws back.
 local LUNGE_OUT = 0.3
 

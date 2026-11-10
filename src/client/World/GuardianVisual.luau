@@ -5,7 +5,9 @@
 -- on the body every frame, its parts moving near the camera (RigMotion) at a pace, with a jaw and a
 -- throat, by the guardian's state; its eyes glow in the state's colour; it lunges and snaps when
 -- it catches someone. The model never crosses the network. A post with no model in the place
--- keeps the greybox.
+-- keeps the greybox, and so does a guardian far from the camera: GuardianViewController attaches
+-- the model only near it and detaches it again (decision 101), so a post's meshes are fetched only
+-- once one of its guardians is near.
 
 local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

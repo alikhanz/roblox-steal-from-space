@@ -82,6 +82,17 @@ local MODELS = table.freeze({
 	-- A guardian's glowing core (a slime's jelly) is darkened by this share of its pet's colour: a
 	-- big Neon part in the pet's bright colour burns to white under Bloom (seen in Studio, 2026-11-10).
 	CORE_DIM = 0.5,
+	-- A guardian wears its model only near the camera (decision 101; GuardianPose.wearReach):
+	-- within ATTACH_DISTANCE studs past its half length, or ATTACH_LENGTHS of its own lengths if
+	-- that is farther. Farther it shows the server's greybox in its post's colour; where the look
+	-- changes it is at most 1 / ATTACH_LENGTHS radians (under 1°) of the view, a few pixels. 132
+	-- models over the whole map were two thirds of the scene's draw calls. Taking it off waits
+	-- ATTACH_MARGIN studs more. The distances are checked every ATTACH_CHECK_SECONDS, and at most
+	-- one model is put on a frame (a copy is ~25 MeshParts).
+	ATTACH_DISTANCE = 700,
+	ATTACH_LENGTHS = 60,
+	ATTACH_MARGIN = 100,
+	ATTACH_CHECK_SECONDS = 0.25,
 	-- The parts move only this close to the camera, studs past the model's half length; farther it
 	-- stands still and is carried whole with its body. Leaving takes MOTION_MARGIN more.
 	MOTION_DISTANCE = 300,

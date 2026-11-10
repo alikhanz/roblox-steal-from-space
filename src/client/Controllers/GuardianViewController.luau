@@ -1,10 +1,12 @@
 --!strict
 -- The client side of guardians: the sign with the name over each one, coloured by how the player
 -- stands against the guardian's recommended speed (red, white, green: GuardianLooks.standingColor),
--- and its look: its post's model on the server's greybox body (World/GuardianVisual: moving by its
--- state, its eyes in the state's colour, a lunge when it catches someone), or, where the place has
--- no model for its post, the greybox with eyes that light up with its state. Guardians stream in
--- and out, so everything is keyed by the model and torn down when it goes.
+-- and its look. Near the camera (GuardianPose.wears, GuardianLooks.MODELS.ATTACH_*; decision 101)
+-- it wears its post's model on the server's greybox body (World/GuardianVisual: moving by its
+-- state, its eyes in the state's colour, a lunge when it catches someone) and the greybox is
+-- hidden on this client; farther, or where the place has no model for its post, it shows the
+-- greybox in its post's colour with eyes that light up with its state. Guardians stream in and
+-- out, so everything is keyed by the model and torn down when it goes.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -18,6 +20,7 @@ local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
+local GuardianPose = require(ReplicatedStorage.Shared.Domain.GuardianPose)
 local GuardianVisual = require(script.Parent.Parent.World.GuardianVisual)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
@@ -30,6 +33,7 @@ local STRIKE_SCALE = 1.35
 local STRIKE_TWEEN = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true)
 -- A frame longer than this (a hitch) moves the guardians as if it were this long.
 local MAX_FRAME_SECONDS = 0.1
+local MODELS = GuardianLooks.MODELS
 
 export type Dependencies = {
 	-- The player's speed stat: the names are coloured by it.
@@ -42,6 +46,17 @@ export type GuardianViewController = {
 }
 
 type View = {
+	instance: Model,
+	body: BasePart,
+	post: GuardianConfig.Post,
+	-- Keeps its rhythm its own each time it puts its model on.
+	seed: number,
+	-- How near the camera it wears its model (GuardianPose.wearReach), and how far it was at the
+	-- last check.
+	reach: number,
+	distance: number,
+	-- False once the place turned out to have no model for its post: the greybox for good.
+	hasModel: boolean,
 	unmount: () -> (),
 	connections: { RBXScriptConnection },
 	visual: GuardianVisual.Visual?,
@@ -86,11 +101,18 @@ local function showState(model: Model, visual: GuardianVisual.Visual?)
 	end
 end
 
--- The greybox part hidden on this client under the model (the server's body still moves and
--- catches; its sign hangs on it).
-local function hide(part: Instance)
+-- Shows or hides a greybox part on this client only (under the model; the server's body still
+-- moves and catches, and its sign hangs on it). LocalTransparencyModifier leaves the part's own
+-- Transparency alone, so showing it again needs nothing remembered.
+local function showPart(part: Instance, shown: boolean)
 	if part:IsA("BasePart") then
-		part.Transparency = 1
+		part.LocalTransparencyModifier = if shown then 0 else 1
+	end
+end
+
+local function showGreybox(instance: Instance, shown: boolean)
+	for _, child in instance:GetChildren() do
+		showPart(child, shown)
 	end
 end
 
@@ -112,23 +134,50 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 	local visuals: { [Instance]: GuardianVisual.Visual } = {}
 	-- Body watchers of every tagged guardian, present body or not.
 	local tracked: { [Instance]: { RBXScriptConnection } } = {}
+	-- Guardians to put their model on, nearest first (from the last check), one a frame.
+	local pending: { View } = {}
+	local nextPending = 1
+	local checkAt = 0
+
+	local function wear(view: View)
+		local visual = GuardianVisual.attach(view.body, view.post, lookFolder(), view.seed)
+		if not visual then
+			view.hasModel = false
+			return
+		end
+		view.visual = visual
+		visuals[view.instance] = visual
+		showGreybox(view.instance, false)
+		showState(view.instance, visual)
+	end
+
+	local function unwear(view: View)
+		local visual = view.visual
+		if not visual then
+			return
+		end
+		view.visual = nil
+		visuals[view.instance] = nil
+		GuardianVisual.detach(visual)
+		showGreybox(view.instance, true)
+		-- Its eyes were not painted while it wore the model.
+		showState(view.instance, nil)
+	end
 
 	local function forget(instance: Instance)
 		local view = views[instance]
 		if view then
 			views[instance] = nil
-			visuals[instance] = nil
 			for _, connection in view.connections do
 				connection:Disconnect()
 			end
 			view.unmount()
-			if view.visual then
-				GuardianVisual.detach(view.visual)
-			end
+			-- Parts that stay (an eye streaming out after the body) are shown again.
+			unwear(view)
 		end
 	end
 
-	-- Builds the sign and the look for a guardian whose body is present.
+	-- Builds the sign for a guardian whose body is present; its model comes when it is near (check).
 	local function show(instance: Instance, body: Instance, locale: Text.Locale)
 		if views[instance] then
 			return
@@ -164,42 +213,46 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 				debugText = debugTextOf(post, recommended),
 			})
 		end, instance)
-		-- Each guardian keeps a rhythm of its own, the same every time it streams in.
-		local seed = math.floor(body.Position.X * 7 + body.Position.Z * 13)
-		local visual = GuardianVisual.attach(body, post, lookFolder(), seed)
-		local connections = {
-			instance:GetAttributeChangedSignal(GuardianConfig.STATE_ATTRIBUTE):Connect(function()
-				showState(instance, visual)
-			end),
+		-- The model is fitted to the kind's box times the post's scale (GuardianVisual.attach).
+		local box = GuardianLooks.KINDS[post.kind].bodySize
+		local length = math.max(box.X, box.Z) * GuardianLooks.POSTS[post.id].scale
+		local view: View = {
+			instance = instance,
+			body = body,
+			post = post,
+			-- Each guardian keeps a rhythm of its own, the same every time it streams in.
+			seed = math.floor(body.Position.X * 7 + body.Position.Z * 13),
+			reach = GuardianPose.wearReach(length, MODELS.ATTACH_DISTANCE, MODELS.ATTACH_LENGTHS),
+			distance = math.huge,
+			hasModel = true,
+			unmount = unmount,
+			connections = {},
+			visual = nil,
 		}
 		local restSize = body.Size
-		if visual then
-			visuals[instance] = visual
-			for _, child in instance:GetChildren() do
-				hide(child)
-			end
-			-- The greybox's eyes may stream in after its body.
-			table.insert(connections, instance.ChildAdded:Connect(hide))
-			table.insert(
-				connections,
-				instance:GetAttributeChangedSignal(GuardianConfig.LAST_CATCH_ATTRIBUTE):Connect(function()
+		view.connections = {
+			instance:GetAttributeChangedSignal(GuardianConfig.STATE_ATTRIBUTE):Connect(function()
+				showState(instance, view.visual)
+			end),
+			instance:GetAttributeChangedSignal(GuardianConfig.LAST_CATCH_ATTRIBUTE):Connect(function()
+				local visual = view.visual
+				if visual then
 					GuardianVisual.strike(visual, os.clock())
-				end)
-			)
-		else
-			table.insert(
-				connections,
-				instance:GetAttributeChangedSignal(GuardianConfig.LAST_CATCH_ATTRIBUTE):Connect(function()
+				else
 					TweenService:Create(body, STRIKE_TWEEN, { Size = restSize * STRIKE_SCALE }):Play()
-				end)
-			)
-		end
-		showState(instance, visual)
-		views[instance] = {
-			unmount = unmount,
-			visual = visual,
-			connections = connections,
+				end
+			end),
+			-- The greybox's eyes may stream in after its body.
+			instance.ChildAdded:Connect(function(child)
+				if view.visual then
+					showPart(child, false)
+				end
+			end),
 		}
+		showState(instance, nil)
+		views[instance] = view
+		-- Checked at once: a guardian put next to the player (the bench) dresses without waiting.
+		checkAt = 0
 	end
 
 	-- Far guardians stream in as a model whose parts follow by distance, and stream out part by
@@ -238,14 +291,57 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		forget(instance)
 	end
 
+	-- Which guardians wear their model, by their distance from the camera at `eye`: those gone far
+	-- take it off at once (cheap), those come near queue to put it on.
+	local function check(eye: Vector3)
+		table.clear(pending)
+		nextPending = 1
+		for _, view in views do
+			view.distance = (view.body.Position - eye).Magnitude
+			local wearing = view.visual ~= nil
+			local wanted = view.hasModel
+				and GuardianPose.wears(wearing, view.distance, view.reach, MODELS.ATTACH_MARGIN)
+			if wearing and not wanted then
+				unwear(view)
+			elseif wanted and not wearing then
+				table.insert(pending, view)
+			end
+		end
+		table.sort(pending, function(a: View, b: View): boolean
+			return a.distance < b.distance
+		end)
+	end
+
+	-- Puts the model on the nearest guardian still waiting for it: one a frame, a copy is ~25
+	-- MeshParts.
+	local function wearNext()
+		while nextPending <= #pending do
+			local view = pending[nextPending]
+			nextPending += 1
+			if views[view.instance] == view and not view.visual and view.hasModel then
+				wear(view)
+				return
+			end
+		end
+	end
+
 	local last = os.clock()
 	local function step()
 		local now = os.clock()
 		local dt = math.min(now - last, MAX_FRAME_SECONDS)
 		last = now
 		local camera = workspace.CurrentCamera
-		if camera and next(visuals) then
-			GuardianVisual.step(visuals, now, dt, camera.CFrame.Position)
+		if not camera then
+			return
+		end
+		local eye = camera.CFrame.Position
+		if now >= checkAt then
+			checkAt = now + MODELS.ATTACH_CHECK_SECONDS
+			check(eye)
+		end
+		wearNext()
+		if next(visuals) then
+			GuardianVisual.step(visuals, now, dt, eye)
 		end
 	end
 

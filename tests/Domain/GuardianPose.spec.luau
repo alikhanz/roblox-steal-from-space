@@ -80,4 +80,22 @@ describe("GuardianPose", function()
 		-- Vector3 holds 32-bit floats.
 		expect(run(60)).toBeCloseTo(run(15), 1e-6)
 	end)
+
+	it("wears the model from the least distance, a big guardian from farther", function()
+		-- A slime 6 studs long: the least distance, past its half length.
+		expect(GuardianPose.wearReach(6, 700, 60)).toBe(703)
+		-- A whale 24 studs long: 60 of its lengths, so it is no bigger than 1/60 rad there.
+		local whale = GuardianPose.wearReach(24, 700, 60)
+		expect(whale).toBe(1452)
+		expect(24 / (whale - 12)).toBeCloseTo(1 / 60, 1e-12)
+	end)
+
+	it("puts the model on within reach and takes it off only past the margin", function()
+		expect(GuardianPose.wears(false, 700, 700, 100)).toBe(true)
+		expect(GuardianPose.wears(false, 701, 700, 100)).toBe(false)
+		-- Worn: kept through the margin, so a camera on the line does not swap it back and forth.
+		expect(GuardianPose.wears(true, 750, 700, 100)).toBe(true)
+		expect(GuardianPose.wears(true, 800, 700, 100)).toBe(true)
+		expect(GuardianPose.wears(true, 801, 700, 100)).toBe(false)
+	end)
 end)
