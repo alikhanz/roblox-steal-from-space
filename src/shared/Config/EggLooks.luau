@@ -18,13 +18,14 @@ export type RarityLook = {
 	-- A light round the egg: 0 for none. Lights are dear on phones and the Neon already shows the
 	-- rarity: only the rarest eggs carry a faint one, so they are spotted from afar.
 	read glow: number,
-	-- A nest's beacon (EggBeaconController): a column of light over the egg, taller the rarer it
-	-- is, seen only nearby (BEACON.range). None for a common egg: no beacon reads as common.
+	-- A nest's beacon (EggBeaconController): a column of light through the egg, longer the rarer
+	-- it is, seen only nearby (BEACON.range). None for a common egg: no beacon reads as common.
 	read beacon: BeaconLook?,
 }
 
 export type BeaconLook = {
-	-- The column: studs tall, studs wide (plus a few pixels: BEACON.glowMinPixels).
+	-- The column: studs it runs above the egg (as many below), studs wide (plus a few pixels:
+	-- BEACON.glowMinPixels).
 	read height: number,
 	read width: number,
 }
@@ -90,14 +91,12 @@ return table.freeze({
 	GOLD = Color3.fromRGB(255, 190, 45),
 	-- Nest beacons (EggBeaconController).
 	BEACON = table.freeze({
-		-- Where the column starts over the egg's centre, studs.
-		foot = 1.4,
 		-- How far off a column shows, studs: only the eggs around you, not the whole map (user,
 		-- 2026-11-10: a map-wide radar is "слишком имба", an idea to sell later, docs/IDEAS.md).
 		range = 500,
 		-- The column: a coloured glow round a core whitened by this much, each at least this many
 		-- pixels wide on top of its width in studs (a Beam thinned to nothing at a distance);
-		-- their transparency at the foot (both fade out to the top). Dense: a see-through column
+		-- their transparency at the egg (both fade out to the ends). Dense: a see-through column
 		-- got lost against the bright nebulae (Studio, 2026-11-10).
 		glowMinPixels = 6,
 		coreMinPixels = 2,

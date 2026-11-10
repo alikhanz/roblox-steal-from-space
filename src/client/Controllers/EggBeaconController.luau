@@ -1,8 +1,9 @@
 --!strict
 -- Shows what eggs are around you (user, 2026-11-10: eggs were hard to tell apart in flight):
--- over every nest nearby holding an egg of uncommon rarity or rarer stands a column of light in
--- the rarity's colour, a coloured glow round a bright core, fading upwards, taller the rarer the
--- egg. Only within EggLooks.BEACON.range: the eggs around you, not the whole map (a map-wide
+-- through every nest nearby holding an egg of uncommon rarity or rarer runs a column of light in
+-- the rarity's colour, a coloured glow round a bright core, brightest at the egg and fading out
+-- above and below it (seen from over the nest and from under it), longer the rarer the egg.
+-- Only within EggLooks.BEACON.range: the eggs around you, not the whole map (a map-wide
 -- radar is an idea for later, docs/IDEAS.md). A common egg gets none: no column reads as common.
 -- Looks in EggLooks.RARITIES[…].beacon and EggLooks.BEACON.
 --
@@ -31,12 +32,12 @@ type Beacon = {
 
 local EggBeaconController = {}
 
--- A vertical bar fading out to the top, rounded.
+-- A vertical bar, brightest in the middle and fading out to both ends, rounded.
 local function bar(name: string, parent: Instance): Frame
 	local frame = Instance.new("Frame")
 	frame.Name = name
-	frame.AnchorPoint = Vector2.new(0.5, 1)
-	frame.Position = UDim2.fromScale(0.5, 1)
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Position = UDim2.fromScale(0.5, 0.5)
 	frame.BorderSizePixel = 0
 	local round = Instance.new("UICorner")
 	round.CornerRadius = UDim.new(0.5, 0)
@@ -50,12 +51,16 @@ local function bar(name: string, parent: Instance): Frame
 	return frame
 end
 
-local function fade(frame: Frame, foot: number)
+-- `middle`: the transparency at the egg; both ends fade out.
+local function fade(frame: Frame, middle: number)
 	local gradient = frame:FindFirstChild("Fade") :: UIGradient
+	local half = middle + (1 - middle) * 0.5
 	gradient.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.6, foot + (1 - foot) * 0.5),
-		NumberSequenceKeypoint.new(1, foot),
+		NumberSequenceKeypoint.new(0.2, half),
+		NumberSequenceKeypoint.new(0.5, middle),
+		NumberSequenceKeypoint.new(0.8, half),
+		NumberSequenceKeypoint.new(1, 1),
 	})
 end
 
@@ -76,8 +81,9 @@ function EggBeaconController.new(): EggBeaconController
 		end
 		local looks = EggLooks.BEACON
 		local color: Color3 = look.color
-		beacon.foot.WorldPosition = (position :: Vector3) + Vector3.yAxis * looks.foot
-		beacon.column.Size = UDim2.new(spec.width, looks.glowMinPixels, spec.height, 0)
+		-- Centred on the egg, running as far below it as above.
+		beacon.foot.WorldPosition = position :: Vector3
+		beacon.column.Size = UDim2.new(spec.width, looks.glowMinPixels, spec.height * 2, 0)
 		beacon.glow.Size = UDim2.fromScale(1, 1)
 		beacon.glow.BackgroundColor3 = color
 		fade(beacon.glow, looks.glowTransparency)
@@ -96,8 +102,6 @@ function EggBeaconController.new(): EggBeaconController
 		column.Name = "Column"
 		column.LightInfluence = 0
 		column.MaxDistance = EggLooks.BEACON.range
-		-- The column stands on its foot: its box is shifted up by half its height.
-		column.SizeOffset = Vector2.new(0, 0.5)
 		column.Adornee = foot
 		column.Parent = foot
 		local glow = bar("Glow", column)
