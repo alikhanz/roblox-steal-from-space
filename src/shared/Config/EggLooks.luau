@@ -94,7 +94,7 @@ return table.freeze({
 		foot = 1.4,
 		-- How far off a column shows, studs: only the eggs around you, not the whole map (user,
 		-- 2026-11-10: a map-wide radar is "слишком имба", an idea to sell later, docs/IDEAS.md).
-		range = 300,
+		range = 500,
 		-- The column: a coloured glow round a core whitened by this much, each at least this many
 		-- pixels wide on top of its width in studs (a Beam thinned to nothing at a distance);
 		-- their transparency at the foot (both fade out to the top). Dense: a see-through column
