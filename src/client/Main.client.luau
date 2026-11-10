@@ -43,6 +43,7 @@ local ToastState = require(script.Parent.State.ToastState)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
 local TutorialController = require(script.Parent.Controllers.TutorialController)
 local WindowState = require(script.Parent.State.WindowState)
+local ZoneTintController = require(script.Parent.Controllers.ZoneTintController)
 
 local profileState = ProfileState.new()
 local toastState = ToastState.new()
@@ -132,6 +133,7 @@ Lifecycle.run({
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
 	tutorialController,
 	StationBorderController.new(),
+	ZoneTintController.new(),
 	eventController,
 	SerpentController.new({ events = eventController }),
 	EggEffectsController.new(),

@@ -34,6 +34,13 @@ function ZoneBlend.at(distance: number): Blend
 	return { inner = last, outer = last, t = 0 }
 end
 
+-- How much of the zones' looks there is at `distance`, 0..1: none at the station's border (the
+-- station keeps its own), growing evenly to full at the first zone's ring.
+function ZoneBlend.presence(distance: number, borderRadius: number): number
+	local first = ZoneConfig.ZONES[ZoneConfig.ZONE_ORDER[1]].ringMin
+	return math.clamp((distance - borderRadius) / (first - borderRadius), 0, 1)
+end
+
 -- The zone whose looks a thing at `distance` takes: across a gap, the outer one with a chance
 -- of how far in it is. `roll` is 0..1.
 function ZoneBlend.pick(distance: number, roll: number): ZoneConfig.ZoneId

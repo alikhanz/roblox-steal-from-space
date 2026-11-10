@@ -147,8 +147,33 @@ local FIELD: { [ZoneConfig.ZoneId]: { FieldKind } } = {
 	},
 }
 
+-- The zone's tint on screen (a ColorCorrectionEffect, ZoneTintController): soft, so eggs, guardians
+-- and hints read as before. The station has none.
+export type Tint = {
+	read color: Color3,
+	read saturation: number,
+	read contrast: number,
+	read brightness: number,
+}
+
+local TINTS: { [ZoneConfig.ZoneId]: Tint } = {
+	-- Dusty and a touch warm.
+	DebrisBelt = { color = rgb(255, 247, 238), saturation = 0, contrast = 0.02, brightness = 0 },
+	-- Cold and clear.
+	IceRings = { color = rgb(228, 241, 255), saturation = -0.04, contrast = 0.04, brightness = 0.01 },
+	-- Warm and rich.
+	RedNebula = { color = rgb(255, 228, 222), saturation = 0.1, contrast = 0.03, brightness = 0 },
+	-- Violet and a little darker.
+	EventHorizon = { color = rgb(236, 226, 255), saturation = 0.06, contrast = 0.06, brightness = -0.03 },
+}
+
 return table.freeze({
 	ZONES = table.freeze(ZONES),
+
+	TINTS = table.freeze(TINTS),
+	-- The tint follows the camera this fast (share of the way per second, exponential), so a
+	-- respawn on the island fades back instead of snapping.
+	TINT_RESPONSE = 1.5,
 
 	-- A nest (docs/plans/ZONES.md): a rock with a flat top, a short pillar on it and a wide landing
 	-- pad, wide enough to land on for a theft (user, 2026-11-08). The pad's rim and the cradle the

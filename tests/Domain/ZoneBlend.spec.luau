@@ -34,6 +34,15 @@ describe("ZoneBlend", function()
 		expect(ZoneBlend.at(ICE.ringMin).inner).toBe("IceRings")
 	end)
 
+	it("fades the zones' looks in from the station's border to the first ring", function()
+		local border = 300
+		expect(ZoneBlend.presence(100, border)).toBe(0)
+		expect(ZoneBlend.presence(border, border)).toBe(0)
+		expect(math.abs(ZoneBlend.presence((border + DEBRIS.ringMin) / 2, border) - 0.5) < 1e-9).toBe(true)
+		expect(ZoneBlend.presence(DEBRIS.ringMin, border)).toBe(1)
+		expect(ZoneBlend.presence(HORIZON.ringMax, border)).toBe(1)
+	end)
+
 	it("picks the outer zone as often as it is far into the gap", function()
 		local quarter = DEBRIS.ringMax + (ICE.ringMin - DEBRIS.ringMax) / 4
 		expect(ZoneBlend.pick(quarter, 0.2)).toBe("IceRings")
