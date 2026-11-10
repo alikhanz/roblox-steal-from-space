@@ -10,14 +10,14 @@ local Zones = require("../Domain/Zones")
 -- Top surface of the central platform, the station's reference point.
 local PLATFORM_CENTER = Vector3.zero
 local PLATFORM_RADIUS = StationSize.PLATFORM_RADIUS
-local PLATFORM_THICKNESS = 4
-local RIM_WIDTH = 2
+local PLATFORM_THICKNESS = StationSize.PLATFORM_THICKNESS
+local RIM_WIDTH = StationSize.RIM_WIDTH
 local DOME_RADIUS = StationSize.DOME_RADIUS
 
 -- A station zone on the platform whose top surface is centred at `center`: the dome raised so
 -- its sphere meets the platform exactly at the rim.
 local function stationAt(center: Vector3, platformRadius: number, domeRadius: number): Zones.Station
-	local rise = math.sqrt(domeRadius ^ 2 - (platformRadius + RIM_WIDTH) ^ 2)
+	local rise = StationSize.domeRise(platformRadius, domeRadius)
 	return table.freeze({
 		domeCenter = center + Vector3.yAxis * rise,
 		domeRadius = domeRadius,

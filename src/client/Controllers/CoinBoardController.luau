@@ -1,7 +1,8 @@
 --!strict
--- Draws the coin board at the station in this client's language. The server publishes the rows
--- as a JSON attribute on the board model (LeaderboardService); this controller decodes them,
--- formats the coins and marks the player's own row.
+-- Draws the coin board at the station in this client's language, and its top on the ring's
+-- screens over the station, one facing each island (decision 087). The server publishes the rows
+-- as JSON in a value on the board model (LeaderboardService); this controller decodes them, formats
+-- the coins and marks the player's own row.
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -11,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CoinBoard = require(script.Parent.Parent.UI.CoinBoard)
 local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
+local LeaderboardLooks = require(ReplicatedStorage.Shared.Config.LeaderboardLooks)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
@@ -53,6 +55,8 @@ end
 
 function CoinBoardController.new(): CoinBoardController
 	local locale: Text.Locale = "en"
+	-- The board's rows, shared by the board and the ring's screens.
+	local rows = source({} :: { CoinBoard.Row })
 
 	local function text(key: Text.Key): string
 		return Text.get(locale, key)
@@ -72,7 +76,7 @@ function CoinBoardController.new(): CoinBoardController
 				warn(`[CoinBoardController] {instance:GetFullName()} is not a complete board; no board`)
 				return
 			end
-			local rows = source(decodeRows(value.Value))
+			rows(decodeRows(value.Value))
 			local changed = value.Changed:Connect(function(json: string)
 				rows(decodeRows(json))
 			end)
@@ -94,12 +98,36 @@ function CoinBoardController.new(): CoinBoardController
 		end)
 	end
 
+	-- A ring screen: the top of the board, big, for the island it faces.
+	local function watchScreen(instance: Instance)
+		if not instance:IsA("BasePart") then
+			warn(`[CoinBoardController] {instance:GetFullName()} is not a part; no screen`)
+			return
+		end
+		local unmount = Vide.mount(function()
+			return CoinBoard({
+				adornee = instance,
+				title = text("leaderboard.board.title"),
+				empty = text("leaderboard.empty.hint"),
+				rows = rows,
+				rowCount = LeaderboardConfig.SCREEN_ROWS,
+				pixelsPerStud = LeaderboardLooks.SCREEN_PIXELS_PER_STUD,
+				maxDistance = LeaderboardLooks.SCREEN_MAX_DISTANCE,
+			})
+		end, instance)
+		instance.Destroying:Once(unmount)
+	end
+
 	local function start()
 		locale = Text.localeOf(Players.LocalPlayer)
 		for _, instance in CollectionService:GetTagged(LeaderboardConfig.TAG) do
 			watchBoard(instance)
 		end
 		CollectionService:GetInstanceAddedSignal(LeaderboardConfig.TAG):Connect(watchBoard)
+		for _, instance in CollectionService:GetTagged(LeaderboardConfig.SCREEN_TAG) do
+			watchScreen(instance)
+		end
+		CollectionService:GetInstanceAddedSignal(LeaderboardConfig.SCREEN_TAG):Connect(watchScreen)
 	end
 
 	return {

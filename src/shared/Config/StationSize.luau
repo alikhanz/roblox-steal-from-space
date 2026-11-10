@@ -15,6 +15,13 @@ local PLATFORM_RADIUS = 60
 -- A dome over its platform, this many times the platform.
 local DOME_SHARE = 1.5
 local DOME_RADIUS = PLATFORM_RADIUS * DOME_SHARE
+-- The platform: its slab, and the glowing rim round its edge.
+local PLATFORM_THICKNESS = 4
+local RIM_WIDTH = 2
+-- How far a dome's centre stands above its platform: its sphere meets the platform at the rim.
+local function domeRise(platformRadius: number, domeRadius: number): number
+	return math.sqrt(domeRadius ^ 2 - (platformRadius + RIM_WIDTH) ^ 2)
+end
 -- An island's platform: a player's bay, with room for 30 aliens up to eight players tall
 -- (docs/design/screens/island.md).
 local ISLAND_RADIUS = 95
@@ -35,6 +42,11 @@ local BORDER_RADIUS = ISLAND_RING_RADIUS + ISLAND_DOME_RADIUS + BORDER_MARGIN
 return table.freeze({
 	PLATFORM_RADIUS = PLATFORM_RADIUS,
 	DOME_RADIUS = DOME_RADIUS,
+	PLATFORM_THICKNESS = PLATFORM_THICKNESS,
+	RIM_WIDTH = RIM_WIDTH,
+	-- The central dome's centre above the platform.
+	DOME_RISE = domeRise(PLATFORM_RADIUS, DOME_RADIUS),
+	domeRise = domeRise,
 	ISLAND_RADIUS = ISLAND_RADIUS,
 	ISLAND_DOME_RADIUS = ISLAND_DOME_RADIUS,
 	ISLAND_COUNT = ISLAND_COUNT,

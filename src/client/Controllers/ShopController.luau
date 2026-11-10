@@ -1,7 +1,7 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The jetpack shop on the client (docs/design/screens/jetpack-shop.md): the sign and prompt
--- texts on the kiosk, and the shop window that the prompt opens. The window's data comes from
+-- The jetpack shop on the client (docs/design/screens/jetpack-shop.md): the prompt's texts on
+-- the kiosk, and the shop window that the prompt opens. The window's data comes from
 -- the profile copy (level, coins) and the speed stat; buying is a request to the server, which
 -- answers with UpgradesChanged or a notice (toasted by the bay window controller). The window
 -- closes when the player walks away from the kiosk.
@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
+local KioskPrompt = require(ReplicatedStorage.Shared.World.KioskPrompt)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
@@ -25,15 +26,10 @@ local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
-local WorldLabel = require(script.Parent.Parent.UI.WorldLabel)
 
 local create = Vide.create
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
-local PART_WAIT_TIMEOUT = 10
--- From the panel's center to just over its top edge.
-local SIGN_STUDS_ABOVE = 4.5
-local SIGN_MAX_DISTANCE = 120
 -- The window closes this far past the prompt's reach, so a step back does not close it.
 local CLOSE_DISTANCE_SLACK = 4
 -- Multipliers below this are written out in full.
@@ -59,8 +55,8 @@ function ShopController.new(dependencies: Dependencies): ShopController
 	local speed = dependencies.speed
 	local isOpen = dependencies.windows.slot("Shop")
 	local locale: Text.Locale = "en"
-	-- The counter whose prompt opened the window: walking away from it closes the window.
-	local openedAt: BasePart? = nil
+	-- The prompt that opened the window: walking away from it closes the window.
+	local openedAt: ProximityPrompt? = nil
 	-- A buy was asked for: the next level-up gets a toast (not the first snapshot on joining).
 	local buyAsked = false
 
@@ -226,44 +222,32 @@ function ShopController.new(dependencies: Dependencies): ShopController
 		end, playerGui)
 	end
 
-	-- The kiosk's sign and the prompt's texts, in this client's language.
+	-- The prompt's texts, in this client's language (the kiosk's name plate is KioskController's).
 	local function watchShop(instance: Instance)
 		task.spawn(function()
-			local panel = instance:WaitForChild(ShopConfig.SIGN_NAME, PART_WAIT_TIMEOUT)
-			local counter = instance:WaitForChild(ShopConfig.COUNTER_NAME, PART_WAIT_TIMEOUT)
-			if not panel or not panel:IsA("BasePart") or not counter or not instance:IsDescendantOf(workspace) then
-				warn(`[ShopController] {instance:GetFullName()} is not a complete shop; no sign`)
+			local prompt = KioskPrompt.find(instance)
+			if not prompt then
+				warn(`[ShopController] {instance:GetFullName()} has no prompt on its counter`)
 				return
 			end
-			local prompt = counter:WaitForChild("ProximityPrompt", PART_WAIT_TIMEOUT)
-			if prompt and prompt:IsA("ProximityPrompt") then
-				prompt.ObjectText = text("shop.sign.title")
-				prompt.ActionText = text("shop.open.button")
-			end
-			Vide.mount(function()
-				return WorldLabel({
-					adornee = panel,
-					title = text("shop.sign.title"),
-					value = text("shop.window.hint"),
-					studsAbove = SIGN_STUDS_ABOVE,
-					maxDistance = SIGN_MAX_DISTANCE,
-				})
-			end, instance)
+			prompt.ObjectText = text("shop.sign.title")
+			prompt.ActionText = text("shop.open.button")
 		end)
 	end
 
 	-- Closes the window once the player is out of the opening prompt's reach.
 	local function closeWhenAway()
-		local counter = openedAt
-		if not counter or not isOpen() then
+		local prompt = openedAt
+		local at = prompt and prompt:IsDescendantOf(workspace) and KioskPrompt.position(prompt)
+		if not at or not isOpen() then
 			return
 		end
 		local character = Players.LocalPlayer.Character
 		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
-		if not root or not root:IsA("BasePart") or not counter:IsDescendantOf(workspace) then
+		if not root or not root:IsA("BasePart") then
 			return
 		end
-		if (root.Position - counter.Position).Magnitude > ShopConfig.PROMPT_DISTANCE + CLOSE_DISTANCE_SLACK then
+		if (root.Position - at).Magnitude > ShopConfig.PROMPT_DISTANCE + CLOSE_DISTANCE_SLACK then
 			close()
 		end
 	end
@@ -282,8 +266,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 		ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
 			local model = prompt:FindFirstAncestorOfClass("Model")
 			if player == Players.LocalPlayer and model and CollectionService:HasTag(model, ShopConfig.TAG) then
-				local parent = prompt.Parent
-				openedAt = if parent and parent:IsA("BasePart") then parent else nil
+				openedAt = prompt
 				isOpen(true)
 			end
 		end)

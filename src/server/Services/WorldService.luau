@@ -10,14 +10,16 @@ local BorderLooks = require(ReplicatedStorage.Shared.Config.BorderLooks)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
+local KioskModel = require(script.Parent.Parent.World.KioskModel)
 local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local LeaderboardModel = require(script.Parent.Parent.World.LeaderboardModel)
 local MeteorLooks = require(ReplicatedStorage.Shared.Config.MeteorLooks)
 local NestLayout = require(ReplicatedStorage.Shared.Domain.NestLayout)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
-local ShopModel = require(script.Parent.Parent.World.ShopModel)
 local SkyLooks = require(ReplicatedStorage.Shared.Config.SkyLooks)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+local StationLooks = require(ReplicatedStorage.Shared.Config.StationLooks)
+local StationModel = require(script.Parent.Parent.World.StationModel)
 local WorldConfig = require(ReplicatedStorage.Shared.Config.WorldConfig)
 local ZoneBlend = require(ReplicatedStorage.Shared.Domain.ZoneBlend)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
@@ -203,10 +205,21 @@ local function spawnAt(name: string, position: Vector3, parent: Instance): Spawn
 end
 
 local function buildStation(parent: Instance): SpawnLocation
-	buildDomedPlatform(parent, StationConfig.STATION)
+	StationModel.build(parent)
 	local spawn = spawnAt("StationSpawn", StationConfig.PLATFORM_CENTER + StationConfig.SPAWN_OFFSET, parent)
 	buildBorder(parent)
 	return spawn
+end
+
+-- The station's kiosks in their circle (decision 087); the jetpacks' one is the jetpack shop.
+local function buildKiosks(parent: Instance)
+	for _, kiosk in StationLooks.KIOSKS do
+		local model = KioskModel.build(kiosk, KioskModel.frameAt(StationConfig.PLATFORM_CENTER, kiosk.slot))
+		if kiosk.id == "Jetpacks" then
+			CollectionService:AddTag(model, ShopConfig.TAG)
+		end
+		model.Parent = parent
+	end
 end
 
 -- The islands around the station, one per player's bay (decision 068), each with the spawn of
@@ -703,9 +716,7 @@ function WorldService.new(): WorldService
 		world.Name = WORLD_FOLDER_NAME
 		spawn = buildStation(world)
 		islandSpawns = buildIslands(world)
-		local shop = ShopModel.build()
-		CollectionService:AddTag(shop, ShopConfig.TAG)
-		shop.Parent = world
+		buildKiosks(world)
 		local board = LeaderboardModel.build()
 		CollectionService:AddTag(board, LeaderboardConfig.TAG)
 		board.Parent = world

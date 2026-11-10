@@ -957,6 +957,27 @@ local Strings = {
 		ru = "Пока пусто. Заработай монеты и попади сюда",
 		en = "Nobody here yet. Earn coins to make the board",
 	},
+	-- The station's kiosks (decision 087): the name on each one's plate and its prompt.
+	["kiosk.jetpacks.title"] = {
+		ru = "Джетпаки",
+		en = "Jetpacks",
+	},
+	["kiosk.store.title"] = {
+		ru = "Магазин",
+		en = "Shop",
+	},
+	["kiosk.quests.title"] = {
+		ru = "Задания",
+		en = "Quests",
+	},
+	["kiosk.gift.title"] = {
+		ru = "Подарок",
+		en = "Gift",
+	},
+	["kiosk.open.button"] = {
+		ru = "Открыть",
+		en = "Open",
+	},
 	["shop.sign.title"] = {
 		ru = "Магазин джетпаков",
 		en = "Jetpack shop",

@@ -24,6 +24,7 @@ local HomeBeaconController = require(script.Parent.Controllers.HomeBeaconControl
 local HudController = require(script.Parent.Controllers.HudController)
 local IndexController = require(script.Parent.Controllers.IndexController)
 local JetpackEffectsController = require(script.Parent.Controllers.JetpackEffectsController)
+local KioskController = require(script.Parent.Controllers.KioskController)
 local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
 local MenuState = require(script.Parent.State.MenuState)
@@ -129,6 +130,7 @@ Lifecycle.run({
 		menu = menuState,
 	}),
 	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
+	KioskController.new({ menu = menuState, windows = windowState }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	NewbieViewController.new(),
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),

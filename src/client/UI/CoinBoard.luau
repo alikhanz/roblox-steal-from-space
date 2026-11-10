@@ -34,11 +34,15 @@ export type Row = {
 export type Props = {
 	adornee: BasePart,
 	title: string,
-	allTime: string,
+	-- What the board counts, under the title; nil leaves it out (the ring's screens: no room).
+	allTime: string?,
 	empty: string,
 	-- Best first; at most `rowCount` are shown.
 	rows: () -> { Row },
 	rowCount: number,
+	-- The drawing's scale and how far it shows; the board's own (LeaderboardLooks) by default.
+	pixelsPerStud: number?,
+	maxDistance: number?,
 }
 
 local function placeColor(row: Row): Color3
@@ -161,9 +165,9 @@ local function CoinBoard(props: Props): SurfaceGui
 		Adornee = props.adornee,
 		Face = Enum.NormalId.Front,
 		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-		PixelsPerStud = LeaderboardLooks.PIXELS_PER_STUD,
+		PixelsPerStud = props.pixelsPerStud or LeaderboardLooks.PIXELS_PER_STUD,
 		LightInfluence = 0,
-		MaxDistance = LeaderboardLooks.MAX_DISTANCE,
+		MaxDistance = props.maxDistance or LeaderboardLooks.MAX_DISTANCE,
 
 		create("Frame")({
 			Name = "Content",
@@ -190,9 +194,12 @@ local function CoinBoard(props: Props): SurfaceGui
 				name = "AllTime",
 				order = 2,
 				size = UDim2.new(1, 0, 0, HINT_TEXT_SIZE + GAP),
-				text = props.allTime,
+				text = props.allTime or "",
 				textSize = HINT_TEXT_SIZE,
 				color = Theme.MUTED,
+				visible = function()
+					return props.allTime ~= nil
+				end,
 			}),
 			label({
 				name = "Empty",
