@@ -58,6 +58,10 @@ return table.freeze({
 		glowHeight = 0.3 * SCALE,
 		counterCenter = Vector3.new(0, 2.0, -3.4) * SCALE,
 		counterSize = Vector3.new(6.6, 2.6, 2.0) * SCALE,
+		-- The prompt's point: at the counter's front edge, this high over its top, at the height of
+		-- a player's head against the dark opening (at the counter's foot it read badly on the pearl
+		-- and sat too low; the user's pick, 2026-11-10).
+		promptAboveCounter = 1.3 * SCALE,
 		-- The hologram plate in the opening.
 		holoCenter = Vector3.new(0, 6.6, -1.9) * SCALE,
 		holoSize = Vector3.new(4.0, 3.6, 0.2) * SCALE,

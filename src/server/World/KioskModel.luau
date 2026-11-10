@@ -103,12 +103,17 @@ function KioskModel.build(kiosk: StationLooks.Kiosk, frame: CFrame): Model
 		or disc("Glow", frame, KIOSK.glowRadius, KIOSK.glowHeight, kiosk.color, Enum.Material.Neon)
 	settle(glow, false, false, model)
 
-	-- The prompt, on a point at the counter's front. Its texts are set by each client in its own
-	-- language, and the client draws it in the same style as the egg prompt (PromptViewController).
+	-- The prompt, on a point over the counter's front edge. Its texts are set by each client in its
+	-- own language, and the client draws it in the same style as the egg prompt
+	-- (PromptViewController).
 	local point = Instance.new("Attachment")
 	point.Name = ShopConfig.PROMPT_POINT_NAME
 	point.Parent = holder
-	point.WorldCFrame = frame * CFrame.new(KIOSK.counterCenter - Vector3.new(0, 0, KIOSK.counterSize.Z / 2))
+	point.WorldCFrame = frame
+		* CFrame.new(
+			KIOSK.counterCenter
+				+ Vector3.new(0, KIOSK.counterSize.Y / 2 + KIOSK.promptAboveCounter, -KIOSK.counterSize.Z / 2)
+		)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Style = Enum.ProximityPromptStyle.Custom
 	prompt.MaxActivationDistance = StationLooks.KIOSK_PROMPT_DISTANCE
