@@ -1,22 +1,101 @@
 --!strict
--- How each jetpack looks: tank colors and the flame. Every jetpack burns a different color and
--- brighter than the last, so a better jetpack is visible from across the station; its marks
+-- How each jetpack looks (decision 086): its body is a model of its own (assets/blender/jetpacks,
+-- ServerStorage.Jetpacks in the place; the colours are baked in its meshes), its flame a jet of
+-- beams from each nozzle. The flame changes in four steps of three jetpacks — fire, plasma, shock
+-- diamonds, exotic — and grows longer and brighter with every jetpack, in its own colour, so a
+-- better jetpack is visible from across the station. Both marks of a jetpack
 -- (Upgrades.jetpackModel) look alike. The names live in UpgradeConfig.JETPACK_NAME_KEYS.
 
 local UpgradeConfig = require("./UpgradeConfig")
 local Upgrades = require("../Domain/Upgrades")
 
 export type Looks = {
+	-- The greybox's colours, for a place without the models (JetpackModel).
 	read bodyColor: Color3,
 	read accentColor: Color3,
+	-- The flame: pale at the nozzle, its colour further out (also the shop's swatch).
 	read flameStart: Color3,
 	read flameEnd: Color3,
 	read lightColor: Color3,
-	-- Multiplies the flame's particle rate and the light's brightness.
-	read flameScale: number,
-	-- Multiplies the flame's particle size.
-	read sizeScale: number,
+	-- Which of STEPS the flame is.
+	read step: number,
+	-- The jet at full thrust on a model of scale 1: length and width at the nozzle, studs.
+	read length: number,
+	read width: number,
+	-- Beam.Brightness at full thrust: over 1 keeps it bright in daylight under Realistic light.
+	read brightness: number,
 }
+
+-- One kind of flame: the jet's texture and scroll (studs of texture a second), the core's, and how
+-- long and wide the core is next to the jet.
+export type Step = {
+	read jet: string,
+	read jetScroll: number,
+	read core: string,
+	read coreScroll: number,
+	read coreLength: number,
+	read coreWidth: number,
+}
+
+-- Beam textures (assets/fx, white on transparency; `lune run icons` renders them). Until a texture
+-- is uploaded its id is empty and FALLBACK_TEXTURE stands in.
+local TEXTURES = table.freeze({
+	core = "", -- assets/fx/jet-core.svg
+	fire = "", -- assets/fx/jet-fire.svg
+	plasma = "", -- assets/fx/jet-plasma.svg
+	diamonds = "", -- assets/fx/jet-diamonds.svg
+	exotic = "", -- assets/fx/jet-exotic.svg
+})
+-- The pets' jetpack flame (assets/fx/jet.svg, AlienLooks).
+local FALLBACK_TEXTURE = "rbxassetid://105800856225099"
+
+local function texture(name: string): string
+	local id = (TEXTURES :: any)[name]
+	return if id ~= "" then id else FALLBACK_TEXTURE
+end
+
+local STEPS: { Step } = {
+	-- Fire (Starter, Spark, Comet): tongues of flame round a short white core.
+	{
+		jet = texture("fire"),
+		jetScroll = 3,
+		core = texture("core"),
+		coreScroll = 4,
+		coreLength = 0.45,
+		coreWidth = 0.35,
+	},
+	-- Plasma (Plasma, Ion, Pulsar): an even jet, bright rings running out of the nozzle.
+	{
+		jet = texture("plasma"),
+		jetScroll = 2.2,
+		core = texture("core"),
+		coreScroll = 5,
+		coreLength = 0.6,
+		coreWidth = 0.35,
+	},
+	-- Shock diamonds (Quasar, Antimatter, Singularity): a soft jet, bright beads along the core
+	-- that barely move.
+	{
+		jet = texture("core"),
+		jetScroll = 4,
+		core = texture("diamonds"),
+		coreScroll = 0.3,
+		coreLength = 0.75,
+		coreWidth = 0.5,
+	},
+	-- Exotic (Hyperdrive, Wormhole, Infinity): strands winding round the jet.
+	{
+		jet = texture("exotic"),
+		jetScroll = 2.6,
+		core = texture("core"),
+		coreScroll = 5,
+		coreLength = 0.6,
+		coreWidth = 0.35,
+	},
+}
+for _, step in STEPS do
+	table.freeze(step)
+end
 
 local rgb = Color3.fromRGB
 
@@ -29,8 +108,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(255, 236, 160),
 		flameEnd = rgb(255, 96, 30),
 		lightColor = rgb(255, 150, 70),
-		flameScale = 1,
-		sizeScale = 1,
+		step = 1,
+		length = 2.2,
+		width = 0.55,
+		brightness = 2,
 	},
 	-- Spark: warmer and a touch brighter.
 	{
@@ -39,8 +120,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(255, 250, 200),
 		flameEnd = rgb(255, 140, 40),
 		lightColor = rgb(255, 170, 80),
-		flameScale = 1.15,
-		sizeScale = 1.08,
+		step = 1,
+		length = 2.5,
+		width = 0.6,
+		brightness = 2.3,
 	},
 	-- Comet: blue.
 	{
@@ -49,8 +132,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(220, 245, 255),
 		flameEnd = rgb(80, 160, 255),
 		lightColor = rgb(120, 180, 255),
-		flameScale = 1.3,
-		sizeScale = 1.16,
+		step = 1,
+		length = 2.8,
+		width = 0.62,
+		brightness = 2.6,
 	},
 	-- Plasma: violet.
 	{
@@ -59,8 +144,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(255, 220, 255),
 		flameEnd = rgb(200, 60, 255),
 		lightColor = rgb(210, 100, 255),
-		flameScale = 1.45,
-		sizeScale = 1.24,
+		step = 2,
+		length = 3,
+		width = 0.62,
+		brightness = 2.8,
 	},
 	-- Ion: teal.
 	{
@@ -69,8 +156,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(230, 255, 250),
 		flameEnd = rgb(0, 220, 180),
 		lightColor = rgb(60, 240, 200),
-		flameScale = 1.6,
-		sizeScale = 1.32,
+		step = 2,
+		length = 3.3,
+		width = 0.66,
+		brightness = 3.1,
 	},
 	-- Pulsar: white-blue.
 	{
@@ -79,8 +168,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(255, 255, 255),
 		flameEnd = rgb(120, 180, 255),
 		lightColor = rgb(200, 220, 255),
-		flameScale = 1.8,
-		sizeScale = 1.42,
+		step = 2,
+		length = 3.6,
+		width = 0.7,
+		brightness = 3.4,
 	},
 	-- Quasar: gold and red.
 	{
@@ -89,8 +180,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(255, 255, 200),
 		flameEnd = rgb(255, 60, 0),
 		lightColor = rgb(255, 120, 40),
-		flameScale = 2,
-		sizeScale = 1.52,
+		step = 3,
+		length = 3.9,
+		width = 0.74,
+		brightness = 3.7,
 	},
 	-- Antimatter: black tanks, magenta fire.
 	{
@@ -99,8 +192,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(255, 150, 220),
 		flameEnd = rgb(120, 0, 255),
 		lightColor = rgb(200, 40, 255),
-		flameScale = 2.3,
-		sizeScale = 1.65,
+		step = 3,
+		length = 4.2,
+		width = 0.78,
+		brightness = 4,
 	},
 	-- Singularity: dark grey, a deep blue flame pulled thin.
 	{
@@ -109,8 +204,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(200, 220, 255),
 		flameEnd = rgb(30, 40, 200),
 		lightColor = rgb(70, 100, 255),
-		flameScale = 2.55,
-		sizeScale = 1.78,
+		step = 3,
+		length = 4.5,
+		width = 0.82,
+		brightness = 4.3,
 	},
 	-- Hyperdrive: bright cyan streaks.
 	{
@@ -119,8 +216,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(240, 255, 255),
 		flameEnd = rgb(0, 200, 255),
 		lightColor = rgb(80, 255, 255),
-		flameScale = 2.8,
-		sizeScale = 1.9,
+		step = 4,
+		length = 4.4,
+		width = 0.55,
+		brightness = 4.6,
 	},
 	-- Wormhole: green and violet swirling.
 	{
@@ -129,8 +228,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(200, 255, 210),
 		flameEnd = rgb(150, 40, 255),
 		lightColor = rgb(120, 255, 160),
-		flameScale = 3.1,
-		sizeScale = 2.05,
+		step = 4,
+		length = 4.7,
+		width = 0.58,
+		brightness = 4.9,
 	},
 	-- Infinity: white-gold, the brightest of all.
 	{
@@ -139,8 +240,10 @@ local LEVELS: { Looks } = {
 		flameStart = rgb(255, 255, 255),
 		flameEnd = rgb(255, 190, 40),
 		lightColor = rgb(255, 230, 140),
-		flameScale = 3.5,
-		sizeScale = 2.2,
+		step = 4,
+		length = 5,
+		width = 0.62,
+		brightness = 5.2,
 	},
 }
 assert(#LEVELS == #UpgradeConfig.JETPACK_NAME_KEYS, "JetpackLooks.LEVELS and UpgradeConfig.JETPACK_NAME_KEYS differ")
@@ -151,27 +254,64 @@ end
 local JetpackLooks = {}
 
 JetpackLooks.LEVELS = table.freeze(LEVELS)
+JetpackLooks.STEPS = table.freeze(STEPS)
 
--- Flame particle size over its life at scale 1: wide at the nozzle, tapering out.
-JetpackLooks.FLAME_SIZE_KEYPOINTS = table.freeze({
-	{ time = 0, size = 0.9 },
-	{ time = 0.4, size = 0.6 },
-	{ time = 1, size = 0.1 },
-})
+-- How the model's parts are painted (export_jetpacks.py joins each jetpack into these four; their
+-- colours ride in the vertices, so the parts are white). Metal wears the pets' metal variant
+-- (MaterialService.PetMetal, decision 076) where the place has it.
+export type PartLook = {
+	read material: Enum.Material,
+	read reflectance: number,
+	read transparency: number,
+	read metal: boolean,
+	read shadow: boolean,
+}
+JetpackLooks.PARTS = table.freeze({
+	Shell = table.freeze({
+		material = Enum.Material.SmoothPlastic,
+		reflectance = 0.08,
+		transparency = 0,
+		metal = false,
+		shadow = true,
+	}),
+	Metal = table.freeze({
+		material = Enum.Material.SmoothPlastic,
+		reflectance = 0,
+		transparency = 0,
+		metal = true,
+		shadow = true,
+	}),
+	Glow = table.freeze({
+		material = Enum.Material.Neon,
+		reflectance = 0,
+		transparency = 0,
+		metal = false,
+		shadow = false,
+	}),
+	Glass = table.freeze({
+		material = Enum.Material.Glass,
+		reflectance = 0.1,
+		transparency = 0.55,
+		metal = false,
+		shadow = false,
+	}),
+}) :: { [string]: PartLook }
+JetpackLooks.METAL_VARIANT = "PetMetal"
 
--- The look of a jetpack level: its jetpack's (both marks of a jetpack look the same).
-function JetpackLooks.forLevel(level: number): Looks
+-- Which jetpack a level wears, 0 (Starter) to the last: both marks of a jetpack look the same.
+function JetpackLooks.jetpackOf(level: number): number
 	local top = Upgrades.jetpackMaxLevel(UpgradeConfig.TUNING)
 	local jetpack = Upgrades.jetpackModel(math.clamp(math.floor(level), 0, top), UpgradeConfig.TUNING)
-	return LEVELS[math.clamp(jetpack + 1, 1, #LEVELS)]
+	return math.clamp(jetpack, 0, #LEVELS - 1)
 end
 
-function JetpackLooks.flameSize(scale: number): NumberSequence
-	local keypoints = {}
-	for _, keypoint in JetpackLooks.FLAME_SIZE_KEYPOINTS do
-		table.insert(keypoints, NumberSequenceKeypoint.new(keypoint.time, keypoint.size * scale))
-	end
-	return NumberSequence.new(keypoints)
+-- The look of a jetpack level: its jetpack's.
+function JetpackLooks.forLevel(level: number): Looks
+	return LEVELS[JetpackLooks.jetpackOf(level) + 1]
+end
+
+function JetpackLooks.stepOf(looks: Looks): Step
+	return STEPS[math.clamp(looks.step, 1, #STEPS)]
 end
 
 return table.freeze(JetpackLooks)

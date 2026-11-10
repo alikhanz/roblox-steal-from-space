@@ -160,7 +160,7 @@ local jetpackService = JetpackService.new({
 })
 local spaceService = SpaceService.new({
 	getSpawn = worldService.getSpawn,
-	getJetpackLooks = jetpackService.getLooks,
+	getJetpackLevel = jetpackService.getLevel,
 })
 local carryService = CarryService.new({
 	takeNestEgg = nestService.takeEgg,

@@ -11,7 +11,6 @@ local FlightAnimation = require(ReplicatedStorage.Shared.Character.FlightAnimati
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
-local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
 local JetpackModel = require(script.Parent.Parent.Character.JetpackModel)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
@@ -28,8 +27,8 @@ local REQUIRED_PARTS = { "HumanoidRootPart", "UpperTorso", "RightHand", "LeftHan
 
 export type Dependencies = {
 	getSpawn: () -> SpawnLocation?,
-	-- How the player's jetpack looks (their level); the starter look without a profile.
-	getJetpackLooks: (player: Player) -> JetpackLooks.Looks,
+	-- The player's jetpack level (it picks the jetpack worn); 0 without a profile.
+	getJetpackLevel: (player: Player) -> number,
 }
 
 export type SpaceService = {
@@ -141,8 +140,7 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 			end)
 		end
 		local player = Players:GetPlayerFromCharacter(character)
-		local looks = if player then dependencies.getJetpackLooks(player) else JetpackLooks.forLevel(0)
-		JetpackModel.attach(character, looks)
+		JetpackModel.attach(character, if player then dependencies.getJetpackLevel(player) else 0)
 
 		if flightAnimationId then
 			local animation = Instance.new("Animation")

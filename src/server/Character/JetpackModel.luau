@@ -1,20 +1,21 @@
 --!strict
--- Builds the greybox jetpack and attaches it to an R15 character: twin tanks on the back,
--- nozzles with flame emitters, and grips in both hands linked to the tanks by hoses.
--- Sizes follow the character's UpperTorso, so scaled avatars get a fitting pack.
+-- Attaches the jetpack to an R15 character (decision 086): the body of its jetpack from the place's
+-- templates (ServerStorage.Jetpacks, one model per jetpack, colours baked in its meshes), grips in
+-- both hands linked to the pack by hoses, and an attachment at each nozzle's exit for the flame,
+-- which every client adds itself (JetpackEffectsController). Sizes follow the character's
+-- UpperTorso, so scaled avatars get a fitting pack. Without the templates (a place that lags the
+-- repo) a greybox of twin tanks stands in.
 
+local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local JetpackConfig = require(ReplicatedStorage.Shared.Config.JetpackConfig)
 local JetpackLooks = require(ReplicatedStorage.Shared.Config.JetpackLooks)
 
 local JetpackModel = {}
 
--- Part names whose colors follow the jetpack level.
-local BODY_PARTS = { Tank = true, Cap = true }
-local ACCENT_PARTS = { Stripe = true }
-
--- Fractions of the UpperTorso size.
+-- Greybox, fractions of the UpperTorso size.
 local TANK_HEIGHT = 0.95
 local TANK_DIAMETER = 0.34
 local TANK_SPACING = 0.27
@@ -29,7 +30,16 @@ local HOSE_SAG = 1.2
 
 local SIDES = { -1, 1 }
 
--- Decorative part: welded, weightless, invisible to physics queries.
+local warned = false
+
+-- Weightless and invisible to physics queries: the jetpack is decoration.
+local function quiet(part: BasePart)
+	part.Massless = true
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+end
+
 local function decor(name: string, shape: Enum.PartType, size: Vector3, color: Color3, material: Enum.Material): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -37,67 +47,94 @@ local function decor(name: string, shape: Enum.PartType, size: Vector3, color: C
 	part.Size = size
 	part.Color = color
 	part.Material = material
-	part.Massless = true
-	part.CanCollide = false
-	part.CanTouch = false
-	part.CanQuery = false
 	part.CastShadow = false
+	quiet(part)
 	return part
 end
 
-local function weld(part: BasePart, to: BasePart, offset: CFrame)
-	part.CFrame = to.CFrame * offset
+local function weldInPlace(part: BasePart, to: BasePart)
 	local constraint = Instance.new("WeldConstraint")
 	constraint.Part0 = to
 	constraint.Part1 = part
 	constraint.Parent = part
 end
 
--- A vertical cylinder at `offset` (Roblox cylinders run along X, so rotate them upright).
+local function weld(part: BasePart, to: BasePart, offset: CFrame)
+	part.CFrame = to.CFrame * offset
+	weldInPlace(part, to)
+end
+
+-- A vertical cylinder at `position` (Roblox cylinders run along X, so rotate them upright).
 local function upright(position: Vector3): CFrame
 	return CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
 end
 
-local function addFlame(nozzle: BasePart, exitOffset: Vector3, looks: JetpackLooks.Looks)
-	local exit = Instance.new("Attachment")
-	exit.Name = JetpackConfig.NOZZLE_ATTACHMENT_NAME
-	-- The nozzle's axis is its local X (pointing up once upright). Turning the attachment 90° about Z
-	-- maps its +Y onto the nozzle's -X, so the emitter's Top direction fires down out of the nozzle.
-	exit.CFrame = CFrame.new(exitOffset) * CFrame.Angles(0, 0, math.rad(90))
-	exit.Parent = nozzle
-
-	local flame = Instance.new("ParticleEmitter")
-	flame.Name = JetpackConfig.FLAME_NAME
-	flame.Texture = JetpackConfig.FLAME_TEXTURE
-	flame.Color = ColorSequence.new(looks.flameStart, looks.flameEnd)
-	flame.LightEmission = 1
-	-- Wide and bright at the nozzle, tapering and fading over about a stud and a half.
-	flame.Size = JetpackLooks.flameSize(looks.sizeScale)
-	flame.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.6, 0.3),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	flame.Lifetime = NumberRange.new(0.2, 0.35)
-	flame.Speed = NumberRange.new(5, 8)
-	flame.SpreadAngle = Vector2.new(6, 6)
-	flame.Rotation = NumberRange.new(0, 360)
-	flame.RotSpeed = NumberRange.new(-90, 90)
-	flame.EmissionDirection = Enum.NormalId.Top
-	flame.Rate = 0
-	flame.Enabled = false
-	flame.Parent = exit
-
-	local light = Instance.new("PointLight")
-	light.Name = JetpackConfig.FLAME_LIGHT_NAME
-	light.Color = looks.lightColor
-	light.Brightness = 0
-	light.Range = JetpackConfig.FLAME_LIGHT_RANGE
-	light.Enabled = false
-	light.Parent = exit
+local function template(jetpack: number): Model?
+	local folder = ServerStorage:FindFirstChild(JetpackConfig.MODELS_FOLDER)
+	local found = folder and folder:FindFirstChild(JetpackConfig.TEMPLATE_PREFIX .. jetpack)
+	if found and found:IsA("Model") then
+		return found
+	end
+	if not warned then
+		warned = true
+		warn(
+			`[JetpackModel] ServerStorage.{JetpackConfig.MODELS_FOLDER}.{JetpackConfig.TEMPLATE_PREFIX}{jetpack} is missing; the greybox jetpack stands in (docs/plans/JETPACKS.md)`
+		)
+	end
+	return nil
 end
 
-local function buildPack(model: Model, torso: BasePart, looks: JetpackLooks.Looks): { [number]: Attachment }
+-- Paints a template's part by its name (JetpackLooks.PARTS): white, so its baked colours show.
+local function dress(part: BasePart)
+	quiet(part)
+	part.Color = Color3.new(1, 1, 1)
+	local look = JetpackLooks.PARTS[part.Name]
+	if not look then
+		return
+	end
+	part.Material = look.material
+	part.Reflectance = look.reflectance
+	part.Transparency = look.transparency
+	part.CastShadow = look.shadow
+	if look.metal and MaterialService:FindFirstChild(JetpackLooks.METAL_VARIANT) then
+		part.MaterialVariant = JetpackLooks.METAL_VARIANT
+	end
+end
+
+-- The template's body on the torso. Returns the hose anchors by side (+1 right, −1 left).
+local function buildFromTemplate(model: Model, torso: BasePart, source: Model): { [number]: Attachment }
+	local pack = source:Clone()
+	local scale = torso.Size.X / JetpackConfig.TEMPLATE_TORSO_WIDTH
+	pack:ScaleTo(scale)
+	-- The template's back meets the torso's back, whatever the torso's depth.
+	local shift = torso.Size.Z / 2 - JetpackConfig.TEMPLATE_BACK * scale
+	pack:PivotTo(torso.CFrame * CFrame.new(0, 0, shift))
+	local first: BasePart? = nil
+	for _, part in pack:GetChildren() do
+		if part:IsA("BasePart") then
+			dress(part)
+			weldInPlace(part, torso)
+			part.Parent = model
+			first = first or part
+		end
+	end
+	pack:Destroy()
+	local anchors: { [number]: Attachment } = {}
+	if first then
+		local at = JetpackConfig.TEMPLATE_HOSE_ANCHOR
+		for _, side in SIDES do
+			local anchor = Instance.new("Attachment")
+			anchor.Name = JetpackConfig.HOSE_ANCHOR_NAME
+			anchor.Parent = first
+			anchor.WorldPosition = (torso.CFrame * CFrame.new(side * at.X * scale, at.Y * scale, shift + at.Z * scale)).Position
+			anchors[side] = anchor
+		end
+	end
+	return anchors
+end
+
+-- The greybox: twin tanks on a back plate, a nozzle under each. Returns the hose anchors.
+local function buildGreybox(model: Model, torso: BasePart, looks: JetpackLooks.Looks): { [number]: Attachment }
 	local size = torso.Size
 	local backZ = size.Z / 2
 	local plateZ = backZ + size.Z * PLATE_THICKNESS / 2
@@ -118,7 +155,6 @@ local function buildPack(model: Model, torso: BasePart, looks: JetpackLooks.Look
 
 	for _, side in SIDES do
 		local x = side * size.X * TANK_SPACING
-
 		local tank = decor(
 			"Tank",
 			Enum.PartType.Cylinder,
@@ -152,14 +188,18 @@ local function buildPack(model: Model, torso: BasePart, looks: JetpackLooks.Look
 			Enum.Material.Metal
 		)
 		weld(nozzle, torso, upright(Vector3.new(x, -tankHeight / 2 - nozzleLength / 2, tankZ)))
-		-- In the nozzle's own frame its axis is X; the exit is the end pointing down (-X after the upright turn).
-		addFlame(nozzle, Vector3.new(-nozzleLength / 2, 0, 0), looks)
+		-- The nozzle's axis is its local X (up once upright); the exit is its −X end. Turned −90°
+		-- about Z, the attachment's +Y lies along the nozzle's +X, so its −Y — the flame — points down.
+		local exit = Instance.new("Attachment")
+		exit.Name = JetpackConfig.NOZZLE_ATTACHMENT_NAME
+		exit.CFrame = CFrame.new(-nozzleLength / 2, 0, 0) * CFrame.Angles(0, 0, math.rad(-90))
+		exit.Parent = nozzle
 		nozzle.Parent = model
 
 		-- On the outer side of the tank, low down. In the upright tank's frame local X points up and
 		-- local Y points to the character's left, hence the minus sign for the outward offset.
 		local hoseAnchor = Instance.new("Attachment")
-		hoseAnchor.Name = "HoseAnchor"
+		hoseAnchor.Name = JetpackConfig.HOSE_ANCHOR_NAME
 		hoseAnchor.Position = Vector3.new(-tankHeight * 0.3, -side * tankDiameter / 2, 0)
 		hoseAnchor.Parent = tank
 		hoseAnchors[side] = hoseAnchor
@@ -203,32 +243,16 @@ local function buildGrip(model: Model, hand: BasePart, hoseAnchor: Attachment)
 	hose.Width1 = HOSE_WIDTH
 	hose.CurveSize0 = -HOSE_SAG
 	hose.CurveSize1 = HOSE_SAG
-	hose.Segments = 12
+	hose.Segments = 8
 	hose.FaceCamera = true
 	hose.Color = ColorSequence.new(JetpackConfig.HOSE_COLOR)
 	hose.LightInfluence = 1
 	hose.Parent = grip
 end
 
--- Recolors an attached jetpack for a new level: tanks, stripes, flames and their light.
-function JetpackModel.applyLooks(model: Model, looks: JetpackLooks.Looks)
-	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") and BODY_PARTS[descendant.Name] then
-			descendant.Color = looks.bodyColor
-		elseif descendant:IsA("BasePart") and ACCENT_PARTS[descendant.Name] then
-			descendant.Color = looks.accentColor
-		elseif descendant:IsA("ParticleEmitter") and descendant.Name == JetpackConfig.FLAME_NAME then
-			descendant.Color = ColorSequence.new(looks.flameStart, looks.flameEnd)
-			descendant.Size = JetpackLooks.flameSize(looks.sizeScale)
-		elseif descendant:IsA("PointLight") and descendant.Name == JetpackConfig.FLAME_LIGHT_NAME then
-			descendant.Color = looks.lightColor
-		end
-	end
-end
-
--- Attaches a jetpack with `looks` to `character`. Returns nil (with a warning) for rigs it
+-- Attaches the jetpack of `level` to `character`. Returns nil (with a warning) for rigs it
 -- cannot fit.
-function JetpackModel.attach(character: Model, looks: JetpackLooks.Looks): Model?
+function JetpackModel.attach(character: Model, level: number): Model?
 	local torso = character:FindFirstChild("UpperTorso")
 	local rightHand = character:FindFirstChild("RightHand")
 	local leftHand = character:FindFirstChild("LeftHand")
@@ -246,14 +270,36 @@ function JetpackModel.attach(character: Model, looks: JetpackLooks.Looks): Model
 		return nil
 	end
 
+	local jetpack = JetpackLooks.jetpackOf(level)
 	local model = Instance.new("Model")
 	model.Name = JetpackConfig.MODEL_NAME
-	local hoseAnchors = buildPack(model, torso, looks)
-	-- Right hand hoses to the right tank (+X side), left hand to the left one.
-	buildGrip(model, rightHand, hoseAnchors[1])
-	buildGrip(model, leftHand, hoseAnchors[-1])
+	model:SetAttribute(JetpackConfig.JETPACK_ATTRIBUTE, jetpack)
+	local source = template(jetpack)
+	local hoseAnchors = if source
+		then buildFromTemplate(model, torso, source)
+		else buildGreybox(model, torso, JetpackLooks.forLevel(level))
+	-- Right hand hoses to the right side of the pack (+X), left hand to the left one.
+	local right, left = hoseAnchors[1], hoseAnchors[-1]
+	if right and left then
+		buildGrip(model, rightHand, right)
+		buildGrip(model, leftHand, left)
+	end
 	model.Parent = character
 	return model
+end
+
+-- Puts the jetpack of `level` on `character` in place of the one it wears, if that is another
+-- jetpack (both marks of a jetpack look the same).
+function JetpackModel.update(character: Model, level: number)
+	local current = character:FindFirstChild(JetpackConfig.MODEL_NAME)
+	if not current or not current:IsA("Model") then
+		return
+	end
+	if current:GetAttribute(JetpackConfig.JETPACK_ATTRIBUTE) == JetpackLooks.jetpackOf(level) then
+		return
+	end
+	current:Destroy()
+	JetpackModel.attach(character, level)
 end
 
 return table.freeze(JetpackModel)
