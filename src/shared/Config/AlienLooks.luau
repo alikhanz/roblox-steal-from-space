@@ -76,6 +76,9 @@ local MOTION = table.freeze({
 	-- detail takes DETAIL_MARGIN more, so nothing flickers at the edge. A phone warmed up at once
 	-- with thirty pets in full (2026-11-10).
 	NEAR = 70,
+	-- Within this (past the pet's half width) a pet moves every frame; farther, every other one:
+	-- moving the parts is most of the motion's cost, and from there half the steps look the same.
+	SMOOTH = 35,
 	FAR = 160,
 	DETAIL_MARGIN = 10,
 	-- The particle layers kept in the middle distance: each pet's main cue (roblox-brain: cut the

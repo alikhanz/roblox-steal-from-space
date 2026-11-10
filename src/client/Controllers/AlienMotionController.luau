@@ -1,8 +1,9 @@
 --!strict
 -- The pets' living motion (plan docs/plans/ALIEN_MODELS.md, step 3), as the pet gallery prototype
 -- had it (docs/design/prototypes/pet-look/gallery_client.luau, approved by the user). The server
--- places a dressed pet (World/AlienModel, tag BayConfig.ALIEN_TAG) and never moves it; here every
--- pet near the camera moves on the client, all of them in one BulkMoveTo a frame.
+-- places a prepared pet (World/AlienModel, tag BayConfig.ALIEN_TAG); here its effects are made
+-- (AlienDress.adornLocally) and every pet near the camera moves, all of them in one BulkMoveTo a
+-- frame. One standing small on the floor (BayConfig.ALIEN_PLAIN_ATTRIBUTE) is left as it is.
 --
 -- Detail by distance (plan step 4, PetMotion.detail, AlienLooks.MOTION): near pets are drawn and
 -- moved in full; in the middle distance only their main particle layers stay, without the light,
@@ -16,6 +17,10 @@
 -- blinks and turns to a player close by, each on its own rhythm. The parts tell what they are by
 -- their Role attribute (AlienDress); hinges are parts named `hinge<Name>` (`hingeJawL` turns
 -- `jawL`). Lengths made at the dressing scale grow with the pet (Model:GetScale()).
+--
+-- The frame's work is kept small (it was most of the client's time with thirty pets, 2026-11-10):
+-- what each part does is worked out once, as the pet arrives (a Mover), and the parts never seen
+-- (hinge markers, Blender's hidden flames and rays) are not moved at all.
 
 local CollectionService = game:GetService("CollectionService")
 local ContentProvider = game:GetService("ContentProvider")
@@ -35,6 +40,25 @@ local LABEL_PART = "Body"
 -- The dressing's effects carrier: only a dressed pet has it (the greybox blob does not move).
 local EFFECTS_PART = "Fx"
 
+-- What a part does, worked out once (Mover.kind).
+local STATIC = 1 -- rides with the body
+local HALO = 2 -- the rune circle: stays on the floor, turning
+local ROTOR = 3
+local ORBIT = 4
+local RAYS = 5
+local WING = 6
+local JAW = 7 -- a crab's jaw
+local MAND = 8 -- a devourer's mandible
+local LEG = 9
+local SEG = 10 -- a worm's segment
+local FIN = 11 -- a ray's fin, inner or outer
+local TAIL = 12 -- a bead of a ray's tail
+local BUZZ = 13 -- the lead drone's little wing
+local FLIPPER = 14
+local FLUKES = 15
+local WISP = 16 -- a comet
+local DRONE = 17 -- a little drone, its mandible or its wing (Mover.droneKind)
+
 export type AlienMotionController = {
 	name: string,
 	start: () -> (),
@@ -53,6 +77,53 @@ type Path = {
 	period: number,
 }
 
+-- A part that moves, and how.
+type Mover = {
+	part: BasePart,
+	-- Where it rests in the pet's space, and its size there.
+	offset: CFrame,
+	size: Vector3,
+	kind: number,
+	-- The point it turns about, in the pet's space (unused where it does not turn).
+	hinge: Vector3,
+	-- An outer fin's own joint, past the fin's root.
+	joint: Vector3?,
+	-- Which side it sits on: 1 at +X, -1 at -X.
+	out: number,
+	-- A segment's, a bead's or a leg's place in its row; a drone's number.
+	k: number,
+	-- Which jaw it keeps time with: true for the left one.
+	left: boolean,
+	-- A crab's top jaw (it opens up; the bottom one down).
+	top: boolean,
+	-- A drone's own body (0), its mandible (1) or its wing (2).
+	droneKind: number,
+	-- A glowing eye: it blinks.
+	eye: boolean,
+	-- Above a slime's jelly floor: squashed with the jelly; `squashSize` stretches its size too.
+	aboveFloor: boolean,
+	squashSize: boolean,
+	-- Turns with a worm's head.
+	headTurns: boolean,
+	-- A comet's orbit (studs at the dressing scale), tilt, speed and phase.
+	orbit: number,
+	tilt: number,
+	speed: number,
+	phase: number,
+}
+
+type Dust = {
+	emitter: ParticleEmitter,
+	count: number,
+}
+
+type Picture = {
+	image: ImageLabel,
+	-- Degrees a second, or nil for a slow sway from `sway`.
+	spin: number?,
+	sway: number,
+}
+
 type Pet = {
 	base: CFrame,
 	phase: number,
@@ -65,19 +136,14 @@ type Pet = {
 	height: number,
 	-- The pet's middle in its own space.
 	centre: Vector3,
-	parts: { BasePart },
-	offsets: { CFrame },
-	sizes: { Vector3 },
-	roles: { string },
-	-- Which parts are glowing eyes (they blink).
-	eyes: { [number]: boolean },
+	movers: { Mover },
 	-- The middle of each role's parts, in the pet's space.
 	groups: { [string]: Vector3 },
 	hinges: { [string]: Vector3 },
 	paths: { [number]: Path },
-	dustOpen: { ParticleEmitter },
-	dustFold: { ParticleEmitter },
-	images: { ImageLabel },
+	dustOpen: { Dust },
+	dustFold: { Dust },
+	pictures: { Picture },
 	-- Steady particle layers: the secondary ones and the main ones (AlienLooks.MOTION.MAIN_EFFECTS).
 	effects: { ParticleEmitter },
 	mainEffects: { ParticleEmitter },
@@ -97,7 +163,8 @@ type Pet = {
 	blinkTwice: boolean,
 	hopAt: number,
 	hopStart: number?,
-	jaws: { [string]: Snap },
+	jawL: Snap,
+	jawR: Snap,
 }
 
 local AlienMotionController = {}
@@ -187,6 +254,116 @@ local function dronePaths(pet: Pet): { [number]: Path }
 	return paths
 end
 
+-- A part as it was read, before its mover is worked out (the hinges must all be known first).
+type Found = {
+	part: BasePart,
+	role: string,
+	offset: CFrame,
+	eye: boolean,
+}
+
+-- What `found` does in `pet` (nil: nothing to move, a part never seen).
+local function moverOf(pet: Pet, found: Found): Mover?
+	local part, role, offset = found.part, found.role, found.offset
+	-- Never seen and carrying nothing: a hinge marker, Blender's hidden flame or rays, the floor
+	-- ring the rune replaced.
+	if part.Transparency >= 1 and #part:GetChildren() == 0 then
+		return nil
+	end
+	local floor = pet.jellyFloor
+	local mover: Mover = {
+		part = part,
+		offset = offset,
+		size = part.Size,
+		kind = STATIC,
+		hinge = Vector3.zero,
+		joint = nil,
+		out = 1,
+		k = 0,
+		left = string.sub(role, -1) == "L",
+		top = false,
+		droneKind = 0,
+		eye = found.eye,
+		aboveFloor = floor ~= nil and offset.Position.Y > floor,
+		squashSize = role == "body" and part.Name ~= EFFECTS_PART,
+		headTurns = true,
+		orbit = 0,
+		tilt = 0,
+		speed = 0,
+		phase = 0,
+	}
+	local side = string.sub(role, -1)
+	local own = pet.hinges[role]
+	local function turnsAbout(hinge: Vector3, kind: number)
+		mover.kind = kind
+		mover.hinge = hinge
+		mover.out = if hinge.X > 0 then 1 else -1
+	end
+	local rotorAt = pet.groups.rotor
+	local jawHinge = pet.hinges["jaw" .. side]
+	local finRoot = pet.hinges["fin" .. side]
+	local flukes = pet.hinges.flukes
+	if role == "halo" then
+		mover.kind = HALO
+	elseif role == "rotor" and rotorAt then
+		turnsAbout(rotorAt, ROTOR)
+	elseif role == "orbit" then
+		mover.kind = ORBIT
+		mover.headTurns = false
+	elseif role == "rays" then
+		mover.kind = RAYS
+	elseif (role == "wingL" or role == "wingR") and own then
+		turnsAbout(own, WING)
+	elseif string.match(role, "^jaw%u%a%a[LR]$") and jawHinge then
+		turnsAbout(jawHinge, JAW)
+		mover.top = string.sub(role, 4, 6) == "Top"
+	elseif (role == "mandL" or role == "mandR") and own then
+		turnsAbout(own, MAND)
+	elseif string.match(role, "^leg[LR]%u$") and own then
+		turnsAbout(own, LEG)
+		mover.k = string.byte(role, 5) - 64 + (if string.sub(role, 4, 4) == "L" then 0 else 1)
+	elseif string.match(role, "^seg%u$") then
+		mover.kind = SEG
+		mover.k = string.byte(role, 4) - 64
+		mover.headTurns = false
+	elseif string.match(role, "^fin") and finRoot then
+		turnsAbout(finRoot, FIN)
+		if string.sub(role, 1, 8) == "finOuter" then
+			mover.joint = pet.hinges["finOuter" .. side]
+		end
+	elseif string.match(role, "^tail%u$") then
+		mover.kind = TAIL
+		mover.k = string.byte(role, 5) - 64
+	elseif (role == "buzzL" or role == "buzzR") and own then
+		turnsAbout(own, BUZZ)
+	elseif (role == "flipperL" or role == "flipperR") and own then
+		turnsAbout(own, FLIPPER)
+	elseif role == "flukes" and flukes then
+		turnsAbout(flukes, FLUKES)
+	elseif role == "wisp" then
+		mover.kind = WISP
+		mover.headTurns = false
+		mover.tilt = tonumber(part:GetAttribute("Tilt")) or 0
+		mover.speed = tonumber(part:GetAttribute("Speed")) or 1.6
+		mover.phase = tonumber(part:GetAttribute("Phase")) or 0
+		mover.orbit = tonumber(part:GetAttribute("Orbit")) or 0
+	elseif string.match(role, "^drone%d") then
+		mover.kind = DRONE
+		mover.k = tonumber(string.match(role, "%d+")) or 0
+		local centre = pet.groups["drone" .. mover.k]
+		if own and centre then
+			mover.hinge = own
+			mover.out = if own.X > centre.X then 1 else -1
+			if string.match(role, "Mand[LR]$") then
+				mover.droneKind = 1
+			elseif string.match(role, "Buzz[LR]$") then
+				mover.droneKind = 2
+			end
+		end
+	end
+	return mover
+end
+
 -- Reads a dressed pet once: its parts in its own space and what each of them does.
 local function petOf(model: Model): Pet?
 	if not model:FindFirstChild(EFFECTS_PART) then
@@ -208,17 +385,13 @@ local function petOf(model: Model): Pet?
 		radius = math.max(size.X, size.Z) / 2,
 		height = size.Y,
 		centre = base:PointToObjectSpace(cf.Position),
-		parts = {},
-		offsets = {},
-		sizes = {},
-		roles = {},
-		eyes = {},
+		movers = {},
 		groups = {},
 		hinges = {},
 		paths = {},
 		dustOpen = {},
 		dustFold = {},
-		images = {},
+		pictures = {},
 		effects = {},
 		mainEffects = {},
 		boards = {},
@@ -234,11 +407,10 @@ local function petOf(model: Model): Pet?
 		blinkTwice = false,
 		hopAt = now + random:NextNumber(2, 8),
 		hopStart = nil,
-		jaws = {
-			L = { nextAt = now + random:NextNumber(0.5, 3), start = nil, twice = false },
-			R = { nextAt = now + random:NextNumber(0.5, 3), start = nil, twice = false },
-		},
+		jawL = { nextAt = now + random:NextNumber(0.5, 3), start = nil, twice = false },
+		jawR = { nextAt = now + random:NextNumber(0.5, 3), start = nil, twice = false },
 	}
+	local found: { Found } = {}
 	local sums: { [string]: { position: Vector3, count: number } } = {}
 	for _, item in model:GetDescendants() do
 		if item:IsA("BasePart") then
@@ -247,13 +419,12 @@ local function petOf(model: Model): Pet?
 			end
 			local role = tostring(item:GetAttribute("Role") or "body")
 			local offset = base:ToObjectSpace(item.CFrame)
-			table.insert(pet.parts, item)
-			table.insert(pet.offsets, offset)
-			table.insert(pet.sizes, item.Size)
-			table.insert(pet.roles, role)
 			local paint = tostring(item:GetAttribute("Paint") or "")
 			-- The glowing eyes blink (a pet's eyes of one material are one part, at one height).
-			pet.eyes[#pet.parts] = string.match(paint, ",EyeLight$") ~= nil
+			table.insert(
+				found,
+				{ part = item, role = role, offset = offset, eye = string.match(paint, ",EyeLight$") ~= nil }
+			)
 			-- A slime's jelly starts a little above the bottom of its glass dome: the ceramic base
 			-- and the feet under it stay solid.
 			if string.match(paint, ",Dome$") then
@@ -272,12 +443,15 @@ local function petOf(model: Model): Pet?
 			end
 		elseif item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
-		elseif item:IsA("ParticleEmitter") and string.match(item.Name, "^DustOpen") then
-			table.insert(pet.dustOpen, item)
-		elseif item:IsA("ParticleEmitter") and string.match(item.Name, "^DustFold") then
-			table.insert(pet.dustFold, item)
+		elseif item:IsA("ParticleEmitter") and string.match(item.Name, "^Dust") then
+			local dust = { emitter = item, count = if string.match(item.Name, "Star$") then 2 else 10 }
+			table.insert(if string.match(item.Name, "^DustOpen") then pet.dustOpen else pet.dustFold, dust)
 		elseif item:IsA("ImageLabel") and (item:GetAttribute("Spin") or item:GetAttribute("Sway")) then
-			table.insert(pet.images, item)
+			table.insert(pet.pictures, {
+				image = item,
+				spin = tonumber(item:GetAttribute("Spin")),
+				sway = tonumber(item:GetAttribute("Sway")) or 0,
+			})
 		end
 		-- What the detail turns off and on: the steady particle layers (the wing dust only bursts on
 		-- a beat, so it is left alone), the main ones apart; the pictures (medal, crest).
@@ -291,6 +465,12 @@ local function petOf(model: Model): Pet?
 		pet.groups[role] = sum.position / sum.count
 	end
 	pet.paths = dronePaths(pet)
+	for _, item in found do
+		local mover = moverOf(pet, item)
+		if mover then
+			table.insert(pet.movers, mover)
+		end
+	end
 	return pet
 end
 
@@ -370,14 +550,14 @@ local function move(pet: Pet, t: number, dt: number, root: BasePart?, parts: { B
 		else nil
 	if stroke then
 		for _, dust in stroke do
-			dust:Emit(if string.match(dust.Name, "Star$") then 2 else 10)
+			dust.emitter:Emit(dust.count)
 		end
 	end
 	pet.beat = beat
 	local open = eyeOpen(pet, t)
 	-- Every pet's jaws keep their rhythm; only the ones it has (a crab's, pincers, a devourer's
 	-- mandibles, its drones' too) use it.
-	local jaws: { [string]: number } = { L = jawOpen(pet, pet.jaws.L, t), R = jawOpen(pet, pet.jaws.R, t) }
+	local jawL, jawR = jawOpen(pet, pet.jawL, t), jawOpen(pet, pet.jawR, t)
 	local headTurn: CFrame? = nil
 	local neck = pet.hinges.head
 	if pet.family == "worm" and neck then
@@ -385,99 +565,80 @@ local function move(pet: Pet, t: number, dt: number, root: BasePart?, parts: { B
 		local pitch = 0.07 * math.sin(t * 1.3 + ph)
 		headTurn = about(neck, CFrame.Angles(pitch, yaw, 0))
 	end
-	for i, part in pet.parts do
-		local role, offset = pet.roles[i], pet.offsets[i]
-		-- Where the part sits in the pet's own space this frame; nil for what stays put in the
-		-- world (the hidden floor ring, the turning rune circle).
-		local here: CFrame? = nil
-		local fixed: CFrame? = nil
-		local side = string.sub(role, -1)
-		-- The hinges this part may turn on (nil where the pet has none).
-		local own = pet.hinges[role]
-		local rotorAt = pet.groups.rotor
-		local jawHinge = pet.hinges["jaw" .. side]
-		local finRoot = pet.hinges["fin" .. side]
-		local flukes = pet.hinges.flukes
-		if role == "ring" then
-			fixed = pet.base * offset
-		elseif role == "halo" then
-			fixed = pet.base * CFrame.new(offset.Position) * CFrame.Angles(0, t * 0.35, 0)
-		elseif role == "rotor" and rotorAt then
-			here = about(rotorAt, CFrame.Angles(0, t * 14, 0)) * offset
-		elseif role == "orbit" then
+	-- The beats shared by every part of a kind this frame.
+	local finPhase = t * 1.8 + ph
+	for _, m in pet.movers do
+		local kind, offset = m.kind, m.offset
+		-- Where the part sits in the pet's own space this frame.
+		local here: CFrame
+		if kind == STATIC then
+			here = offset
+		elseif kind == HALO then
+			-- The rune stays on the floor, turning: in the world, not with the body.
+			table.insert(parts, m.part)
+			table.insert(frames, pet.base * CFrame.new(offset.Position) * CFrame.Angles(0, t * 0.35, 0))
+			continue
+		elseif kind == ROTOR then
+			here = about(m.hinge, CFrame.Angles(0, t * 14, 0)) * offset
+		elseif kind == ORBIT then
 			here = c * CFrame.Angles(0, t * 0.9, 0) * cInv * offset
-		elseif role == "rays" then
+		elseif kind == RAYS then
 			here = c * CFrame.Angles(0, 0, t * 0.5) * cInv * offset
-		elseif (role == "wingL" or role == "wingR") and own then
-			local out = if own.X > 0 then 1 else -1
-			here = about(own, CFrame.Angles(0, -out * swing, out * 0.12 * beat)) * offset
-		elseif string.match(role, "^jaw%u%a%a[LR]$") and jawHinge then
+		elseif kind == WING then
+			here = about(m.hinge, CFrame.Angles(0, -m.out * swing, m.out * 0.12 * beat)) * offset
+		elseif kind == JAW then
 			-- A crab's jaw turns on its hinge: the top one up, the bottom one down a little less
 			-- (the pet faces -Z, so a turn about X lifts the jaw's tip).
-			local angle = jaws[side] * (if string.sub(role, 4, 6) == "Top" then 1 else -0.6)
-			here = about(jawHinge, CFrame.Angles(angle, 0, 0)) * offset
-		elseif (role == "mandL" or role == "mandR") and own then
+			local angle = (if m.left then jawL else jawR) * (if m.top then 1 else -0.6)
+			here = about(m.hinge, CFrame.Angles(angle, 0, 0)) * offset
+		elseif kind == MAND then
 			-- A devourer's jaws open outwards and snap together (the jaw's tip points ahead, so a
 			-- turn about Y towards its own side opens it).
-			local out = if own.X > 0 then 1 else -1
-			here = about(own, CFrame.Angles(0, -out * jaws[side] * 0.8, 0)) * offset
-		elseif string.match(role, "^leg[LR]%u$") and own then
+			here = about(m.hinge, CFrame.Angles(0, -m.out * (if m.left then jawL else jawR) * 0.8, 0)) * offset
+		elseif kind == LEG then
 			-- A crab steps in the air: each leg swings forward and back on its hip, lifting as it
 			-- swings forward; every other leg in step, the two sides opposite (as crabs walk).
-			local hinge = own
-			local out = if hinge.X > 0 then 1 else -1
-			local index = string.byte(role, 5) - 64 + (if string.sub(role, 4, 4) == "L" then 0 else 1)
-			local phase = t * 4 + ph + index * math.pi
-			here = about(hinge, CFrame.Angles(0, 0.16 * math.sin(phase), out * 0.07 * (1 + math.cos(phase)))) * offset
-		elseif string.match(role, "^seg%u$") then
+			local phase = t * 4 + ph + m.k * math.pi
+			here = about(m.hinge, CFrame.Angles(0, 0.16 * math.sin(phase), m.out * 0.07 * (1 + math.cos(phase))))
+				* offset
+		elseif kind == SEG then
 			-- A worm crawls through the air: a wave runs from the head down the segments, wider
 			-- towards the tail; neighbours stay touching (a small step in phase and size).
-			local k = string.byte(role, 4) - 64
-			local wave = t * 2.2 + ph - k * 0.6
-			local amp = pet.height * 0.018 * k
+			local wave = t * 2.2 + ph - m.k * 0.6
+			local amp = pet.height * 0.018 * m.k
 			here = CFrame.new(amp * math.sin(wave), amp * 0.4 * math.sin(wave + 1.2), 0) * offset
-		elseif string.match(role, "^fin") and finRoot then
+		elseif kind == FIN then
 			-- A ray beats its fins slow and wide, as in water: the inner part from the body, the
 			-- outer one following a little later, so the fin bends like a wave.
-			local rootAt = finRoot
-			local out = if rootAt.X > 0 then 1 else -1
-			local beatPhase = t * 1.8 + ph
-			local rootTurn = about(rootAt, CFrame.Angles(0, 0, out * 0.22 * math.sin(beatPhase)))
-			here = rootTurn * offset
-			local joint = pet.hinges["finOuter" .. side]
-			if string.sub(role, 1, 8) == "finOuter" and joint then
-				here = rootTurn * about(joint, CFrame.Angles(0, 0, out * 0.28 * math.sin(beatPhase - 0.9))) * offset
-			end
-		elseif string.match(role, "^tail%u$") then
+			local rootTurn = about(m.hinge, CFrame.Angles(0, 0, m.out * 0.22 * math.sin(finPhase)))
+			local joint = m.joint
+			here = if joint
+				then rootTurn * about(joint, CFrame.Angles(0, 0, m.out * 0.28 * math.sin(finPhase - 0.9))) * offset
+				else rootTurn * offset
+		elseif kind == TAIL then
 			-- A ray's tail of beads wags as a wave, wider towards its end (small: a wide wag would
 			-- pull the chain apart).
-			local k = string.byte(role, 5) - 64
-			here = CFrame.new(pet.height * 0.005 * k * math.sin(t * 3 + ph - k * 0.4), 0, 0) * offset
-		elseif (role == "buzzL" or role == "buzzR") and own then
+			here = CFrame.new(pet.height * 0.005 * m.k * math.sin(t * 3 + ph - m.k * 0.4), 0, 0) * offset
+		elseif kind == BUZZ then
 			-- The lead drone's little wings buzz.
-			local out = if own.X > 0 then 1 else -1
-			here = about(own, CFrame.Angles(0, 0, out * 0.45 * math.sin(t * 28 + ph))) * offset
-		elseif (role == "flipperL" or role == "flipperR") and own then
+			here = about(m.hinge, CFrame.Angles(0, 0, m.out * 0.45 * math.sin(t * 28 + ph))) * offset
+		elseif kind == FLIPPER then
 			-- A whale rows with its side flippers, the two a little out of step.
-			local out = if own.X > 0 then 1 else -1
-			local row = t * 1.6 + ph + (if out > 0 then 0 else 0.5)
-			here = about(own, CFrame.Angles(0.35 * math.sin(row), 0, out * 0.1 * math.cos(row))) * offset
-		elseif role == "flukes" and flukes then
+			local row = t * 1.6 + ph + (if m.out > 0 then 0 else 0.5)
+			here = about(m.hinge, CFrame.Angles(0.35 * math.sin(row), 0, m.out * 0.1 * math.cos(row))) * offset
+		elseif kind == FLUKES then
 			-- The tail flukes beat up and down, slowly.
-			here = about(flukes, CFrame.Angles(0.3 * math.sin(t * 1.3 + ph), 0, 0)) * offset
-		elseif role == "wisp" then
+			here = about(m.hinge, CFrame.Angles(0.3 * math.sin(t * 1.3 + ph), 0, 0)) * offset
+		elseif kind == WISP then
 			-- A comet circles the pet; its orbit was measured at the dressing scale.
-			local tilt = tonumber(part:GetAttribute("Tilt")) or 0
-			local angle = t * (tonumber(part:GetAttribute("Speed")) or 1.6)
-				+ (tonumber(part:GetAttribute("Phase")) or 0)
 			here = c
-				* CFrame.Angles(tilt, 0, tilt * 0.5)
-				* CFrame.Angles(0, angle, 0)
-				* CFrame.new((tonumber(part:GetAttribute("Orbit")) or 0) * pet.scale, 0, 0)
-		elseif string.match(role, "^drone%d") then
+				* CFrame.Angles(m.tilt, 0, m.tilt * 0.5)
+				* CFrame.Angles(0, t * m.speed + m.phase, 0)
+				* CFrame.new(m.orbit * pet.scale, 0, 0)
+		else
 			-- A little drone flies its own loop round the pet, nose first, bobbing; its jaws and
-			-- wings (drone1MandL, drone1BuzzR…) move on the way.
-			local n = tonumber(string.match(role, "%d+")) or 0
+			-- wings move on the way.
+			local n = m.k
 			local hover = math.sin(t * 4 + n) * MOTION.DRONE_BOB * pet.scale
 			local fly = CFrame.new(0, hover, 0)
 			local path = pet.paths[n]
@@ -489,51 +650,44 @@ local function move(pet: Pet, t: number, dt: number, root: BasePart?, parts: { B
 					* CFrame.Angles(0, math.atan2(-ahead.X, -ahead.Z), 0)
 					* CFrame.new(-path.home)
 			end
-			local centre = pet.groups["drone" .. n]
-			if string.match(role, "Mand[LR]$") and own and centre then
-				local out = if own.X > centre.X then 1 else -1
-				here = fly * about(own, CFrame.Angles(0, -out * jaws[side] * 0.8, 0)) * offset
-			elseif string.match(role, "Buzz[LR]$") and own and centre then
-				local out = if own.X > centre.X then 1 else -1
-				here = fly * about(own, CFrame.Angles(0, 0, out * 0.45 * math.sin(t * 30 + n * 2))) * offset
+			if m.droneKind == 1 then
+				here = fly
+					* about(m.hinge, CFrame.Angles(0, -m.out * (if m.left then jawL else jawR) * 0.8, 0))
+					* offset
+			elseif m.droneKind == 2 then
+				here = fly * about(m.hinge, CFrame.Angles(0, 0, m.out * 0.45 * math.sin(t * 30 + n * 2))) * offset
 			else
 				here = fly * offset
 			end
-		else
-			here = offset
 		end
-		local size = pet.sizes[i]
-		local frame = fixed or bob
-		if here then
-			local at: CFrame = here
-			-- A worm's head (and all it wears) looks round on its neck; the segments wave apart.
-			if headTurn and not string.match(role, "^seg%u$") and role ~= "orbit" and role ~= "wisp" then
-				at = headTurn * at
-			end
-			-- The jelly squashes everything above its floor: the dome, the face, what rides on top.
-			if stretch ~= 0 and floor and offset.Position.Y > floor then
-				at = squashed(at, floor, pet.centre, sy, sxz)
-				if role == "body" and part.Name ~= EFFECTS_PART then
-					size = squashedSize(size, offset, sy, sxz)
-				end
-			end
-			frame = bob * at
+		local size = m.size
+		-- A worm's head (and all it wears) looks round on its neck; the segments wave apart.
+		if headTurn and m.headTurns then
+			here = headTurn * here
 		end
-		if pet.eyes[i] then
+		-- The jelly squashes everything above its floor: the dome, the face, what rides on top.
+		if stretch ~= 0 and floor and m.aboveFloor then
+			here = squashed(here, floor, pet.centre, sy, sxz)
+			if m.squashSize then
+				size = squashedSize(size, offset, sy, sxz)
+			end
+		end
+		if m.eye then
 			size = Vector3.new(size.X, size.Y * open, size.Z)
 		end
+		local part = m.part
 		if part.Size ~= size then
 			part.Size = size
 		end
 		table.insert(parts, part)
-		table.insert(frames, frame)
+		table.insert(frames, bob * here)
 	end
 	if pet.light then
 		pet.light.Brightness = pet.brightness + math.sin(t * 3 + ph) * 0.4
 	end
-	for _, image in pet.images do
-		local spin = tonumber(image:GetAttribute("Spin"))
-		image.Rotation = if spin then t * spin else math.sin(t * 0.8 + (tonumber(image:GetAttribute("Sway")) or 0)) * 2
+	for _, picture in pet.pictures do
+		local spin = picture.spin
+		picture.image.Rotation = if spin then t * spin else math.sin(t * 0.8 + picture.sway) * 2
 	end
 end
 
@@ -600,17 +754,19 @@ function AlienMotionController.new(): AlienMotionController
 				pet.base = pivot
 				-- The server moved its own parts; the effects made here move along at once (a far
 				-- pet is not moved every frame).
+				local parts: { BasePart } = {}
 				local frames: { CFrame } = {}
-				for index in pet.parts do
-					frames[index] = pivot * pet.offsets[index]
+				for _, m in pet.movers do
+					table.insert(parts, m.part)
+					table.insert(frames, pivot * m.offset)
 				end
-				workspace:BulkMoveTo(pet.parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
+				workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
 			end)
 			-- Many new meshes at once: ask for them all, or some stay unloaded (half a pet missing).
 			local meshes: { Instance } = {}
-			for _, part in pet.parts do
-				if part:IsA("MeshPart") then
-					table.insert(meshes, part)
+			for _, m in pet.movers do
+				if m.part:IsA("MeshPart") then
+					table.insert(meshes, m.part)
 				end
 			end
 			pcall(ContentProvider.PreloadAsync, ContentProvider, meshes)
@@ -635,22 +791,17 @@ function AlienMotionController.new(): AlienMotionController
 		local frames: { CFrame } = {}
 		frame += 1
 		for _, pet in pets do
-			local detail = PetMotion.detail(
-				(pet.base.Position - eye).Magnitude,
-				pet.radius,
-				pet.detail,
-				MOTION.NEAR,
-				MOTION.FAR,
-				MOTION.DETAIL_MARGIN
-			)
+			local distance = (pet.base.Position - eye).Magnitude
+			local detail =
+				PetMotion.detail(distance, pet.radius, pet.detail, MOTION.NEAR, MOTION.FAR, MOTION.DETAIL_MARGIN)
 			if detail ~= pet.detail then
 				setDetail(pet, detail)
 			end
-			-- Near: every frame; in the middle distance every other one (half the work, still
-			-- smooth from there); far pets stand still.
-			if detail == 1 then
+			-- Close by: every frame; farther, every other one (half the work, still smooth from
+			-- there); far pets stand still.
+			if detail == 1 and distance <= MOTION.SMOOTH + pet.radius then
 				move(pet, t, dt, root, parts, frames)
-			elseif detail == 2 and frame % 2 == pet.frameSlot then
+			elseif detail <= 2 and frame % 2 == pet.frameSlot then
 				move(pet, t, dt * 2, root, parts, frames)
 			end
 		end
