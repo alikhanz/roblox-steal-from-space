@@ -31,7 +31,7 @@
 Только после слов пользователя «в прод» про конкретный `master`.
 
 1. Метка версии на этот коммит: `git tag v<major>.<minor>.<patch>` и пуш метки. Prod всегда равен последней метке.
-2. Новые звуки, анимации и картинки, загруженные с аккаунта пользователя, расшарить на Prod-игру. В Creator Hub это право `Use` для `Universe 10775754016` (asset permissions). Список звуков — `docs/design/SOUND.md`.
+2. **Все новые ассеты, загруженные с аккаунта пользователя, расшарить на Prod-игру:** сетки (наборы, пришельцы, стражи), картинки (иконки, превью), звуки, анимации. Право `Use` для `Universe 10775754016`, через asset permissions API или Creator Hub, не больше 50 ассетов за запрос. Prod принадлежит сообществу, поэтому без права ассеты пользователя в нём не грузятся: в консоли разработчика `MeshContentProvider failed to process … could not fetch`, нет джетпака и иконок (так было в `v1.0.2`, 2026-11-11). Проще всего выдать право на все свои ассеты типов Mesh, Image, Audio, Animation (список — `itemconfiguration.roblox.com/v1/creations/get-assets`). Список звуков — `docs/design/SOUND.md`.
 3. Новые наборы, вставляемые руками (папки в `ServerStorage` и `ReplicatedStorage`, см. `CLAUDE.md`), вставить и в Prod-плейс.
 4. Открыть Prod-плейс в Studio. `rojo serve` с метки, **Connect**. Проверить в Edit:
    - ручные настройки: `AuthorityMode = Server`, `StreamingMinRadius = 2048`, `StreamingTargetRadius = 4096`, `TextChatService.ChatVersion = TextChatService`, `LightingStyle = Realistic`;
