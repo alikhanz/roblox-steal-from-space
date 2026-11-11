@@ -16,6 +16,47 @@ MeshContentProvider failed to process https://assetdelivery.roblox.com/v1/asset?
 
 Игрок тогда видит пустое место: нет джетпака, нет моделей, пустые иконки кнопок, тишина вместо звуков. Так было в `v1.0.2` (2026-11-11): разрешения выдали на звуки и анимации, а на сетки и картинки забыли.
 
+## Как загружать
+
+Всё грузится **с аккаунта пользователя**. После загрузки — сразу разрешение для Prod (раздел ниже). Подробности по 3D — [design/BLENDER_ROBLOX.md](design/BLENDER_ROBLOX.md), разделы 5, 5a, 6a.
+
+### 3D-модели (пришельцы, стражи, наборы)
+
+1. **Экспорт из Blender в GLB** скриптом из `assets/blender/…`. Blender запускается по полному пути из PowerShell: `"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" --background --factory-startup --python <скрипт> -- <аргументы>`.
+2. **Загрузка — Open Cloud** `POST /assets/v1/assets`, тип Model, файл GLB. Из сессии — MCP Studio `open_cloud_invoke`. Потом опрос `GET /assets/v1/operations/{id}`, пока не `done`. На `Unknown Error` загрузить заново.
+3. **Вставка в Studio** — MCP `insert_asset`. Вставленная модель — пакет: убрать `PackageLink`. Studio поворачивает модель при вставке, и метки могут съехать — проверять (BLENDER_ROBLOX.md, раздел 5).
+4. **В репозиторий и плейс:**
+   - **Пришельцы:** `ServerStorage.RoboPackIn` → Save to File → `lune run aliens out/RoboPackIn.rbxm` → `assets/aliens/<вид>.rbxm` и `out/Aliens.rbxm` → **File → Import Roblox Model** в `ServerStorage`.
+   - **Стражи:** `lune run guardians` → `assets/guardians/<пост>.rbxm` и `out/Guardians.rbxm` → импорт в `ReplicatedStorage`.
+   - **Наборы** (зоны, станция, терминалы, стенд, инкубатор, стеллаж, змей, PvP): детали без моделей-обёрток в свою папку (`ServerStorage.<Kit>` или `ReplicatedStorage.<Kit>`), код находит их через `World/MeshKit`.
+5. **Сохранить плейс** (MCP `save_place`). **И вставить то же в Prod-плейс** перед выпуском (RELEASE.md, шаг 3.3).
+
+**Не через Rojo:** живая синхронизация теряет сетки MeshPart. **Лимиты:** Studio качает каждую сетку отдельно и после ~12 тыс. подряд начинает получать таймауты. Вставлять пачками с паузами, при ошибках перезапускать Studio (BLENDER_ROBLOX.md, раздел 6a). Без нужды не перезагружать: всё, что можно сделать одеванием в коде, делать в коде.
+
+### Картинки (иконки интерфейса, листы иконок пришельцев)
+
+1. SVG в `assets/ui/icons` → `lune run icons` → PNG в `build/icons` (рисует Chrome без окна).
+2. `lune run icons serve` раздаёт PNG на `localhost:8790` → MCP Studio `upload_image`.
+3. ID — в конфиг (`UI/Icons`, `Config/AlienIcons`).
+4. Картинки проходят модерацию Roblox. Пока не прошли, видны пустыми.
+
+### Звуки
+
+1. Синтез своим скриптом (решение 097, бриф `docs/design/SOUND.md`).
+2. Open Cloud `POST /assets/v1/assets`, тип Audio. Без подтверждения личности месячный лимит загрузки звука маленький; личность подтверждена 2026-11-11.
+3. ID — в `SoundLooks.GAMES` по играм. Список загруженных — в `SOUND.md`.
+4. Звуки тоже проходят модерацию: первые минуты после загрузки могут молчать.
+
+### Анимации
+
+1. Позы данными в коде (`Character/FlightPose`, `StrikePose`); последовательность `KeyframeSequence` собирается в `ServerStorage` (CLAUDE.md, «Анимации»).
+2. Правый клик → **Save to Roblox** → тип Animation, **от владельца игры**. ID — в конфиг (`JetpackConfig`, `PvpConfig`, `StandConfig`).
+3. Под Server Authority играют только загруженные анимации. Для Prod анимации пользователя нужно расшарить, как и всё остальное.
+
+### Страница игры (иконка, превью, эмблема)
+
+Загружаются в Creator Hub на странице игры и сообщества, у каждой игры свои. Файлы — `assets/store/`, бриф — `docs/design/screens/game-page.md`.
+
 ## Сколько их
 
 Около 17,5 тысячи разных сеток (плейс Dev, 2026-11-11):
