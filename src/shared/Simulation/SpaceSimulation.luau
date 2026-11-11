@@ -111,6 +111,29 @@ local function toggleSlowMode(character: Model, context: Instance)
 	end
 end
 
+local floorParams = RaycastParams.new()
+floorParams.FilterType = Enum.RaycastFilterType.Exclude
+floorParams.RespectCanCollide = true
+
+-- How far above a floor the feet are, studs, when one is within `reach` of them (nil: none). A
+-- ray straight down from the body, through the character itself.
+local function floorGap(rig: Rig, reach: number): number?
+	local standing = rig.humanoid.HipHeight + rig.root.Size.Y / 2
+	floorParams.FilterDescendantsInstances = { rig.character }
+	local origin = rig.root.Position
+	local hit = workspace:Raycast(origin, Vector3.new(0, -(standing + reach), 0), floorParams)
+	return if hit then origin.Y - hit.Position.Y - standing else nil
+end
+
+-- The floor under a flyer, if near: for landing and for not sinking into it. Nil on foot.
+local function floorUnderFlyer(rig: Rig, deltaTime: number): number?
+	if rig.velocity.MaxForce == 0 then
+		return nil
+	end
+	local fallY = math.min(rig.root.AssemblyLinearVelocity.Y, rig.velocity.VectorVelocity.Y)
+	return floorGap(rig, JetpackSwitch.floorReach(fallY, deltaTime, FlightConfig.SWITCH))
+end
+
 local function numberOr(character: Model, name: string, fallback: number): number
 	local value = character:GetAttribute(name)
 	return if type(value) == "number" then value else fallback
@@ -123,9 +146,10 @@ local function writeAttribute(character: Model, name: string, value: any)
 end
 
 -- Switches the jetpack (Domain/JetpackSwitch, decision 096): always on in space, a double jump
--- under a dome, off on landing there. Jump comes from the up action (space, R1, A, the touch up
--- button) or the humanoid's own jump (Roblox's touch jump button). Returns whether it is on.
-local function switchJetpack(rig: Rig, context: Instance, inSpace: boolean, deltaTime: number): boolean
+-- under a dome, off on landing there (`gap`: the floor under a flyer, floorUnderFlyer). Jump
+-- comes from the up action (space, R1, A, the touch up button) or the humanoid's own jump
+-- (Roblox's touch jump button). Returns whether it is on.
+local function switchJetpack(rig: Rig, context: Instance, inSpace: boolean, gap: number?, deltaTime: number): boolean
 	local character = rig.character
 	local tuning = FlightConfig.SWITCH
 	local fresh = JetpackSwitch.initial(tuning)
@@ -135,18 +159,11 @@ local function switchJetpack(rig: Rig, context: Instance, inSpace: boolean, delt
 		releasedFor = numberOr(character, FlightConfig.JUMP_RELEASED_ATTRIBUTE, fresh.releasedFor),
 		tapWindow = numberOr(character, FlightConfig.JUMP_TAP_WINDOW_ATTRIBUTE, 0),
 	}
-	-- Pushing down last step, yet hardly falling: a floor is in the way.
-	local landed = state.on
-		and rig.velocity.MaxForce > 0
-		and JetpackSwitch.isLanding(
-			FlightInputs.isPressed(context, FlightInputs.DESCEND),
-			rig.velocity.VectorVelocity.Y,
-			rig.root.AssemblyLinearVelocity.Y,
-			tuning
-		)
+	local ascending = FlightInputs.isPressed(context, FlightInputs.ASCEND)
+	local landed = state.on and JetpackSwitch.isLanding(gap, rig.root.AssemblyLinearVelocity.Y, ascending, tuning)
 	local nextState = JetpackSwitch.step(state, {
 		inSpace = inSpace,
-		pressed = rig.humanoid.Jump or FlightInputs.isPressed(context, FlightInputs.ASCEND),
+		pressed = rig.humanoid.Jump or ascending,
 		landed = landed,
 	}, deltaTime, tuning)
 	writeAttribute(character, FlightConfig.JETPACK_ON_ATTRIBUTE, nextState.on)
@@ -237,7 +254,8 @@ local function fly(
 	deltaTime: number,
 	target: EggTargets.Target?,
 	hit: Hit?,
-	lunge: Vector3?
+	lunge: Vector3?,
+	gap: number?
 )
 	local current = rig.root.AssemblyLinearVelocity
 	local maxSpeed = flightSpeed(rig.character)
@@ -259,6 +277,8 @@ local function fly(
 		local carryMultiplier = Speed.carryMultiplier(carriedWeight(rig.character))
 		velocity = Flight.nextVelocity(current, direction, deltaTime, maxSpeed * carryMultiplier, FlightConfig.TUNING)
 	end
+	-- Never into a floor: the jetpack's force would push a fast flyer through a platform.
+	velocity = Vector3.new(velocity.X, JetpackSwitch.limitDescent(velocity.Y, gap, deltaTime), velocity.Z)
 	velocity =
 		Bounds.limitVelocity(rig.root.Position, velocity, StationConfig.PLATFORM_CENTER, WorldConfig.BOUNDARY_RADIUS)
 	-- A closer edge while something (the solar storm) keeps everyone near the station.
@@ -483,11 +503,12 @@ local function step(deltaTime: number)
 		-- Hands full with an egg: no strike.
 		local lunge = strike(rig, context, inSpace and hit == nil and not carrying, deltaTime)
 
-		local jetpackOn = switchJetpack(rig, context, inSpace, deltaTime)
+		local gap = floorUnderFlyer(rig, deltaTime)
+		local jetpackOn = switchJetpack(rig, context, inSpace, gap, deltaTime)
 		-- The stand takes only those on foot (a flyer lands first).
 		local onStand = stand(player, rig, context, jetpackOn)
 		if jetpackOn then
-			fly(rig, context, deltaTime, target, hit, lunge)
+			fly(rig, context, deltaTime, target, hit, lunge, gap)
 		elseif not onStand then
 			walk(rig)
 		end

@@ -211,9 +211,9 @@ local function buildGreyboxCapsule(frame: CFrame, isBought: boolean, model: Mode
 end
 
 -- Incubator slot `index`: an open capsule (`isBought`), where an egg hovers, or a closed bud
--- (docs/design/screens/incubator.md). Its look collides with nothing; an invisible cylinder over
--- the socket keeps players out of it without stopping prompts or the camera (as the shelf's
--- blocks). A capsule's light is set by `setCapsuleState`.
+-- (docs/design/screens/incubator.md). Nothing of it collides: players walk and fly through the
+-- incubator. An invisible cylinder over the socket is the model's primary part. A capsule's light
+-- is set by `setCapsuleState`.
 function BayModel.buildCapsule(origin: CFrame, index: number, isBought: boolean): Model
 	local frame = BayModel.capsuleCFrame(origin, index)
 	local model = Instance.new("Model")
@@ -231,6 +231,7 @@ function BayModel.buildCapsule(origin: CFrame, index: number, isBought: boolean)
 	local height = if isBought then IncubatorShape.POD_HEIGHT else IncubatorShape.BUD_HEIGHT
 	local block = disc("Block", frame * CFrame.new(0, height / 2, 0), IncubatorShape.SOCKET_RADIUS, height)
 	block.Transparency = 1
+	block.CanCollide = false
 	scenery(block)
 	block.Parent = model
 	model.PrimaryPart = block
@@ -885,10 +886,10 @@ local function buildZoneLines(origin: CFrame, parent: Instance)
 	)
 end
 
--- The incubator's dais in the island's center (docs/design/screens/incubator.md): the solid part
--- `Incubator` (invisible over the kit's dais, which touches nothing; it carries the incubator's
--- attributes), the kit's dais and its light, or the greybox disc in the incubator's colour. Its
--- slots are BayService's (buildCapsule).
+-- The incubator's dais in the island's center (docs/design/screens/incubator.md): the part
+-- `Incubator` (invisible over the kit's dais; it carries the incubator's attributes), the kit's
+-- dais and its light, or the greybox disc in the incubator's colour. None of it collides: players
+-- walk and fly through the incubator. Its slots are BayService's (buildCapsule).
 local function buildIncubator(origin: CFrame, parent: Instance)
 	local center = origin * CFrame.new(BayLooks.INCUBATOR_POSITION)
 	local incubator = disc(
@@ -899,6 +900,7 @@ local function buildIncubator(origin: CFrame, parent: Instance)
 	)
 	incubator.Material = Enum.Material.SmoothPlastic
 	incubator.Color = BayLooks.INCUBATOR_COLOR
+	incubator.CanCollide = false
 	scenery(incubator)
 	incubator.Parent = parent
 	local body = IncubatorKit.piece("DaisBody")
@@ -911,16 +913,6 @@ local function buildIncubator(origin: CFrame, parent: Instance)
 	local light = wearKit(glow, "DaisLight", center, parent)
 	light.Material = Enum.Material.Neon
 	light.Color = BayLooks.INCUBATOR_COLOR
-	-- The heater in the dais's middle stands on its own: nobody walks through it.
-	local heater = disc(
-		"Heater",
-		center * CFrame.new(0, IncubatorShape.DAIS_HEIGHT + IncubatorShape.CORE_HEIGHT / 2, 0),
-		IncubatorShape.CORE_RADIUS,
-		IncubatorShape.CORE_HEIGHT
-	)
-	heater.Transparency = 1
-	scenery(heater)
-	heater.Parent = parent
 end
 
 function BayModel.build(slot: number, origin: CFrame): Model

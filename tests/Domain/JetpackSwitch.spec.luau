@@ -7,8 +7,8 @@ local describe, it, expect = Test.describe, Test.it, Test.expect
 local TUNING: JetpackSwitch.Tuning = {
 	doubleTapSeconds = 0.4,
 	minReleaseSeconds = 0.05,
-	landPushSpeed = 4,
-	landStillSpeed = 1,
+	landGap = 0.75,
+	landRiseSpeed = 2,
 }
 local STEP = 1 / 60
 
@@ -96,19 +96,59 @@ describe("JetpackSwitch.step", function()
 end)
 
 describe("JetpackSwitch.isLanding", function()
-	it("lands when pushing down while the floor holds the body", function()
-		expect(JetpackSwitch.isLanding(true, -30, 0, TUNING)).toBe(true)
+	it("lands with the feet on the floor", function()
+		expect(JetpackSwitch.isLanding(0, 0, false, TUNING)).toBe(true)
+		expect(JetpackSwitch.isLanding(0.5, -30, false, TUNING)).toBe(true)
 	end)
 
-	it("does not land while still falling freely", function()
-		expect(JetpackSwitch.isLanding(true, -30, -29, TUNING)).toBe(false)
+	it("lands without holding down", function()
+		expect(JetpackSwitch.isLanding(0.2, -0.5, false, TUNING)).toBe(true)
 	end)
 
-	it("does not land without holding down", function()
-		expect(JetpackSwitch.isLanding(false, -30, 0, TUNING)).toBe(false)
+	it("does not land with no floor near", function()
+		expect(JetpackSwitch.isLanding(nil, 0, false, TUNING)).toBe(false)
+		expect(JetpackSwitch.isLanding(3, -10, false, TUNING)).toBe(false)
 	end)
 
-	it("does not land at the very start of a descent", function()
-		expect(JetpackSwitch.isLanding(true, -2, 0, TUNING)).toBe(false)
+	it("does not land while taking off", function()
+		-- The double jump starts right over the floor, the jump still carrying the body up.
+		expect(JetpackSwitch.isLanding(0.3, 40, false, TUNING)).toBe(false)
+		expect(JetpackSwitch.isLanding(0.3, 0, true, TUNING)).toBe(false)
+	end)
+end)
+
+describe("JetpackSwitch.floorReach", function()
+	it("looks a little under the feet when still or climbing", function()
+		expect(JetpackSwitch.floorReach(0, 1 / 60, TUNING)).toBe(TUNING.landGap)
+		expect(JetpackSwitch.floorReach(50, 1 / 60, TUNING)).toBe(TUNING.landGap)
+	end)
+
+	it("looks two steps ahead when falling fast", function()
+		expect(JetpackSwitch.floorReach(-240, 1 / 60, TUNING)).toBeCloseTo(TUNING.landGap + 8)
+	end)
+end)
+
+describe("JetpackSwitch.limitDescent", function()
+	local STEP_TIME = 1 / 60
+
+	it("leaves the velocity alone with no floor near", function()
+		expect(JetpackSwitch.limitDescent(-250, nil, STEP_TIME)).toBe(-250)
+	end)
+
+	it("never takes a fast flyer through the floor in one step", function()
+		local limited = JetpackSwitch.limitDescent(-250, 2, STEP_TIME)
+		expect(limited).toBeCloseTo(-120)
+		-- One step at the limit ends on the floor, not under it.
+		expect(2 + limited * STEP_TIME).toBeCloseTo(0)
+	end)
+
+	it("stops the descent on the floor and inside it", function()
+		expect(JetpackSwitch.limitDescent(-30, 0, STEP_TIME)).toBe(0)
+		expect(JetpackSwitch.limitDescent(-30, -0.4, STEP_TIME)).toBe(0)
+	end)
+
+	it("lets a flyer climb and slide along the floor", function()
+		expect(JetpackSwitch.limitDescent(20, 0, STEP_TIME)).toBe(20)
+		expect(JetpackSwitch.limitDescent(-1, 3, STEP_TIME)).toBe(-1)
 	end)
 end)

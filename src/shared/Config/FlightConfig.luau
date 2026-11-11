@@ -14,8 +14,8 @@ local TUNING: Flight.Tuning = {
 local SWITCH: JetpackSwitch.Tuning = {
 	doubleTapSeconds = 0.4,
 	minReleaseSeconds = 0.05,
-	landPushSpeed = 4,
-	landStillSpeed = 1,
+	landGap = 0.75,
+	landRiseSpeed = 2,
 }
 
 return table.freeze({
