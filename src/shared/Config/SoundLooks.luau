@@ -111,15 +111,16 @@ local SOUNDS: { [Name]: Sound } = {
 	BombBoom = world(0.8, PRIORITY.OTHERS, 25, 250),
 	HitMe = mine(0.7, PRIORITY.ME),
 
+	-- The hiss plays the whole flight: kept quiet (user on the phone, 2026-11-11: "very loud").
 	JetLoop = {
-		volume = 0.35,
+		volume = 0.15,
 		group = "World",
 		priority = PRIORITY.AMBIENT,
 		near = 15,
 		reach = 60,
 		looped = true,
 	},
-	JetStart = world(0.4, PRIORITY.AMBIENT, 15, 60),
+	JetStart = world(0.25, PRIORITY.AMBIENT, 15, 60),
 	OxygenLow = mine(0.35, PRIORITY.ME),
 	OxygenRefill = mine(0.4),
 
