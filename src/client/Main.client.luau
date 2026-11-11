@@ -49,6 +49,7 @@ local SpeedState = require(script.Parent.State.SpeedState)
 local StationBorderController = require(script.Parent.Controllers.StationBorderController)
 local StoreController = require(script.Parent.Controllers.StoreController)
 local ToastState = require(script.Parent.State.ToastState)
+local TouchJumpController = require(script.Parent.Controllers.TouchJumpController)
 local TrainingViewController = require(script.Parent.Controllers.TrainingViewController)
 local TutorialController = require(script.Parent.Controllers.TutorialController)
 local UiSoundController = require(script.Parent.Controllers.UiSoundController)
@@ -158,6 +159,7 @@ Lifecycle.run({
 	NewbieViewController.new(),
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
 	DomeFlightHintController.new({ toast = toastState.push, tutorialDone = tutorialController.isDone }),
+	TouchJumpController.new(),
 	tutorialController,
 	StationBorderController.new(),
 	ZoneTintController.new(),

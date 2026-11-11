@@ -67,10 +67,26 @@ local function findRig(player: Player): Rig?
 	return { character = character, humanoid = humanoid, root = root, velocity = velocity, align = align }
 end
 
-local function verticalInput(context: Instance): number
-	local up = if FlightInputs.isPressed(context, FlightInputs.ASCEND) then 1 else 0
+-- Up: the up action (space, R1, A, the touch up button) or the humanoid's own jump. Roblox's touch
+-- jump button sits under the up button and should be hidden in flight; should it show up anyway,
+-- a press on it still climbs.
+local function ascending(rig: Rig, context: Instance): boolean
+	return rig.humanoid.Jump or FlightInputs.isPressed(context, FlightInputs.ASCEND)
+end
+
+local function verticalInput(rig: Rig, context: Instance): number
+	local up = if ascending(rig, context) then 1 else 0
 	local down = if FlightInputs.isPressed(context, FlightInputs.DESCEND) then 1 else 0
 	return up - down
+end
+
+-- Jumping is on exactly while the jetpack is off, checked every step rather than only when the
+-- mode changes: a client rolled back past that change kept jumping on in flight, and Roblox's touch
+-- jump button stayed over the up button, taking its presses. Written only when it differs.
+local function allowJumping(rig: Rig, allowed: boolean)
+	if rig.humanoid:GetStateEnabled(Enum.HumanoidStateType.Jumping) ~= allowed then
+		rig.humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, allowed)
+	end
 end
 
 local function carriedRarity(character: Model): EggConfig.RarityId?
@@ -159,11 +175,11 @@ local function switchJetpack(rig: Rig, context: Instance, inSpace: boolean, gap:
 		releasedFor = numberOr(character, FlightConfig.JUMP_RELEASED_ATTRIBUTE, fresh.releasedFor),
 		tapWindow = numberOr(character, FlightConfig.JUMP_TAP_WINDOW_ATTRIBUTE, 0),
 	}
-	local ascending = FlightInputs.isPressed(context, FlightInputs.ASCEND)
-	local landed = state.on and JetpackSwitch.isLanding(gap, rig.root.AssemblyLinearVelocity.Y, ascending, tuning)
+	local up = ascending(rig, context)
+	local landed = state.on and JetpackSwitch.isLanding(gap, rig.root.AssemblyLinearVelocity.Y, up, tuning)
 	local nextState = JetpackSwitch.step(state, {
 		inSpace = inSpace,
-		pressed = rig.humanoid.Jump or ascending,
+		pressed = up,
 		landed = landed,
 	}, deltaTime, tuning)
 	writeAttribute(character, FlightConfig.JETPACK_ON_ATTRIBUTE, nextState.on)
@@ -273,7 +289,7 @@ local function fly(
 		velocity =
 			Grab.magnetVelocity(current, rig.root.Position, target.position, deltaTime, EggConfig.MAGNET, maxSpeed)
 	else
-		local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(context))
+		local direction = Flight.direction(rig.humanoid.MoveDirection, aim, Vector3.yAxis, verticalInput(rig, context))
 		local carryMultiplier = Speed.carryMultiplier(carriedWeight(rig.character))
 		velocity = Flight.nextVelocity(current, direction, deltaTime, maxSpeed * carryMultiplier, FlightConfig.TUNING)
 	end
@@ -288,11 +304,6 @@ local function fly(
 	end
 
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-	if rig.velocity.MaxForce == 0 then
-		-- Just left the station: no jumping in space. Roblox's touch jump button hides when the
-		-- jump state is off, and up and down take its corner (docs/design/screens/hud.md).
-		rig.humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-	end
 	rig.velocity.MaxForce = FlightConfig.MAX_FORCE
 	rig.velocity.VectorVelocity = velocity
 
@@ -349,7 +360,6 @@ local function walk(rig: Rig)
 	end
 	rig.velocity.MaxForce = 0
 	rig.align.MaxTorque = 0
-	rig.humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 	rig.humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 end
 
@@ -507,6 +517,9 @@ local function step(deltaTime: number)
 		local jetpackOn = switchJetpack(rig, context, inSpace, gap, deltaTime)
 		-- The stand takes only those on foot (a flyer lands first).
 		local onStand = stand(player, rig, context, jetpackOn)
+		-- No jumping in flight: Roblox's touch jump button hides when the jump state is off, and up
+		-- and down take its corner (docs/design/screens/hud.md).
+		allowJumping(rig, not jetpackOn)
 		if jetpackOn then
 			fly(rig, context, deltaTime, target, hit, lunge, gap)
 		elseif not onStand then
