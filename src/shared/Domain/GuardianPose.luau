@@ -50,19 +50,28 @@ function GuardianPose.wears(wearing: boolean, distance: number, reach: number, m
 	return distance <= reach + (if wearing then margin else 0)
 end
 
--- How big the sign over a guardian (or the star serpent) `distance` studs from the camera stands,
--- as a share of its full size: full within `near`, `farScale` from `far` on, and between them
--- shrinking evenly on the log of the distance (each doubling of the distance takes the same
--- step), so a near guardian's sign stands out from the far ones'.
-function GuardianPose.labelScale(distance: number, near: number, far: number, farScale: number): number
-	assert(near > 0 and far > near, "labelScale needs 0 < near < far")
-	if distance <= near then
-		return 1
-	elseif distance >= far then
-		return farScale
-	end
-	local share = math.log(distance / near) / math.log(far / near)
-	return 1 + (farScale - 1) * share
+-- How big, in studs, the sign over a guardian (or the star serpent) `distance` studs from the
+-- camera is drawn, as a share of its own size: 1 between `near` and `far`, where the camera's
+-- perspective alone shrinks it with distance, smoothly; nearer it shrinks with the distance and
+-- farther it grows with it, so on screen it stays as big as at `near` (no bigger) or at `far`
+-- (no smaller).
+function GuardianPose.labelSize(distance: number, near: number, far: number): number
+	assert(near > 0 and far > near, "labelSize needs 0 < near < far")
+	return distance / math.clamp(distance, near, far)
+end
+
+-- Whether a sign's size share moving from `old` to `new` (labelSize) is worth redrawing: a
+-- change of more than `step` of it, or back to exactly its own size.
+function GuardianPose.labelSizeMoved(old: number, new: number, step: number): boolean
+	return new ~= old and (new == 1 or math.abs(new / old - 1) > step)
+end
+
+-- How faded the sign over a guardian (or the star serpent) `distance` studs from the camera is,
+-- as transparency: clear up to `start`, then fading evenly to `maxFade` at `finish` (where the
+-- sign goes), so far signs stay in the background and near ones stand out.
+function GuardianPose.labelFade(distance: number, start: number, finish: number, maxFade: number): number
+	assert(finish > start, "labelFade needs start < finish")
+	return maxFade * math.clamp((distance - start) / (finish - start), 0, 1)
 end
 
 -- Share of a catch's time the lunge takes to reach its furthest; the rest it draws back.

@@ -198,12 +198,12 @@ return table.freeze({
 	-- How far the sign over a guardian shows, studs. Nests stand farther apart in the far zones
 	-- (about 170 studs in the Debris Belt, 300 in the Ice Rings, 430 in the Red Nebula, 510 on
 	-- the Event Horizon), so the signs reach farther there: the next 3-4 nests around are always
-	-- in sight, without the whole map covered in text.
+	-- in sight, without the whole map covered in text: the far ones faded (GuardianLooks.LABEL).
 	GUARDIAN_SIGN_DISTANCE = table.freeze({
-		DebrisBelt = 500,
-		IceRings = 750,
-		RedNebula = 950,
-		EventHorizon = 1150,
+		DebrisBelt = 650,
+		IceRings = 950,
+		RedNebula = 1200,
+		EventHorizon = 1450,
 	} :: { [ZoneConfig.ZoneId]: number }),
 
 	-- The asteroids of the field, zone by zone (docs/plans/ZONES.md, step 3): each rock takes the

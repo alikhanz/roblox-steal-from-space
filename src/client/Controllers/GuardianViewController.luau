@@ -59,8 +59,11 @@ type View = {
 	distance: number,
 	-- False once the place turned out to have no model for its post: the greybox for good.
 	hasModel: boolean,
-	-- Its sign's size (GuardianPose.labelScale), moved on every frame by its distance.
-	labelScale: Vide.Source<number>,
+	-- How far its sign shows, and its sign's size share and fade now (GuardianPose.labelSize,
+	-- labelFade), moved on every frame by its distance.
+	signDistance: number,
+	labelSize: Vide.Source<number>,
+	labelFade: Vide.Source<number>,
 	unmount: () -> (),
 	connections: { RBXScriptConnection },
 	visual: GuardianVisual.Visual?,
@@ -211,7 +214,9 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		if not recommended then
 			warn(`[GuardianViewController] {instance:GetFullName()} has no recommended speed; its sign has no pill`)
 		end
-		local labelScale = Vide.source(LABEL.FAR_SCALE)
+		local labelSize = Vide.source(1)
+		local labelFade = Vide.source(0)
+		local signDistance = ZoneLooks.GUARDIAN_SIGN_DISTANCE[post.zone]
 		local unmount = Mount.instance(function()
 			return GuardianLabel({
 				adornee = body,
@@ -220,9 +225,10 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 					return challengeOf(recommended)
 				end,
 				words = words,
-				scale = labelScale,
+				size = labelSize,
+				fade = labelFade,
 				studsAbove = body.Size.Y / 2 + LABEL.STUDS_ABOVE,
-				maxDistance = ZoneLooks.GUARDIAN_SIGN_DISTANCE[post.zone],
+				maxDistance = signDistance,
 				debugText = debugTextOf(post, recommended),
 			})
 		end, instance)
@@ -238,7 +244,9 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 			reach = GuardianPose.wearReach(length, MODELS.ATTACH_DISTANCE, MODELS.ATTACH_LENGTHS),
 			distance = math.huge,
 			hasModel = true,
-			labelScale = labelScale,
+			signDistance = signDistance,
+			labelSize = labelSize,
+			labelFade = labelFade,
 			unmount = unmount,
 			connections = {},
 			visual = nil,
@@ -356,10 +364,14 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		wearNext()
 		for _, view in views do
 			local distance = (view.body.Position - eye).Magnitude
-			local scale = GuardianPose.labelScale(distance, LABEL.NEAR_DISTANCE, LABEL.FAR_DISTANCE, LABEL.FAR_SCALE)
+			local size = GuardianPose.labelSize(distance, LABEL.NEAR_DISTANCE, LABEL.FAR_DISTANCE)
+			if GuardianPose.labelSizeMoved(view.labelSize(), size, LABEL.SIZE_STEP) then
+				view.labelSize(size)
+			end
+			local fade = GuardianPose.labelFade(distance, LABEL.FADE_START, view.signDistance, LABEL.FADE_MAX)
 			-- Only a visible change wakes the sign up.
-			if math.abs(scale - view.labelScale()) > LABEL.SCALE_STEP then
-				view.labelScale(scale)
+			if math.abs(fade - view.labelFade()) > LABEL.FADE_STEP then
+				view.labelFade(fade)
 			end
 		end
 		if next(visuals) then
