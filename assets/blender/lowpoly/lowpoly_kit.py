@@ -228,7 +228,8 @@ SHAPES = {
 
 # How each style draws the face: eye size against the visor, a highlight, the eye's shape.
 FACE = {
-    "faceted": {"eye": 1.0, "highlight": True},
+    # The user's pick (2026-11-13): the faceted style with the toy's big eyes and highlight.
+    "faceted": {"eye": 1.35, "highlight": True},
     "toy": {"eye": 1.35, "highlight": True},
     "sharp": {"eye": 1.15, "highlight": False},
 }

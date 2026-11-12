@@ -16,6 +16,7 @@ ALIENS = os.path.join(HERE, "..", "..", "aliens")
 sys.path.insert(0, os.path.join(HERE, "..", "..", "lib"))
 sys.path.insert(0, ALIENS)
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(HERE, "..", "..", "lowpoly"))
 
 import bpy  # noqa: E402
 import export_robo_roblox as export  # noqa: E402  (sets robo.DETAIL = 0.8 as the game's export does)

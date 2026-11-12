@@ -31,6 +31,8 @@ local ModelPack = require("./lib/ModelPack")
 local Shell = require("./lib/Shell")
 
 local Instance = roblox.Instance
+-- @lune/roblox has the datatypes at run time, but its type definitions do not list them.
+local CFrame = (roblox :: any).CFrame
 
 type Instance = roblox.Instance
 
@@ -60,7 +62,11 @@ end
 -- no mesh. Hinge points are named after their marker's role (`hingeJawL`), fairy dust points `Dust`.
 local function isPoint(instance: Instance): boolean
 	return instance.ClassName == "Attachment"
-		and (instance.Name == "Dust" or string.match(instance.Name, "^hinge") ~= nil)
+		and (
+			instance.Name == "Dust"
+			or string.match(instance.Name, "^hinge") ~= nil
+			or string.match(instance.Name, "^anchor") ~= nil
+		)
 end
 
 -- Strips a dressed pet back to its model.
@@ -138,6 +144,210 @@ local function unpack(pack: Instance, kind: string): Instance
 	return folder
 end
 
+-- Low-poly packs (decision 118, assets/blender/lowpoly/export_lowpoly_roblox.py): each kind's body
+-- once and the kit of outfit pieces. A kind's ten pets are its body ten times over, the same meshes:
+-- grown to the tier as Blender grows a pet (the game divides it out, AlienLooks.MODELS.TIER_GROWTH),
+-- the shell gold on a legendary and molten on a meteor. The outfit is the game's (World/AlienOutfit):
+-- the body carries points for its slots (attachments `anchor<Slot>`, attribute Scale) and the kit
+-- (folder OUTFIT_FOLDER) one model a piece, its pivot where it goes on such a point.
+local OUTFIT_FOLDER = "_Outfit"
+local TIERS = 5
+local GROWTH = { 0.74, 0.86, 1.0, 1.14, 1.3 }
+-- robo.TIER_COLORS in sRGB (the pets' TierColor).
+local TIER_COLORS = { "218,221,229", "160,249,179", "137,203,255", "225,149,255", "255,221,108" }
+local SHELL_SOURCES = { Shell = true, Candy = true, Crystal = true }
+local GOLD_SHELL = "S255,190,45,0,0.35,Gold"
+local LAVA_SHELL = "L89,31,13,0,0,Meteor"
+
+local function isLowpolyPack(model: Instance): boolean
+	for _, part in model:GetDescendants() do
+		if part.ClassName == "MeshPart" and string.match(part.Name, "^kit|") then
+			return true
+		end
+	end
+	return false
+end
+
+-- A part `<role>_<n>|<code>` (the rest of its name after its owner): renamed, painted, bare.
+local function takePart(part: Instance, rest: string, owner: string)
+	local name, code = string.match(rest, "^([%w_]+)|(.+)$")
+	assert(name and code, `{owner}: a part named {part.Name} has no role or paint`)
+	part.Name = name
+	part:SetAttribute("Paint", code)
+	ModelPack.bare(part)
+end
+
+local function sourceOfCode(code: string): string
+	return string.match(code, ",(%a*)$") or ""
+end
+
+-- `model` grown by `factor` round its pivot: parts, their sizes, the points on them and their scales.
+local function grow(model: Instance, factor: number)
+	local pivot = (model :: any).WorldPivotData
+	for _, item in model:GetDescendants() do
+		local part: any = item
+		if part.ClassName == "MeshPart" then
+			local here = pivot:ToObjectSpace(part.CFrame)
+			part.CFrame = pivot * (CFrame.new(here.Position * factor) * here.Rotation)
+			part.Size = part.Size * factor
+		elseif part.ClassName == "Attachment" then
+			local here = part.CFrame
+			part.CFrame = CFrame.new(here.Position * factor) * here.Rotation
+			local scale = part:GetAttribute("Scale")
+			if type(scale) == "number" then
+				part:SetAttribute("Scale", scale * factor)
+			end
+		end
+	end
+end
+
+local function unpackLowpoly(pack: Instance): { Instance }
+	local turn = ((pack :: any).WorldPivotData :: any).Rotation
+	type Kind =
+		{ body: Instance, meta1: string?, meta2: string?, anchors: { { slot: string, scale: number, at: any } } }
+	local kinds: { [string]: Kind } = {}
+	local kindOrder: { string } = {}
+	local pieces: { [string]: { model: Instance, origin: any, dust: { { side: string, order: number, at: any } } } } =
+		{}
+	local pieceOrder: { string } = {}
+	for _, part in pack:GetDescendants() do
+		if part.ClassName ~= "MeshPart" then
+			continue
+		end
+		local position = (part :: any).CFrame.Position
+		local piece, pieceRest = string.match(part.Name, "^kit|(%w+)|(.+)$")
+		if piece and pieceRest then
+			local entry = pieces[piece]
+			if not entry then
+				local model = Instance.new("Model")
+				model.Name = piece
+				entry = { model = model, origin = nil, dust = {} }
+				pieces[piece] = entry
+				table.insert(pieceOrder, piece)
+			end
+			local side, order = string.match(pieceRest, "^dust([LR])(%d+)$")
+			if pieceRest == "origin" then
+				entry.origin = position
+			elseif side then
+				table.insert(entry.dust, { side = side, order = tonumber(order) :: number, at = position })
+			else
+				takePart(part, pieceRest, piece)
+				part.Parent = entry.model
+				continue
+			end
+			part:Destroy()
+			continue
+		end
+		local kindId, rest = string.match(part.Name, "^(%a%w*)|(.+)$")
+		if not kindId or not rest then
+			continue
+		end
+		local kind = kinds[kindId]
+		if not kind then
+			local body = Instance.new("Model")
+			body.Name = kindId
+			kind = { body = body, meta1 = nil, meta2 = nil, anchors = {} } :: Kind
+			kinds[kindId] = kind
+			table.insert(kindOrder, kindId)
+		end
+		local slot, scale = string.match(rest, "^anchor|(%a+)|([%d%.]+)$")
+		if string.match(rest, "^meta1|") then
+			kind.meta1 = rest
+		elseif string.match(rest, "^meta2|") then
+			kind.meta2 = rest
+		elseif slot then
+			table.insert(kind.anchors, { slot = slot, scale = tonumber(scale) :: number, at = position })
+		else
+			takePart(part, rest, kindId)
+			part.Parent = kind.body
+			continue
+		end
+		part:Destroy()
+	end
+
+	local found: { Instance } = {}
+	table.sort(kindOrder)
+	for _, kindId in kindOrder do
+		local kind = kinds[kindId]
+		local zone, family, signature = string.match(kind.meta1 or "", "^meta1|(%a+)|(%a+)|([%w_%+]*)$")
+		local glow, core, shell = string.match(kind.meta2 or "", "^meta2|([%d,]+)|([%d,]+)|([%d,]+)$")
+		assert(zone and glow, `{kindId}: no meta markers`)
+		-- The anchors' points sit on a body part that never moves: the shell.
+		local holder: Instance? = nil
+		for _, part in kind.body:GetChildren() do
+			if part.ClassName == "MeshPart" and SHELL_SOURCES[ModelPack.sourceOf(part)] then
+				holder = part
+			end
+		end
+		assert(holder, `{kindId}: no shell to hold the outfit's points`)
+		for _, anchor in kind.anchors do
+			local point: any = Instance.new("Attachment")
+			point.Name = `anchor{anchor.slot}`
+			point.CFrame = (holder :: any).CFrame:ToObjectSpace(CFrame.new(anchor.at))
+			point:SetAttribute("Scale", anchor.scale)
+			point.Parent = holder
+		end
+		ModelPack.centrePivot(kind.body, turn)
+		local folder = Instance.new("Folder")
+		folder.Name = kindId
+		for index = 1, TIERS * 2 do
+			local tier = (index - 1) % TIERS
+			local meteor = index > TIERS
+			local pet = kind.body:Clone()
+			pet.Name = `{kindId}-{if meteor then "m" else ""}{tier}`
+			grow(pet, GROWTH[tier + 1])
+			for _, part in pet:GetChildren() do
+				local code = part:GetAttribute("Paint")
+				if type(code) == "string" and SHELL_SOURCES[sourceOfCode(code)] then
+					if meteor then
+						part:SetAttribute("Paint", LAVA_SHELL)
+					elseif tier == TIERS - 1 then
+						part:SetAttribute("Paint", GOLD_SHELL)
+					end
+				end
+			end
+			pet:SetAttribute("Zone", zone)
+			pet:SetAttribute("Family", family)
+			pet:SetAttribute("Tier", tier)
+			pet:SetAttribute("Meteor", meteor)
+			pet:SetAttribute("Signature", signature)
+			pet:SetAttribute("Glow", glow)
+			pet:SetAttribute("Core", core)
+			pet:SetAttribute("TierColor", TIER_COLORS[tier + 1])
+			pet:SetAttribute("Shell", shell)
+			pet:SetAttribute("Outfit", true)
+			pet.Parent = folder
+		end
+		table.insert(found, folder)
+	end
+
+	local kit = Instance.new("Folder")
+	kit.Name = OUTFIT_FOLDER
+	table.sort(pieceOrder)
+	for _, name in pieceOrder do
+		local entry = pieces[name]
+		assert(entry.origin, `outfit piece {name}: no origin marker`)
+		for _, dust in entry.dust do
+			for _, part in entry.model:GetChildren() do
+				if
+					ModelPack.roleOf(part.Name) == `wing{dust.side}` and string.match(ModelPack.sourceOf(part), "Wing$")
+				then
+					local point: any = Instance.new("Attachment")
+					point.Name = "Dust"
+					point.CFrame = (part :: any).CFrame:ToObjectSpace(CFrame.new(dust.at))
+					point:SetAttribute("Order", dust.order)
+					point.Parent = part
+				end
+			end
+		end
+		local model: any = entry.model
+		model.WorldPivotData = CFrame.new(entry.origin) * turn
+		entry.model.Parent = kit
+	end
+	table.insert(found, kit)
+	return found
+end
+
 -- Checks a kind's folder: its ten pets, each with its data and parts.
 local function check(folder: Instance): { string }
 	local problems = {}
@@ -172,7 +382,10 @@ end
 local function kindsIn(roots: { Instance }): { Instance }
 	local found: { Instance } = {}
 	local function visit(instance: Instance)
-		if instance.ClassName == "Folder" then
+		if instance.ClassName == "Folder" and instance.Name == OUTFIT_FOLDER then
+			table.insert(found, instance)
+			return
+		elseif instance.ClassName == "Folder" then
 			local pet = instance:FindFirstChild(`{instance.Name}-0`)
 			if pet and pet.ClassName == "Model" and pet:GetAttribute("Zone") ~= nil then
 				for _, child in instance:GetChildren() do
@@ -182,6 +395,12 @@ local function kindsIn(roots: { Instance }): { Instance }
 				return
 			end
 		elseif instance.ClassName == "Model" then
+			if isLowpolyPack(instance) then
+				for _, folder in unpackLowpoly(instance) do
+					table.insert(found, folder)
+				end
+				return
+			end
 			for _, part in instance:GetDescendants() do
 				if part.ClassName == "MeshPart" and string.match(part.Name, "^[m%d]+|meta1|") then
 					local kind = string.match(instance.Name, "^pack%-(%w+)$") or instance.Name
@@ -217,7 +436,7 @@ if not fs.isDir(OUT_DIR) then
 end
 local manifest = ModelPack.readManifest(MANIFEST)
 for _, folder in kinds do
-	local problems = check(folder)
+	local problems = if folder.Name == OUTFIT_FOLDER then {} else check(folder)
 	if #problems > 0 then
 		for _, problem in problems do
 			Shell.fail(problem)

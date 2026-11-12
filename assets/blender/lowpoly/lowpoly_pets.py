@@ -12,8 +12,8 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "..", "lib"))
-sys.path.insert(0, os.path.join(HERE, "..", "..", "aliens"))
+sys.path.insert(0, os.path.join(HERE, "..", "lib"))
+sys.path.insert(0, os.path.join(HERE, "..", "aliens"))
 sys.path.insert(0, HERE)
 
 import lowpoly_kit as kit  # noqa: E402
@@ -70,10 +70,76 @@ class Context:
             "blade": ("plastic", (0.85, 0.87, 0.9)),
             "gemPink": ("neon", (1.0, 0.3, 0.5)),
         }
-        return kit.paint(*table[key])
+        if key in table:
+            return kit.paint(*table[key])
+        # Anything else: as the game will paint its code.
+        letter, rest = self.code(key)[0], self.code(key)[1:].split(",")
+        colour = tuple((int(v) / 255) ** 2.2 for v in rest[:3])
+        kind = {"N": "neon", "G": "glass"}.get(letter, "metal" if float(rest[4]) >= 0.3 else "plastic")
+        return kit.paint(kind, colour)
+
+    def code(self, key):
+        """The paint code the game reads (AlienDress, the Paint attribute):
+        <S|N|G|L><r>,<g>,<b>,<transparency>,<reflectance>,<source>, colours in sRGB 0-255. Parts whose
+        look depends on the tier carry a source the game recolours: Shell (gold on a legendary, lava on
+        a meteor), Tier* and EnergyWing (the tier's colour), Jet (a jetpack's flame)."""
+        c = self.colours
+        shell = ("S", c["shell"], 0, 0.35, "Candy") if c.get("paint") == "candy" else ("S", c["shell"], 0, 0.02, "Shell")
+        if c.get("finish") == "glass":
+            shell = ("G", c["shell"], 0.55, 0, "Crystal")
+        tier = TIER_COLORS[self.tier]
+        table = {
+            "shell": shell,
+            "trim": ("S", c["trim"], 0, 0.02, "Trim"),
+            "glow": ("N", c["glow"], 0, 0, "Seam"),
+            "eyes": ("N", c["eyes"], 0, 0, "EyeLight"),
+            "white": ("N", WHITE, 0, 0, "EyeShine"),
+            "core": ("N", c["core"], 0, 0, "Core"),
+            "dome": ("G", tuple(0.75 + 0.25 * v for v in c["core"]), 0.78, 0, "Dome"),
+            "visor": ("S", VISOR, 0, 0.1, "Visor"),
+            "engine": ("S", ENGINE, 0, 0.05, "Engine"),
+            "gold": ("S", GOLD, 0, 0.35, "Gold"),
+            "badge": ("S", GOLD, 0, 0.35, "Badge"),
+            "galaxy": ("S", GALAXY, 0, 0, "Galaxy"),
+            "red": ("N", (1.0, 0.1, 0.1), 0, 0, "Siren"),
+            "blue": ("N", (0.15, 0.35, 1.0), 0, 0, "Siren"),
+            "blade": ("S", (0.85, 0.87, 0.9), 0, 0.02, "Blade"),
+            "gemPink": ("N", (1.0, 0.3, 0.5), 0, 0, "Gem"),
+            "snow": ("S", WHITE, 0, 0.02, "Snow"),
+            "ice": ("G", (0.75, 0.95, 1.0), 0.5, 0, "IceSpike"),
+            "starGold": ("N", GOLD, 0, 0, "Star"),
+            "flame": ("N", (1.0, 0.55, 0.1), 0, 0, "Flame"),
+            "bolt": ("N", (1.0, 0.9, 0.3), 0, 0, "Bolt"),
+            "void": ("S", (0.0, 0.0, 0.0), 0, 0.1, "Void"),
+            "horizon": ("N", (1.0, 0.6, 0.95), 0, 0, "Horizon"),
+            "horizonOuter": ("N", (0.6, 0.5, 1.0), 0, 0, "HorizonOuter"),
+            "jewel": ("N", (0.4, 0.8, 1.0), 0, 0, "Jewel"),
+            "circlet": ("S", GOLD, 0, 0.35, "Circlet"),
+            "dot": ("N", c["glow"], 0, 0, "Dot"),
+            "backStar": ("N", (1.0, 0.95, 0.85), 0, 0, "BackStar"),
+            "planet": ("S", (0.55, 0.45, 0.95), 0, 0.02, "Planet"),
+            # The rolled outfit: painted in the tier's colours by the game (here tier 2's, a stand-in).
+            "tierBody": ("S", tier, 0, 0.02, "TierBody"),
+            "tier": ("N", tier, 0, 0, "TierGlow"),
+            "tierGlass": ("G", tier, 0.5, 0, "TierGlass"),
+            "wing": ("G", tier, 0.8, 0, "EnergyWing"),
+            "wingEdge": ("N", tier, 0, 0, "TierGlow"),
+            "jet": ("N", tier, 0, 0, "Jet"),
+        }
+        letter, colour, transparency, reflectance, source = table[key]
+        rgb = ",".join(str(round(srgb(v) * 255)) for v in colour[:3])
+        return f"{letter}{rgb},{transparency:g},{reflectance:g},{source}"
 
     def put(self, mesh, location, scale, key, rotation=(0, 0, 0), role="body"):
-        return self.pet.put(mesh, location, scale, self.paint(key), rotation, role)
+        obj = self.pet.put(mesh, location, scale, self.paint(key), rotation, role)
+        obj["paint"] = self.code(key)
+        return obj
+
+
+def srgb(channel):
+    """A linear colour channel as sRGB (what Roblox's Color3 takes)."""
+    channel = max(0.0, min(1.0, channel))
+    return channel * 12.92 if channel <= 0.0031308 else 1.055 * channel ** (1 / 2.4) - 0.055
 
 
 # --- Surface helpers: the hull is an ellipsoid (centre, radii) ---------------------------------------
@@ -238,7 +304,7 @@ def siren(ctx, info):
     info["crown_r"] = 0.44 if info["hull"][1][0] > 0.7 else 0.32
     info["beacon_at"] = (0.0, 0.32)
     (cx, cy, cz), (a, b, c) = info["hull"]
-    ctx.put("block", on_hull(info, (cx, cy - b, cz - 0.45 * c), 0.02), (0.16, 0.04, 0.12), "gold")
+    ctx.put("block", on_hull(info, (cx, cy - b, cz - 0.45 * c), 0.02), (0.16, 0.04, 0.12), "badge")
 
 
 def rotor(ctx, info):
@@ -258,13 +324,124 @@ def galaxy(ctx, info):
     # The belly patch is painted lilac in whale(); the stars over the back are particles in game,
     # here a few shared dots.
     (cx, cy, cz), (a, b, c) = info["hull"]
+    if "size" not in info:
+        # A slime's galaxy swirls low in its jelly, under the glass.
+        ctx.put("ball", (cx, cy - 0.1 * b, cz - 0.4 * c), (0.6 * a, 0.55 * a, 0.3 * c), "galaxy")
     for index in range(6):
         angle = index * 2.4
         ctx.put("dot", on_hull(info, (cx + math.cos(angle) * 0.45 * a, cy + 0.4 * b + math.sin(angle) * 0.15 * b, cz + 0.6 * c), 0.01),
-                (0.035,) * 3, "white")
+                (0.035,) * 3, "backStar")
 
 
-SIGNATURES = {"siren": siren, "rotor": rotor, "galaxy": galaxy}
+def _ring_low(info, radius):
+    """The lowest height of the hull round a ring of `radius` on top (where a band rests)."""
+    x, y = info["top"][0], info["top"][1]
+    return min(top_height(info, x + math.cos(t) * radius, y + math.sin(t) * radius) for t in (0, math.pi / 2, math.pi, 1.5 * math.pi))
+
+
+def circlet(ctx, info):
+    """A royal band with a jewel round the top of the head; the crown rests on it."""
+    x, y = info["top"][0], info["top"][1]
+    band = min(0.45, info["hull"][1][0] * 0.5)
+    z = _ring_low(info, band) + 0.02
+    ctx.put("ring", (x, y, z), (band, band, band * 1.6), "circlet")
+    ctx.put("ball", (x, y - band, z - 0.04), (0.1, 0.06, 0.1), "jewel")
+    info["crown_r"] = band
+    info["crown_lift"] = 0.1
+    (cx, cy, cz), (a, b, c) = info["hull"]
+    for side in (-1, 1):
+        ctx.put("ball", on_hull(info, (cx + side * a, cy - 0.3 * b, cz - 0.45 * c), -0.02), (0.16, 0.14, 0.07), "circlet", (0, D(side * 70), 0))
+
+
+def snowcap(ctx, info):
+    """A fluffy snow cap on top."""
+    x, y = info["top"][0], info["top"][1] - 0.1
+    z = top_height(info, x, y) - 0.05
+    ctx.put("ball", (x, y, z), (0.62, 0.5, 0.2), "snow")
+    for dx, dz in ((-0.42, -0.05), (0.38, -0.07), (0.0, 0.05)):
+        ctx.put("ball", (x + dx, y - 0.1, z + dz), (0.18, 0.18, 0.14), "snow")
+    info["crown_lift"] = 0.22
+
+
+def ice_crown(ctx, info):
+    """A ring of ice spikes on top, wide enough for the crown to sit inside it."""
+    x, y = info["top"][0], info["top"][1]
+    ring = min(0.52, info["hull"][1][0] * 0.6)
+    if ring < 0.52:
+        info["crown_r"] = max(0.22, ring - 0.2)
+    for index in range(9):
+        angle = index / 9 * math.tau
+        out = Vector((math.cos(angle) * 0.35, math.sin(angle) * 0.35, 1.0))
+        px, py = x + math.cos(angle) * ring, y + math.sin(angle) * ring
+        ctx.put("cone", (px, py, top_height(info, px, py) - 0.03), (0.08, 0.08, 0.32 + 0.12 * (index % 2)), "ice",
+                tuple(out.to_track_quat("Z", "Y").to_euler()))
+
+
+def _star(ctx, at, size, key):
+    mesh = ctx.pet.library.compose("star5", [("cone", (0, 0, 0), (0.45, 0.3, 1.4), (0, D(90 - index * 72), 0)) for index in range(5)]
+                                   + [("ball", (0, 0, 0), (0.5, 0.35, 0.5), (0, 0, 0))])
+    ctx.put(mesh, at, size, key)
+
+
+def stars(ctx, info):
+    """Gold stars over the front and a big one on top."""
+    (cx, cy, cz), (a, b, c) = info["hull"]
+    for index in range(5):
+        angle = index / 5 * math.tau + 0.3
+        _star(ctx, on_hull(info, (cx + math.cos(angle) * a * 0.7, cy - b * 0.6, cz + 0.2 + math.sin(angle) * c * 0.45), 0.02), 0.09, "starGold")
+    x, y = info["top"][0], info["top"][1]
+    _star(ctx, (x, y, top_height(info, x, y) + 0.12), 0.14, "starGold")
+    info["crown_lift"] = 0.15
+    info["beacon_at"] = (0.0, 0.32)
+
+
+def flames(ctx, info):
+    """Flames licking up from the top, like a candle: stand-ins the game hides and plays as
+    particles (role flame)."""
+    tx, ty, tz = info["top"]
+    for dx, height in ((0.0, 0.85), (-0.22, 0.55), (0.24, 0.6)):
+        ctx.put("cone", (tx + dx, ty, tz - 0.25), (0.18, 0.18, height), "flame", tuple(Vector((dx * 0.6, 0, 1)).to_track_quat("Z", "Y").to_euler()), "flame")
+    info["crown_lift"] = 0.05
+
+
+def _bolt(ctx, points):
+    for a, b in zip(points, points[1:]):
+        start, end = Vector(a), Vector(b)
+        ctx.put("can", tuple((start + end) / 2), (0.035, 0.035, (end - start).length / 2), "bolt", tuple((end - start).to_track_quat("Z", "Y").to_euler()))
+
+
+def lightning(ctx, info):
+    """Two zigzag bolts leaping up off the sides of the head."""
+    x, y = info["top"][0], info["top"][1]
+    for side in (-1, 1):
+        x0 = x + side * 0.42
+        z0 = top_height(info, x0, y) - 0.03
+        _bolt(ctx, [(x0, y, z0), (x0 + side * 0.25, y, z0 + 0.3), (x0 + side * 0.13, y, z0 + 0.45), (x0 + side * 0.4, y, z0 + 0.8)])
+
+
+def smoke(ctx, info):
+    """Glowing dots over the back (the shadow wisps are particles)."""
+    (cx, cy, cz), (a, b, c) = info["hull"]
+    for index in range(9):
+        ctx.put("dot", on_hull(info, (cx - 0.25 * a + index * 0.0625 * a + 0.05 * math.sin(index), cy + 0.5 * b, cz + 0.6 * c + 0.1 * math.cos(index * 2))),
+                (0.04,) * 3, "dot")
+
+
+def void_core(ctx, info):
+    """A tiny black hole hovering over the head: a dark ball in a burning ring."""
+    x, y = info["top"][0], info["top"][1] + 0.2
+    where = (x, y, top_height(info, x, y) + 0.95)
+    ctx.put("ball", where, (0.22,) * 3, "void")
+    ctx.put("ring", where, (0.36, 0.36, 0.5), "horizon", (D(70), 0, 0))
+    ctx.put("seam", where, (0.5, 0.5, 0.5), "horizonOuter", (D(70), 0, 0))
+
+
+def bubbles(ctx, info):
+    """Acid bubbles: particles in game, nothing to model."""
+
+
+SIGNATURES = {"siren": siren, "rotor": rotor, "galaxy": galaxy, "circlet": circlet, "snowcap": snowcap, "ice_crown": ice_crown, "stars": stars,
+              "flames": flames, "lightning": lightning, "smoke": smoke, "void_core": void_core, "bubbles": bubbles}
 
 
 # --- The tier outfit (one set of meshes for all kinds) ------------------------------------------------
@@ -339,7 +516,7 @@ def tier_ring(ctx, info):
     ctx.put("washer", (0, 0, 0.03), (info["width"], info["width"], 0.3), "tier", role="ring")
 
 
-def build(kind, tier, style, library, meteor=False, collection=None, dress=None):
+def build(kind, tier, style, library, meteor=False, collection=None, dress=None, body_only=False):
     """One kind at the origin in a style, grown to `tier`; returns the pet (its objects, stats).
     `dress(ctx, info)` puts a rolled outfit (lowpoly_dress.py) in place of the fixed tier ladder."""
     kind_id, _, family, zone, look, shape, signature = kind[:7]
@@ -353,16 +530,19 @@ def build(kind, tier, style, library, meteor=False, collection=None, dress=None)
         # Signatures not sketched here (bubbles are particles anyway) are left out.
         if name in SIGNATURES:
             SIGNATURES[name](ctx, info)
-    if zone == "debris":
+    if zone == "debris" and not body_only:
         (cx, cy, cz), (a, b, c) = info["hull"]
         for step in range(min(tier, 3)):
             ctx.put("block", on_hull(info, (cx - 0.08 + step * 0.08, cy + b, cz - 0.6 * c), 0.01), (0.06, 0.05, 0.03), "engine" if step % 2 else "trim")
-    if zone == "horizon" and tier >= 2:
+    if zone == "horizon" and tier >= 2 and not body_only:
         for index in range(tier - 1):
             angle = 2.0 + index * 2.6
             colour_key = "glow"
             ctx.put("ball", (info["center"][0] + math.cos(angle) * info["radius"] * 1.35, info["center"][1] + math.sin(angle) * info["radius"] * 0.8,
                              info["center"][2] + 0.45), (0.1,) * 3, colour_key, role="orbit")
+    pet.info, pet.ctx = info, ctx
+    if body_only:
+        return pet
     if dress is not None:
         dress(ctx, info)
     elif 1 <= tier < 4:

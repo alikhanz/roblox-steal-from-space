@@ -214,7 +214,8 @@ function BayService.new(dependencies: Dependencies): BayService
 		if shown then
 			shown.model:Destroy()
 		end
-		local model = AlienModel.build(alien.id, alien.uid, cframe, scale)
+		local ownerId = tonumber(bay.model:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE))
+		local model = AlienModel.build(alien.id, alien.uid, cframe, scale, ownerId)
 		CollectionService:AddTag(model, BayConfig.ALIEN_TAG)
 		model.Parent = parent
 		bay.aliens[alien.uid] = { model = model, id = alien.id, scale = scaleKey, stand = cframe }

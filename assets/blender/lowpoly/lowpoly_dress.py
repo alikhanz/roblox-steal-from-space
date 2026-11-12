@@ -195,3 +195,95 @@ def dresser(picks):
 LABELS = {"horns": "рожки", "crest": "гребень", "feelers": "усики", None: "—", "halo": "нимб", "shards": "осколки", "rings": "кольца",
           "star": "звезда", "jetpack": "ранец", "featherSmall": "крылышки", "fairy": "стрекоза", "feather": "перья", "mech": "механика",
           "crystal": "кристаллы", "crown": "корона"}
+
+
+# --- For the game: where each slot sits on a kind, and the pieces as a kit ------------------------------
+# The game builds a pet from its kind's body and dresses it in code (decision 118): it clones a piece
+# of the kit and puts its origin on the body's point for the slot, scaled by the point's scale.
+
+
+def anchors(info):
+    """The body's points for the outfit, at the body's own size (tier 2): slot -> (point, scale)."""
+    (cx, cy, cz), (a, b, c) = info["hull"]
+    r = info["radius"]
+    x, y, top = info["top"]
+    head_y = y - 0.15 * b
+    points = {
+        "Head": ((x, head_y, pets.top_height(info, x, head_y) - 0.04), min(1.25, max(0.8, r / 0.9))),
+        "Halo": ((x, y, pets.top_height(info, x, y) + 0.45), 1.0),
+        "Aura": ((cx, cy, cz + 0.1), r * 1.15),
+        "Rings": ((cx, cy, cz - 0.55 * c), r * 1.05),
+        "Star": ((cx, cy + b * 0.95, cz + 0.25), r * 1.6),
+        "Orbit": ((cx, cy, cz + 0.45), r),
+    }
+    for side in (-1, 1):
+        hinge = pets.on_hull(info, (cx + side * r * 0.35, cy + r * 0.5, cz + 0.35), -0.03)
+        points["Wing" + ("L" if side < 0 else "R")] = (hinge, (0.8 + 0.25 * r) * 2.0)
+    tanks = [Vector(pets.on_hull(info, (cx + side * 0.26, cy + b, cz + info.get("engine_z", 0.0)), 0.06)) for side in (-1, 1)]
+    points["Pack"] = (tuple((tanks[0] + tanks[1]) / 2), 1.0)
+    radius = info.get("crown_r", 0.32)
+    crown_z = min(pets.top_height(info, x + math.cos(t) * radius, y + math.sin(t) * radius) for t in (0, math.pi / 2, math.pi, 1.5 * math.pi))
+    points["Crown"] = ((x, y, crown_z + 0.08 + info.get("crown_lift", 0.0)), radius)
+    return points
+
+
+def _turn(side):
+    """A wing's rest pose: swept back, the left one the same flat wing turned half round."""
+    return Euler((D(-10), 0, D(side * pets.WING_SWEEP))).to_matrix() @ (Matrix.Rotation(math.pi, 3, "Z") if side < 0 else Matrix.Identity(3))
+
+
+def kit(ctx):
+    """Every piece at its origin, scale 1: name -> ([(mesh, point, scale, paint key, rotation, role)],
+    [(dust marker name, point)]). A wing's origin is its hinge; the rest's, where its slot's point is."""
+    pieces = {}
+    for side in (-1, 1):
+        s = "L" if side < 0 else "R"
+        rotation = tuple(_turn(side).to_euler())
+        role = "wing" + s
+        dust = []
+        for index, (x, y) in enumerate(robo_wing_dust()):
+            dust.append((f"dust{s}{index + 1}", tuple(_turn(side) @ Vector((x, 0.0, y)))))
+        pieces["wingFairy" + s] = ([("wing", (0, 0, 0), 1.0, "wing", rotation, role), ("wing_edge", (0, 0, 0), 1.0, "wingEdge", rotation, role)], dust)
+        pieces["wingFeather" + s] = ([(_mesh(ctx, "feather"), (0, 0, 0), 0.75, "tierBody", rotation, role)], [])
+        pieces["wingMech" + s] = ([(_mesh(ctx, "mech_frame"), (0, 0, 0), 0.8, "engine", rotation, role),
+                                    (_mesh(ctx, "mech_panel"), (0, 0, 0), 0.8, "wing", rotation, role)], [])
+        pieces["wingCrystal" + s] = ([(_mesh(ctx, "crystal_wing"), (0, 0, 0), 0.9, "tierGlass", rotation, role)], [])
+    tank = ctx.pet.library.compose("tank", [
+        ("can", (0, 0, 0), (0.11, 0.11, 0.21), (0, 0, 0)),
+        ("ball", (0, 0, 0.21), (0.11, 0.11, 0.07), (0, 0, 0)),
+        ("cone", (0, 0, -0.36), (0.13, 0.13, 0.17), (0, 0, 0)),
+    ])
+    pack = []
+    jet_turn = tuple(Vector((0, 0.3, -1)).to_track_quat("Z", "Y").to_euler())
+    for side in (-1, 1):
+        x = side * 0.26
+        pack += [(tank, (x, 0, 0), 1.0, "engine", (0, 0, 0), "body"),
+                 ("seam", (x, 0, 0.06), (0.115, 0.115, 0.6), "tier", (0, 0, 0), "body"),
+                 ("cone", (x, 0, -0.33), (0.07, 0.07, 0.32), "jet", jet_turn, "body")]
+    pieces["jetpack"] = (pack, [])
+    for name in ("horns", "crest", "feelers"):
+        pieces[name] = ([(_mesh(ctx, name), (0, 0, 0), 1.0, "tierBody", (0, 0, 0), "body")], [])
+    pieces["halo"] = ([("ring", (0, 0, 0), (0.36, 0.36, 0.5), "tier", (0, 0, 0), "body")], [])
+    pieces["shards"] = ([(_mesh(ctx, "shards"), (0, 0, 0), 1.0, "tierGlass", (0, 0, 0), "orbit")], [])
+    pieces["rings"] = ([(_mesh(ctx, "orbits"), (0, 0, 0), 1.0, "tier", (0, 0, 0), "orbit")], [])
+    pieces["star"] = ([("star", (0, 0, 0), 1.0, "gold", (0, 0, 0), "body")], [])
+    pieces["planet"] = ([("ball", (0, 0, 0), 0.1, "planet", (0, 0, 0), "orbit")], [])
+    crown_pieces = []
+    gems = []
+    for index in range(5):
+        angle = index / 5 * math.tau - math.pi / 2
+        out = Vector((math.cos(angle) * 0.25, math.sin(angle) * 0.25, 1)).normalized()
+        base = Vector((math.cos(angle) * 0.94, math.sin(angle) * 0.94, -0.06))
+        spike = (0.42 if index == 0 else 0.3) / 0.32
+        crown_pieces.append(("cone", tuple(base), (0.26, 0.26, spike), tuple(out.to_track_quat("Z", "Y").to_euler())))
+        gems.append(("dot", tuple(base + out * spike), (0.18,) * 3, (0, 0, 0)))
+    library = ctx.pet.library
+    crown_mesh = library.compose("crown", [("ring", (0, 0, -0.05 / 0.32), (1.0, 1.0, 2.2), (0, 0, 0))] + crown_pieces)
+    pieces["crown"] = ([(crown_mesh, (0, 0, 0), 1.0, "gold", (0, 0, 0), "body"), (library.compose("gems", gems), (0, 0, 0), 1.0, "gemPink", (0, 0, 0), "body")], [])
+    return pieces
+
+
+def robo_wing_dust():
+    import robo
+
+    return robo._from_trace(robo.WING_DUST_TRACE)
