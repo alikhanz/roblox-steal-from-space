@@ -217,10 +217,18 @@ local JET: SoundVoices.Jet = {
 	fullSpeed = 1.25,
 }
 
+-- The siren of a chase grows from quiet to full as the guardian closes in ("it's coming!",
+-- the user, 2026-11-12): full when it would reach the thief within a second or is within 15
+-- studs, quiet when it is 5 seconds off or 150 studs back.
 local CHASE: SoundVoices.Chase = {
-	alertSeconds = 1.0,
-	settleSeconds = 0.4,
-	loopShare = 0.6,
+	nearSeconds = 1,
+	farSeconds = 5,
+	nearDistance = 15,
+	farDistance = 150,
+	quietShare = 0.25,
+	slowSpeed = 1,
+	fastSpeed = 1.3,
+	easeSeconds = 0.25,
 }
 
 for _, ids in GAMES do
@@ -243,6 +251,8 @@ local SoundLooks = {
 	-- Other players' jetpacks heard at once at most (the own one always).
 	OTHER_JETS = 2,
 	CHASE = table.freeze(CHASE),
+	-- A guardian chasing someone else sounds its siren at this share of full, from itself.
+	OTHER_ALARM_SHARE = 0.6,
 	-- Guardians chasing someone else heard at once at most.
 	OTHER_ALARMS = 1,
 	-- A one-shot frees its voice after this long even if it never ended (an asset that did not

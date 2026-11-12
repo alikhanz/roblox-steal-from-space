@@ -103,14 +103,41 @@ describe("SoundVoices.jetMix", function()
 	end)
 end)
 
-describe("SoundVoices.chaseLevel", function()
-	local CHASE: SoundVoices.Chase = { alertSeconds = 1, settleSeconds = 0.5, loopShare = 0.6 }
+describe("SoundVoices.approachLevel", function()
+	local CHASE: SoundVoices.Chase = {
+		nearSeconds = 1,
+		farSeconds = 5,
+		nearDistance = 10,
+		farDistance = 110,
+		quietShare = 0.3,
+		slowSpeed = 1,
+		fastSpeed = 1.3,
+		easeSeconds = 0.25,
+	}
 
-	it("is full at the start of a chase, then settles to the loop's share", function()
-		expect(SoundVoices.chaseLevel(0, CHASE)).toBe(1)
-		expect(SoundVoices.chaseLevel(1, CHASE)).toBe(1)
-		expect(SoundVoices.chaseLevel(1.25, CHASE)).toBeCloseTo(0.8, 1e-9)
-		expect(SoundVoices.chaseLevel(10, CHASE)).toBeCloseTo(0.6, 1e-9)
+	it("is nothing for a guardian far behind and falling back", function()
+		expect(SoundVoices.approachLevel(300, -5, CHASE)).toBe(0)
+		expect(SoundVoices.approachLevel(300, 0, CHASE)).toBe(0)
+	end)
+
+	it("grows as the time for the guardian to reach the thief shrinks", function()
+		expect(SoundVoices.approachLevel(500, 100, CHASE)).toBe(0)
+		expect(SoundVoices.approachLevel(300, 100, CHASE)).toBeCloseTo(0.5, 1e-9)
+		expect(SoundVoices.approachLevel(150, 200, CHASE)).toBe(1)
+	end)
+
+	it("is loud right behind the thief even when level with them", function()
+		expect(SoundVoices.approachLevel(5, 0, CHASE)).toBe(1)
+		expect(SoundVoices.approachLevel(60, 0, CHASE)).toBeCloseTo(0.5, 1e-9)
+	end)
+
+	it("mixes the siren from quiet and slow to full and quick", function()
+		local volume, speed = SoundVoices.chaseMix(0, CHASE)
+		expect(volume).toBeCloseTo(0.3, 1e-9)
+		expect(speed).toBeCloseTo(1, 1e-9)
+		volume, speed = SoundVoices.chaseMix(1, CHASE)
+		expect(volume).toBeCloseTo(1, 1e-9)
+		expect(speed).toBeCloseTo(1.3, 1e-9)
 	end)
 end)
 

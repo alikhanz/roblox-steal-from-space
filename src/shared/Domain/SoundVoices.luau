@@ -126,20 +126,42 @@ function SoundVoices.jetMix(thrust: number, jet: Jet): (number, number)
 end
 
 export type Chase = {
-	-- The alarm's loop plays full this long after the chase starts, then falls to `loopShare`
-	-- of full over `settleSeconds`, so a long chase does not wear the player out.
-	read alertSeconds: number,
-	read settleSeconds: number,
-	read loopShare: number,
+	-- How near a guardian chasing the player is, from 0 (far behind, or not gaining) to 1 (about to
+	-- catch): by the time it needs to reach the player at the speed it closes in, full at
+	-- `nearSeconds`, nothing from `farSeconds`; and by plain distance, full within
+	-- `nearDistance` studs, nothing from `farDistance` (one level with the thief is still close).
+	read nearSeconds: number,
+	read farSeconds: number,
+	read nearDistance: number,
+	read farDistance: number,
+	-- The siren's loop at nothing and at full: its share of full volume and playback speed.
+	read quietShare: number,
+	read slowSpeed: number,
+	read fastSpeed: number,
+	-- The level eases to a new value over this many seconds (the guardian's motion arrives in steps).
+	read easeSeconds: number,
 }
 
--- Share of full volume of the chase alarm's loop `elapsed` seconds into the chase.
-function SoundVoices.chaseLevel(elapsed: number, chase: Chase): number
-	if elapsed <= chase.alertSeconds then
-		return 1
+local function fall(value: number, near: number, far: number): number
+	return 1 - math.clamp((value - near) / (far - near), 0, 1)
+end
+
+-- How near a chasing guardian `distance` studs away, closing in at `closingSpeed` studs per
+-- second (negative: falling behind), is: 0..1 (see Chase).
+function SoundVoices.approachLevel(distance: number, closingSpeed: number, chase: Chase): number
+	local byDistance = fall(distance, chase.nearDistance, chase.farDistance)
+	if closingSpeed <= 0 then
+		return byDistance
 	end
-	local share = math.clamp((elapsed - chase.alertSeconds) / chase.settleSeconds, 0, 1)
-	return 1 + (chase.loopShare - 1) * share
+	return math.max(byDistance, fall(distance / closingSpeed, chase.nearSeconds, chase.farSeconds))
+end
+
+-- The siren's volume share and playback speed at an approach `level` (approachLevel): it grows
+-- louder and quicker as the guardian closes in.
+function SoundVoices.chaseMix(level: number, chase: Chase): (number, number)
+	local share = math.clamp(level, 0, 1)
+	return chase.quietShare + (1 - chase.quietShare) * share,
+		chase.slowSpeed + (chase.fastSpeed - chase.slowSpeed) * share
 end
 
 -- Playback speed of a hatch for the alien's tier: `lowest` for the first tier of `tierCount`,
