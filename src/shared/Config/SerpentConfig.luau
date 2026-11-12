@@ -104,8 +104,9 @@ return table.freeze({
 	BRAIN = table.freeze(BRAIN),
 	-- Hovers this far above its egg lying loose, studs.
 	HOVER_HEIGHT = 12,
-	-- Eases into its spot over the egg within this distance, studs.
-	ARRIVE_RADIUS = 10,
+	-- Near its spot over the egg it slows to close the gap in this many seconds
+	-- (Pursuit.settleVelocity), as guardians do: an arrive radius in studs made fast movers shake.
+	SETTLE_SECONDS = GuardianConfig.SETTLE_SECONDS,
 	-- Aims this far ahead of a thief at most, seconds (Pursuit.interceptPoint).
 	MAX_LEAD_SECONDS = 1,
 	-- After a catch it waits this long before it can catch again, seconds.

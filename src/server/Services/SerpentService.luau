@@ -339,7 +339,7 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			end
 		else
 			local speed = SerpentConfig.fleeSpeedIn(current.zone)
-			steer(current, Pursuit.seekVelocity(position, current.watch, speed, SerpentConfig.ARRIVE_RADIUS))
+			steer(current, Pursuit.settleVelocity(position, current.watch, speed, SerpentConfig.SETTLE_SECONDS))
 		end
 	end
 
