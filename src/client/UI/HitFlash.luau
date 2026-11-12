@@ -1,6 +1,11 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The screen while a guardian's hit stuns the player: a red wash and a shout.
+--
+-- The wash is a ScreenGui of its own: a ScreenGui with the default insets clips everything in it
+-- to its safe area, so a wash inside the HUD left the notch, the rounded corners and Roblox's top
+-- bar uncoloured on a phone however far it reached past the edges (Prod v1.0.5). This one has no
+-- insets and no clipping, and lies under the HUD.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -11,9 +16,10 @@ local create = Vide.create
 
 local WASH_TRANSPARENCY = 0.7
 local SHOUT_TEXT_SIZE = 44
--- The HUD's ScreenGui keeps Roblox's top bar and the phone's safe area (notch, rounded corners)
--- out: the wash reaches past its edges by this much so it covers the whole screen.
-local BLEED = 400
+-- The shout's height on the screen, a share of it.
+local SHOUT_HEIGHT = 0.4
+-- Under the HUD (its ScreenGui keeps the default order 0): the buttons stay readable over the wash.
+local DISPLAY_ORDER = -1
 
 export type Props = {
 	visible: () -> boolean,
@@ -21,30 +27,36 @@ export type Props = {
 	text: string | () -> string,
 }
 
-local function HitFlash(props: Props): Frame
-	return create("Frame")({
+local function HitFlash(props: Props): ScreenGui
+	return create("ScreenGui")({
 		Name = "HitFlash",
-		Position = UDim2.fromOffset(-BLEED, -BLEED),
-		Size = UDim2.new(1, 2 * BLEED, 1, 2 * BLEED),
-		BackgroundColor3 = Theme.DANGER,
-		BackgroundTransparency = WASH_TRANSPARENCY,
-		BorderSizePixel = 0,
-		Visible = props.visible,
+		ResetOnSpawn = false,
+		DisplayOrder = DISPLAY_ORDER,
+		ScreenInsets = Enum.ScreenInsets.None,
+		ClipToDeviceSafeArea = false,
+		Enabled = props.visible,
 
-		create("TextLabel")({
-			Name = "Shout",
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			-- At 40% of the visible screen's height: the frame is bigger by BLEED on every side.
-			Position = UDim2.new(0.5, 0, 0.4, 0.2 * BLEED),
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			FontFace = Theme.FONT,
-			TextSize = SHOUT_TEXT_SIZE,
-			TextColor3 = Theme.TEXT,
-			TextStrokeTransparency = 0.2,
-			Text = props.text,
+		create("Frame")({
+			Name = "Wash",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Theme.DANGER,
+			BackgroundTransparency = WASH_TRANSPARENCY,
+			BorderSizePixel = 0,
+
+			create("TextLabel")({
+				Name = "Shout",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, SHOUT_HEIGHT),
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				FontFace = Theme.FONT,
+				TextSize = SHOUT_TEXT_SIZE,
+				TextColor3 = Theme.TEXT,
+				TextStrokeTransparency = 0.2,
+				Text = props.text,
+			}),
 		}),
-	}) :: Frame
+	}) :: ScreenGui
 end
 
 return HitFlash

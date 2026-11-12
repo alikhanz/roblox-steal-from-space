@@ -89,7 +89,7 @@ end)()
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
 	-- Shows a short message (grabbed, delivered or dropped egg).
-	toast: (text: string, kind: Toasts.Kind, alienId: string?) -> (),
+	toast: Toasts.Push,
 	abilities: AbilityState.AbilityState,
 	-- The player's speed stat.
 	speed: () -> BigNum.BigNum,
@@ -410,6 +410,16 @@ function HudController.new(dependencies: Dependencies): HudController
 			return tiles
 		end
 
+		-- The hit's red wash covers the whole screen, so it is a ScreenGui of its own (UI/HitFlash).
+		Vide.mount(function()
+			return HitFlash({
+				visible = stunned,
+				text = function()
+					return Text.get(locale, hitToast())
+				end,
+			})
+		end, playerGui)
+
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
 			-- A guardian comes within reach: cheer. The first reading only notes where the player is.
@@ -430,12 +440,6 @@ function HudController.new(dependencies: Dependencies): HudController
 					visible = inSpace,
 					locked = harpoonLocked,
 					lockedText = Text.get(locale, "pvp.harpoonLocked.hint"),
-				}),
-				HitFlash({
-					visible = stunned,
-					text = function()
-						return Text.get(locale, hitToast())
-					end,
 				}),
 				-- The left column (docs/design/screens/hud.md): the resources in a row, the speed
 				-- goal under them. It starts under Roblox's top bar: the ScreenGui keeps the inset.
