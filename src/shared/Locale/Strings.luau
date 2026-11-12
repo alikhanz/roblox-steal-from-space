@@ -793,8 +793,8 @@ local Strings = {
 		en = "{name} in {zone}!",
 	},
 	["event.serpent.announce"] = {
-		ru = "Звёздный змей со звёздным яйцом в зоне «{zone}»! Бей в голову",
-		en = "Star Serpent with a star egg in {zone}! Hit it on the head",
+		ru = "Звёздный змей со звёздным яйцом в зоне «{zone}»! Догони и бей",
+		en = "Star Serpent with a star egg in {zone}! Catch it and hit it",
 	},
 	-- The star serpent's pin and what happens to its egg (decision 055).
 	["serpent.hits.title"] = {
