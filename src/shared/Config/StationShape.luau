@@ -25,6 +25,11 @@ local RING_OUTER_RADIUS = StationSize.DOME_RADIUS + RING_GAP + RING_THICKNESS
 local RING_HEIGHT = 14 * SCALE
 local RING_LIFT = StationSize.DOME_RISE + StationSize.DOME_RADIUS * 0.3
 
+-- The coin board is the kit's, scaled up by this on top of SCALE: bigger than modelled, so it reads
+-- across the station (decision 111). Uniform, so the kit's meshes need no new upload.
+local BOARD_GROWTH = 1.2
+local BOARD_SCALE = SCALE * BOARD_GROWTH
+
 -- The circle of kiosks: the spawn at +Z (StationConfig.SPAWN_OFFSET) falls between two of them.
 local KIOSK_SLOTS = 4
 local SPAWN_ANGLE = math.pi / 2
@@ -100,25 +105,26 @@ return table.freeze({
 	-- round it high over the kiosks, tilted down at the players, a gold ring over them, a coin on
 	-- top and a coin hologram round the pillar lower down. A screen's frame: its face's centre,
 	-- BOARD_SCREEN_OUT from the pillar and BOARD_SCREEN_MIDDLE up, facing out, its top leaning out
-	-- by BOARD_SCREEN_TILT (radians).
-	BOARD_DAIS_RADIUS = 14 * SCALE,
-	BOARD_DAIS_HEIGHT = 1.6 * SCALE,
-	BOARD_PILLAR_RADIUS = 2 * SCALE,
-	BOARD_TOP = 56 * SCALE,
-	BOARD_RING_RADIUS = 30 * SCALE,
+	-- by BOARD_SCREEN_TILT (radians). The whole board is the kit's, scaled by BOARD_SCALE.
+	BOARD_SCALE = BOARD_SCALE,
+	BOARD_DAIS_RADIUS = 14 * BOARD_SCALE,
+	BOARD_DAIS_HEIGHT = 1.6 * BOARD_SCALE,
+	BOARD_PILLAR_RADIUS = 2 * BOARD_SCALE,
+	BOARD_TOP = 56 * BOARD_SCALE,
+	BOARD_RING_RADIUS = 30 * BOARD_SCALE,
 	BOARD_SCREENS = 4,
-	BOARD_SCREEN_WIDTH = 36 * SCALE,
-	BOARD_SCREEN_HEIGHT = 26 * SCALE,
-	BOARD_SCREEN_OUT = 20 * SCALE,
-	BOARD_SCREEN_MIDDLE = 38 * SCALE,
+	BOARD_SCREEN_WIDTH = 36 * BOARD_SCALE,
+	BOARD_SCREEN_HEIGHT = 26 * BOARD_SCALE,
+	BOARD_SCREEN_OUT = 20 * BOARD_SCALE,
+	BOARD_SCREEN_MIDDLE = 38 * BOARD_SCALE,
 	BOARD_SCREEN_TILT = math.rad(22),
 	-- The part the top is drawn on, just behind the face's plane.
-	BOARD_FACE_DEPTH = 0.2 * SCALE,
+	BOARD_FACE_DEPTH = 0.2 * BOARD_SCALE,
 	-- The coins: on top of the pillar, and the hologram round it.
-	BOARD_COIN_RADIUS = 5 * SCALE,
-	BOARD_COIN_LIFT = 64 * SCALE,
-	BOARD_HOLO_RADIUS = 8 * SCALE,
-	BOARD_HOLO_LIFT = 17 * SCALE,
+	BOARD_COIN_RADIUS = 5 * BOARD_SCALE,
+	BOARD_COIN_LIFT = 64 * BOARD_SCALE,
+	BOARD_HOLO_RADIUS = 8 * BOARD_SCALE,
+	BOARD_HOLO_LIFT = 17 * BOARD_SCALE,
 	-- A coin's thickness, of its radius.
 	COIN_THICKNESS = 0.22,
 })

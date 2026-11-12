@@ -5,6 +5,7 @@
 -- the pillar. Its shape is StationShape's (BOARD_*).
 
 local StationLooks = require("./StationLooks")
+local StationShape = require("./StationShape")
 
 local GOLD = Color3.fromRGB(255, 200, 70)
 
@@ -26,8 +27,9 @@ return table.freeze({
 	COIN_TURN_SECONDS = 8,
 	COIN_TURN_DISTANCE = 1000,
 
-	-- The drawing on a screen: pixels per stud, and its colors.
-	PIXELS_PER_STUD = 20,
+	-- The drawing on a screen: pixels per stud, and its colors. A screen is always 720 pixels wide
+	-- (UI/CoinBoard is laid out for 720 × 520), so the drawing grows with the board.
+	PIXELS_PER_STUD = 720 / StationShape.BOARD_SCREEN_WIDTH,
 	TITLE_COLOR = GOLD,
 	ROW_COLOR = Color3.fromRGB(235, 238, 250),
 	-- Gold, silver and bronze for the first three places.

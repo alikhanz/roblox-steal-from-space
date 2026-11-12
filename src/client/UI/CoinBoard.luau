@@ -2,7 +2,8 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The coin board's face, drawn on the front of a screen of the station's board: up close a title,
 -- what it counts and the top ten (place, name, coins); from afar (`far`) the title and the top
--- three in letters big enough to read across the station. The player's own row stands out.
+-- three in letters big enough to read across the station, each name over its coins. The player's
+-- own row stands out.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,32 +22,51 @@ local PADDING = 20
 local GAP = 4
 local HINT_TEXT_SIZE = 18
 
--- The two layouts: the title's size, how many rows, and a row's height, text and columns.
+-- The two layouts: the title's size, how many rows, and a row's height, text and columns. A
+-- stacked row puts the name on a line of its own over the coins, beside the place: a Roblox name
+-- (up to 20 letters) then shrinks far less than in a column beside the coins.
 type Spec = {
+	-- At the sides more than PADDING: seen from below and aside, the frame's rim and the back's
+	-- edges stand in front of the face's outer pixels and cut the coins off (most up close, where
+	-- players look up at the board steeply).
+	sidePadding: number,
 	titleSize: number,
 	rows: number,
 	rowHeight: number,
 	textSize: number,
 	placeWidth: number,
 	coinsWidth: number,
+	stacked: boolean,
+	-- A stacked row's name and coins, their largest text.
+	nameSize: number,
+	coinsSize: number,
 }
 
 local NEAR: Spec = {
+	sidePadding = 70,
 	titleSize = 42,
 	rows = 10,
 	rowHeight = 34,
 	textSize = 25,
 	placeWidth = 56,
 	coinsWidth = 180,
+	stacked = false,
+	nameSize = 25,
+	coinsSize = 25,
 }
--- The top three filling the screen under the title.
+-- The top three filling the screen under the title, each a big place with the name over the
+-- coins.
 local FAR: Spec = {
+	sidePadding = 44,
 	titleSize = 56,
 	rows = 3,
 	rowHeight = 136,
 	textSize = 80,
 	placeWidth = 90,
-	coinsWidth = 270,
+	coinsWidth = 0,
+	stacked = true,
+	nameSize = 70,
+	coinsSize = 60,
 }
 
 -- A row's strip: every other row faint, the player's own row in its colour.
@@ -118,6 +138,98 @@ local function label(props: LabelProps): TextLabel
 	}) :: TextLabel
 end
 
+local function nameText(row: () -> Row?): () -> string
+	return function()
+		local current = row()
+		return if current then current.name else ""
+	end
+end
+
+local function coinsText(row: () -> Row?): () -> string
+	return function()
+		local current = row()
+		return if current then `{Marks.COINS}{current.coins}` else ""
+	end
+end
+
+-- Up close: the name and the coins side by side.
+local function NameAndCoins(spec: Spec, row: () -> Row?, color: () -> Color3): { Instance }
+	return {
+		label({
+			name = "Name",
+			order = 2,
+			size = UDim2.new(1, -(spec.placeWidth + spec.coinsWidth), 1, 0),
+			text = nameText(row),
+			textSize = spec.textSize,
+			color = color,
+			alignment = Enum.TextXAlignment.Left,
+			scaled = true,
+		}),
+		create("Frame")({
+			Name = "Coins",
+			LayoutOrder = 3,
+			Size = UDim2.new(0, spec.coinsWidth, 1, 0),
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Right,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+			}),
+			IconText({
+				name = "Value",
+				text = coinsText(row),
+				textSize = spec.textSize,
+				color = Theme.COINS,
+				font = Theme.FONT,
+			}),
+		}) :: Frame,
+	}
+end
+
+-- From afar: the name on its own line over the coins, both as wide as the row past the place.
+local function StackedNameAndCoins(spec: Spec, row: () -> Row?, color: () -> Color3): Frame
+	local nameShare = spec.nameSize / (spec.nameSize + spec.coinsSize)
+	return create("Frame")({
+		Name = "NameAndCoins",
+		LayoutOrder = 2,
+		Size = UDim2.new(1, -spec.placeWidth, 1, 0),
+		BackgroundTransparency = 1,
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Vertical,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		label({
+			name = "Name",
+			order = 1,
+			size = UDim2.fromScale(1, nameShare),
+			text = nameText(row),
+			textSize = spec.nameSize,
+			color = color,
+			alignment = Enum.TextXAlignment.Left,
+			scaled = true,
+		}),
+		create("Frame")({
+			Name = "Coins",
+			LayoutOrder = 2,
+			Size = UDim2.fromScale(1, 1 - nameShare),
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Left,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+			}),
+			IconText({
+				name = "Value",
+				text = coinsText(row),
+				textSize = spec.coinsSize,
+				color = Theme.COINS,
+				font = Theme.FONT,
+			}),
+		}),
+	}) :: Frame
+end
+
 local function RowView(props: Props, spec: Spec, index: number): Frame
 	local function row(): Row?
 		return props.rows()[index]
@@ -166,40 +278,7 @@ local function RowView(props: Props, spec: Spec, index: number): Frame
 				return if current then placeColor(current) else LeaderboardLooks.ROW_COLOR
 			end,
 		}),
-		label({
-			name = "Name",
-			order = 2,
-			size = UDim2.new(1, -(spec.placeWidth + spec.coinsWidth), 1, 0),
-			text = function()
-				local current = row()
-				return if current then current.name else ""
-			end,
-			textSize = spec.textSize,
-			color = color,
-			alignment = Enum.TextXAlignment.Left,
-			scaled = true,
-		}),
-		create("Frame")({
-			Name = "Coins",
-			LayoutOrder = 3,
-			Size = UDim2.new(0, spec.coinsWidth, 1, 0),
-			BackgroundTransparency = 1,
-			create("UIListLayout")({
-				FillDirection = Enum.FillDirection.Horizontal,
-				HorizontalAlignment = Enum.HorizontalAlignment.Right,
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-			}),
-			IconText({
-				name = "Value",
-				text = function()
-					local current = row()
-					return if current then `{Marks.COINS}{current.coins}` else ""
-				end,
-				textSize = spec.textSize,
-				color = Theme.COINS,
-				font = Theme.FONT,
-			}),
-		}),
+		if spec.stacked then { StackedNameAndCoins(spec, row, color) } else NameAndCoins(spec, row, color),
 	}) :: Frame
 end
 
@@ -216,7 +295,7 @@ local function Face(props: Props, spec: Spec, visible: () -> boolean): Frame
 		BackgroundTransparency = 1,
 		Visible = visible,
 
-		Layout.padding(PADDING),
+		Layout.padding(spec.sidePadding, PADDING),
 		create("UIListLayout")({
 			FillDirection = Enum.FillDirection.Vertical,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,

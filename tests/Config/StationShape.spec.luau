@@ -149,7 +149,7 @@ describe("StationShape", function()
 			BOARD_FACE_DEPTH = StationShape.BOARD_FACE_DEPTH,
 		}
 		for name, value in board do
-			expect(blender(source, name) * scale).toBeCloseTo(value, 1e-6)
+			expect(blender(source, name) * StationShape.BOARD_SCALE).toBeCloseTo(value, 1e-6)
 		end
 		expect(math.rad(blender(source, "BOARD_SCREEN_TILT"))).toBeCloseTo(StationShape.BOARD_SCREEN_TILT, 1e-6)
 		expect(blender(source, "COIN_THICKNESS")).toBeCloseTo(StationShape.COIN_THICKNESS, 1e-6)

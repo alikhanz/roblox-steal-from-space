@@ -13,7 +13,8 @@ local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local StationKit = require(script.Parent.StationKit)
 local StationShape = require(ReplicatedStorage.Shared.Config.StationShape)
 
-local SCALE = StationShape.SCALE
+-- The board's own scale (bigger than the rest of the station's kit, decision 111).
+local SCALE = StationShape.BOARD_SCALE
 -- Greybox without the kit: a screen's back and glowing rim round its face, studs.
 local GREYBOX_BACK_PAD = 1.4 * SCALE
 local GREYBOX_BACK_DEPTH = 0.6 * SCALE
