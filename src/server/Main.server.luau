@@ -235,6 +235,7 @@ communityDependencies.notify = netService.notify
 local stormService = StormService.new({
 	eventChanged = eventService.changed,
 	returnEgg = carryService.returnEgg,
+	setLooseEggSweep = carryService.setLooseEggSweep,
 	setHatchRate = bayService.setHatchRate,
 	notify = netService.notify,
 })

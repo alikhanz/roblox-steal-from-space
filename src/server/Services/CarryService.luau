@@ -1,9 +1,9 @@
 --!strict
 -- Owns eggs out of their nests: confirms grabs requested by the simulation, holds the egg in the
 -- thief's arms, hands it to the bay at the station, drops the egg when its carrier is caught or
--- dies, and returns floating eggs to their nests after a while. Every egg belongs to a home
--- (Domain/EggHomes): the nest it was taken from (a meteor egg, to its crater), or the star
--- serpent for the star egg. The home's guardian guards it, its grade is the egg's, and the egg
+-- dies, and returns floating eggs to their nests after a while (at once in a solar storm). Every
+-- egg belongs to a home (Domain/EggHomes): the nest it was taken from (a meteor egg, to its
+-- crater), or the star serpent for the star egg. The home's guardian guards it, its grade is the egg's, and the egg
 -- goes back there when it leaves play.
 -- Runs after each simulation step (PostSimulation): it creates and destroys instances.
 
@@ -119,6 +119,9 @@ export type CarryService = {
 	spawnLooseEgg: (egg: Egg, position: Vector3, launch: Vector3?) -> (),
 	-- Takes the floating eggs of `homeId` away at once, without returning them anywhere.
 	removeLooseEggs: (homeId: string) -> (),
+	-- While on (the solar storm), no egg floats in space: those floating go back to their homes
+	-- at once, and so does every egg dropped or put out until it is off.
+	setLooseEggSweep: (on: boolean) -> (),
 	-- The egg's journey, for analytics: taken, carried inside the station border (safe from
 	-- guardians), delivered to the bay, or lost on the way.
 	grabbed: Signal.Signal<Player, Carried, GrabSource>,
@@ -152,6 +155,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 	local loose: { [string]: LooseEgg } = {}
 	local looseFolder: Folder? = nil
 	local looseCounter = 0
+	local sweeping = false
 	local grabbed = Signal.new() :: Signal.Signal<Player, Carried, GrabSource>
 	local reachedStation = Signal.new() :: Signal.Signal<Player, Carried>
 	local delivered = Signal.new() :: Signal.Signal<Player, Carried>
@@ -217,7 +221,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 	-- `owner`: the player who dropped it.
 	local function spawnLoose(egg: Egg, position: Vector3, launch: Vector3?, owner: Player?)
 		local folder = looseFolder
-		if not folder then
+		if not folder or sweeping then
 			leavePlay(egg)
 			return
 		end
@@ -466,6 +470,17 @@ function CarryService.new(dependencies: Dependencies): CarryService
 					loose[id] = nil
 					entry.part:Destroy()
 				end
+			end
+		end,
+		setLooseEggSweep = function(on: boolean)
+			sweeping = on
+			if not on then
+				return
+			end
+			for id, entry in loose do
+				loose[id] = nil
+				entry.part:Destroy()
+				leavePlay(entry.egg)
 			end
 		end,
 		grabbed = grabbed,

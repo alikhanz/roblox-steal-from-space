@@ -1,7 +1,8 @@
 --!strict
 -- The solar storm (EventConfig.EVENTS.Storm has its clock): while it lasts, nobody flies past
--- the station border, and every incubator runs much faster. Whoever is out in space when it
--- starts is brought back to the platform; an egg in their hands goes back to its nest.
+-- the station border, and every incubator runs much faster. Whoever is out in space past the
+-- border when it starts is brought back to their spawn, and an egg in their hands goes back to
+-- its home (Domain/Storm); eggs floating in space go home too.
 
 local StationSize = require("./StationSize")
 
