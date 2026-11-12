@@ -29,6 +29,9 @@ export type Name =
 	| "Home"
 	| "Sun"
 	| "Serpent"
+	| "Check"
+	| "Alert"
+	| "Skull"
 
 local ICONS: { [Name]: string } = {
 	Bay = "rbxassetid://132068323643628",
@@ -55,6 +58,10 @@ local ICONS: { [Name]: string } = {
 	Home = "rbxassetid://139803282527524",
 	Sun = "rbxassetid://73916084106533",
 	Serpent = "rbxassetid://72834121037956",
+	-- How a guardian stands against the player (GuardianLooks.CHALLENGES; "Down" for a weak one).
+	Check = "",
+	Alert = "",
+	Skull = "",
 }
 
 return table.freeze({

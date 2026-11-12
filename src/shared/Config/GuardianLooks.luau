@@ -6,6 +6,9 @@
 
 local GuardianBrain = require("../Domain/GuardianBrain")
 local GuardianConfig = require("./GuardianConfig")
+local Speed = require("../Domain/Speed")
+-- selene: allow(unused_variable) -- only its type is used, to keep text keys checked.
+local Strings = require("../Locale/Strings")
 
 export type KindLook = {
 	read bodyShape: Enum.PartType,
@@ -115,6 +118,18 @@ local MODELS = table.freeze({
 	STRIKE_MOUTH = 0.35,
 })
 
+-- The sign over a guardian (UI/GuardianLabel), and over the star serpent: full size within
+-- NEAR_DISTANCE studs of the camera, FAR_SCALE of it from FAR_DISTANCE on (GuardianPose.labelScale);
+-- its bottom STUDS_ABOVE over the body's middle.
+local LABEL = table.freeze({
+	NEAR_DISTANCE = 40,
+	FAR_DISTANCE = 500,
+	FAR_SCALE = 0.6,
+	STUDS_ABOVE = 4,
+	-- A sign is resized only when its size changes by more than this share.
+	SCALE_STEP = 0.01,
+})
+
 -- How a guardian moves in each state: its parts' pace (1: a pet's), how far its lower jaw hangs
 -- open (radians) and how brightly its throat glows (a share of full).
 export type StateMotion = {
@@ -135,18 +150,24 @@ local EYE_COLORS: { [GuardianBrain.State]: Color3 } = {
 	Return = Color3.fromRGB(255, 170, 40),
 }
 
--- The guardian's name over it shows how the player stands against it (Speed.standing, -1..1):
--- deep red where it cannot be outrun, white where the player just gets away, green where it is
--- far too weak to be worth it.
-local CANNOT_ESCAPE = Color3.fromRGB(255, 60, 50)
-local LEVEL = Color3.fromRGB(255, 255, 255)
-local TOO_WEAK = Color3.fromRGB(80, 230, 110)
+-- The pill under a guardian's name (and over the star serpent): how it stands against the
+-- player's own ⚡ (Speed.challenge), as an icon (UI/Icons name) and a word, both in the tier's
+-- colour (docs/design/screens/guardian-labels.md). Green is the prey to go for now; grey, not
+-- worth the trip; orange, risky; red, no getting away.
+export type ChallengeLook = {
+	read color: Color3,
+	read icon: string,
+	read textKey: keyof<typeof(Strings)>,
+}
 
-local function standingColor(standing: number): Color3
-	if standing < 0 then
-		return LEVEL:Lerp(CANNOT_ESCAPE, math.min(-standing, 1))
-	end
-	return LEVEL:Lerp(TOO_WEAK, math.min(standing, 1))
+local CHALLENGES: { [Speed.Challenge]: ChallengeLook } = {
+	Weak = { color = rgb(157, 182, 210), icon = "Down", textKey = "guardian.challengeWeak.title" },
+	Fair = { color = rgb(67, 204, 95), icon = "Check", textKey = "guardian.challengeFair.title" },
+	Strong = { color = rgb(255, 154, 46), icon = "Alert", textKey = "guardian.challengeStrong.title" },
+	TooStrong = { color = rgb(255, 90, 100), icon = "Skull", textKey = "guardian.challengeTooStrong.title" },
+}
+for _, look in CHALLENGES do
+	table.freeze(look)
 end
 
 return table.freeze({
@@ -155,5 +176,6 @@ return table.freeze({
 	EYE_COLORS = table.freeze(EYE_COLORS),
 	MODELS = MODELS,
 	STATE_MOTION = table.freeze(STATE_MOTION),
-	standingColor = standingColor,
+	CHALLENGES = table.freeze(CHALLENGES),
+	LABEL = LABEL,
 })

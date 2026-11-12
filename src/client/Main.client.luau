@@ -45,6 +45,7 @@ local PvpEffectsController = require(script.Parent.Controllers.PvpEffectsControl
 local PvpViewController = require(script.Parent.Controllers.PvpViewController)
 local QuestController = require(script.Parent.Controllers.QuestController)
 local SerpentController = require(script.Parent.Controllers.SerpentController)
+local SerpentLabelController = require(script.Parent.Controllers.SerpentLabelController)
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local SpeedState = require(script.Parent.State.SpeedState)
@@ -169,6 +170,7 @@ Lifecycle.run({
 	ZoneTintController.new(),
 	eventController,
 	SerpentController.new({ events = eventController }),
+	SerpentLabelController.new({ speed = speedState.speed }),
 	EggEffectsController.new(),
 	EggBeaconController.new(),
 	HitEffectsController.new(),

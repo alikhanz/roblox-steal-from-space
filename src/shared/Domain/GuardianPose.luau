@@ -50,6 +50,21 @@ function GuardianPose.wears(wearing: boolean, distance: number, reach: number, m
 	return distance <= reach + (if wearing then margin else 0)
 end
 
+-- How big the sign over a guardian (or the star serpent) `distance` studs from the camera stands,
+-- as a share of its full size: full within `near`, `farScale` from `far` on, and between them
+-- shrinking evenly on the log of the distance (each doubling of the distance takes the same
+-- step), so a near guardian's sign stands out from the far ones'.
+function GuardianPose.labelScale(distance: number, near: number, far: number, farScale: number): number
+	assert(near > 0 and far > near, "labelScale needs 0 < near < far")
+	if distance <= near then
+		return 1
+	elseif distance >= far then
+		return farScale
+	end
+	local share = math.log(distance / near) / math.log(far / near)
+	return 1 + (farScale - 1) * share
+end
+
 -- Share of a catch's time the lunge takes to reach its furthest; the rest it draws back.
 local LUNGE_OUT = 0.3
 

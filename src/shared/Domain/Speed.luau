@@ -97,6 +97,35 @@ function Speed.standing(
 	return math.max(decades / redDecades, -1)
 end
 
+-- How a guardian stands against a thief, in so many words (the pill under its name, and over
+-- the star serpent): "Weak" — `weakDecades` tenfolds or more below the thief, an easy egg but a
+-- poor one; "Fair" — the thief's stat is at least the recommended one, so with a typical egg
+-- and the head start they get away (the best prey now); "Strong" — faster than the thief, who
+-- gets away only with a light egg or a long head start; "TooStrong" — it flies its fastest
+-- against the thief (Speed.chaseSpeed's maxRatio), no getting away. The tiers of `standing`.
+export type Challenge = "Weak" | "Fair" | "Strong" | "TooStrong"
+
+-- A thief right on a tier's edge counts in the tier above it (the log of equal stats is not
+-- always exactly 0).
+local CHALLENGE_EDGE = 1e-9
+
+function Speed.challenge(
+	stat: BigNum.BigNum,
+	recommended: BigNum.BigNum,
+	chase: ChaseTuning,
+	weakDecades: number
+): Challenge
+	local standing = Speed.standing(stat, recommended, chase, weakDecades)
+	if standing >= 1 - CHALLENGE_EDGE then
+		return "Weak"
+	elseif standing >= -CHALLENGE_EDGE then
+		return "Fair"
+	elseif standing > -1 + CHALLENGE_EDGE then
+		return "Strong"
+	end
+	return "TooStrong"
+end
+
 -- The stat shown over a guardian: with it a thief flies level with the guardian while carrying
 -- an egg of `typicalWeight`. Lighter eggs need less, heavier ones more.
 function Speed.recommended(guardianSpeed: BigNum.BigNum, typicalWeight: number): BigNum.BigNum

@@ -23,9 +23,9 @@ return table.freeze({
 	STARTING_SPEED = BigNum.fromNumber(10),
 	FLIGHT = table.freeze(FLIGHT),
 	CHASE = table.freeze(CHASE),
-	-- A guardian this many tenfolds below the player's stat shows the greenest name
-	-- (Speed.standing): about two posts back, an egg not worth the trip.
-	STANDING_GREEN_DECADES = 1,
+	-- A guardian this many tenfolds below the player's stat is "Weak" (Speed.challenge): about
+	-- two posts back, an egg not worth the trip.
+	CHALLENGE_WEAK_DECADES = 1,
 
 	-- Player attributes: the stat as a BigNum, for the HUD and for anyone looking at a player.
 	MANTISSA_ATTRIBUTE = "SpeedMantissa",

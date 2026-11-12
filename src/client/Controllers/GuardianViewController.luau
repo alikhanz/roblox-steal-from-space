@@ -1,7 +1,7 @@
 --!strict
--- The client side of guardians: the sign with the name over each one, coloured by how the player
--- stands against the guardian's recommended speed (red, white, green: GuardianLooks.standingColor),
--- and its look. Near the camera (GuardianPose.wears, GuardianLooks.MODELS.ATTACH_*; decision 101)
+-- The client side of guardians: the sign over each one, its name and how it stands against the
+-- player's own ⚡ (UI/GuardianLabel: Speed.challenge against its recommended speed), bigger the
+-- nearer it is; and its look. Near the camera (GuardianPose.wears, GuardianLooks.MODELS.ATTACH_*; decision 101)
 -- it wears its post's model on the server's greybox body (World/GuardianVisual: moving by its
 -- state, its eyes in the state's colour, a lunge when it catches someone) and the greybox is
 -- hidden on this client; farther, or where the place has no model for its post, it shows the
@@ -26,6 +26,7 @@ local Mount = require(script.Parent.Parent.UI.Mount)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
+local Vide = require(ReplicatedStorage.Packages.Vide)
 local ZoneLooks = require(ReplicatedStorage.Shared.Config.ZoneLooks)
 
 -- The greybox's strike: the body swells and snaps back.
@@ -34,9 +35,10 @@ local STRIKE_TWEEN = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirec
 -- A frame longer than this (a hitch) moves the guardians as if it were this long.
 local MAX_FRAME_SECONDS = 0.1
 local MODELS = GuardianLooks.MODELS
+local LABEL = GuardianLooks.LABEL
 
 export type Dependencies = {
-	-- The player's speed stat: the names are coloured by it.
+	-- The player's speed stat: the signs tell how each guardian stands against it.
 	speed: () -> BigNum.BigNum,
 }
 
@@ -57,6 +59,8 @@ type View = {
 	distance: number,
 	-- False once the place turned out to have no model for its post: the greybox for good.
 	hasModel: boolean,
+	-- Its sign's size (GuardianPose.labelScale), moved on every frame by its distance.
+	labelScale: Vide.Source<number>,
 	unmount: () -> (),
 	connections: { RBXScriptConnection },
 	visual: GuardianVisual.Visual?,
@@ -177,6 +181,17 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		end
 	end
 
+	-- The words of the signs' pills, in the player's language (set at start).
+	local words: { [Speed.Challenge]: string } = {}
+
+	-- How a guardian recommending `recommended` stands against the player now.
+	local function challengeOf(recommended: BigNum.BigNum?): Speed.Challenge?
+		if not recommended then
+			return nil
+		end
+		return Speed.challenge(dependencies.speed(), recommended, SpeedConfig.CHASE, SpeedConfig.CHALLENGE_WEAK_DECADES)
+	end
+
 	-- Builds the sign for a guardian whose body is present; its model comes when it is near (check).
 	local function show(instance: Instance, body: Instance, locale: Text.Locale)
 		if views[instance] then
@@ -193,22 +208,20 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		-- string key is too much for the type checker here.
 		local nameKey: any = post.nameKey
 		local recommended = recommendedOf(instance)
+		if not recommended then
+			warn(`[GuardianViewController] {instance:GetFullName()} has no recommended speed; its sign has no pill`)
+		end
+		local labelScale = Vide.source(LABEL.FAR_SCALE)
 		local unmount = Mount.instance(function()
 			return GuardianLabel({
 				adornee = body,
 				name = Text.get(locale, nameKey),
-				nameColor = function(): Color3
-					if not recommended then
-						return GuardianLooks.standingColor(0)
-					end
-					local standing = Speed.standing(
-						dependencies.speed(),
-						recommended,
-						SpeedConfig.CHASE,
-						SpeedConfig.STANDING_GREEN_DECADES
-					)
-					return GuardianLooks.standingColor(standing)
+				challenge = function(): Speed.Challenge?
+					return challengeOf(recommended)
 				end,
+				words = words,
+				scale = labelScale,
+				studsAbove = body.Size.Y / 2 + LABEL.STUDS_ABOVE,
 				maxDistance = ZoneLooks.GUARDIAN_SIGN_DISTANCE[post.zone],
 				debugText = debugTextOf(post, recommended),
 			})
@@ -225,6 +238,7 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 			reach = GuardianPose.wearReach(length, MODELS.ATTACH_DISTANCE, MODELS.ATTACH_LENGTHS),
 			distance = math.huge,
 			hasModel = true,
+			labelScale = labelScale,
 			unmount = unmount,
 			connections = {},
 			visual = nil,
@@ -340,6 +354,14 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 			check(eye)
 		end
 		wearNext()
+		for _, view in views do
+			local distance = (view.body.Position - eye).Magnitude
+			local scale = GuardianPose.labelScale(distance, LABEL.NEAR_DISTANCE, LABEL.FAR_DISTANCE, LABEL.FAR_SCALE)
+			-- Only a visible change wakes the sign up.
+			if math.abs(scale - view.labelScale()) > LABEL.SCALE_STEP then
+				view.labelScale(scale)
+			end
+		end
 		if next(visuals) then
 			GuardianVisual.step(visuals, now, dt, eye)
 		end
@@ -347,6 +369,11 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 
 	local function start()
 		local locale = Text.localeOf(Players.LocalPlayer)
+		for challenge, look in GuardianLooks.CHALLENGES do
+			-- Checked at the config; through `any`, as the union of every key is too much here.
+			local key: any = look.textKey
+			words[challenge] = Text.get(locale, key)
+		end
 		CollectionService:GetInstanceAddedSignal(GuardianConfig.TAG):Connect(function(instance)
 			watch(instance, locale)
 		end)

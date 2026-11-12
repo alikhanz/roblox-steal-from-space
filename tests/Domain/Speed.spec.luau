@@ -118,3 +118,33 @@ describe("Speed.standing", function()
 		expect(Speed.standing(BigNum.new(1, 40), BigNum.new(1, 40), chase, 1)).toBeCloseTo(0)
 	end)
 end)
+
+describe("Speed.challenge", function()
+	local chase: Speed.ChaseTuning = { ratioExponent = 0.5, minRatio = 0.6, maxRatio = 1.5 }
+
+	it("is Fair from the recommended stat up to weakDecades above", function()
+		expect(Speed.challenge(n(1000), n(1000), chase, 1)).toBe("Fair")
+		expect(Speed.challenge(n(9000), n(1000), chase, 1)).toBe("Fair")
+	end)
+
+	it("is Weak weakDecades tenfolds above and beyond", function()
+		expect(Speed.challenge(n(10000), n(1000), chase, 1)).toBe("Weak")
+		expect(Speed.challenge(n(1e12), n(1000), chase, 1)).toBe("Weak")
+	end)
+
+	it("is Strong just below the recommended stat", function()
+		expect(Speed.challenge(n(999), n(1000), chase, 1)).toBe("Strong")
+		expect(Speed.challenge(n(1000 / 2.2), n(1000), chase, 1)).toBe("Strong")
+	end)
+
+	it("is TooStrong where the guardian flies its fastest against the thief", function()
+		expect(Speed.challenge(n(1000 / 2.25), n(1000), chase, 1)).toBe("TooStrong")
+		expect(Speed.challenge(n(1), n(1000), chase, 1)).toBe("TooStrong")
+		expect(Speed.challenge(n(0), n(1000), chase, 1)).toBe("TooStrong")
+	end)
+
+	it("works on huge stats", function()
+		expect(Speed.challenge(BigNum.new(1, 40), BigNum.new(1, 40), chase, 1)).toBe("Fair")
+		expect(Speed.challenge(BigNum.new(1, 39), BigNum.new(1, 40), chase, 1)).toBe("TooStrong")
+	end)
+end)

@@ -130,6 +130,12 @@ local Strings = {
 		ru = "Космический Кит",
 		en = "Space Whale",
 	},
+	-- How a guardian (or the star serpent) stands against the player's own ⚡: the word on the
+	-- pill under its name (Speed.challenge; docs/design/screens/guardian-labels.md).
+	["guardian.challengeWeak.title"] = { ru = "Слабый", en = "Weak" },
+	["guardian.challengeFair.title"] = { ru = "По силам", en = "Your level" },
+	["guardian.challengeStrong.title"] = { ru = "Сильный", en = "Strong" },
+	["guardian.challengeTooStrong.title"] = { ru = "Не уйти", en = "No escape" },
 	-- Alien kinds (decision 075): each guardian's second and rare kind, in post order. Its main
 	-- kind is its baby and carries the guardian's name.
 	["kind.patrolSwarm.title"] = { ru = "Патрульный рой", en = "Patrol Swarm" },

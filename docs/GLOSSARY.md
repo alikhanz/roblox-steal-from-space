@@ -113,7 +113,8 @@
 | `DevourerSwarm` | Рой пожирателей | Devourer Swarm |
 | `StarRay` | Звёздный скат | Star Ray |
 | `SpaceWhale` | Космический Кит | Space Whale |
-| `RecommendedSpeed` | рекомендуемая скорость | recommended speed | Числом — в цели HUD; над стражем — цветом имени; не гарантия |
+| `RecommendedSpeed` | рекомендуемая скорость | recommended speed | Числом — в цели HUD; над стражем — ступенью (`Challenge`); не гарантия |
+| `Challenge` | Слабый · По силам · Сильный · Не уйти | Weak · Your level · Strong · No escape | Ступень стража (и Звёздного змея) по твоей ⚡ — плашка под именем над ним (`Speed.challenge`) |
 
 Выше — виды тел. Посты (24 именованных стража, по 6 на зону, от станции наружу):
 
