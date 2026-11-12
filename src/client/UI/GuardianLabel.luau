@@ -28,7 +28,7 @@ local LABEL = GuardianLooks.LABEL
 local NAME = 1
 local GAP = 0.08
 local PILL = 0.72
-local DEBUG = 0.6
+local DEBUG = 0.45
 -- Wide enough for the longest name (17 letters) at full height, units.
 local WIDTH = 11.5
 -- Inside the pill: the share of its height the icon and the word take, its padding and the gap
