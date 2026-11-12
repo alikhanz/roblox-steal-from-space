@@ -41,17 +41,19 @@ local create = Vide.create
 
 local PART_WAIT_TIMEOUT = 10
 local PLAYER_GUI_WAIT_TIMEOUT = 30
--- The owner's name on their sign board: its text's resolution and the room round it.
-local BOARD_PIXELS_PER_STUD = 50
-local BOARD_PADDING = 12
+-- The owner's name on their sign board: its text's resolution and the room round it (the
+-- board is 28 studs wide: half the old resolution keeps the letters as sharp, at a quarter of the
+-- texture).
+local BOARD_PIXELS_PER_STUD = 25
+local BOARD_PADDING = 8
 -- Over the top of the alien's head.
 local ALIEN_STUDS_ABOVE = 1
 -- A waiting egg's chip, just over its top (eggs come in three sizes). An egg in a capsule hangs
 -- its chip over the capsule's petals (Domain/Incubator.chipAbove).
 local EGG_STUDS_ABOVE_TOP = BayLooks.EGG_CHIP_OVER_EGG
--- The owner's name reads from across the island; what stands on it only up close, or the
--- labels pile up on each other.
-local SIGN_MAX_DISTANCE = 120
+-- The owner's name reads from well outside the island (docs/design/screens/markers.md); what
+-- stands on it only up close, or the labels pile up on each other.
+local SIGN_MAX_DISTANCE = 400
 local CONTENTS_MAX_DISTANCE = 35
 -- A grown alien's chip reads from farther, this many studs more per stud of its height.
 local CONTENTS_DISTANCE_PER_HEIGHT = 2

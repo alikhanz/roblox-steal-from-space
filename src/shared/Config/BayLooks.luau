@@ -63,11 +63,13 @@ return table.freeze({
 	-- The places' outline: arcs are drawn of straight pieces this many degrees long.
 	ZONE_ARC_STEP_DEGREES = 5,
 
-	-- The owner's sign: a board on two posts by the island's edge at the entrance, the name over
-	-- it (seen from inside and from outside alike).
-	SIGN_POSITION = Vector3.new(0, 0, -(RADIUS - 4)),
-	SIGN_BOARD_SIZE = Vector3.new(14, 3, 0.6),
-	SIGN_POST_HEIGHT = 3,
+	-- The owner's sign: a board on two posts in the entrance, the name over it (seen from inside
+	-- and from outside alike). Twice the old size, read from afar (user, 2026-11-12:
+	-- docs/design/screens/markers.md); the dome is low near the edge (5 studs over the floor 4
+	-- studs in), so the board stands deeper in, under it.
+	SIGN_POSITION = Vector3.new(0, 0, -(RADIUS - 21)),
+	SIGN_BOARD_SIZE = Vector3.new(28, 6, 0.6),
+	SIGN_POST_HEIGHT = 4,
 	SIGN_POST_SIZE = Vector3.new(0.6, 0, 0.6),
 	SIGN_COLOR = Color3.fromRGB(44, 50, 72),
 

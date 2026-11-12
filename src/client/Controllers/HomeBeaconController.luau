@@ -1,15 +1,20 @@
 --!strict
 -- Keeps the way home in sight (decision 069): while the player is anywhere but on their own
 -- island — in space, at the central station, on someone else's island — a "Your island" pin
--- (UI/ScreenPin) with the distance to its dome hangs over that dome, and waits at the screen edge
--- with an arrow when the island leaves the view. The island is the Player's `Island` attribute
--- (BayService). While the tutorial itself points home, its own pin says the same and this one
--- steps aside.
+-- (UI/ScreenPin) with the distance to its dome hangs over the middle of the island's floor (it
+-- hung on the dome's top, 250 studs up: docs/design/screens/markers.md), and waits at the screen
+-- edge with an arrow when the island leaves the view. The island is the Player's `Island`
+-- attribute (BayService). While the tutorial itself points home, its own pin says the same and
+-- this one steps aside.
+--
+-- The player's own island also wears the home colour: its rim and dome, on this client only (the
+-- others see theirs so), so it stands out of the eight at a glance.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local RadarConfig = require(ReplicatedStorage.Shared.Config.RadarConfig)
 local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
@@ -19,6 +24,10 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 local Zones = require(ReplicatedStorage.Shared.Domain.Zones)
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
+local ISLAND_WAIT_TIMEOUT = 30
+-- WorldService builds each island in workspace.World as `Island<index>`, with these glowing parts.
+local WORLD_FOLDER_NAME = "World"
+local TINTED_PARTS = { Rim = true, Dome = true }
 
 export type Dependencies = {
 	-- True while the tutorial's own pin leads to the player's island.
@@ -52,13 +61,75 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 			pin.hide()
 			return
 		end
-		-- The pin marks the top of the dome; the distance counts to the dome, where home begins.
-		local top = island.domeCenter + Vector3.yAxis * island.domeRadius
+		-- The pin stands over the floor, where to land; the distance counts to the dome, where
+		-- home begins.
+		local point = island.platformCenter + Vector3.yAxis * RadarConfig.HOME_PIN_HEIGHT
 		local distance = math.max(0, (root.Position - island.domeCenter).Magnitude - island.domeRadius)
-		pin.place(camera, top, ScreenPin.distanceText(locale, distance))
+		pin.place(camera, point, ScreenPin.distanceText(locale, distance))
+	end
+
+	-- The home island's rim and dome in the home colour; each part keeps its own colour to give
+	-- back if the island changes. Parts stream in and out: each one that arrives is painted.
+	local painted: { [BasePart]: Color3 } = {}
+	local islandConnections: { RBXScriptConnection } = {}
+	local paintedIndex: number? = nil
+
+	local function unpaint()
+		for _, connection in islandConnections do
+			connection:Disconnect()
+		end
+		table.clear(islandConnections)
+		for part, color in painted do
+			part.Color = color
+		end
+		table.clear(painted)
+	end
+
+	local function paint(index: number)
+		local world = workspace:WaitForChild(WORLD_FOLDER_NAME, ISLAND_WAIT_TIMEOUT)
+		local folder = world and world:WaitForChild(`Island{index}`, ISLAND_WAIT_TIMEOUT)
+		if not folder then
+			warn(`[HomeBeaconController] Island {index} did not appear; it keeps its usual colour`)
+			return
+		end
+		if paintedIndex ~= index then
+			-- The island changed while this one was waiting.
+			return
+		end
+		local function apply(child: Instance)
+			if child:IsA("BasePart") and TINTED_PARTS[child.Name] and not painted[child] then
+				painted[child] = child.Color
+				child.Color = Theme.NEON.HOME
+			end
+		end
+		for _, child in folder:GetChildren() do
+			apply(child)
+		end
+		table.insert(islandConnections, folder.ChildAdded:Connect(apply))
+		table.insert(
+			islandConnections,
+			folder.ChildRemoved:Connect(function(child)
+				painted[child :: BasePart] = nil
+			end)
+		)
+	end
+
+	local function watchIsland()
+		local index = Players.LocalPlayer:GetAttribute(StandConfig.ISLAND_ATTRIBUTE)
+		local island = if type(index) == "number" and StationConfig.ISLANDS[index] then index else nil
+		if island == paintedIndex then
+			return
+		end
+		unpaint()
+		paintedIndex = island
+		if island then
+			task.spawn(paint, island)
+		end
 	end
 
 	local function start()
+		Players.LocalPlayer:GetAttributeChangedSignal(StandConfig.ISLAND_ATTRIBUTE):Connect(watchIsland)
+		watchIsland()
 		local locale = Text.localeOf(Players.LocalPlayer)
 		local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		if not playerGui then
@@ -69,7 +140,8 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 			return pin.view({
 				name = "HomeBeacon",
 				title = Text.get(locale, "island.beacon.title"),
-				color = Theme.OXYGEN,
+				color = Theme.NEON.HOME,
+				icon = "Home",
 			})
 		end, playerGui)
 		RunService.RenderStepped:Connect(function()

@@ -1366,6 +1366,16 @@ local Strings = {
 		ru = "{distance} м",
 		en = "{distance} m",
 	},
+	-- To everyone else on the server when a player grabs a rare enough egg: go and get it
+	-- (docs/design/screens/markers.md). {name}: the player's display name.
+	["radar.epicCarried.toast"] = {
+		ru = "{name} несёт эпическое яйцо. Лови!",
+		en = "{name} has an epic egg. Get it!",
+	},
+	["radar.legendaryCarried.toast"] = {
+		ru = "{name} несёт легендарное яйцо. Лови!",
+		en = "{name} has a legendary egg. Get it!",
+	},
 	["data.corrupted.message"] = {
 		ru = "Не получилось прочитать твой прогресс. Мы ничего в нём не меняли. Зайди снова через пару минут.",
 		en = "We couldn't read your progress. Nothing in it was changed. Rejoin in a few minutes.",

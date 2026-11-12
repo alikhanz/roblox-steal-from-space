@@ -2,11 +2,13 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- A pin on the screen for a place in the world: a sign with a name and a distance, drawn over
 -- the place while it is in view and held at the screen edge with an arrow towards it when it is
--- not (Domain/ScreenMarker). Screen space, so it shows from any distance and does not depend on
+-- not (Domain/ScreenMarker), clear of the HUD (UI/PinArea). Screen space, so it shows from any distance and does not depend on
 -- the place streaming in. The home beacon and event markers are pins.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Icons = require(script.Parent.Icons)
+local PinArea = require(script.Parent.PinArea)
 local ScreenMarker = require(ReplicatedStorage.Shared.Domain.ScreenMarker)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Theme)
@@ -19,6 +21,8 @@ local source = Vide.source
 local SIGN_SIZE = Vector2.new(220, 52)
 local ARROW_SIZE = 28
 local DISTANCE_TEXT_SIZE = 16
+local ICON_SIZE = 22
+local ICON_GAP = 4
 -- The arrow glyph points right; GuiObject.Rotation turns it.
 local ARROW_GLYPH = "▶"
 -- Distance of the arrow from the screen edge, pixels.
@@ -34,6 +38,8 @@ export type ViewProps = {
 	name: string,
 	title: string | () -> string,
 	color: Color3,
+	-- An icon before the title, in its colour.
+	icon: Icons.Name?,
 }
 
 -- Where a pin goes on screen this frame: its sign, and the arrow at the edge if the place is not
@@ -65,10 +71,12 @@ function ScreenPin.screenOf(camera: Camera): ScreenMarker.Screen
 	return { width = viewport.X, height = viewport.Y, margin = EDGE_MARGIN }
 end
 
--- Where the pin for world `point` goes on screen (Domain/ScreenMarker).
-function ScreenPin.locate(camera: Camera, point: Vector3): Location
+-- Where the pin for world `point` goes on screen (Domain/ScreenMarker), in `area` (this frame's
+-- UI/PinArea when nil).
+function ScreenPin.locate(camera: Camera, point: Vector3, area: ScreenMarker.Area?): Location
 	local viewportPoint = camera:WorldToViewportPoint(point)
-	local placement = ScreenMarker.place(viewportPoint.X, viewportPoint.Y, viewportPoint.Z, ScreenPin.screenOf(camera))
+	local placement =
+		ScreenMarker.placeIn(viewportPoint.X, viewportPoint.Y, viewportPoint.Z, area or PinArea.of(camera))
 	local position = Vector2.new(placement.x, placement.y)
 	if placement.onScreen then
 		return { sign = position - Vector2.new(0, SIGN_ABOVE_POINT), arrow = nil, angle = placement.angle }
@@ -138,16 +146,38 @@ function ScreenPin.new(): Pin
 					VerticalAlignment = Enum.VerticalAlignment.Center,
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				}),
-				create("TextLabel")({
-					Name = "Title",
+				create("Frame")({
+					Name = "Head",
 					LayoutOrder = 1,
 					AutomaticSize = Enum.AutomaticSize.XY,
 					BackgroundTransparency = 1,
-					FontFace = Theme.FONT,
-					TextSize = Theme.TEXT_SIZE,
-					TextColor3 = props.color,
-					TextStrokeTransparency = 0.3,
-					Text = props.title,
+					create("UIListLayout")({
+						FillDirection = Enum.FillDirection.Horizontal,
+						VerticalAlignment = Enum.VerticalAlignment.Center,
+						Padding = UDim.new(0, ICON_GAP),
+						SortOrder = Enum.SortOrder.LayoutOrder,
+					}),
+					if props.icon
+						then create("ImageLabel")({
+							Name = "Icon",
+							LayoutOrder = 1,
+							Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
+							BackgroundTransparency = 1,
+							Image = Icons.ICONS[props.icon],
+							ImageColor3 = props.color,
+						})
+						else nil,
+					create("TextLabel")({
+						Name = "Title",
+						LayoutOrder = 2,
+						AutomaticSize = Enum.AutomaticSize.XY,
+						BackgroundTransparency = 1,
+						FontFace = Theme.FONT,
+						TextSize = Theme.TEXT_SIZE,
+						TextColor3 = props.color,
+						TextStrokeTransparency = 0.3,
+						Text = props.title,
+					}),
 				}),
 				create("TextLabel")({
 					Name = "Distance",

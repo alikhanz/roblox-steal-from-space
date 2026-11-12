@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Метки игроков, яиц и дома</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 72ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; max-width: 80ch; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+
+/* ───────── Phone screen 844 × 390: 1 point = 100/844 cqw ───────── */
+.screen {
+  --text: #EAF2FF; --muted: #9DB6D2; --line: rgba(130,236,255,.5); --glass: rgba(10,14,40,.5);
+  --common: #E2E6F0; --uncommon: #78EB82; --rare: #5AAAFF; --epic: #C85AFF; --legendary: #FFC83C;
+  --home: #5BE3A0;
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+  background: radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130,70,210,.42), transparent 70%),
+    radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40,130,230,.34), transparent 70%), #060919;
+}
+.screen.pink { --home: #E070C6; }
+.ol { text-shadow: 0 0 .15cqw rgba(0,0,0,.7), 0 .1cqw .1cqw rgba(0,0,0,.7); }
+.stars { position: absolute; inset: 0; background-image:
+  radial-gradient(1px 1px at 12% 20%, #fff8, transparent), radial-gradient(1px 1px at 33% 72%, #fff6, transparent),
+  radial-gradient(1px 1px at 58% 14%, #fff7, transparent), radial-gradient(1px 1px at 77% 40%, #fff5, transparent),
+  radial-gradient(1px 1px at 91% 80%, #fff6, transparent), radial-gradient(1px 1px at 44% 48%, #fff5, transparent); }
+svg.world { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* HUD, faint: the areas markers keep off (dashed outline = keep-out) */
+.hud { position: absolute; opacity: .55; }
+.keep { position: absolute; border: .15cqw dashed rgba(255,90,100,.55); border-radius: 1cqw; }
+.res { left: 2.4cqw; top: 7.6cqw; display: flex; gap: 1cqw; }
+.pill { display: flex; align-items: center; gap: .5cqw; padding: .4cqw 1.2cqw; background: var(--glass); border: .12cqw solid var(--line); border-radius: 99px; font-size: 2.2cqw; }
+.goal { left: 2.4cqw; top: 13cqw; width: 30cqw; height: 9cqw; background: var(--glass); border: .12cqw solid var(--line); border-radius: 1.3cqw; padding: 1cqw 1.4cqw; font-size: 1.6cqw; }
+.tiles { left: 2.4cqw; top: 23.6cqw; display: flex; gap: 1cqw; }
+.tile { width: 5.4cqw; height: 5.4cqw; border-radius: 1.3cqw; border: .2cqw solid; background: rgba(255,255,255,.04); }
+.btn { position: absolute; border-radius: 50%; border: .25cqw solid #8FF4FF88; background: rgba(143,244,255,.08); opacity: .6; }
+.oxy { position: absolute; left: 30cqw; bottom: 2cqw; width: 30cqw; height: 2.6cqw; border-radius: 99px; background: var(--glass); border: .12cqw solid var(--line); opacity: .6; }
+.oxy i { position: absolute; inset: .3cqw; right: 30%; border-radius: 99px; background: #5FD4FF; }
+.cross { position: absolute; left: 50%; top: 50%; width: 2.4cqw; height: 2.4cqw; transform: translate(-50%,-50%); border: .2cqw solid #fff8; border-radius: 50%; }
+
+/* ── The markers ── */
+.m { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; white-space: nowrap; }
+/* Player: ▼ + "Name · 340 m" */
+.player { font-size: 1.31cqw; color: var(--text); }
+.player .tri { width: 0; height: 0; border-left: .55cqw solid transparent; border-right: .55cqw solid transparent; border-top: .8cqw solid var(--text); margin-top: .2cqw; opacity: .9; }
+.player .d { color: var(--muted); }
+.player.far { opacity: .55; }
+.shield { width: 1.2cqw; height: 1.4cqw; margin-top: .2cqw; }
+/* Thief: a pill outlined in the egg's rarity */
+.thief { --c: var(--uncommon); }
+.thief .tag { display: flex; align-items: center; gap: .45cqw; padding: .25cqw .9cqw .25cqw .5cqw; border-radius: 99px; background: rgba(10,14,40,.62); border: .2cqw solid var(--c); font-size: 1.31cqw; }
+.thief .tag .d { color: var(--muted); }
+.thief .tri { width: 0; height: 0; border-left: .55cqw solid transparent; border-right: .55cqw solid transparent; border-top: .8cqw solid var(--c); margin-top: .2cqw; }
+.egg { width: 1.7cqw; height: 2.1cqw; flex: none; }
+.thief.hot .tag { font-size: 1.55cqw; padding: .35cqw 1.1cqw .35cqw .6cqw; box-shadow: 0 0 1.4cqw var(--c), 0 0 .3cqw var(--c) inset; animation: pulse 1s ease-in-out infinite; }
+.thief.hot .egg { width: 2.1cqw; height: 2.6cqw; }
+@keyframes pulse { 50% { box-shadow: 0 0 .5cqw var(--c), 0 0 .1cqw var(--c) inset; } }
+/* Loose egg: a round badge, its ring the time left */
+.loose { --c: var(--rare); transform: translate(-50%, -50%); }
+.loose .badge { position: relative; width: 3.1cqw; height: 3.1cqw; }
+.loose .badge svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.loose .d { font-size: 1.31cqw; color: var(--text); margin-top: .1cqw; }
+/* Edge arrows */
+.edge { position: absolute; transform: translate(-50%,-50%); display: flex; align-items: center; gap: .4cqw; white-space: nowrap; }
+.arrow { width: 0; height: 0; border-top: 1.1cqw solid transparent; border-bottom: 1.1cqw solid transparent; border-left: 1.9cqw solid var(--c, #fff); filter: drop-shadow(0 0 .4cqw rgba(0,0,0,.6)); }
+.tick { width: 0; height: 0; border-top: .6cqw solid transparent; border-bottom: .6cqw solid transparent; border-left: 1cqw solid var(--text); opacity: .6; }
+.edge .lbl { font-size: 1.55cqw; text-align: center; }
+.edge .lbl small { display: block; font-size: 1.31cqw; color: var(--text); opacity: .85; }
+/* Home pin */
+.home { color: var(--home); }
+.home .ico { width: 2.2cqw; height: 2.2cqw; vertical-align: -.4cqw; }
+/* Arrow from where the ray hits the HUD back to where it stops */
+.ray { stroke: rgba(255,90,100,.6); stroke-width: .25; stroke-dasharray: .8 .8; fill: none; }
+
+/* Islands frame */
+.legend { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; align-items: end; justify-items: center; padding: 4cqw 2cqw; height: 100%; }
+.legend .cell { display: flex; flex-direction: column; align-items: center; gap: 1.6cqw; }
+.legend .cell .m, .legend .cell .edge { position: relative; transform: none; left: auto; top: auto; }
+.legend .cap { font-size: 1.6cqw; color: var(--muted); font-weight: 800; text-align: center; }
+.big { transform: scale(1.8); transform-origin: bottom center; margin-top: 3cqw; }
+.notes { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .notes { grid-template-columns: 1fr; } }
+.notes h2 { margin: 0 0 10px; font-weight: 900; font-size: 21px; }
+.notes ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="egg" viewBox="0 0 16 20"><path d="M8 1C4 1 1.5 7.5 1.5 12a6.5 6.5 0 0 0 13 0C14.5 7.5 12 1 8 1Z" fill="currentColor" fill-opacity=".35" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="shield" viewBox="0 0 16 18"><path d="M8 1 2 3.5v5c0 4 2.7 6.7 6 8 3.3-1.3 6-4 6-8v-5Z" fill="#9DB6D2" fill-opacity=".35" stroke="#9DB6D2" stroke-width="1.8"/></symbol>
+    <symbol id="house" viewBox="0 0 20 20"><path d="M3 9.5 10 3l7 6.5V17H3Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 17v-5h4v5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <header class="intro">
+    <h1>Метки игроков, яиц и дома</h1>
+    <p>Бриф: <b>docs/design/screens/markers.md</b>. Телефон 844 × 390, текст в точках эталона. Пунктир красным — зоны HUD, куда стрелки у края <b>не заходят</b>: они отступают к центру по тому же направлению.</p>
+  </header>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="stars"></div>
+      <svg class="world" viewBox="0 0 100 46.2" preserveAspectRatio="none" aria-hidden="true">
+        <!-- far asteroids -->
+        <ellipse cx="18" cy="38" rx="3" ry="1.6" fill="#3a3550"/><ellipse cx="80" cy="34" rx="2" ry="1.2" fill="#3a3550"/>
+        <ellipse cx="61" cy="15" rx="1.4" ry=".9" fill="#3a3550"/>
+        <!-- the ray towards home hits the HUD and steps back -->
+        <path class="ray" d="M50 23.1 L2 26.5"/>
+      </svg>
+      <!-- HUD keep-out areas -->
+      <div class="keep" style="left:1.6cqw;top:6.8cqw;width:32cqw;height:23.4cqw"></div>
+      <div class="keep" style="left:71cqw;top:24cqw;width:28.4cqw;height:21.4cqw"></div>
+      <div class="keep" style="left:29cqw;top:40.4cqw;width:32cqw;height:5cqw"></div>
+      <div class="hud res"><span class="pill" style="color:#FFD34A">⚡ 27.6K</span><span class="pill" style="color:#FFC83D">● 312K</span></div>
+      <div class="hud goal">Цель: Ледяной червь<div style="margin-top:1cqw;height:1.2cqw;border-radius:99px;background:#FFD34A88;width:80%"></div></div>
+      <div class="hud tiles"><i class="tile" style="border-color:#3EA6FF"></i><i class="tile" style="border-color:#41C95A"></i><i class="tile" style="border-color:#FF9A2E"></i><i class="tile" style="border-color:#A06BFF"></i></div>
+      <i class="btn" style="right:3cqw;bottom:2.4cqw;width:8cqw;height:8cqw"></i>
+      <i class="btn" style="right:12.4cqw;bottom:2.4cqw;width:7cqw;height:7cqw"></i>
+      <i class="btn" style="right:3cqw;bottom:12cqw;width:7.6cqw;height:7.6cqw;border-color:#FF7A3D88"></i>
+      <i class="btn" style="right:12cqw;bottom:12.6cqw;width:6.4cqw;height:6.4cqw;border-color:#3FD9FF88"></i>
+      <i class="btn" style="right:20cqw;bottom:7cqw;width:6.4cqw;height:6.4cqw;border-color:#B57BFF88"></i>
+      <div class="oxy"><i></i></div>
+      <i class="cross"></i>
+
+      <!-- On screen -->
+      <div class="m player" style="left:57cqw;top:20cqw"><span class="ol">Kosmo_Lis <span class="d">· 340 м</span></span><i class="tri"></i></div>
+      <div class="m player far" style="left:44cqw;top:12cqw"><span class="ol">Lena2014 <span class="d">· 2100 м</span></span><i class="tri"></i></div>
+      <div class="m player" style="left:85cqw;top:15cqw"><span class="ol">Novichok <span class="d">· 520 м</span></span><svg class="shield"><use href="#shield"/></svg></div>
+      <div class="m thief hot" style="--c:var(--legendary);left:66cqw;top:31cqw"><span class="tag ol"><svg class="egg" style="color:var(--legendary)"><use href="#egg"/></svg>DimaPro <span class="d">· 820 м</span></span><i class="tri"></i></div>
+      <div class="m thief" style="--c:var(--uncommon);left:79cqw;top:22cqw"><span class="tag ol"><svg class="egg" style="color:var(--uncommon)"><use href="#egg"/></svg>Sasha <span class="d">· 610 м</span></span><i class="tri"></i></div>
+      <div class="m loose" style="--c:var(--rare);left:23cqw;top:36cqw">
+        <div class="badge"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="rgba(10,14,40,.6)" stroke="rgba(90,170,255,.25)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="#5AAAFF" stroke-width="3" stroke-dasharray="66 94.2" transform="rotate(-90 18 18)" stroke-linecap="round"/><use href="#egg" x="11" y="9" width="14" height="18" style="color:#5AAAFF"/></svg></div>
+        <span class="d ol">120 м</span>
+      </div>
+
+      <!-- Off screen -->
+      <div class="edge" style="left:40cqw;top:27.5cqw"><i class="arrow" style="--c:var(--home);transform:rotate(176deg)"></i><span class="lbl home ol"><svg class="ico"><use href="#house"/></svg> Твой остров<small>550 м</small></span></div>
+      <div class="edge" style="left:93cqw;top:9cqw"><span class="lbl ol" style="color:var(--epic)"><svg class="egg" style="color:var(--epic);vertical-align:-.4cqw"><use href="#egg"/></svg> MaxStar<small>1400 м</small></span><i class="arrow" style="--c:var(--epic);transform:rotate(-30deg)"></i></div>
+      <div class="edge" style="left:62cqw;top:3cqw"><i class="tick" style="transform:rotate(-80deg)"></i></div>
+      <div class="edge" style="left:97cqw;top:21cqw"><i class="tick" style="transform:rotate(0deg)"></i></div>
+      <div class="edge" style="left:68cqw;top:43cqw"><svg class="egg" style="color:var(--common)"><use href="#egg"/></svg><i class="arrow" style="--c:var(--common);transform:rotate(80deg)"></i></div>
+    </div></div>
+    <figcaption><b>В космосе.</b> На экране: два игрока (дальний бледнее), новичок со щитом, вор с <b>легендарным</b> яйцом (крупно, пульсирует), вор с необычным, выпавшее <b>редкое</b> яйцо — кружок убывает, пока оно не улетит в гнездо. У края: эпический вор справа сверху с именем, двое игроков — маленькими треугольниками, обычное яйцо внизу — стрелкой без текста. Метка дома отступила от плиток меню вправо по своему направлению (пунктир).</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen pink">
+      <div class="stars"></div>
+      <svg class="world" viewBox="0 0 100 46.2" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <radialGradient id="domeC" cx=".5" cy=".7" r=".6"><stop offset="0" stop-color="#78E1FF" stop-opacity="0"/><stop offset=".85" stop-color="#78E1FF" stop-opacity=".12"/><stop offset="1" stop-color="#78E1FF" stop-opacity=".5"/></radialGradient>
+          <radialGradient id="domeH" cx=".5" cy=".7" r=".6"><stop offset="0" stop-color="#E070C6" stop-opacity="0"/><stop offset=".85" stop-color="#E070C6" stop-opacity=".16"/><stop offset="1" stop-color="#E070C6" stop-opacity=".6"/></radialGradient>
+        </defs>
+        <!-- someone else's island, left -->
+        <g transform="translate(16 30)"><path d="M-12 0 A12 10 0 0 1 12 0" fill="url(#domeC)" stroke="#78E1FF66" stroke-width=".25"/><ellipse rx="12" ry="2.2" fill="#464c62"/><ellipse rx="12.4" ry="2.4" fill="none" stroke="#5AC8FF" stroke-width=".5"/><path d="M-6 3 L0 10 L6 3" fill="#2a2e40"/></g>
+        <!-- your island: pink rim and dome -->
+        <g transform="translate(52 32)"><path d="M-18 0 A18 15 0 0 1 18 0" fill="url(#domeH)" stroke="#E070C688" stroke-width=".3"/><ellipse rx="18" ry="3.4" fill="#464c62"/><ellipse rx="18.6" ry="3.6" fill="none" stroke="#E070C6" stroke-width=".7"/>
+          <!-- the owner's board, now twice as big -->
+          <rect x="-4.2" y="-2.6" width="8.4" height="1.9" rx=".2" fill="#2c3248"/><rect x="-4.2" y="-2.6" width="8.4" height=".2" fill="#5AC8FF"/><rect x="-4.2" y="-.9" width="8.4" height=".2" fill="#5AC8FF"/>
+          <text x="0" y="-1.2" text-anchor="middle" font-size="1.3" fill="#EAF2FF" font-family="Nunito" font-weight="900">StarPilot</text>
+          <rect x="-3.6" y="-.7" width=".2" height="1.2" fill="#2c3248"/><rect x="3.4" y="-.7" width=".2" height="1.2" fill="#2c3248"/>
+          <path d="M-9 4 L0 14 L9 4" fill="#2a2e40"/></g>
+        <!-- another island, right -->
+        <g transform="translate(88 27)"><path d="M-10 0 A10 8.4 0 0 1 10 0" fill="url(#domeC)" stroke="#78E1FF66" stroke-width=".25"/><ellipse rx="10" ry="1.9" fill="#464c62"/><ellipse rx="10.3" ry="2" fill="none" stroke="#5AC8FF" stroke-width=".45"/></g>
+        <!-- old pin: the dome's top -->
+        <text x="52" y="15.4" text-anchor="middle" font-size="1.4" fill="#ff5a6488" font-family="Nunito" font-weight="900">было: метка здесь, на макушке</text>
+        <line x1="52" y1="16" x2="52" y2="17" stroke="#ff5a6488" stroke-width=".2"/>
+      </svg>
+      <div class="m home" style="left:52cqw;top:27.6cqw;text-align:center"><span class="ol" style="font-size:1.9cqw"><svg class="ico" style="width:2.4cqw;height:2.4cqw;vertical-align:-.45cqw"><use href="#house"/></svg> Твой остров</span><span class="ol" style="font-size:1.55cqw;color:var(--text)">420 м</span></div>
+    </div></div>
+    <figcaption><b>Домой (вариант «розовый» — не выбран).</b> Свой остров — край и купол в цвете дома (видишь только ты; чужие — голубые). Метка «Твой остров» — над полом острова, а не на макушке купола (≈250 studs выше). Табличка хозяина — вдвое крупнее, глубже на острове, чтобы не торчать из низкого у края купола.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="stars"></div>
+      <svg class="world" viewBox="0 0 100 46.2" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs><radialGradient id="domeM" cx=".5" cy=".7" r=".6"><stop offset="0" stop-color="#5BE3A0" stop-opacity="0"/><stop offset=".85" stop-color="#5BE3A0" stop-opacity=".16"/><stop offset="1" stop-color="#5BE3A0" stop-opacity=".6"/></radialGradient></defs>
+        <g transform="translate(52 32)"><path d="M-18 0 A18 15 0 0 1 18 0" fill="url(#domeM)" stroke="#5BE3A088" stroke-width=".3"/><ellipse rx="18" ry="3.4" fill="#464c62"/><ellipse rx="18.6" ry="3.6" fill="none" stroke="#5BE3A0" stroke-width=".7"/></g>
+      </svg>
+      <div class="m home" style="left:52cqw;top:27.6cqw;text-align:center"><span class="ol" style="font-size:1.9cqw"><svg class="ico" style="width:2.4cqw;height:2.4cqw;vertical-align:-.45cqw"><use href="#house"/></svg> Твой остров</span><span class="ol" style="font-size:1.55cqw;color:var(--text)">420 м</span></div>
+    </div></div>
+    <figcaption><b>Цвет дома — мятный</b> <code>#5BE3A0</code> (выбор пользователя, 2026-11-12).</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="legend">
+        <div class="cell"><div class="big"><div class="m player"><span class="ol">Kosmo_Lis <span class="d">· 340 м</span></span><i class="tri"></i></div></div><span class="cap">игрок</span></div>
+        <div class="cell"><div class="big"><div class="m thief" style="--c:var(--uncommon)"><span class="tag ol"><svg class="egg" style="color:var(--uncommon)"><use href="#egg"/></svg>Sasha <span class="d">· 610 м</span></span><i class="tri"></i></div></div><span class="cap">вор: обычное,<br>необычное</span></div>
+        <div class="cell"><div class="big"><div class="m thief hot" style="--c:var(--rare)"><span class="tag ol"><svg class="egg" style="color:var(--rare)"><use href="#egg"/></svg>Max <span class="d">· 900 м</span></span><i class="tri"></i></div></div><span class="cap">вор: редкое,<br>эпическое, легендарное</span></div>
+        <div class="cell"><div class="big"><div class="m loose" style="transform:none"><div class="badge"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="rgba(10,14,40,.6)" stroke="rgba(200,90,255,.25)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="#C85AFF" stroke-width="3" stroke-dasharray="40 94.2" transform="rotate(-90 18 18)" stroke-linecap="round"/><use href="#egg" x="11" y="9" width="14" height="18" style="color:#C85AFF"/></svg></div><span class="d ol">120 м</span></div></div><span class="cap">яйцо в космосе<br>(кружок — время)</span></div>
+        <div class="cell"><div class="big"><div class="m player"><span class="ol">Novichok <span class="d">· 520 м</span></span><svg class="shield"><use href="#shield"/></svg></div></div><span class="cap">новичок<br>под защитой</span></div>
+      </div>
+    </div></div>
+    <figcaption><b>Все метки крупно (×1,8).</b> Вор — таблетка с именем; яйцо в космосе — кружок без имени: не спутать.</figcaption>
+  </figure>
+
+  <section class="notes">
+    <div>
+      <h2>Чтобы не завалить экран</h2>
+      <ul>
+        <li>Игроков — до 7, яиц в космосе — до 4.</li>
+        <li>Игроки под куполом — без метки (там нет PvP).</li>
+        <li>Ближе 80 studs метки игрока нет (видно имя Roblox), вора — ближе 25, яйца — ближе 50 (там «Схватить»).</li>
+        <li>Текст у края — только у ценных воров, дома, ивентов и туториала; остальные — стрелкой или треугольником.</li>
+        <li>Обычные игроки бледнеют с расстоянием.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Решено и открыто</h2>
+      <ul><li>Цвет дома — мятный; тост всему серверу — для эпического и легендарного (2026-11-12).</li></ul>
+      <ul>
+                <li>Приглушать игроков, которых тебе нельзя атаковать по ⚡?</li>
+      </ul>
+    </div>
+  </section>
+</div>
+</body>
+</html>

@@ -34,6 +34,7 @@ local OfflineService = require(script.Parent.Services.OfflineService)
 local PurchaseService = require(script.Parent.Services.PurchaseService)
 local PvpService = require(script.Parent.Services.PvpService)
 local QuestService = require(script.Parent.Services.QuestService)
+local RadarService = require(script.Parent.Services.RadarService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SerpentService = require(script.Parent.Services.SerpentService)
 local SpaceService = require(script.Parent.Services.SpaceService)
@@ -112,6 +113,7 @@ local pvpDependencies = {} :: PvpService.Dependencies
 local pvpService = PvpService.new(pvpDependencies)
 local eventService = EventService.new({ scheduler = scheduler })
 local activityService = ActivityService.new({ scheduler = scheduler })
+local radarService = RadarService.new({ scheduler = scheduler })
 local indexService = IndexService.new({
 	getData = profile.getData,
 	update = profile.update,
@@ -425,6 +427,7 @@ Lifecycle.run({
 	worldService,
 	eventService,
 	activityService,
+	radarService,
 	nestService,
 	speedService,
 	jetpackService,

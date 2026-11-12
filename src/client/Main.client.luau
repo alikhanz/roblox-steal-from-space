@@ -44,6 +44,7 @@ local PurchaseState = require(script.Parent.State.PurchaseState)
 local PvpEffectsController = require(script.Parent.Controllers.PvpEffectsController)
 local PvpViewController = require(script.Parent.Controllers.PvpViewController)
 local QuestController = require(script.Parent.Controllers.QuestController)
+local RadarController = require(script.Parent.Controllers.RadarController)
 local SerpentController = require(script.Parent.Controllers.SerpentController)
 local SerpentLabelController = require(script.Parent.Controllers.SerpentLabelController)
 local ShopController = require(script.Parent.Controllers.ShopController)
@@ -163,6 +164,7 @@ Lifecycle.run({
 	AimMarkController.new({ abilities = abilityState }),
 	NewbieViewController.new(),
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
+	RadarController.new({ toast = toastState.push }),
 	DomeFlightHintController.new({ toast = toastState.push, tutorialDone = tutorialController.isDone }),
 	TouchJumpController.new(),
 	tutorialController,
