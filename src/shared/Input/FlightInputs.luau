@@ -57,7 +57,9 @@ function FlightInputs.create(): InputContext
 	context.Enabled = true
 	-- A (the gamepad's jump) is up too: the double jump and climbing on one button, like space.
 	keyAction(FlightInputs.ASCEND, { Enum.KeyCode.Space, Enum.KeyCode.ButtonR1, Enum.KeyCode.ButtonA }).Parent = context
-	keyAction(FlightInputs.DESCEND, { Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonL1 }).Parent = context
+	-- Shift, not Ctrl (decision 103): Ctrl was awkward to hold. Roblox's shift lock, which also
+	-- takes Shift, is off in the place (StarterPlayer.EnableMouseLockOption).
+	keyAction(FlightInputs.DESCEND, { Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL1 }).Parent = context
 	keyAction(FlightInputs.GRAB, { Enum.KeyCode.E, Enum.KeyCode.ButtonX }).Parent = context
 	keyAction(FlightInputs.STRIKE, { Enum.KeyCode.MouseLeftButton, Enum.KeyCode.ButtonR2 }).Parent = context
 	keyAction(FlightInputs.HARPOON, { Enum.KeyCode.F, Enum.KeyCode.ButtonY }).Parent = context

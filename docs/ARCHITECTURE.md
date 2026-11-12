@@ -86,7 +86,7 @@ DataService (связь с Roblox: игроки, сообщения при ош�
 Клиент                                   Сервер
 AimController ─ направление камеры ─┐
 стандартное управление (MoveDirection)├─> InputActions под Player ─> SpaceSimulation
-Space/Ctrl, кнопки ▲▼ на телефоне ───┘                              (тот же модуль)
+Space/Shift, кнопки ▲▼ на телефоне ──┘                              (тот же модуль)
 SpaceSimulation (предсказание) ─> атрибуты персонажа ─> HUD (Vide)
 ```
 

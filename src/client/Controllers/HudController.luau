@@ -247,7 +247,7 @@ function HudController.new(dependencies: Dependencies): HudController
 		-- the input uses).
 		local KEY_WORDS: { [string]: Text.Key } = {
 			MouseLeftButton = "key.mouseLeft.hint",
-			LeftControl = "key.control.hint",
+			LeftShift = "key.shift.hint",
 			Space = "key.space.hint",
 		}
 		local function keyOf(actionName: string): () -> string

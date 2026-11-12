@@ -641,9 +641,9 @@ local Strings = {
 		ru = "ЛКМ",
 		en = "LMB",
 	},
-	["key.control.hint"] = {
-		ru = "Ctrl",
-		en = "Ctrl",
+	["key.shift.hint"] = {
+		ru = "Shift",
+		en = "Shift",
 	},
 	["key.space.hint"] = {
 		ru = "Пробел",
