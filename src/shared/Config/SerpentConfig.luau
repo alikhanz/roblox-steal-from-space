@@ -4,8 +4,8 @@
 -- that zone's serpent to the end, wherever it is chased: the speed stat of the zone's middle
 -- guardian, an egg of that guardian's grade. Carrying the star egg it winds through the whole
 -- guardians' band, from past the station border to the map's edge (Domain/SerpentRoute), and
--- flees whoever comes near, still winding, as fast as a player with its stat would fly (a
--- little slower): whoever is strong enough for the zone catches it. HITS_TO_DROP hits on its
+-- flees whoever comes near, circling the station and swerving, as fast as a player with its
+-- stat would fly (a little slower): whoever is strong enough for the zone catches it. HITS_TO_DROP hits on its
 -- head (strike, harpoon, bomb; the whole server together) knock the egg out (Domain/StarEgg:
 -- rare or better, extra luck). Then it guards the egg like a guardian: hovers over it lying loose and chases whoever
 -- carries it, with that same stat (Speed.chaseSpeed), throwing them and knocking it out. Pure
@@ -68,9 +68,10 @@ return table.freeze({
 		minArc = 200,
 		maxArc = 450,
 		maxRadialStep = 450,
-		turnBackChance = 0.2,
-		threatAngle = math.rad(70),
-		repickSeconds = 1,
+		turnBackChance = 0.05,
+		swerveRadial = 150,
+		swerveSeconds = 1.6,
+		swerveClimb = 0.25,
 	} :: SerpentRoute.Tuning),
 	-- The zones it comes out in (one per hunt, at random), from the station outwards.
 	ZONES = table.freeze(ZONES),

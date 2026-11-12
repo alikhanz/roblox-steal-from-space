@@ -1,12 +1,15 @@
 --!strict
 -- The star serpent's route while it carries its egg (decision 055; the winding route came after
 -- the friends' playtest of 2026-11-12): a winding path round the station through the band where
--- it lives, from past the station border (so never into a dome) out to the map's edge. It heads for a waypoint some way round the station, at a fresh
--- distance from it and a fresh height, and never turns tighter than a set radius, so its path
--- bends in long readable curves; now and then it turns back the other way round. Fleeing a
--- player it keeps winding, only faster, and once its waypoint lies towards them it picks one
--- the other way. Pure: works only with the vectors it is given (Lune has no Vector3 global) and
--- rolls its dice through the function it is given.
+-- it lives, from past the station border (so never into a dome) out to the map's edge. Roaming,
+-- it heads for a waypoint some way round the station, at a fresh distance from it and a fresh
+-- height, and never turns tighter than a set radius, so its path bends in long readable curves;
+-- now and then it turns back the other way round. Chased, it keeps circling the station, only
+-- faster, the way round away from the chaser, and swerves in and out and up and down along its
+-- circle in a wide S: it never runs straight off to the map's edge, and the chaser who cuts the
+-- corners gains on it. Pure: works only with the
+-- vectors it is given (Lune has no Vector3 global) and rolls its dice through the function it
+-- is given.
 
 local SerpentRoute = {}
 
@@ -32,10 +35,11 @@ export type Tuning = {
 	read maxRadialStep: number,
 	-- The chance that the next waypoint lies the other way round the station (a U-turn).
 	read turnBackChance: number,
-	-- Fleeing, it picks a new waypoint once its waypoint lies within this angle of the threat
-	-- (radians), at most once in `repickSeconds`.
-	read threatAngle: number,
-	read repickSeconds: number,
+	-- Chased, it swerves every `swerveSeconds`: nearer to the station and then farther, by up
+	-- to `swerveRadial` studs, climbing and then diving by `swerveClimb` of the way.
+	read swerveRadial: number,
+	read swerveSeconds: number,
+	read swerveClimb: number,
 }
 
 export type Route = {
@@ -44,6 +48,8 @@ export type Route = {
 	read turn: number,
 	-- Seconds since the goal was picked.
 	read age: number,
+	-- Which side it swerved to last while chased (+1 or -1), 0 while nobody is after it.
+	read swerve: number,
 }
 
 -- A number in [0, 1).
@@ -79,16 +85,8 @@ end
 -- The next waypoint from `position`, `turn` way round the station: a random way along the ring
 -- (minArc to maxArc), a random distance from the station within maxRadialStep of where it is,
 -- a random height. Its curves overshoot a waypoint by up to two turn radii, so waypoints keep
--- that far from the band's edges. Fleeing `threat`, the waypoint is no nearer to it across the
--- band than where the serpent is.
-function SerpentRoute.pickGoal(
-	band: Band,
-	tuning: Tuning,
-	position: Vector3,
-	turn: number,
-	roll: Roll,
-	threat: Vector3?
-): Vector3
+-- that far from the band's edges.
+function SerpentRoute.pickGoal(band: Band, tuning: Tuning, position: Vector3, turn: number, roll: Roll): Vector3
 	local radius, outward = SerpentRoute.locate(band, position)
 	local margin = tuning.turnRadius * 2
 	local lowest = band.inner + margin
@@ -96,14 +94,6 @@ function SerpentRoute.pickGoal(
 	local from = math.clamp(radius, lowest, highest)
 	local nearest = math.max(lowest, from - tuning.maxRadialStep)
 	local farthest = math.min(highest, from + tuning.maxRadialStep)
-	if threat then
-		local threatRadius = SerpentRoute.locate(band, threat)
-		if threatRadius < radius then
-			nearest = from
-		else
-			farthest = from
-		end
-	end
 	local goalRadius = nearest + (farthest - nearest) * roll()
 	local arc = tuning.minArc + (tuning.maxArc - tuning.minArc) * roll()
 	local angle = turn * arc / ((from + goalRadius) / 2)
@@ -116,7 +106,8 @@ end
 -- Starts a route from `position`, a random way round the station.
 function SerpentRoute.start(band: Band, tuning: Tuning, position: Vector3, roll: Roll): Route
 	local turn = if roll() < 0.5 then 1 else -1
-	return { goal = SerpentRoute.pickGoal(band, tuning, position, turn, roll, nil), turn = turn, age = 0 }
+	local goal = SerpentRoute.pickGoal(band, tuning, position, turn, roll)
+	return { goal = goal, turn = turn, age = 0, swerve = 0 }
 end
 
 -- How far a flyer heading into an edge still goes towards it while it turns, at its sharpest,
@@ -141,25 +132,67 @@ function SerpentRoute.awayFromEdge(band: Band, tuning: Tuning, position: Vector3
 	return nil
 end
 
--- Whether it is done with `goal`: close to it, or past it (behind and not far).
-local function reached(tuning: Tuning, position: Vector3, heading: Vector3, goal: Vector3): boolean
-	local toGoal = goal - position
-	local distance = toGoal.Magnitude
-	return distance < tuning.turnRadius or (distance < tuning.turnRadius * 3 and toGoal:Dot(heading) < 0)
+-- `position` moved into where waypoints may lie: two turn radii in from the band's edges (its
+-- curves overshoot a waypoint by up to that), within its height.
+local function inBand(band: Band, tuning: Tuning, position: Vector3): Vector3
+	local radius, outward = SerpentRoute.locate(band, position)
+	local margin = tuning.turnRadius * 2
+	local lowest = band.inner + margin
+	local clamped = math.clamp(radius, lowest, math.max(lowest, band.outer - margin))
+	local height = math.clamp((position - band.center):Dot(band.up), -band.height, band.height)
+	return band.center + outward * clamped + band.up * height
 end
 
--- Whether the goal lies towards `threat`.
-local function towards(tuning: Tuning, position: Vector3, goal: Vector3, threat: Vector3): boolean
-	local toGoal, toThreat = goal - position, threat - position
-	if toGoal.Magnitude < 1e-4 or toThreat.Magnitude < 1e-4 then
-		return false
+-- The next waypoint of a chased serpent at `position`, `turn` way round the station: as far
+-- round as it flies at `speed` in `swerveSeconds`, farther from the station and higher (`side`
+-- +1) or nearer and lower (-1).
+function SerpentRoute.swerveGoal(
+	band: Band,
+	tuning: Tuning,
+	position: Vector3,
+	turn: number,
+	side: number,
+	speed: number,
+	roll: Roll
+): Vector3
+	local radius, outward = SerpentRoute.locate(band, position)
+	local arc = speed * tuning.swerveSeconds
+	-- The swerve, and a drift either way, so a long chase wanders across the band too.
+	local goalRadius = radius + tuning.swerveRadial * (side * (0.6 + 0.4 * roll()) + (roll() - 0.5))
+	local angle = turn * arc / math.max((radius + goalRadius) / 2, 1)
+	local direction = outward * math.cos(angle) + band.up:Cross(outward) * math.sin(angle)
+	local height = (position - band.center):Dot(band.up) + side * tuning.swerveClimb * arc
+	return inBand(band, tuning, band.center + direction * goalRadius + band.up * height)
+end
+
+-- Which way round the station a chased serpent goes: the way it flies, unless the chaser is
+-- ahead that way.
+local function wayFrom(band: Band, position: Vector3, heading: Vector3, threat: Vector3): number
+	local _, outward = SerpentRoute.locate(band, position)
+	local round = band.up:Cross(outward)
+	local turn = if round:Dot(heading) >= 0 then 1 else -1
+	local toThreat = threat - position
+	if toThreat.Magnitude > 1e-4 and (round * turn):Dot(toThreat.Unit) > 0.5 then
+		turn = -turn
 	end
-	return toGoal.Unit:Dot(toThreat.Unit) > math.cos(tuning.threatAngle)
+	return turn
+end
+
+-- Whether it is done with `goal`: close to it, or past it (behind and not far) after it had
+-- time to turn round to it.
+local function reached(tuning: Tuning, route: Route, position: Vector3, heading: Vector3, speed: number): boolean
+	local toGoal = route.goal - position
+	local distance = toGoal.Magnitude
+	if distance < tuning.turnRadius then
+		return true
+	end
+	local halfCircle = math.pi * tuning.turnRadius / math.max(speed, 1)
+	return route.age > halfCircle and distance < tuning.turnRadius * 3 and toGoal:Dot(heading) < 0
 end
 
 -- One step of `deltaTime` seconds at `speed` from `position`, flying along unit `heading`,
--- fleeing `threat` if any: the route (with a new waypoint when it is done with its own, or
--- that one lies towards the threat) and the unit heading to fly next, turned no tighter than
+-- chased by `threat` if any: the route (with a new waypoint when it is done with its own, or
+-- a swerve when it is due) and the unit heading to fly next, turned no tighter than
 -- tuning.turnRadius.
 function SerpentRoute.step(
 	route: Route,
@@ -172,22 +205,32 @@ function SerpentRoute.step(
 	roll: Roll,
 	threat: Vector3?
 ): (Route, Vector3)
-	local goal, turn, age = route.goal, route.turn, route.age + deltaTime
-	local fleeing = threat ~= nil and age >= tuning.repickSeconds and towards(tuning, position, goal, threat)
-	if fleeing and threat then
-		-- Round the station away from the threat, and the way it already flies unless that
-		-- leads towards the threat: no U-turn into the chaser's arms.
+	local goal, turn, age, swerve = route.goal, route.turn, route.age + deltaTime, route.swerve
+	if threat then
+		if swerve == 0 or age >= tuning.swerveSeconds then
+			turn = wayFrom(band, position, heading, threat)
+			-- The first swerve goes out (or in, if the chaser is farther out), then they take turns.
+			if swerve == 0 then
+				local threatRadius = SerpentRoute.locate(band, threat)
+				swerve = if threatRadius <= (SerpentRoute.locate(band, position)) then 1 else -1
+			else
+				swerve = -swerve
+			end
+			goal = SerpentRoute.swerveGoal(band, tuning, position, turn, swerve, speed, roll)
+			age = 0
+		end
+	elseif swerve ~= 0 then
+		-- The chase is over: on round the station the way it flies now.
 		local _, outward = SerpentRoute.locate(band, position)
-		local away = position - threat
-		turn = if band.up:Cross(outward):Dot(away.Unit + heading) >= 0 then 1 else -1
-		goal = SerpentRoute.pickGoal(band, tuning, position, turn, roll, threat)
+		turn = if band.up:Cross(outward):Dot(heading) >= 0 then 1 else -1
+		swerve = 0
+		goal = SerpentRoute.pickGoal(band, tuning, position, turn, roll)
 		age = 0
-	elseif reached(tuning, position, heading, goal) then
-		-- It turns back only while nobody is after it.
-		if not threat and roll() < tuning.turnBackChance then
+	elseif reached(tuning, route, position, heading, speed) then
+		if roll() < tuning.turnBackChance then
 			turn = -turn
 		end
-		goal = SerpentRoute.pickGoal(band, tuning, position, turn, roll, threat)
+		goal = SerpentRoute.pickGoal(band, tuning, position, turn, roll)
 		age = 0
 	end
 	local desired = SerpentRoute.awayFromEdge(band, tuning, position, heading) or goal - position
@@ -195,7 +238,7 @@ function SerpentRoute.step(
 	if desired.Magnitude > 1e-4 then
 		next = SerpentRoute.turnToward(band, heading, desired.Unit, speed * deltaTime / tuning.turnRadius)
 	end
-	return { goal = goal, turn = turn, age = age }, next
+	return { goal = goal, turn = turn, age = age, swerve = swerve }, next
 end
 
 return table.freeze(SerpentRoute)

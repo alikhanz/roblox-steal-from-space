@@ -188,18 +188,31 @@ describe("SerpentRoute", function()
 		end
 	end)
 
-	it("picks a waypoint away from a threat that its waypoint lies towards", function()
-		local roll = dice(3)
-		local position = Vector3.new(1500, 50, 0)
-		local heading = Vector3.new(0, 0, 1)
-		local route = { goal = Vector3.new(1500, 50, 400), turn = 1, age = 5 }
-		-- The threat sits right on the way to the waypoint.
-		local threat = Vector3.new(1500, 50, 120)
-		local next = SerpentRoute.step(route, BAND, TUNING, position, heading, 100, TICK, roll, threat)
-		local toGoal = (next.goal - position).Unit
-		local toThreat = (threat - position).Unit
-		expect(toGoal:Dot(toThreat) < math.cos(TUNING.threatAngle)).toBe(true)
-		expect(next.age).toBe(0)
+	it("chased, it circles the station instead of running off to the map's edge", function()
+		local speed = SerpentConfig.fleeSpeedIn("RedNebula")
+		for seed = 1, 6 do
+			-- It starts flying straight out, away from the station, with the chaser behind it.
+			local start = { position = Vector3.new(900 + seed * 250, 50, 0), heading = Vector3.new(1, 0, 0) }
+			local flight = fly(start, 30, speed, seed, speed * 0.85)
+			local first = flatRadius(start.position)
+			local round, swerves, lastOutward = 0, 0, nil :: boolean?
+			for index = 2, #flight.positions do
+				local position, before = flight.positions[index], flight.positions[index - 1]
+				-- Never far from the circle it was on.
+				expect(math.abs(flatRadius(position) - first) < 600).toBe(true)
+				local _, outward = SerpentRoute.locate(BAND, position)
+				local _, outwardBefore = SerpentRoute.locate(BAND, before)
+				round += math.acos(math.clamp(outward:Dot(outwardBefore), -1, 1))
+				local goingOut = flatRadius(position) > flatRadius(before)
+				if lastOutward ~= nil and goingOut ~= lastOutward then
+					swerves += 1
+				end
+				lastOutward = goingOut
+			end
+			-- Well round the station in half a minute, swerving in and out on the way.
+			expect(round > math.rad(90)).toBe(true)
+			expect(swerves >= 8).toBe(true)
+		end
 	end)
 
 	it("turns towards its waypoint, but no faster than it may", function()
