@@ -714,13 +714,14 @@ local function configureLighting()
 		atmosphere.Glare = 0
 	end
 
-	-- A Bloom of strength 0 shows nothing but still costs a pass over the screen (measured
-	-- 2026-11-11: the place had one); one with a strength is the place's choice and stays.
-	for _, effect in Lighting:GetChildren() do
-		if effect:IsA("BloomEffect") and effect.Intensity <= 0 then
-			effect.Enabled = false
-		end
-	end
+	-- The glow round Neon, set here so the Dev and Prod places agree (SkyLooks.BLOOM). It must stay
+	-- enabled: without a BloomEffect Roblox draws its own, much stronger glow.
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect") or Instance.new("BloomEffect")
+	bloom.Intensity = SkyLooks.BLOOM.INTENSITY
+	bloom.Size = SkyLooks.BLOOM.SIZE
+	bloom.Threshold = SkyLooks.BLOOM.THRESHOLD
+	bloom.Enabled = true
+	bloom.Parent = Lighting
 end
 
 function WorldService.new(): WorldService

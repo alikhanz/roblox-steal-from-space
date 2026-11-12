@@ -32,4 +32,13 @@ return table.freeze({
 	ENVIRONMENT_DIFFUSE = 0.5,
 	ENVIRONMENT_SPECULAR = 0.9,
 	GLOBAL_SHADOWS = true,
+	-- The glow round Neon and bright particles (Lighting's BloomEffect, made by the server). With
+	-- no BloomEffect, or one switched off, Roblox draws its own much stronger default glow: the
+	-- place's Bloom of strength 0 was switched off for speed (2026-11-11) and the neon burnt
+	-- (user, 2026-11-12). Strength 0 is no glow at all; 0.5 was brighter than Roblox's own.
+	BLOOM = table.freeze({
+		INTENSITY = 0.15,
+		SIZE = 24,
+		THRESHOLD = 0.95,
+	}),
 })
