@@ -105,32 +105,3 @@ describe("SerpentBody.starred", function()
 		expect(SerpentBody.starred(3, 0)).toBe(false)
 	end)
 end)
-
-describe("SerpentBody.hitSpheres", function()
-	it("covers the head and every segment down the path, each a little wider than drawn", function()
-		local head = Vector3.new(7, 0, 0)
-		local neck = Vector3.new(0, 0, 0)
-		local trail = { Vector3.new(-100, 0, 0) }
-		local spheres = SerpentBody.hitSpheres(head, 8, neck, trail, 6, 3, 9, 3, 2)
-		expect(#spheres).toBe(4)
-		near(spheres[1].center, head)
-		expect(spheres[1].radius).toBe(8)
-		-- The segments where the clients draw them, as thick as drawn plus the padding.
-		local placed = SerpentBody.place(neck, trail, 6, 3)
-		for index = 1, 3 do
-			near(spheres[index + 1].center, placed[index])
-			expect(spheres[index + 1].radius).toBe(SerpentBody.sizeOf(index, 3, 9, 3) / 2 + 2)
-		end
-		-- The tail end, 18 studs behind the neck, is in reach.
-		expect(spheres[4].center.X).toBeCloseTo(-18, 1e-6)
-	end)
-
-	it("has no gaps: neighbouring spheres overlap down the body", function()
-		local trail = { Vector3.new(-200, 0, 0) }
-		local spheres = SerpentBody.hitSpheres(Vector3.new(7, 0, 0), 8, Vector3.new(0, 0, 0), trail, 6, 18, 9, 3, 2)
-		for index = 2, #spheres do
-			local gap = (spheres[index].center - spheres[index - 1].center).Magnitude
-			expect(gap < spheres[index].radius + spheres[index - 1].radius).toBe(true)
-		end
-	end)
-end)

@@ -7,8 +7,8 @@
 -- (Domain/SerpentHunt):
 --   * egg inside: it winds through the whole guardians' band, past the station border and so
 --     never into a dome (Domain/SerpentRoute), slowly while nobody is near, at
---     SerpentConfig.fleeSpeedIn from the nearest player in space; hits on its head or body (it
---     is a PvP creature) count up, and the last one knocks the egg out (Domain/StarEgg);
+--     SerpentConfig.fleeSpeedIn from the nearest player in space; hits on its head (it is a PvP
+--     creature) count up, and the last one knocks the egg out (Domain/StarEgg);
 --   * egg out: it guards the egg like a guardian (Domain/GuardianBrain): over it while it lies
 --     loose, after whoever carries it, at a guardian's chase speed with its stat
 --     (Prey.chaseSpeed), throwing them and knocking it out, until they are inside the station
@@ -21,8 +21,8 @@
 -- follows the serpent, then the egg (EventService.movePlace).
 --
 -- The serpent's head is a server-owned physics mover, like a guardian, not predicted on clients;
--- the clients draw its body behind it. The server keeps the same path behind the head, so that
--- attacks land on the body the players see (SerpentBody.hitSpheres).
+-- the clients draw its body behind it. Attacks land on its head only (SerpentConfig.HIT_RADIUS):
+-- catching up with the head of a fleeing serpent is the challenge.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,10 +42,8 @@ local Prey = require(script.Parent.Parent.Character.Prey)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
 local PvpService = require(script.Parent.PvpService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
-local SerpentBody = require(ReplicatedStorage.Shared.Domain.SerpentBody)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SerpentHunt = require(ReplicatedStorage.Shared.Domain.SerpentHunt)
-local SerpentLooks = require(ReplicatedStorage.Shared.Config.SerpentLooks)
 local SerpentModel = require(script.Parent.Parent.World.SerpentModel)
 local SerpentRoute = require(ReplicatedStorage.Shared.Domain.SerpentRoute)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
@@ -64,11 +62,6 @@ local BAND: SerpentRoute.Band = {
 	outer = SerpentConfig.OUTER_RADIUS,
 	height = SerpentConfig.ROUTE_HEIGHT,
 }
-local BODY = SerpentLooks.BODY
--- The body's path behind the neck: a point every this many studs, as long as the body and its
--- tail need (the clients keep the same, SerpentController).
-local TRAIL_STEP = 1.5
-local TRAIL_LENGTH = BODY.spacing * (BODY.segments + 2)
 
 export type Dependencies = {
 	eventChanged: Signal.Signal<EventConfig.EventId, EventClock.Phase>,
@@ -122,9 +115,6 @@ type Serpent = {
 	-- Its winding route while it carries the egg (nil while it guards it), and where it flies.
 	route: SerpentRoute.Route?,
 	heading: Vector3,
-	-- The path behind its neck, and the spheres attacks land on along it (refreshed each tick).
-	trail: { Vector3 },
-	spheres: { SerpentBody.Sphere },
 	sincePin: number,
 	-- Guarding the egg once it is out, like a guardian.
 	brain: GuardianBrain.State,
@@ -275,24 +265,6 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		steer(current, heading * speed)
 	end
 
-	-- The path behind its neck as the clients draw it, and the spheres attacks land on.
-	local function trace(current: Serpent)
-		local head = current.head
-		local neck = head.Position - head.CFrame.LookVector * (head.Size.Z / 2)
-		SerpentBody.record(current.trail, neck, TRAIL_STEP, TRAIL_LENGTH)
-		current.spheres = SerpentBody.hitSpheres(
-			head.Position,
-			SerpentConfig.HIT_RADIUS,
-			neck,
-			current.trail,
-			BODY.spacing,
-			BODY.segments,
-			BODY.firstSize,
-			BODY.lastSize,
-			SerpentConfig.HIT_PADDING
-		)
-	end
-
 	local function catchThief(current: Serpent, player: Player, character: Model, root: BasePart)
 		local strike = Prey.strike(current.head.Position, root)
 		if not dependencies.dropEgg(player, strike.eggLaunch, "Serpent") then
@@ -404,7 +376,6 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			current.route = nil
 			guard(current, deltaTime)
 		end
-		trace(current)
 
 		current.sincePin += deltaTime
 		if current.sincePin >= SerpentConfig.PIN_SECONDS then
@@ -476,8 +447,6 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			zone = zone,
 			route = nil,
 			heading = head.CFrame.LookVector,
-			trail = {},
-			spheres = {},
 			sincePin = 0,
 			brain = "Return",
 			target = nil,
@@ -510,10 +479,6 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			model = model,
 			root = head,
 			radius = SerpentConfig.HIT_RADIUS,
-			spheres = function()
-				local current = serpent
-				return if current and current.model == model then current.spheres else {}
-			end,
 			isCarrying = function()
 				return hunt.egg == "Inside"
 			end,

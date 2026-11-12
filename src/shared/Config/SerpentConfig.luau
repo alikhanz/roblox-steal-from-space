@@ -6,8 +6,8 @@
 -- guardians' band, from past the station border to the map's edge (Domain/SerpentRoute), and
 -- flees whoever comes near, still winding, as fast as a player with its stat would fly (a
 -- little slower): whoever is strong enough for the zone catches it. HITS_TO_DROP hits on its
--- head or body (strike, harpoon, bomb; the whole server together) knock the egg out
--- (Domain/StarEgg: rare or better, extra luck). Then it guards the egg like a guardian: hovers over it lying loose and chases whoever
+-- head (strike, harpoon, bomb; the whole server together) knock the egg out (Domain/StarEgg:
+-- rare or better, extra luck). Then it guards the egg like a guardian: hovers over it lying loose and chases whoever
 -- carries it, with that same stat (Speed.chaseSpeed), throwing them and knocking it out. Pure
 -- Luau: the balance calculator and tests load it. Looks live in SerpentLooks.
 
@@ -83,13 +83,12 @@ return table.freeze({
 	-- With nobody near it winds along its route at this speed, studs per second.
 	ROAM_SPEED = 60,
 
-	-- Hits on it that knock the egg out, the whole server together.
+	-- Hits on its head that knock the egg out, the whole server together.
 	HITS_TO_DROP = 3,
-	-- Attacks land on its head within this distance of the head's middle, studs (PvpService),
-	-- and on its body down the path behind the head, each segment this much wider than it is
-	-- drawn (SerpentBody.hitSpheres, SerpentLooks.BODY).
-	HIT_RADIUS = 8,
-	HIT_PADDING = 2,
+	-- Attacks land on its head (only: its body does not count) within this distance of the
+	-- head's middle, studs (PvpService): the drawn head with its fins and horns reaches about 8,
+	-- and a little more, so a hit that looks like it touched the head counts.
+	HIT_RADIUS = 12,
 	-- The star egg (Domain/StarEgg): of this rarity at least, with this much luck on top of its
 	-- own (EggConfig.luckOf): twice the first version's hunt luck.
 	STAR_EGG_MIN_RARITY = "Rare" :: EggConfig.RarityId,
