@@ -11,14 +11,11 @@ local RunService = game:GetService("RunService")
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local CarryService = require(script.Parent.CarryService)
-local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local GuardianModel = require(script.Parent.Parent.World.GuardianModel)
 local Knockback = require(script.Parent.Parent.Character.Knockback)
-local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
-local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local Prey = require(script.Parent.Parent.Character.Prey)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
@@ -100,23 +97,8 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		end
 	end
 
-	-- A catch costs the thief a share of the tank (OxygenConfig.GUARDIAN_HIT_SHARE). The oxygen is
-	-- simulation state, but the server's word wins: the next step on both sides goes on from it,
-	-- as after a refill. An emptied tank suffocates the thief as usual (SpaceService), not here.
-	local function takeOxygen(player: Player, character: Model)
-		local oxygen = character:GetAttribute(OxygenConfig.ATTRIBUTE)
-		-- Studio playtests with endless oxygen (DevService) lose none.
-		if type(oxygen) ~= "number" or player:GetAttribute(DevConfig.INFINITE_OXYGEN_ATTRIBUTE) == true then
-			return
-		end
-		character:SetAttribute(
-			OxygenConfig.ATTRIBUTE,
-			Oxygen.afterHit(oxygen, OxygenConfig.CAPACITY, OxygenConfig.GUARDIAN_HIT_SHARE)
-		)
-	end
-
 	-- The strike: the thief is thrown and tumbles, the egg flies off sideways, the guardian lunges,
-	-- and the thief loses some oxygen.
+	-- and the thief loses oxygen, the more the stronger the guardian is for them (Prey.takeOxygen).
 	local function catchThief(guardian: Guardian, player: Player, character: Model, root: BasePart)
 		local strike = Prey.strike(guardian.body.Position, root)
 		if not dependencies.dropEgg(player, strike.eggLaunch, "Guardian") then
@@ -130,7 +112,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 			GuardianConfig.STUN_SECONDS,
 			GuardianConfig.HIT_BY_GUARDIAN
 		)
-		takeOxygen(player, character)
+		Prey.takeOxygen(player, character, dependencies.getSpeed(player), guardian.post.recommended)
 
 		guardian.velocity.VectorVelocity = strike.direction * GuardianConfig.LUNGE_SPEED
 		guardian.model:SetAttribute(GuardianConfig.LAST_CATCH_ATTRIBUTE, time())

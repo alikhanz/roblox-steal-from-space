@@ -12,7 +12,6 @@ local RunService = game:GetService("RunService")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
-local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLabel = require(script.Parent.Parent.UI.GuardianLabel)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local GuardianPose = require(ReplicatedStorage.Shared.Domain.GuardianPose)
@@ -45,8 +44,7 @@ local function recommendedIn(zone: unknown): BigNum.BigNum?
 	if type(zone) ~= "string" or not table.find(SerpentConfig.ZONES, zone :: ZoneConfig.ZoneId) then
 		return nil
 	end
-	local post = GuardianConfig.POSTS[ZoneConfig.postIndex(zone :: ZoneConfig.ZoneId, SerpentConfig.POWER_POST)]
-	return post and post.recommended
+	return SerpentConfig.recommendedIn(zone :: ZoneConfig.ZoneId)
 end
 
 -- The sign is seen as far as the farthest guardian's: the serpent roams the outer zones.

@@ -13,6 +13,8 @@ local Loot = require("../../src/shared/Domain/Loot")
 local MeteorConfig = require("../../src/shared/Config/MeteorConfig")
 local MeteorShower = require("../../src/shared/Domain/MeteorShower")
 local MonetizationConfig = require("../../src/shared/Config/MonetizationConfig")
+local Oxygen = require("../../src/shared/Domain/Oxygen")
+local OxygenConfig = require("../../src/shared/Config/OxygenConfig")
 local SerpentConfig = require("../../src/shared/Config/SerpentConfig")
 local ServerConfig = require("../../src/shared/Config/ServerConfig")
 local Speed = require("../../src/shared/Domain/Speed")
@@ -380,7 +382,54 @@ describe("MeteorConfig", function()
 	end)
 end)
 
+describe("OxygenConfig", function()
+	-- What a catch by guardian `post` takes from a thief with `stat` (Prey.catchShare).
+	local function catchShare(stat: BigNum.BigNum, recommended: BigNum.BigNum): number
+		local weakDecades = SpeedConfig.CHALLENGE_WEAK_DECADES
+		return Oxygen.catchShare(
+			Speed.challenge(stat, recommended, SpeedConfig.CHASE, weakDecades),
+			Speed.standing(stat, recommended, SpeedConfig.CHASE, weakDecades),
+			OxygenConfig.CATCH_SHARES
+		)
+	end
+
+	it("takes more for a harder hunter, a part of the tank and never all of it (decision 112)", function()
+		local shares = OxygenConfig.CATCH_SHARES
+		expect(shares.weak > 0).toBe(true)
+		expect(shares.weak < shares.fair).toBe(true)
+		expect(shares.fair < shares.strong).toBe(true)
+		expect(shares.strong < shares.tooStrong).toBe(true)
+		expect(shares.tooStrong < 1).toBe(true)
+	end)
+
+	it("a starting player loses most of the tank to the far guardians, little to the first", function()
+		local start = SpeedConfig.STARTING_SPEED
+		local posts = GuardianConfig.POSTS
+		expect(catchShare(start, posts[1].recommended)).toBeCloseTo(OxygenConfig.CATCH_SHARES.fair)
+		for index = 2, #posts do
+			expect(catchShare(start, posts[index].recommended)).toBe(OxygenConfig.CATCH_SHARES.tooStrong)
+		end
+	end)
+
+	it("a player at a guardian's recommended stat loses a tenth to it and less to the ones behind", function()
+		local posts = GuardianConfig.POSTS
+		for index = 2, #posts do
+			local stat = posts[index].recommended
+			expect(catchShare(stat, posts[index].recommended)).toBeCloseTo(OxygenConfig.CATCH_SHARES.fair)
+			expect(catchShare(stat, posts[index - 1].recommended) < OxygenConfig.CATCH_SHARES.fair).toBe(true)
+		end
+	end)
+end)
+
 describe("SerpentConfig", function()
+	it("measures every zone's serpent by that zone's power post", function()
+		for _, zone in SerpentConfig.ZONES do
+			local post = GuardianConfig.POSTS[ZoneConfig.postIndex(zone, SerpentConfig.POWER_POST)]
+			expect(SerpentConfig.recommendedIn(zone)).toBe(post.recommended)
+			expect(SerpentConfig.powerIn(zone)).toBe(post.speed)
+		end
+	end)
+
 	it("comes out only in zones past the Debris Belt, all of them within its bounds", function()
 		expect(table.find(SerpentConfig.ZONES, "DebrisBelt" :: ZoneConfig.ZoneId)).toBeNil()
 		expect(#SerpentConfig.ZONES).toBe(#ZoneConfig.ZONE_ORDER - 1)

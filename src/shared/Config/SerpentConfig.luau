@@ -40,6 +40,12 @@ local function powerIn(zone: ZoneConfig.ZoneId): BigNum.BigNum
 	return GuardianConfig.POSTS[ZoneConfig.postIndex(zone, POWER_POST)].speed
 end
 
+-- The recommended stat against the serpent of `zone`: that guardian's. The pill over its head
+-- and the oxygen its catch takes are measured by it.
+local function recommendedIn(zone: ZoneConfig.ZoneId): BigNum.BigNum
+	return GuardianConfig.POSTS[ZoneConfig.postIndex(zone, POWER_POST)].recommended
+end
+
 -- How fast the serpent of `zone` flees, studs per second.
 local function fleeSpeedIn(zone: ZoneConfig.ZoneId): number
 	return Speed.flightSpeed(powerIn(zone), SpeedConfig.FLIGHT) * FLEE_SPEED_SHARE
@@ -78,6 +84,7 @@ return table.freeze({
 	POWER_POST = POWER_POST,
 	FLEE_SPEED_SHARE = FLEE_SPEED_SHARE,
 	powerIn = powerIn,
+	recommendedIn = recommendedIn,
 	fleeSpeedIn = fleeSpeedIn,
 	-- Flees from the nearest player in space within this distance of its head, studs.
 	FLEE_RADIUS = 150,

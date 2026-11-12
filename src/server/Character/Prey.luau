@@ -5,8 +5,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
+local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
@@ -62,6 +65,33 @@ export type Strike = {
 	-- takes a turn.
 	eggLaunch: Vector3,
 }
+
+-- Share of a full tank a catch by a hunter recommending `recommended` takes from a prey with
+-- speed stat `stat`: the same tier the pill over the hunter shows that player
+-- (Speed.challenge, Oxygen.catchShare, OxygenConfig.CATCH_SHARES).
+function Prey.catchShare(stat: BigNum.BigNum, recommended: BigNum.BigNum): number
+	local weakDecades = SpeedConfig.CHALLENGE_WEAK_DECADES
+	return Oxygen.catchShare(
+		Speed.challenge(stat, recommended, SpeedConfig.CHASE, weakDecades),
+		Speed.standing(stat, recommended, SpeedConfig.CHASE, weakDecades),
+		OxygenConfig.CATCH_SHARES
+	)
+end
+
+-- A catch costs the prey that share of the tank (decision 112). The oxygen is simulation
+-- state, but the server's word wins: the next step on both sides goes on from it, as after a
+-- refill. An emptied tank suffocates the prey as usual (SpaceService), not here.
+function Prey.takeOxygen(player: Player, character: Model, stat: BigNum.BigNum, recommended: BigNum.BigNum)
+	local oxygen = character:GetAttribute(OxygenConfig.ATTRIBUTE)
+	-- Studio playtests with endless oxygen (DevService) lose none.
+	if type(oxygen) ~= "number" or player:GetAttribute(DevConfig.INFINITE_OXYGEN_ATTRIBUTE) == true then
+		return
+	end
+	character:SetAttribute(
+		OxygenConfig.ATTRIBUTE,
+		Oxygen.afterHit(oxygen, OxygenConfig.CAPACITY, Prey.catchShare(stat, recommended))
+	)
+end
 
 -- The strike of a hunter at `from` on the prey at `root`.
 function Prey.strike(from: Vector3, root: BasePart): Strike

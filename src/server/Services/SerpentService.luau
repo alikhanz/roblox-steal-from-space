@@ -277,6 +277,8 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			SerpentConfig.STUN_SECONDS,
 			SerpentConfig.HIT_BY
 		)
+		-- Like a guardian's catch: oxygen by how the serpent stands against this thief.
+		Prey.takeOxygen(player, character, dependencies.getSpeed(player), SerpentConfig.recommendedIn(current.zone))
 		current.catchReadyAt = time() + SerpentConfig.CATCH_COOLDOWN_SECONDS
 		caught.fire(player)
 	end
