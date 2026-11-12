@@ -1,5 +1,5 @@
 --!strict
--- The controls window's "Don't show again" (decision 103, docs/design/screens/controls.md): keeps
+-- The controls window's "Don't show again" (decision 105, docs/design/screens/controls.md): keeps
 -- the player's choice in the profile and on the player (`TutorialConfig.CONTROLS_HIDDEN_ATTRIBUTE`)
 -- for the client, which then shows no "?" tile and does not open the window on joining. The
 -- choice changes nothing in play, so the only check is the active profile (`update`).

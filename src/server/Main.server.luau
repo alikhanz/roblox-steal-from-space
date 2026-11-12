@@ -138,7 +138,7 @@ local tutorialService = TutorialService.new(tutorialDependencies)
 -- tutorial, so it is bound later too.
 local communityDependencies = {} :: CommunityService.Dependencies
 local communityService = CommunityService.new(communityDependencies)
--- The controls window's "Don't show again" (decision 103).
+-- The controls window's "Don't show again" (decision 105).
 local controlsService = ControlsService.new({
 	activated = profile.activated,
 	getData = profile.getData,

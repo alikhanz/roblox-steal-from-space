@@ -655,10 +655,6 @@ local Strings = {
 		ru = "Пробел",
 		en = "Space",
 	},
-	["key.shift.hint"] = {
-		ru = "Shift",
-		en = "Shift",
-	},
 	["key.move.hint"] = {
 		ru = "WASD",
 		en = "WASD",

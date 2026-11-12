@@ -569,7 +569,7 @@ event CommunityJoined = {
 }
 
 -- "Don't show again" in the controls window was ticked (true) or cleared (false): the server
--- keeps it in the profile (decision 103). It changes nothing in play.
+-- keeps it in the profile (decision 105). It changes nothing in play.
 event SetControlsHidden = {
 	from: Client,
 	type: Reliable,

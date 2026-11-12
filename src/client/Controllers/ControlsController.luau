@@ -1,6 +1,6 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The controls window on the client (decision 103, docs/design/screens/controls.md): what each
+-- The controls window on the client (decision 105, docs/design/screens/controls.md): what each
 -- flight button does. It opens by itself once a session for a new player (the tutorial's first
 -- step: nothing delivered yet), and again from its "?" tile in the HUD menu or the H key. "Don't
 -- show again" asks the server to keep the choice in the profile; the server's answer, an

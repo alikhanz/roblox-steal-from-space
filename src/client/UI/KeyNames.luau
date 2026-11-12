@@ -12,7 +12,6 @@ local Text = require(ReplicatedStorage.Shared.Locale.Text)
 -- Keys whose name is not what a player calls them.
 local KEY_WORDS: { [string]: Text.Key } = {
 	MouseLeftButton = "key.mouseLeft.hint",
-	LeftControl = "key.control.hint",
 	LeftShift = "key.shift.hint",
 	Space = "key.space.hint",
 }

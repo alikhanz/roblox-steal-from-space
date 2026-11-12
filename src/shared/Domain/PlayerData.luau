@@ -94,7 +94,7 @@ export type PlayerData = {
 	domeFlightLearned: boolean,
 	-- The gift for joining the game's community is taken (decision 098, Domain/CommunityGift).
 	communityGiftTaken: boolean,
-	-- "Don't show again" in the controls window (decision 103): no "?" tile, no window on joining.
+	-- "Don't show again" in the controls window (decision 105): no "?" tile, no window on joining.
 	controlsHidden: boolean,
 	-- Today's daily quests (Domain/Quests).
 	quests: Quests.State,
@@ -291,7 +291,7 @@ PlayerData.MIGRATIONS = {
 	-- v19 adds the community gift (decision 098): `communityGiftTaken`, false from the template;
 	-- a member from before gets it on their next join.
 	[18] = function(_data: { [string]: any }) end,
-	-- v20 adds the controls window (decision 103): `controlsHidden`, false from the template.
+	-- v20 adds the controls window (decision 105): `controlsHidden`, false from the template.
 	[19] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
