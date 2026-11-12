@@ -121,21 +121,20 @@ local MODELS = table.freeze({
 -- The sign over a guardian (UI/GuardianLabel), and over the star serpent. It is sized in studs, so
 -- the camera's perspective shrinks it with distance every frame, smoothly and with no script: its
 -- name line is NAME_STUDS tall. Nearer than NEAR_DISTANCE studs from the camera it stops growing
--- and farther than FAR_DISTANCE it stops shrinking (GuardianPose.labelSize: its size in studs
--- follows the distance there, in steps of SIZE_STEP, which on screen is no change). On any screen
--- the name line is then about 5 % of its height near and under 2 % far (Studio, 2026-11-12: the
+-- and farther than FAR_DISTANCE it stops shrinking (GuardianPose.labelPixelsPerStud: there it is
+-- held at its edge size in pixels, switched once as it crosses the edge). On any screen
+-- the name line is then about 6 % of its height near and under 1 % far (Studio, 2026-11-12: the
 -- old pixel-sized sign was far bigger on a phone than on a PC). Past FADE_START it
 -- also fades, to FADE_MAX transparency where it goes (ZoneLooks.GUARDIAN_SIGN_DISTANCE;
 -- GuardianPose.labelFade), a step of at least FADE_STEP at a time. Its bottom stands STUDS_ABOVE
 -- over the body's middle.
 local LABEL = table.freeze({
 	NAME_STUDS = 4.2,
-	NEAR_DISTANCE = 60,
-	FAR_DISTANCE = 170,
+	NEAR_DISTANCE = 50,
+	FAR_DISTANCE = 320,
 	FADE_START = 250,
 	FADE_MAX = 0.6,
 	FADE_STEP = 0.02,
-	SIZE_STEP = 0.02,
 	STUDS_ABOVE = 4,
 })
 

@@ -50,20 +50,26 @@ function GuardianPose.wears(wearing: boolean, distance: number, reach: number, m
 	return distance <= reach + (if wearing then margin else 0)
 end
 
--- How big, in studs, the sign over a guardian (or the star serpent) `distance` studs from the
--- camera is drawn, as a share of its own size: 1 between `near` and `far`, where the camera's
--- perspective alone shrinks it with distance, smoothly; nearer it shrinks with the distance and
--- farther it grows with it, so on screen it stays as big as at `near` (no bigger) or at `far`
--- (no smaller).
-function GuardianPose.labelSize(distance: number, near: number, far: number): number
-	assert(near > 0 and far > near, "labelSize needs 0 < near < far")
-	return distance / math.clamp(distance, near, far)
-end
-
--- Whether a sign's size share moving from `old` to `new` (labelSize) is worth redrawing: a
--- change of more than `step` of it, or back to exactly its own size.
-function GuardianPose.labelSizeMoved(old: number, new: number, step: number): boolean
-	return new ~= old and (new == 1 or math.abs(new / old - 1) > step)
+-- How many screen pixels a stud of the sign over a guardian (or the star serpent) `distance`
+-- studs from the camera takes when its size is held, or nil while it is not: between `near` and
+-- `far` it is sized in studs and the camera's perspective shrinks it, smoothly; nearer it is held
+-- at its size at `near` (no bigger), farther at its size at `far` (no smaller), as a fixed size in
+-- pixels for a view `viewHeight` pixels tall with a vertical field of view of `fovDegrees`. Equal
+-- to the perspective's size at the edge, so the switch shows no step; it changes only when the
+-- sign crosses an edge or the view changes, never frame by frame.
+function GuardianPose.labelPixelsPerStud(
+	distance: number,
+	near: number,
+	far: number,
+	viewHeight: number,
+	fovDegrees: number
+): number?
+	assert(near > 0 and far > near, "labelPixelsPerStud needs 0 < near < far")
+	local held = if distance < near then near elseif distance > far then far else nil
+	if not held then
+		return nil
+	end
+	return viewHeight / (2 * held * math.tan(math.rad(fovDegrees) / 2))
 end
 
 -- How faded the sign over a guardian (or the star serpent) `distance` studs from the camera is,

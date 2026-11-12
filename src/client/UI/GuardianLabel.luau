@@ -6,7 +6,7 @@
 -- the HUD's goal shows how far the next guardian is.
 --
 -- The sign is sized in studs (GuardianLooks.LABEL), so the engine shrinks it with distance every
--- frame, smoothly, between a big size near and a readable one far (`size` holds it there);
+-- frame, smoothly, between a big size near and a small one far (`pixelsPerStud` holds it there);
 -- everything in it is laid out in shares of its size and its text is scaled
 -- to fit, so nothing reflows as it shrinks. Far away it also fades (`fade`). Every length below is
 -- in name-line heights ("units").
@@ -48,9 +48,9 @@ export type Props = {
 	challenge: () -> Speed.Challenge?,
 	-- The word for each challenge, in the player's language.
 	words: { [Speed.Challenge]: string },
-	-- Its size in studs as a share of its own (GuardianPose.labelSize): 1 in the middle distances;
-	-- the owner moves it only by visible steps (GuardianLooks.LABEL.SIZE_STEP).
-	size: () -> number,
+	-- Pixels per stud while its size is held (nearer or farther than the middle distances,
+	-- GuardianPose.labelPixelsPerStud), nil while it is sized in studs.
+	pixelsPerStud: () -> number?,
 	-- How faded the sign is, 0 (clear) to 1 (GuardianPose.labelFade); the owner moves it only by
 	-- visible steps (GuardianLooks.LABEL.FADE_STEP).
 	fade: () -> number,
@@ -119,8 +119,10 @@ local function GuardianLabel(props: Props): BillboardGui
 		Name = "GuardianLabel",
 		Adornee = props.adornee,
 		Size = function(): UDim2
-			local size = studs * props.size()
-			return UDim2.fromScale(WIDTH * size, height * size)
+			local pixels = props.pixelsPerStud()
+			return if pixels
+				then UDim2.fromOffset(WIDTH * studs * pixels, height * studs * pixels)
+				else UDim2.fromScale(WIDTH * studs, height * studs)
 		end,
 		-- The sign's bottom middle sits `studsAbove` over the adornee.
 		StudsOffset = Vector3.new(0, props.studsAbove, 0),

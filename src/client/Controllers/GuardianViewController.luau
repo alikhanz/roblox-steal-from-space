@@ -59,10 +59,10 @@ type View = {
 	distance: number,
 	-- False once the place turned out to have no model for its post: the greybox for good.
 	hasModel: boolean,
-	-- How far its sign shows, and its sign's size share and fade now (GuardianPose.labelSize,
-	-- labelFade), moved on every frame by its distance.
+	-- How far its sign shows, and its sign's held size and fade now
+	-- (GuardianPose.labelPixelsPerStud, labelFade), followed every frame by its distance.
 	signDistance: number,
-	labelSize: Vide.Source<number>,
+	labelPixels: Vide.Source<number?>,
 	labelFade: Vide.Source<number>,
 	unmount: () -> (),
 	connections: { RBXScriptConnection },
@@ -214,7 +214,7 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		if not recommended then
 			warn(`[GuardianViewController] {instance:GetFullName()} has no recommended speed; its sign has no pill`)
 		end
-		local labelSize = Vide.source(1)
+		local labelPixels = Vide.source(nil :: number?)
 		local labelFade = Vide.source(0)
 		local signDistance = ZoneLooks.GUARDIAN_SIGN_DISTANCE[post.zone]
 		local unmount = Mount.instance(function()
@@ -225,7 +225,7 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 					return challengeOf(recommended)
 				end,
 				words = words,
-				size = labelSize,
+				pixelsPerStud = labelPixels :: () -> number?,
 				fade = labelFade,
 				studsAbove = body.Size.Y / 2 + LABEL.STUDS_ABOVE,
 				maxDistance = signDistance,
@@ -245,7 +245,7 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 			distance = math.huge,
 			hasModel = true,
 			signDistance = signDistance,
-			labelSize = labelSize,
+			labelPixels = labelPixels,
 			labelFade = labelFade,
 			unmount = unmount,
 			connections = {},
@@ -364,9 +364,16 @@ function GuardianViewController.new(dependencies: Dependencies): GuardianViewCon
 		wearNext()
 		for _, view in views do
 			local distance = (view.body.Position - eye).Magnitude
-			local size = GuardianPose.labelSize(distance, LABEL.NEAR_DISTANCE, LABEL.FAR_DISTANCE)
-			if GuardianPose.labelSizeMoved(view.labelSize(), size, LABEL.SIZE_STEP) then
-				view.labelSize(size)
+			local pixels = GuardianPose.labelPixelsPerStud(
+				distance,
+				LABEL.NEAR_DISTANCE,
+				LABEL.FAR_DISTANCE,
+				camera.ViewportSize.Y,
+				camera.FieldOfView
+			)
+			-- Changes only as the sign crosses an edge or the view changes.
+			if pixels ~= (view.labelPixels :: () -> number?)() then
+				view.labelPixels(pixels)
 			end
 			local fade = GuardianPose.labelFade(distance, LABEL.FADE_START, view.signDistance, LABEL.FADE_MAX)
 			-- Only a visible change wakes the sign up.

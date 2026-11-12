@@ -90,7 +90,8 @@ function SerpentLabelController.new(dependencies: Dependencies): SerpentLabelCon
 
 		local head: BasePart? = nil
 		local unmount: (() -> ())? = nil
-		local labelSize = Vide.source(1)
+		local labelPixels = Vide.source(nil :: number?)
+		local readPixels = labelPixels :: () -> number?
 		local labelFade = Vide.source(0)
 		local signDistance = maxDistance()
 
@@ -125,7 +126,7 @@ function SerpentLabelController.new(dependencies: Dependencies): SerpentLabelCon
 						)
 					end,
 					words = words,
-					size = labelSize,
+					pixelsPerStud = readPixels,
 					fade = labelFade,
 					studsAbove = part.Size.Y / 2 + LABEL.STUDS_ABOVE,
 					maxDistance = signDistance,
@@ -154,9 +155,15 @@ function SerpentLabelController.new(dependencies: Dependencies): SerpentLabelCon
 				return
 			end
 			local distance = (head.Position - camera.CFrame.Position).Magnitude
-			local size = GuardianPose.labelSize(distance, LABEL.NEAR_DISTANCE, LABEL.FAR_DISTANCE)
-			if GuardianPose.labelSizeMoved(labelSize(), size, LABEL.SIZE_STEP) then
-				labelSize(size)
+			local pixels = GuardianPose.labelPixelsPerStud(
+				distance,
+				LABEL.NEAR_DISTANCE,
+				LABEL.FAR_DISTANCE,
+				camera.ViewportSize.Y,
+				camera.FieldOfView
+			)
+			if pixels ~= readPixels() then
+				labelPixels(pixels)
 			end
 			local fade = GuardianPose.labelFade(distance, LABEL.FADE_START, signDistance, LABEL.FADE_MAX)
 			if math.abs(fade - labelFade()) > LABEL.FADE_STEP then
