@@ -30,6 +30,18 @@ function Pursuit.seekVelocity(from: Vector3, goal: Vector3, maxSpeed: number, ar
 	return offset.Unit * speed
 end
 
+-- Velocity that brings a mover steered in steps (a new velocity each tick, held until the next)
+-- to rest at `goal`: at most `maxSpeed`, and near the goal only as fast as closes the gap in
+-- `settleSeconds`, so each tick covers the same share of what is left, whatever the top speed.
+-- seekVelocity's arrive radius in studs would not do for a fast mover: with `maxSpeed` /
+-- `arriveRadius` × tick past 1 it overshoots the goal every tick, past 2 it never settles and
+-- shakes back and forth across it. `settleSeconds` must be longer than a tick (see
+-- GuardianConfig.SETTLE_SECONDS).
+function Pursuit.settleVelocity(from: Vector3, goal: Vector3, maxSpeed: number, settleSeconds: number): Vector3
+	assert(settleSeconds > 0, "settleSeconds must be positive")
+	return Pursuit.seekVelocity(from, goal, maxSpeed, maxSpeed * settleSeconds)
+end
+
 -- `current` eased towards `desired`: how far it gets in `deltaTime` seconds at `response` (per
 -- second; the share left shrinks as exp(-response * deltaTime)). A mover steered this way turns
 -- and speeds up smoothly instead of snapping to each tick's new aim.

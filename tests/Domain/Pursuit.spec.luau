@@ -45,6 +45,50 @@ describe("Pursuit.seekVelocity", function()
 	end)
 end)
 
+describe("Pursuit.settleVelocity", function()
+	it("heads for the goal at top speed when far", function()
+		expectVector(Pursuit.settleVelocity(Vector3.zero, Vector3.new(0, 0, -100), 30, 0.25), Vector3.new(0, 0, -30))
+	end)
+
+	it("near the goal closes the gap in the settle time, whatever the top speed", function()
+		local goal = Vector3.new(4, 0, 0)
+		expectVector(Pursuit.settleVelocity(Vector3.zero, goal, 60, 0.25), Vector3.new(16, 0, 0))
+		expectVector(Pursuit.settleVelocity(Vector3.zero, goal, 250, 0.25), Vector3.new(16, 0, 0))
+	end)
+
+	-- The guardians' bug (2026-11-12): held for a 1/15 s tick, a 250 studs/s guardian with a
+	-- 6-stud arrive radius jumped across its spot every tick and never came to rest.
+	it("comes to rest at the goal from any speed, never past it, in 15 Hz steps", function()
+		local tick = 1 / 15
+		for _, speed in { 30, 90, 180, 250, 400 } do
+			local position = Vector3.new(0, 30, 0)
+			local goal = Vector3.zero
+			local lastGap = position.Y
+			for _ = 1, 60 do
+				position += Pursuit.settleVelocity(position, goal, speed, 0.25) * tick
+				expect(position.Y >= -1e-6).toBe(true)
+				expect(position.Y <= lastGap + 1e-6).toBe(true)
+				lastGap = position.Y
+			end
+			expect(position.Y).toBeCloseTo(0, 1e-2)
+		end
+	end)
+
+	it("the old arrive radius shook a fast mover (the bug this replaces)", function()
+		local tick = 1 / 15
+		local position = Vector3.new(0, 1, 0)
+		local crossings = 0
+		for _ = 1, 30 do
+			local before = position.Y
+			position += Pursuit.seekVelocity(position, Vector3.zero, 250, 6) * tick
+			if (before > 0) ~= (position.Y > 0) then
+				crossings += 1
+			end
+		end
+		expect(crossings > 20).toBe(true)
+	end)
+end)
+
 describe("Pursuit.ease", function()
 	it("moves part of the way, more over a longer step", function()
 		local short = Pursuit.ease(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), 6, 1 / 15)

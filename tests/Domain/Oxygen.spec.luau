@@ -20,6 +20,16 @@ describe("Oxygen", function()
 		expect(Oxygen.step(99, 100, false, 5, TUNING)).toBe(100)
 	end)
 
+	it("a hit takes its share of a full tank", function()
+		expect(Oxygen.afterHit(100, 180, 0.1)).toBeCloseTo(82)
+		expect(Oxygen.afterHit(180, 180, 0)).toBe(180)
+	end)
+
+	it("a hit on a nearly empty tank empties it", function()
+		expect(Oxygen.afterHit(10, 180, 0.1)).toBe(0)
+		expect(Oxygen.isEmpty(Oxygen.afterHit(18, 180, 0.1))).toBe(true)
+	end)
+
 	it("reports an empty tank", function()
 		expect(Oxygen.isEmpty(0)).toBe(true)
 		expect(Oxygen.isEmpty(0.01)).toBe(false)

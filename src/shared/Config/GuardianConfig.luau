@@ -156,8 +156,10 @@ return table.freeze({
 	BORDER_MARGIN = 6,
 	-- How far ahead of a moving thief a guardian aims, at most, seconds.
 	MAX_LEAD_SECONDS = 1.5,
-	-- Guardians ease into their resting spot within this distance, studs.
-	ARRIVE_RADIUS = 6,
+	-- Near its resting spot a guardian slows to close the gap in this many seconds
+	-- (Pursuit.settleVelocity): several ticks, so it eases in and never overshoots. An arrive
+	-- radius in studs made the fast guardians shake across their spot (2026-11-12).
+	SETTLE_SECONDS = 0.25,
 	-- Logic rate: 15 updates per second (CONVENTIONS, performance: guardians at 10-20 Hz).
 	TICK_SECONDS = 1 / 15,
 	-- Force budget of the movers: enough to cancel gravity and turn sharply.

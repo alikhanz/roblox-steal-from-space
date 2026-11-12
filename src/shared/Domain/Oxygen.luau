@@ -15,6 +15,12 @@ function Oxygen.step(current: number, capacity: number, inSpace: boolean, deltaT
 	return math.clamp(current + change * deltaTime, 0, capacity)
 end
 
+-- What is left after a hit that takes `share` of a full tank (a guardian's catch): never below
+-- empty. A hit on a nearly empty tank empties it, and the thief suffocates like any other.
+function Oxygen.afterHit(current: number, capacity: number, share: number): number
+	return math.max(current - capacity * math.max(share, 0), 0)
+end
+
 function Oxygen.isEmpty(current: number): boolean
 	return current <= 0
 end
