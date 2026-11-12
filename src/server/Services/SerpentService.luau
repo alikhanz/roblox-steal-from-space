@@ -5,12 +5,14 @@
 -- out there carrying the star egg, and it is that zone's serpent to the end, wherever it is
 -- chased: its speed and its egg's grade are the zone's. What it does follows where the egg is
 -- (Domain/SerpentHunt):
---   * egg inside: it flees the nearest player in space (SerpentConfig.fleeSpeedIn), roaming
---     its zone's ring when nobody is near; hits on its head (it is a PvP creature) count up,
---     and the last one knocks the egg out (Domain/StarEgg);
+--   * egg inside: it winds through the whole guardians' band, past the station border and so
+--     never into a dome (Domain/SerpentRoute), slowly while nobody is near, at
+--     SerpentConfig.fleeSpeedIn from the nearest player in space; hits on its head or body (it
+--     is a PvP creature) count up, and the last one knocks the egg out (Domain/StarEgg);
 --   * egg out: it guards the egg like a guardian (Domain/GuardianBrain): over it while it lies
 --     loose, after whoever carries it, at a guardian's chase speed with its stat
---     (Prey.chaseSpeed), throwing them and knocking it out.
+--     (Prey.chaseSpeed), throwing them and knocking it out, until they are inside the station
+--     border, as a guardian does.
 -- The egg's home is the serpent's (Domain/EggHomes, SerpentConfig.EGG_HOME_ID): it gives the
 -- egg its grade, takes it back inside when it leaves play, and ends the event when it reaches a
 -- bay. When the time is up the serpent leaves: with the egg if it is inside; a loose egg is
@@ -19,7 +21,8 @@
 -- follows the serpent, then the egg (EventService.movePlace).
 --
 -- The serpent's head is a server-owned physics mover, like a guardian, not predicted on clients;
--- the clients draw its body behind it.
+-- the clients draw its body behind it. The server keeps the same path behind the head, so that
+-- attacks land on the body the players see (SerpentBody.hitSpheres).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -39,9 +42,12 @@ local Prey = require(script.Parent.Parent.Character.Prey)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
 local PvpService = require(script.Parent.PvpService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
+local SerpentBody = require(ReplicatedStorage.Shared.Domain.SerpentBody)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SerpentHunt = require(ReplicatedStorage.Shared.Domain.SerpentHunt)
+local SerpentLooks = require(ReplicatedStorage.Shared.Config.SerpentLooks)
 local SerpentModel = require(script.Parent.Parent.World.SerpentModel)
+local SerpentRoute = require(ReplicatedStorage.Shared.Domain.SerpentRoute)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StarEgg = require(ReplicatedStorage.Shared.Domain.StarEgg)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
@@ -49,8 +55,20 @@ local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local CENTER = StationConfig.PLATFORM_CENTER
 local HOME_ID = SerpentConfig.EGG_HOME_ID
--- A roaming serpent picks its next spot once it is this close to the last one, studs.
-local ROAM_ARRIVE_RADIUS = 30
+-- Where its route winds.
+local BAND: SerpentRoute.Band = {
+	center = CENTER,
+	up = Vector3.yAxis,
+	across = Vector3.xAxis,
+	inner = SerpentConfig.INNER_RADIUS,
+	outer = SerpentConfig.OUTER_RADIUS,
+	height = SerpentConfig.ROUTE_HEIGHT,
+}
+local BODY = SerpentLooks.BODY
+-- The body's path behind the neck: a point every this many studs, as long as the body and its
+-- tail need (the clients keep the same, SerpentController).
+local TRAIL_STEP = 1.5
+local TRAIL_LENGTH = BODY.spacing * (BODY.segments + 2)
 
 export type Dependencies = {
 	eventChanged: Signal.Signal<EventConfig.EventId, EventClock.Phase>,
@@ -99,9 +117,14 @@ type Serpent = {
 	head: BasePart,
 	velocity: LinearVelocity,
 	align: AlignOrientation,
-	-- The zone it came out in: its speed, its egg's grade and its roaming ring, for the hunt.
+	-- The zone it came out in: its speed and its egg's grade, for the hunt.
 	zone: ZoneConfig.ZoneId,
-	roamGoal: Vector3?,
+	-- Its winding route while it carries the egg (nil while it guards it), and where it flies.
+	route: SerpentRoute.Route?,
+	heading: Vector3,
+	-- The path behind its neck, and the spheres attacks land on along it (refreshed each tick).
+	trail: { Vector3 },
+	spheres: { SerpentBody.Sphere },
 	sincePin: number,
 	-- Guarding the egg once it is out, like a guardian.
 	brain: GuardianBrain.State,
@@ -144,13 +167,16 @@ local function inZoneMiddle(random: Random, zone: ZoneConfig.ZoneId): Vector3
 	return aroundStation(random, (ring.ringMin + ring.ringMax) / 2, 0)
 end
 
--- Out of its reach: on the station, or within the Debris Belt.
+-- Out of its reach, as out of a guardian's: on the station, or inside its border.
 local function isOutOfReach(character: Model, root: BasePart): boolean
-	return not Prey.inSpace(character) or distanceFromStation(root.Position) <= SerpentConfig.HUNT_RADIUS
+	return not Prey.inSpace(character) or distanceFromStation(root.Position) <= StationConfig.BORDER_RADIUS
 end
 
 function SerpentService.new(dependencies: Dependencies): SerpentService
 	local random = Random.new()
+	local function roll(): number
+		return random:NextNumber()
+	end
 	local struck = Signal.new() :: Signal.Signal<Player, boolean>
 	local caught = Signal.new() :: Signal.Signal<Player>
 	local delivered = Signal.new() :: Signal.Signal<Player, CarryService.Carried>
@@ -195,25 +221,12 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			SerpentConfig.STEER_RESPONSE,
 			SerpentConfig.TICK_SECONDS
 		)
-		local inside = Bounds.keepOutside(position, eased, CENTER, SerpentConfig.HUNT_RADIUS)
+		local inside = Bounds.keepOutside(position, eased, CENTER, SerpentConfig.INNER_RADIUS)
 		local limited = Bounds.limitVelocity(position, inside, CENTER, SerpentConfig.OUTER_RADIUS)
 		current.velocity.VectorVelocity = limited
 		if limited.Magnitude > 1 then
 			current.align.CFrame = CFrame.lookAlong(Vector3.zero, limited.Unit)
 		end
-	end
-
-	-- Where a roaming serpent heads: the same spot of its zone's ring until it gets there, then
-	-- a new one. A serpent chased out of its zone roams back into it.
-	local function roamGoal(current: Serpent): Vector3
-		local goal = current.roamGoal
-		if goal and (goal - current.head.Position).Magnitude > ROAM_ARRIVE_RADIUS then
-			return goal
-		end
-		local ring = ZoneConfig.ZONES[current.zone]
-		local fresh = aroundStation(random, random:NextNumber(ring.ringMin, ring.ringMax), ring.heightSpread)
-		current.roamGoal = fresh
-		return fresh
 	end
 
 	-- The nearest player out in space within its flee radius, if any.
@@ -232,17 +245,52 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		return nearest
 	end
 
-	local function flee(current: Serpent)
+	-- Carrying the egg: along its winding route, faster while someone is near.
+	local function flee(current: Serpent, deltaTime: number)
 		local position = current.head.Position
 		local threat = nearestThreat(current)
-		if threat then
-			current.roamGoal = nil
-			local speed = SerpentConfig.fleeSpeedIn(current.zone)
-			steer(current, Pursuit.fleeVelocity(position, threat.Position, speed))
+		local speed = if threat then SerpentConfig.fleeSpeedIn(current.zone) else SerpentConfig.ROAM_SPEED
+		local route: SerpentRoute.Route
+		if current.route then
+			route = current.route
 		else
-			local goal = roamGoal(current)
-			steer(current, Pursuit.seekVelocity(position, goal, SerpentConfig.ROAM_SPEED, ROAM_ARRIVE_RADIUS))
+			-- Back on the route (just out, or its egg back inside): from where it flies now.
+			local moving = current.velocity.VectorVelocity
+			current.heading = if moving.Magnitude > 1 then moving.Unit else current.head.CFrame.LookVector
+			route = SerpentRoute.start(BAND, SerpentConfig.ROUTE, position, roll)
 		end
+		local heading
+		route, heading = SerpentRoute.step(
+			route,
+			BAND,
+			SerpentConfig.ROUTE,
+			position,
+			current.heading,
+			speed,
+			deltaTime,
+			roll,
+			if threat then threat.Position else nil
+		)
+		current.route, current.heading = route, heading
+		steer(current, heading * speed)
+	end
+
+	-- The path behind its neck as the clients draw it, and the spheres attacks land on.
+	local function trace(current: Serpent)
+		local head = current.head
+		local neck = head.Position - head.CFrame.LookVector * (head.Size.Z / 2)
+		SerpentBody.record(current.trail, neck, TRAIL_STEP, TRAIL_LENGTH)
+		current.spheres = SerpentBody.hitSpheres(
+			head.Position,
+			SerpentConfig.HIT_RADIUS,
+			neck,
+			current.trail,
+			BODY.spacing,
+			BODY.segments,
+			BODY.firstSize,
+			BODY.lastSize,
+			SerpentConfig.HIT_PADDING
+		)
 	end
 
 	local function catchThief(current: Serpent, player: Player, character: Model, root: BasePart)
@@ -351,10 +399,12 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		if current.held then
 			current.velocity.VectorVelocity = Vector3.zero
 		elseif behavior == "Flee" then
-			flee(current)
+			flee(current, deltaTime)
 		elseif behavior == "Guard" then
+			current.route = nil
 			guard(current, deltaTime)
 		end
+		trace(current)
 
 		current.sincePin += deltaTime
 		if current.sincePin >= SerpentConfig.PIN_SECONDS then
@@ -424,7 +474,10 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			velocity = head:FindFirstChild(SerpentConfig.VELOCITY_NAME) :: LinearVelocity,
 			align = head:FindFirstChild(SerpentConfig.ALIGN_NAME) :: AlignOrientation,
 			zone = zone,
-			roamGoal = nil,
+			route = nil,
+			heading = head.CFrame.LookVector,
+			trail = {},
+			spheres = {},
 			sincePin = 0,
 			brain = "Return",
 			target = nil,
@@ -457,6 +510,10 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 			model = model,
 			root = head,
 			radius = SerpentConfig.HIT_RADIUS,
+			spheres = function()
+				local current = serpent
+				return if current and current.model == model then current.spheres else {}
+			end,
 			isCarrying = function()
 				return hunt.egg == "Inside"
 			end,

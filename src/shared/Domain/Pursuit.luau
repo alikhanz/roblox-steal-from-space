@@ -30,16 +30,6 @@ function Pursuit.seekVelocity(from: Vector3, goal: Vector3, maxSpeed: number, ar
 	return offset.Unit * speed
 end
 
--- Velocity straight away from `threat` at `speed` (the star serpent fleeing a player). Zero
--- when the threat is right on top: there is no "away" to pick.
-function Pursuit.fleeVelocity(from: Vector3, threat: Vector3, speed: number): Vector3
-	local offset = from - threat
-	if offset.Magnitude < 1e-4 then
-		return offset * 0
-	end
-	return offset.Unit * speed
-end
-
 -- `current` eased towards `desired`: how far it gets in `deltaTime` seconds at `response` (per
 -- second; the share left shrinks as exp(-response * deltaTime)). A mover steered this way turns
 -- and speeds up smoothly instead of snapping to each tick's new aim.

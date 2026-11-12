@@ -381,14 +381,24 @@ end)
 
 describe("SerpentConfig", function()
 	it("comes out only in zones past the Debris Belt, all of them within its bounds", function()
-		expect(SerpentConfig.HUNT_RADIUS > StationSize.BORDER_RADIUS).toBe(true)
 		expect(table.find(SerpentConfig.ZONES, "DebrisBelt" :: ZoneConfig.ZoneId)).toBeNil()
 		expect(#SerpentConfig.ZONES).toBe(#ZoneConfig.ZONE_ORDER - 1)
 		for _, zone in SerpentConfig.ZONES do
 			local ring = ZoneConfig.ZONES[zone]
-			expect(ring.ringMin > SerpentConfig.HUNT_RADIUS).toBe(true)
+			expect(ring.ringMin > SerpentConfig.INNER_RADIUS).toBe(true)
 			expect(ring.ringMax <= SerpentConfig.OUTER_RADIUS).toBe(true)
 		end
+	end)
+
+	it("lives past the station border, clear of every dome, out to the map's edge", function()
+		local islandDomes = StationSize.ISLAND_RING_RADIUS + StationSize.ISLAND_DOME_RADIUS
+		expect(SerpentConfig.INNER_RADIUS > StationSize.BORDER_RADIUS).toBe(true)
+		expect(SerpentConfig.INNER_RADIUS > islandDomes).toBe(true)
+		expect(SerpentConfig.INNER_RADIUS > StationSize.DOME_RADIUS).toBe(true)
+		expect(SerpentConfig.OUTER_RADIUS).toBe(ZoneConfig.ZONES.EventHorizon.ringMax)
+		-- Room for its sharpest turn on each side of where its waypoints may lie.
+		local width = SerpentConfig.OUTER_RADIUS - SerpentConfig.INNER_RADIUS
+		expect(width > SerpentConfig.ROUTE.turnRadius * 8).toBe(true)
 	end)
 
 	it("flees a little slower than a player with its stat flies", function()

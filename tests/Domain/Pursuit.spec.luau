@@ -45,18 +45,6 @@ describe("Pursuit.seekVelocity", function()
 	end)
 end)
 
-describe("Pursuit.fleeVelocity", function()
-	it("heads straight away from the threat at the given speed", function()
-		local velocity = Pursuit.fleeVelocity(Vector3.new(10, 0, 0), Vector3.new(0, 0, 0), 30)
-		expectVector(velocity, Vector3.new(30, 0, 0))
-	end)
-
-	it("stays put with the threat right on top", function()
-		local velocity = Pursuit.fleeVelocity(Vector3.new(5, 5, 5), Vector3.new(5, 5, 5), 30)
-		expect(velocity.Magnitude).toBe(0)
-	end)
-end)
-
 describe("Pursuit.ease", function()
 	it("moves part of the way, more over a longer step", function()
 		local short = Pursuit.ease(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), 6, 1 / 15)

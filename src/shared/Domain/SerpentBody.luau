@@ -71,6 +71,34 @@ function SerpentBody.stretchOf(size: number, made: number, floor: number): (numb
 	return across, floor + (1 - floor) * across
 end
 
+export type Sphere = {
+	read center: Vector3,
+	read radius: number,
+}
+
+-- What attacks land on (the server's measure of the body the clients draw): a sphere of
+-- `headRadius` round the head, then one per segment laid down the path behind the neck as
+-- `place` lays them (`count` of them, `spacing` apart, `first` thick at the neck down to `last`),
+-- each `padding` wider than the segment.
+function SerpentBody.hitSpheres(
+	head: Vector3,
+	headRadius: number,
+	neck: Vector3,
+	trail: { Vector3 },
+	spacing: number,
+	count: number,
+	first: number,
+	last: number,
+	padding: number
+): { Sphere }
+	local spheres: { Sphere } = { { center = head, radius = headRadius } }
+	for index, center in SerpentBody.place(neck, trail, spacing, count) do
+		local size = SerpentBody.sizeOf(index, count, first, last)
+		table.insert(spheres, { center = center, radius = size / 2 + padding })
+	end
+	return spheres
+end
+
 -- Whether segment `index` wears the stars on its flanks: every `every`-th.
 function SerpentBody.starred(index: number, every: number): boolean
 	return every > 0 and index % every == 0

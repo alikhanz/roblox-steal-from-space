@@ -2,11 +2,12 @@
 -- The star serpent (EventConfig.EVENTS.Serpent has its clock; decision 055). For the 3 minutes
 -- of its hunt it comes out in one zone past the first, picked as the hunt is announced, and is
 -- that zone's serpent to the end, wherever it is chased: the speed stat of the zone's middle
--- guardian, an egg of that guardian's grade. It roams its zone carrying the star egg and flees
--- whoever comes near, as fast as a player with its stat would fly (a little slower): whoever
--- is strong enough for the zone catches it. HITS_TO_DROP hits on its head (strike, harpoon,
--- bomb; the whole server together) knock the egg out (Domain/StarEgg: rare or better, extra
--- luck). Then it guards the egg like a guardian: hovers over it lying loose and chases whoever
+-- guardian, an egg of that guardian's grade. Carrying the star egg it winds through the whole
+-- guardians' band, from past the station border to the map's edge (Domain/SerpentRoute), and
+-- flees whoever comes near, still winding, as fast as a player with its stat would fly (a
+-- little slower): whoever is strong enough for the zone catches it. HITS_TO_DROP hits on its
+-- head or body (strike, harpoon, bomb; the whole server together) knock the egg out
+-- (Domain/StarEgg: rare or better, extra luck). Then it guards the egg like a guardian: hovers over it lying loose and chases whoever
 -- carries it, with that same stat (Speed.chaseSpeed), throwing them and knocking it out. Pure
 -- Luau: the balance calculator and tests load it. Looks live in SerpentLooks.
 
@@ -14,11 +15,12 @@ local BigNum = require("../Domain/BigNum")
 local EggConfig = require("./EggConfig")
 local GuardianBrain = require("../Domain/GuardianBrain")
 local GuardianConfig = require("./GuardianConfig")
+local SerpentRoute = require("../Domain/SerpentRoute")
 local Speed = require("../Domain/Speed")
 local SpeedConfig = require("./SpeedConfig")
+local StationSize = require("./StationSize")
 local ZoneConfig = require("./ZoneConfig")
 
-local DEBRIS_BELT = ZoneConfig.ZONES.DebrisBelt
 local EVENT_HORIZON = ZoneConfig.ZONES.EventHorizon
 
 -- In each zone the serpent is as strong as the zone's guardian at this post (of the six, from
@@ -52,11 +54,24 @@ local BRAIN: GuardianBrain.Tuning = {
 }
 
 return table.freeze({
-	-- It never comes closer to the station than this: the Debris Belt is out of its reach, so
-	-- a thief who makes it there has got away.
-	HUNT_RADIUS = DEBRIS_BELT.ringMax,
+	-- It never comes closer to the station than this, a little past the station border: every
+	-- dome is well inside it. Like a guardian, it chases a thief carrying its egg until they
+	-- are inside the border.
+	INNER_RADIUS = StationSize.BORDER_RADIUS + 40,
 	-- Nor farther than the edge of the last zone.
 	OUTER_RADIUS = EVENT_HORIZON.ringMax,
+	-- Its route keeps within this height above or below the station's level, studs.
+	ROUTE_HEIGHT = 150,
+	-- How its route winds (Domain/SerpentRoute).
+	ROUTE = table.freeze({
+		turnRadius = 100,
+		minArc = 200,
+		maxArc = 450,
+		maxRadialStep = 450,
+		turnBackChance = 0.2,
+		threatAngle = math.rad(70),
+		repickSeconds = 1,
+	} :: SerpentRoute.Tuning),
 	-- The zones it comes out in (one per hunt, at random), from the station outwards.
 	ZONES = table.freeze(ZONES),
 	POWER_POST = POWER_POST,
@@ -65,13 +80,16 @@ return table.freeze({
 	fleeSpeedIn = fleeSpeedIn,
 	-- Flees from the nearest player in space within this distance of its head, studs.
 	FLEE_RADIUS = 150,
-	-- With nobody near it roams its zone's ring at this speed, studs per second.
+	-- With nobody near it winds along its route at this speed, studs per second.
 	ROAM_SPEED = 60,
 
-	-- Hits on its head that knock the egg out, the whole server together.
+	-- Hits on it that knock the egg out, the whole server together.
 	HITS_TO_DROP = 3,
-	-- Attacks land on its head within this distance of the head's middle, studs (PvpService).
-	HIT_RADIUS = 7,
+	-- Attacks land on its head within this distance of the head's middle, studs (PvpService),
+	-- and on its body down the path behind the head, each segment this much wider than it is
+	-- drawn (SerpentBody.hitSpheres, SerpentLooks.BODY).
+	HIT_RADIUS = 8,
+	HIT_PADDING = 2,
 	-- The star egg (Domain/StarEgg): of this rarity at least, with this much luck on top of its
 	-- own (EggConfig.luckOf): twice the first version's hunt luck.
 	STAR_EGG_MIN_RARITY = "Rare" :: EggConfig.RarityId,
