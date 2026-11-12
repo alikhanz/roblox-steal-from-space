@@ -123,7 +123,7 @@ local function OddsRow(odds: { Chance }): Frame
 	end
 	return create("Frame")({
 		Name = "Odds",
-		AnchorPoint = Vector2.new(0.5, 1),
+		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 1),
 		AutomaticSize = Enum.AutomaticSize.X,
 		Size = UDim2.fromOffset(0, ODDS_HEIGHT),
@@ -164,7 +164,6 @@ local function GrabPrompt(props: Props): BillboardGui
 		scale.Scale = press.scale()
 	end)
 
-	local oddsHeight = if props.odds then ODDS_HEIGHT else 0
 	return create("BillboardGui")({
 		Name = "GrabPrompt",
 		-- Vide's types expect a source of a non-optional Instance; a nil Adornee is valid here.
@@ -175,20 +174,20 @@ local function GrabPrompt(props: Props): BillboardGui
 		AlwaysOnTop = true,
 		-- Needed for the pill to receive touches on phones.
 		Active = true,
-		Size = UDim2.fromOffset(BILLBOARD_WIDTH, HEIGHT + SLACK * 2 + oddsHeight),
-		-- The pill stays where it was: the odds row hangs below it, not round it.
-		SizeOffset = Vector2.new(0, -oddsHeight / 2 / (HEIGHT + SLACK * 2 + oddsHeight)),
+		Size = UDim2.fromOffset(BILLBOARD_WIDTH, HEIGHT + SLACK * 2),
+		-- The odds row hangs below the billboard's edge, so the pill stays where it always is.
+		ClipsDescendants = false,
 		StudsOffset = Vector3.new(0, props.studsAbove or STUDS_ABOVE, 0),
 		MaxDistance = props.maxDistance or math.huge,
 		LightInfluence = 0,
 
 		if props.odds then OddsRow(props.odds) else nil,
 
-		-- The button: the pill and the slack round it, over the odds row when there is one.
+		-- The button: the pill and the slack round it.
 		create("TextButton")({
 			Name = "Press",
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.fromScale(0.5, 0),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
 			AutomaticSize = Enum.AutomaticSize.X,
 			Size = UDim2.fromOffset(0, HEIGHT + SLACK * 2),
 			BackgroundTransparency = 1,
