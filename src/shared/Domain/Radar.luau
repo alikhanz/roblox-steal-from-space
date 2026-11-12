@@ -37,10 +37,10 @@ function Radar.kindOf(rarity: string?): Kind
 	return if Radar.isHot(rarity) then "HotThief" else "Thief"
 end
 
--- Whether a marker of `kind` shows at `distance` studs (nearer, the thing itself is in sight).
-function Radar.isFarEnough(kind: Kind, distance: number): boolean
-	local least = if kind == "Player" then RadarConfig.PLAYER_MIN_DISTANCE else RadarConfig.THIEF_MIN_DISTANCE
-	return distance >= least
+-- Whether a player's marker shows at `distance` studs (nearer, they are right there), whatever
+-- they carry.
+function Radar.isFarEnough(distance: number): boolean
+	return distance >= RadarConfig.PLAYER_MIN_DISTANCE
 end
 
 -- The marker's transparency: plain players fade with distance, thieves never do.

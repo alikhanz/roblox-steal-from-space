@@ -25,10 +25,11 @@ return table.freeze({
 		Legendary = "radar.legendaryCarried.toast",
 	} :: { [EggConfig.RarityId]: keyof<typeof(Strings)> }),
 
-	-- No marker nearer than this, studs: a player's own name shows there (Roblox's), a thief's egg
-	-- is in sight, a loose egg has the grab button.
-	PLAYER_MIN_DISTANCE = 80,
-	THIEF_MIN_DISTANCE = 25,
+	-- No player marker nearer than this, studs: the player is right there, the marker would sit on
+	-- the screen like a hat. Everywhere else every player is marked, under a dome too (the user,
+	-- 2026-11-12: "a global marker on every player"); the marker stands in for Roblox's name over
+	-- the head, which is hidden. A loose egg has none within the grab button's range.
+	PLAYER_MIN_DISTANCE = 12,
 	LOOSE_MIN_DISTANCE = EggConfig.GRAB_BUTTON_RANGE,
 	-- Plain players fade with distance: clear up to `near`, this transparent from `far` on.
 	FADE_NEAR = 300,

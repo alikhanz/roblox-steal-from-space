@@ -6,7 +6,10 @@
 --
 -- Players come from the Player's attributes (RadarService: position and egg in hand, twice a
 -- second, for any player however far); a character streamed in gives its own position, smoother.
--- Nobody under a dome is marked: there is no PvP there. Loose eggs come from their parts.
+-- Every other player is marked wherever they are, under a dome too (decision 109: at first the
+-- domes and 80 studs round you were left out, and on the station two friends saw none); the
+-- marker stands in for Roblox's own name over the head, hidden here. Loose eggs come from their
+-- parts.
 --
 -- Someone else grabbing an epic or legendary egg is told with a toast (Radar.announcement).
 
@@ -25,14 +28,13 @@ local RadarMarker = require(script.Parent.Parent.UI.RadarMarker)
 local ScreenMarker = require(ReplicatedStorage.Shared.Domain.ScreenMarker)
 local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
 local ServerConfig = require(ReplicatedStorage.Shared.Config.ServerConfig)
-local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Toasts = require(script.Parent.Parent.UI.Toasts)
 local Vide = require(ReplicatedStorage.Packages.Vide)
-local Zones = require(ReplicatedStorage.Shared.Domain.Zones)
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
+local HUMANOID_WAIT_TIMEOUT = 10
 -- A player's marker floats this far over their character's root, studs: over the head.
 local STUDS_OVER_ROOT = 5
 -- Under the HUD (whose ScreenGui keeps the default order) and the windows' veil.
@@ -124,13 +126,13 @@ function RadarController.new(dependencies: Dependencies): RadarController
 		local playerIndex = 0
 		for _, player in others do
 			local position = positionOf(player)
-			if not position or Zones.stationAt(position, StationConfig.STATIONS) then
+			if not position then
 				continue
 			end
 			local rarity = rarityOf(player:GetAttribute(RadarConfig.EGG_ATTRIBUTE))
 			local kind = Radar.kindOf(rarity)
 			local distance = (position - here).Magnitude
-			if not Radar.isFarEnough(kind, distance) then
+			if not Radar.isFarEnough(distance) then
 				continue
 			end
 			local body, arrow, angle =
@@ -228,11 +230,25 @@ function RadarController.new(dependencies: Dependencies): RadarController
 
 	-- Tells everyone when another player picks up an egg worth hunting; the value they joined
 	-- with is no news.
+	-- The marker shows the name; Roblox's own over the head would sit right under it.
+	local function hideRobloxName(character: Model)
+		local humanoid = character:WaitForChild("Humanoid", HUMANOID_WAIT_TIMEOUT)
+		if humanoid and humanoid:IsA("Humanoid") then
+			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		end
+	end
+
 	local function watch(player: Player)
 		if player == Players.LocalPlayer then
 			return
 		end
 		table.insert(others, player)
+		player.CharacterAdded:Connect(function(character)
+			task.spawn(hideRobloxName, character)
+		end)
+		if player.Character then
+			task.spawn(hideRobloxName, player.Character)
+		end
 		local carried = rarityOf(player:GetAttribute(RadarConfig.EGG_ATTRIBUTE))
 		player:GetAttributeChangedSignal(RadarConfig.EGG_ATTRIBUTE):Connect(function()
 			local now = rarityOf(player:GetAttribute(RadarConfig.EGG_ATTRIBUTE))

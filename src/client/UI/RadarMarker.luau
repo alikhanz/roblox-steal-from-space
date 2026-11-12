@@ -36,9 +36,9 @@ local PILL_PADDING_X = 7
 local PILL_PADDING_Y = 2
 local GAP = 4
 local ARROW_SIZE = 22
-local TICK_SIZE = 12
+local TICK_SIZE = 16
 -- A plain player's edge tick is this see-through on top of its fade.
-local TICK_TRANSPARENCY = 0.4
+local TICK_TRANSPARENCY = 0.15
 local GLASS_TRANSPARENCY = 0.35
 local STROKE_THICKNESS = 2
 local HOT_STROKE_THICKNESS = 3
