@@ -1,8 +1,9 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The Robux store (docs/design/screens/store.md) in a neon window. Left, "Forever": a card per
--- pass with its icon, what it does and its price, or "Owned". Right, "Right now": the one-off
--- purchases two by two, each with what it gives in big ("⚡+1.2K", "2 → 3") and its price.
+-- pass with its icon, name and price (or "Owned") in a row and what it does under them. Right,
+-- "Right now": the one-off purchases two by two, each with its name over what it gives in big
+-- ("⚡+1.2K", "2 → 3") and its price beside it.
 -- Prices carry the Robux mark (Locale/Marks), drawn as the Robux icon; a price Roblox has not
 -- sent yet shows "…" and cannot be pressed. Data and texts come in ready from the controller;
 -- buying opens Roblox's purchase prompt.
@@ -21,11 +22,15 @@ local create = Vide.create
 
 local NEON = Theme.NEON
 local COLUMN_GAP = 12
-local PASS_WIDTH = 250
+-- Wide enough for the longest pass name and its price on one line.
+local PASS_WIDTH = 270
 local HEAD_HEIGHT = 16
 local HEAD_GAP = 6
 local CARD_GAP = 8
 local CARD_PADDING = 9
+local CARD_ROW_GAP = 5
+local ROW_GAP = 8
+local VALUE_GAP = 4
 local CARD_TRANSPARENCY = 0.965
 -- How far the card's colour of its outline goes towards the glass.
 local CARD_LINE_DARKEN = 0.5
@@ -128,43 +133,69 @@ local function PriceButton(
 	})
 end
 
+-- Takes the room its row leaves: the title between a pass's icon and its price, a product's
+-- value left of its price. Vide's typed `create` does not list UIFlexItem, so it is made directly.
+local function fill(): UIFlexItem
+	local item = Instance.new("UIFlexItem")
+	item.FlexMode = Enum.UIFlexMode.Fill
+	return item
+end
+
+-- A row of a card: its children left to right, centred on one line, as tall as the tallest.
+local function cardRow(name: string, order: number, children: { Instance }): Frame
+	return create("Frame")({
+		Name = name,
+		LayoutOrder = order,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Horizontal,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, ROW_GAP),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		children,
+	}) :: Frame
+end
+
+-- A card's frame: glass, an outline in its colour, its rows top to bottom. The rows stack in
+-- order and never sit at a share of the card's height: on a phone, under Roblox's top bar and
+-- beside the notch, the window is lower than the reference screen, and parts placed by share
+-- overlapped (the price covered the value; playtest, 2026-11-12).
+local function card(name: string, order: number, outline: UIStroke, rows: { Instance }): Frame
+	return create("Frame")({
+		Name = name,
+		LayoutOrder = order,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = CARD_TRANSPARENCY,
+		create("UICorner")({ CornerRadius = NEON.CORNER }),
+		outline,
+		Layout.padding(CARD_PADDING, CARD_PADDING - 1),
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Vertical,
+			Padding = UDim.new(0, CARD_ROW_GAP),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		rows,
+	}) :: Frame
+end
+
+-- A pass: its icon, name and price (or "Owned") in the top row, what it does under them.
 local function PassCard(pass: Pass, order: number, texts: Texts): Frame
 	local function dim(): number
 		return if pass.owned() then OWNED_TRANSPARENCY else 0
 	end
 	local corner = UDim.new(0.5, 0)
 	local glass = Layout.glass(pass.color, corner)
-	local fill = glass[1] :: Frame
+	local glassFill = glass[1] :: Frame
 	local line = glass[2] :: UIStroke
 	Vide.effect(function()
-		fill.BackgroundTransparency = dim()
+		glassFill.BackgroundTransparency = dim()
 		line.Transparency = dim()
 	end)
-	return create("Frame")({
-		Name = `Pass{order}`,
-		LayoutOrder = order,
-		Size = UDim2.new(1, 0, 0.5, -CARD_GAP / 2),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = CARD_TRANSPARENCY,
-		create("UICorner")({ CornerRadius = NEON.CORNER }),
-		cardOutline(pass.color, dim),
-		Layout.padding(CARD_PADDING, CARD_PADDING - 1),
-		create("UIListLayout")({
-			FillDirection = Enum.FillDirection.Vertical,
-			Padding = UDim.new(0, 5),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
-		create("Frame")({
-			Name = "Top",
-			LayoutOrder = 1,
-			Size = UDim2.new(1, 0, 0, PASS_ICON_SIZE),
-			BackgroundTransparency = 1,
-			create("UIListLayout")({
-				FillDirection = Enum.FillDirection.Horizontal,
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-				Padding = UDim.new(0, 8),
-				SortOrder = Enum.SortOrder.LayoutOrder,
-			}),
+	local passCard = card(`Pass{order}`, order, cardOutline(pass.color, dim), {
+		cardRow("Top", 1, {
 			create("Frame")({
 				Name = "Icon",
 				LayoutOrder = 1,
@@ -187,7 +218,7 @@ local function PassCard(pass: Pass, order: number, texts: Texts): Frame
 			create("TextLabel")({
 				Name = "Title",
 				LayoutOrder = 2,
-				Size = UDim2.new(1, -(PASS_ICON_SIZE + 8), 1, 0),
+				Size = UDim2.fromOffset(0, PASS_ICON_SIZE),
 				BackgroundTransparency = 1,
 				FontFace = NEON.FONT,
 				TextSize = NEON.TEXT_SECTION,
@@ -196,7 +227,28 @@ local function PassCard(pass: Pass, order: number, texts: Texts): Frame
 				TextXAlignment = Enum.TextXAlignment.Left,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				Text = pass.title,
+				fill(),
 				Layout.textStroke(),
+			}),
+			create("Frame")({
+				Name = "Action",
+				LayoutOrder = 3,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				PriceButton("Buy", pass.price, pass.priceReady, function()
+					return not pass.owned()
+				end, pass.onBuy),
+				create("TextLabel")({
+					Name = "Owned",
+					AutomaticSize = Enum.AutomaticSize.XY,
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_SECTION,
+					TextColor3 = CHECK_COLOR,
+					Text = `{CHECK_MARK} {texts.owned}`,
+					Visible = pass.owned,
+					Layout.textStroke(),
+				}),
 			}),
 		}),
 		create("TextLabel")({
@@ -214,40 +266,19 @@ local function PassCard(pass: Pass, order: number, texts: Texts): Frame
 			Text = pass.hint,
 			Layout.textStroke(),
 		}),
-		create("Frame")({
-			Name = "Action",
-			LayoutOrder = 3,
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			PriceButton("Buy", pass.price, pass.priceReady, function()
-				return not pass.owned()
-			end, pass.onBuy),
-			create("TextLabel")({
-				Name = "Owned",
-				AutomaticSize = Enum.AutomaticSize.XY,
-				BackgroundTransparency = 1,
-				FontFace = NEON.FONT,
-				TextSize = NEON.TEXT_SECTION,
-				TextColor3 = CHECK_COLOR,
-				Text = `{CHECK_MARK} {texts.owned}`,
-				Visible = pass.owned,
-				Layout.textStroke(),
-			}),
-		}),
-	}) :: Frame
+	})
+	-- Two passes share the column's height.
+	passCard.Size = UDim2.new(1, 0, 0.5, -CARD_GAP / 2)
+	return passCard
 end
 
+-- A one-off purchase: its name, and under it what it gives with the price on the right (or,
+-- when it cannot be bought, why).
 local function ProductCard(product: Product, order: number): Frame
-	return create("Frame")({
-		Name = `Product{order}`,
-		LayoutOrder = order,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = CARD_TRANSPARENCY,
-		create("UICorner")({ CornerRadius = NEON.CORNER }),
-		cardOutline(product.color),
-		Layout.padding(CARD_PADDING, CARD_PADDING - 1),
+	return card(`Product{order}`, order, cardOutline(product.color), {
 		create("TextLabel")({
 			Name = "Title",
+			LayoutOrder = 1,
 			Size = UDim2.new(1, 0, 0, NEON.TEXT_SECTION + 2),
 			BackgroundTransparency = 1,
 			FontFace = NEON.FONT,
@@ -258,47 +289,49 @@ local function ProductCard(product: Product, order: number): Frame
 			Text = product.title,
 			Layout.textStroke(),
 		}),
-		create("Frame")({
-			Name = "Value",
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.fromScale(0, 0.46),
-			AutomaticSize = Enum.AutomaticSize.XY,
-			BackgroundTransparency = 1,
-			create("UIListLayout")({
-				FillDirection = Enum.FillDirection.Horizontal,
-				VerticalAlignment = Enum.VerticalAlignment.Center,
-				Padding = UDim.new(0, 4),
-				SortOrder = Enum.SortOrder.LayoutOrder,
+		cardRow("Offer", 2, {
+			create("Frame")({
+				Name = "Value",
+				LayoutOrder = 1,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Visible = product.offered,
+				fill(),
+				create("UIListLayout")({
+					FillDirection = Enum.FillDirection.Horizontal,
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					Padding = UDim.new(0, VALUE_GAP),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+				if product.valueIcon
+					then create("ImageLabel")({
+						Name = "Icon",
+						LayoutOrder = 1,
+						Size = UDim2.fromOffset(VALUE_ICON_SIZE, VALUE_ICON_SIZE),
+						BackgroundTransparency = 1,
+						Image = Icons.ICONS[product.valueIcon],
+						ImageColor3 = product.color,
+					})
+					else nil,
+				IconText({
+					name = "Text",
+					layoutOrder = 2,
+					text = product.value,
+					textSize = VALUE_TEXT_SIZE,
+					color = product.color,
+					outline = "Neon",
+				}),
 			}),
-			if product.valueIcon
-				then create("ImageLabel")({
-					Name = "Icon",
-					LayoutOrder = 1,
-					Size = UDim2.fromOffset(VALUE_ICON_SIZE, VALUE_ICON_SIZE),
-					BackgroundTransparency = 1,
-					Image = Icons.ICONS[product.valueIcon],
-					ImageColor3 = product.color,
-				})
-				else nil,
-			IconText({
-				name = "Text",
-				layoutOrder = 2,
-				text = product.value,
-				textSize = VALUE_TEXT_SIZE,
-				color = product.color,
-				outline = "Neon",
+			create("Frame")({
+				Name = "Action",
+				LayoutOrder = 2,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				PriceButton("Buy", product.price, product.priceReady, product.offered, product.onBuy),
 			}),
-		}),
-		create("Frame")({
-			Name = "Action",
-			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.fromScale(0, 1),
-			Size = UDim2.fromScale(1, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
-			BackgroundTransparency = 1,
-			PriceButton("Buy", product.price, product.priceReady, product.offered, product.onBuy),
 			create("TextLabel")({
 				Name = "Status",
+				LayoutOrder = 3,
 				Size = UDim2.fromScale(1, 0),
 				AutomaticSize = Enum.AutomaticSize.Y,
 				BackgroundTransparency = 1,
@@ -314,7 +347,7 @@ local function ProductCard(product: Product, order: number): Frame
 				Layout.textStroke(),
 			}),
 		}),
-	}) :: Frame
+	})
 end
 
 local function StoreWindow(props: Props): Frame
