@@ -1,6 +1,7 @@
 --!strict
 -- A player's bay on the station: pods, the shelf, crossbreeding, selling and offline income.
 
+local AlienConfig = require("./AlienConfig")
 local BigNum = require("../Domain/BigNum")
 local Trainer = require("../Domain/Trainer")
 
@@ -46,10 +47,17 @@ return table.freeze({
 	-- pods and the shelf can hold together.
 	SELL_MANY_MAX = 64,
 
-	-- Aliens of one grade that make one crossbreed.
+	-- Aliens of one grade, tier and variant that make one crossbreed.
 	CROSSBREED_COUNT = 3,
-	-- Luck of a crossbreed (see Hatch.shiftedWeights): the result tilts toward the top tiers.
-	CROSSBREED_LUCK = 0.5,
+	-- The chance a crossbreed comes out one tier above its parents' (decision 113); otherwise it is
+	-- of their tier. Three legendaries give a legendary.
+	CROSSBREED_UP_CHANCE = table.freeze({
+		Common = 0.43,
+		Uncommon = 0.39,
+		Rare = 0.33,
+		Epic = 0.27,
+		Legendary = 0,
+	} :: { [AlienConfig.TierId]: number }),
 
 	-- Selling an alien pays this many seconds of its income: placing it is always the better deal.
 	SELL_INCOME_SECONDS = 120,

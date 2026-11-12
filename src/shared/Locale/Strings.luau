@@ -421,8 +421,8 @@ local Strings = {
 		en = "Crossbreed 3→1",
 	},
 	["bay.crossbreed.hint"] = {
-		ru = "Скрещивание: 3 пришельца одного стража → 1 новый, с шансом на ступень выше",
-		en = "Crossbreed: 3 aliens of one guardian → 1 new one, with a shot at a higher tier",
+		ru = "Скрещивание: 3 пришельца одного стража и ступени → 1 той же ступени или выше",
+		en = "Crossbreed: 3 aliens of one guardian and tier → 1 of that tier or higher",
 	},
 	["bay.select.hint"] = {
 		ru = "Нажми на пришельца, чтобы выбрать его: переставить, продать или скрестить",
@@ -437,8 +437,8 @@ local Strings = {
 		en = "Selected: {name}. It's on a spot: “Off the spot” moves it to the inventory",
 	},
 	["bay.crossbreedPick.hint"] = {
-		ru = "Для скрещивания выбрано {count} из 3: нужны пришельцы одного стража",
-		en = "{count} of 3 picked to crossbreed: they must be of one guardian",
+		ru = "Для скрещивания выбрано {count} из 3: нужны пришельцы одного стража и ступени",
+		en = "{count} of 3 picked to crossbreed: one guardian and one tier",
 	},
 	["bay.crossbreedReady.hint"] = {
 		ru = "Готово: нажми «Скрестить 3 → 1», и трое станут одним",
@@ -521,8 +521,8 @@ local Strings = {
 		en = "That's the best jetpack",
 	},
 	["notice.wrongAliens.toast"] = {
-		ru = "Нужны 3 пришельца одного стража",
-		en = "Pick 3 aliens of one guardian",
+		ru = "Нужны 3: один страж, одна ступень",
+		en = "Pick 3 of one guardian and tier",
 	},
 	["notice.unknownAlien.toast"] = {
 		ru = "Этого пришельца уже нет",
@@ -725,6 +725,10 @@ local Strings = {
 	["index.meteor.button"] = {
 		ru = "Метеоритные",
 		en = "Meteor",
+	},
+	["notice.mixedTiers.toast"] = {
+		ru = "Скрещивай пришельцев одной ступени",
+		en = "Crossbreed aliens of one tier",
 	},
 	["notice.mixedVariants.toast"] = {
 		ru = "Скрещивай метеоритных только между собой",

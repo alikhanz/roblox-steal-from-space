@@ -104,12 +104,14 @@ function NestService.new(dependencies: Dependencies): NestService
 		nest.site.model:SetAttribute(EggConfig.NEST_SIZE_ATTRIBUTE, size)
 	end
 
-	-- What grows depends on the zone: farther zones give rarer and bigger eggs.
-	local function growEgg(nest: Nest, variant: AlienConfig.VariantId)
+	-- What grows depends on the zone: farther zones give rarer and bigger eggs. `cap`: the rarest
+	-- it may be (a fresh server's first fill, EggConfig.FIRST_FILL_MAX_RARITY).
+	local function growEgg(nest: Nest, variant: AlienConfig.VariantId, cap: EggConfig.RarityId?)
 		local zone = ZoneConfig.ZONES[nest.site.zone]
+		local rarityLoot = if cap then Loot.capped(zone.rarityLoot, cap) else zone.rarityLoot
 		placeEgg(
 			nest,
-			Loot.pick(zone.rarityLoot, random:NextNumber()),
+			Loot.pick(rarityLoot, random:NextNumber()),
 			Loot.pick(zone.sizeLoot, random:NextNumber()),
 			variant
 		)
@@ -206,7 +208,7 @@ function NestService.new(dependencies: Dependencies): NestService
 				retiring = false,
 			}
 			register(nest)
-			growEgg(nest, "Normal")
+			growEgg(nest, "Normal", EggConfig.FIRST_FILL_MAX_RARITY)
 		end
 	end
 

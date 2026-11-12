@@ -9,8 +9,10 @@ local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
+local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CarryService = require(script.Parent.CarryService)
+local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local PlayReward = require(ReplicatedStorage.Shared.Domain.PlayReward)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
@@ -76,29 +78,20 @@ local function frontierZone(data: PlayerData.PlayerData): string
 	return (ZoneConfig.zoneOfPost(post))
 end
 
--- Three aliens of one guardian anywhere in the bay.
+-- Three aliens that crossbreed together (Domain/Crossbreed) anywhere in the bay.
 local function canCrossbreed(data: PlayerData.PlayerData): boolean
-	local byGrade: { [number]: number } = {}
-	local function count(id: string)
-		local alien = AlienConfig.ALIENS[id]
-		if alien then
-			byGrade[alien.grade] = (byGrade[alien.grade] or 0) + 1
-		end
-	end
+	local aliens: { PlayerData.AlienRecord } = table.clone(data.floor)
 	for _, pod in data.pods do
 		if pod.alien then
-			count(pod.alien.id)
+			table.insert(aliens, pod.alien)
 		end
 	end
-	for _, alien in data.floor do
-		count(alien.id)
-	end
-	for _, total in byGrade do
-		if total >= 3 then
-			return true
-		end
-	end
-	return false
+	local trios = Crossbreed.trios(aliens, function(id: string): Crossbreed.Parent?
+		return AlienConfig.ALIENS[id]
+	end, function(): number
+		return 0
+	end, BayConfig.CROSSBREED_COUNT)
+	return #trios > 0
 end
 
 local function contextOf(data: PlayerData.PlayerData): Quests.Context

@@ -109,6 +109,8 @@ type Notice = enum {
 	-- The community gift: Roblox does not show the player in the game's community (yet), or did
 	-- not answer.
 	NotInCommunity,
+	-- Crossbreeding: only aliens of one tier go together (decision 113).
+	MixedTiers,
 }
 
 -- The alien index (Domain/AlienIndex): alien id -> its reward is taken (present: found), and the

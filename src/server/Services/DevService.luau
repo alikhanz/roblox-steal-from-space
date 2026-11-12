@@ -426,8 +426,8 @@ function DevService.new(dependencies: Dependencies): DevService
 			return if location then `{alienId} -> {location}` else "profile not active yet"
 		end,
 		-- Puts an egg into the first player's incubator, as if delivered from guardian `grade`
-		-- (a meteor egg with `variant` "Meteor"), with extra `luck` if given (like the star egg:
-		-- SerpentConfig.STAR_EGG_LUCK).
+		-- (a meteor egg with `variant` "Meteor"), lucky if `luck` is above 0 (like the star egg: it
+		-- hatches as a large egg, EggConfig.oddsSize).
 		GiveEgg = function(rarity: string?, size: string?, grade: number?, variant: string?, luck: number?): string
 			local player = firstPlayerRoot()
 			if not player then

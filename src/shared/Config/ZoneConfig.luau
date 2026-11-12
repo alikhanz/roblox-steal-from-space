@@ -1,6 +1,7 @@
 --!strict
 -- The four zones of the map, as rings around the station: how far they are, how many nests
--- and guardian posts each has, and what eggs grow there. Farther zones give rarer eggs.
+-- and guardian posts each has, and what eggs grow there. Farther zones give rarer eggs; epic and
+-- legendary ones are rare everywhere, as an egg hatches mostly into its own tier (decision 113).
 -- Pure Luau: the balance calculator and tests load it in Lune. Looks live in ZoneLooks.
 --
 -- The rings are measured out from the station border (StationSize), so a bigger station moves
@@ -71,8 +72,8 @@ local ZONES: { [ZoneId]: Zone } = {
 		height = 90,
 		nestsPerPost = 4,
 	}, {
-		{ id = "Common", weight = 70 },
-		{ id = "Uncommon", weight = 25 },
+		{ id = "Common", weight = 72 },
+		{ id = "Uncommon", weight = 23 },
 		{ id = "Rare", weight = 5 },
 	}, {
 		{ id = "Small", weight = 50 },
@@ -85,10 +86,10 @@ local ZONES: { [ZoneId]: Zone } = {
 		height = 160,
 		nestsPerPost = 5,
 	}, {
-		{ id = "Common", weight = 50 },
-		{ id = "Uncommon", weight = 32 },
-		{ id = "Rare", weight = 15 },
-		{ id = "Epic", weight = 3 },
+		{ id = "Common", weight = 52 },
+		{ id = "Uncommon", weight = 33 },
+		{ id = "Rare", weight = 13.5 },
+		{ id = "Epic", weight = 1.5 },
 	}, {
 		{ id = "Small", weight = 40 },
 		{ id = "Medium", weight = 40 },
@@ -100,11 +101,11 @@ local ZONES: { [ZoneId]: Zone } = {
 		height = 230,
 		nestsPerPost = 6,
 	}, {
-		{ id = "Common", weight = 35 },
-		{ id = "Uncommon", weight = 35 },
-		{ id = "Rare", weight = 20 },
-		{ id = "Epic", weight = 8 },
-		{ id = "Legendary", weight = 2 },
+		{ id = "Common", weight = 40 },
+		{ id = "Uncommon", weight = 37 },
+		{ id = "Rare", weight = 19 },
+		{ id = "Epic", weight = 3.5 },
+		{ id = "Legendary", weight = 0.5 },
 	}, {
 		{ id = "Small", weight = 35 },
 		{ id = "Medium", weight = 40 },
@@ -115,11 +116,11 @@ local ZONES: { [ZoneId]: Zone } = {
 		"zone.eventHorizon.title",
 		{ min = pastBorder(2150), max = pastBorder(2750), height = 300, nestsPerPost = 7 },
 		{
-			{ id = "Common", weight = 25 },
-			{ id = "Uncommon", weight = 30 },
-			{ id = "Rare", weight = 25 },
-			{ id = "Epic", weight = 15 },
-			{ id = "Legendary", weight = 5 },
+			{ id = "Common", weight = 30 },
+			{ id = "Uncommon", weight = 35 },
+			{ id = "Rare", weight = 26 },
+			{ id = "Epic", weight = 7.5 },
+			{ id = "Legendary", weight = 1.5 },
 		},
 		{
 			{ id = "Small", weight = 30 },

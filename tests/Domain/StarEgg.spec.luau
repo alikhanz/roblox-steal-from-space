@@ -20,7 +20,7 @@ describe("StarEgg", function()
 		expect(StarEgg.grade("EventHorizon")).toBe(ZoneConfig.postIndex("EventHorizon", SerpentConfig.POWER_POST))
 	end)
 
-	it("is rare or better, of its zone's sizes, with the serpent's luck", function()
+	it("is epic or better, of its zone's sizes, lucky", function()
 		local minRank = table.find(EggConfig.RARITY_ORDER, SerpentConfig.STAR_EGG_MIN_RARITY) :: number
 		for _, zone in ZoneConfig.ZONE_ORDER do
 			for roll = 0, 0.99, 0.01 do

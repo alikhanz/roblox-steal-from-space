@@ -1,12 +1,18 @@
 --!strict
--- Hatching: which tier an egg turns into. Eggs carry luck (from rarity and size) that tilts the
--- odds toward the top tiers without ever ruling the bottom ones out.
+-- Hatching: how long an egg warms and which tier it turns into. An egg of a rarity hatches into
+-- the alien tier of the same name, now and then one tier down or up: the ladder (decision 113).
 
 local Loot = require("./Loot")
 
 export type Range = {
 	read min: number,
 	read max: number,
+}
+
+-- Chances of one tier down and one tier up, shares in [0, 1]; the own tier takes the rest.
+export type Step = {
+	read down: number,
+	read up: number,
 }
 
 local Hatch = {}
@@ -18,20 +24,34 @@ function Hatch.duration(range: Range, roll: number): number
 	return range.min + (range.max - range.min) * math.clamp(roll, 0, 1)
 end
 
--- Multiplies each weight by (1 + luck)^(position - 1). Entries are listed from the lowest tier
--- up, so luck 1 doubles the odds of each tier relative to the one below it.
-function Hatch.shiftedWeights<T>(entries: { Loot.Entry<T> }, luck: number): { Loot.Entry<T> }
-	assert(luck >= 0, "luck must not be negative")
-	local shifted: { Loot.Entry<T> } = {}
-	for position, entry in entries do
-		shifted[position] = { id = entry.id, weight = entry.weight * (1 + luck) ^ (position - 1) }
-	end
-	return shifted
+-- `step` with its chances scaled: an egg's size moves its odds (a large one climbs more often and
+-- falls less often).
+function Hatch.scaled(step: Step, downFactor: number, upFactor: number): Step
+	assert(downFactor >= 0 and upFactor >= 0, "hatch factors must not be negative")
+	return { down = step.down * downFactor, up = step.up * upFactor }
 end
 
--- Picks a tier for `roll` in [0, 1) with the odds shifted by `luck`.
-function Hatch.pick<T>(entries: { Loot.Entry<T> }, luck: number, roll: number): T
-	return Loot.pick(Hatch.shiftedWeights(entries, luck), roll)
+-- The odds of the tier at `position` of `order` (lowest first): one tier down with `step.down`,
+-- one up with `step.up`, its own with the rest. Tiers with no chance are left out, so the entries
+-- list only what can come out.
+function Hatch.ladder<T>(order: { T }, position: number, step: Step): { Loot.Entry<T> }
+	assert(position >= 1 and position <= #order and position % 1 == 0, `tier position {position} out of range`)
+	assert(step.down >= 0 and step.up >= 0, "hatch chances must not be negative")
+	assert(position > 1 or step.down == 0, "the lowest tier has no tier below it")
+	assert(position < #order or step.up == 0, "the top tier has no tier above it")
+	local own = 1 - step.down - step.up
+	assert(own >= -1e-9, "hatch chances must leave the own tier a share")
+	local entries: { Loot.Entry<T> } = {}
+	if step.down > 0 then
+		table.insert(entries, table.freeze({ id = order[position - 1], weight = step.down }))
+	end
+	if own > 1e-9 then
+		table.insert(entries, table.freeze({ id = order[position], weight = own }))
+	end
+	if step.up > 0 then
+		table.insert(entries, table.freeze({ id = order[position + 1], weight = step.up }))
+	end
+	return table.freeze(entries)
 end
 
 return table.freeze(Hatch)

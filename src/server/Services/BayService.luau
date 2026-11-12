@@ -725,9 +725,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		return written
 	end
 
-	-- An egg hatches into a kind of its grade, by the kinds' own odds, and a tier, with the tier's
-	-- odds tilted by the egg's luck (luck never touches the kind: it is for the collection,
-	-- decision 075).
+	-- An egg hatches into a kind of its grade, by the kinds' own odds, and a tier by its rarity and
+	-- size: its own, now and then one down or up (EggConfig.hatchEntries, decision 113). Luck (the
+	-- star egg's) never touches the kind: it is for the collection (decision 075).
 	local function hatchEgg(
 		data: PlayerData.PlayerData,
 		egg: PlayerData.EggRecord
@@ -740,9 +740,9 @@ function BayService.new(dependencies: Dependencies): BayService
 			warn(`[BayService] Egg {egg.uid} ({egg.rarity} {egg.size}, grade {egg.grade}) cannot hatch; dropped`)
 			return nil, nil
 		end
-		local luck = EggConfig.luckOf(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
+		local odds = EggConfig.hatchEntries(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
 		local kind = Loot.pick(grade.kindEntries, random:NextNumber())
-		local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, luck, random:NextNumber())
+		local tier: AlienConfig.TierId = Loot.pick(odds, random:NextNumber())
 		local alienId = variant[kind][tier]
 		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
 	end

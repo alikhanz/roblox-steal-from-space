@@ -5,13 +5,7 @@ local Loot = require("../../src/shared/Domain/Loot")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
-local TIERS: { Loot.Entry<string> } = {
-	{ id = "Common", weight = 55 },
-	{ id = "Uncommon", weight = 28 },
-	{ id = "Rare", weight = 12 },
-	{ id = "Epic", weight = 4 },
-	{ id = "Legendary", weight = 1 },
-}
+local TIERS = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 
 describe("Hatch.duration", function()
 	it("spans the range by the roll", function()
@@ -29,39 +23,58 @@ describe("Hatch.duration", function()
 	end)
 end)
 
-describe("Hatch.shiftedWeights", function()
-	it("leaves the odds alone without luck", function()
-		expect(Hatch.shiftedWeights(TIERS, 0)).toEqual(TIERS)
+describe("Hatch.scaled", function()
+	it("scales the chances down and up", function()
+		local step = Hatch.scaled({ down = 0.2, up = 0.15 }, 1.5, 0.5)
+		expect(step.down).toBeCloseTo(0.3, 1e-9)
+		expect(step.up).toBeCloseTo(0.075, 1e-9)
 	end)
 
-	it("doubles each tier's weight relative to the one below with luck 1", function()
-		local shifted = Hatch.shiftedWeights(TIERS, 1)
-		expect(shifted[1].weight).toBeCloseTo(55)
-		expect(shifted[2].weight).toBeCloseTo(56)
-		expect(shifted[3].weight).toBeCloseTo(48)
-		expect(shifted[4].weight).toBeCloseTo(32)
-		expect(shifted[5].weight).toBeCloseTo(16)
-	end)
-
-	it("never rules the bottom tier out", function()
-		local chances = Loot.chances(Hatch.shiftedWeights(TIERS, 3))
-		expect(chances.Common > 0).toBe(true)
-		expect(chances.Legendary > chances.Common).toBe(true)
-	end)
-
-	it("rejects negative luck", function()
+	it("rejects negative factors", function()
 		expect(function()
-			Hatch.shiftedWeights(TIERS, -0.1)
-		end).toThrow("luck")
+			Hatch.scaled({ down = 0.2, up = 0.2 }, -1, 1)
+		end).toThrow("negative")
 	end)
 end)
 
-describe("Hatch.pick", function()
-	it("picks by the shifted odds", function()
-		expect(Hatch.pick(TIERS, 0, 0)).toBe("Common")
-		expect(Hatch.pick(TIERS, 0, 0.999)).toBe("Legendary")
-		-- With luck 1 the Legendary share is 16/207: a roll just under 1 - 16/207 is still Epic.
-		expect(Hatch.pick(TIERS, 1, 1 - 16 / 207 - 0.001)).toBe("Epic")
-		expect(Hatch.pick(TIERS, 1, 1 - 16 / 207 + 0.001)).toBe("Legendary")
+describe("Hatch.ladder", function()
+	it("gives one tier down, the own tier and one up", function()
+		local chances = Loot.chances(Hatch.ladder(TIERS, 3, { down = 0.2, up = 0.15 }))
+		expect(chances.Uncommon).toBeCloseTo(0.2, 1e-9)
+		expect(chances.Rare).toBeCloseTo(0.65, 1e-9)
+		expect(chances.Epic).toBeCloseTo(0.15, 1e-9)
+		expect(chances.Common).toBeNil()
+		expect(chances.Legendary).toBeNil()
+	end)
+
+	it("leaves out tiers with no chance", function()
+		local entries = Hatch.ladder(TIERS, 1, { down = 0, up = 0.25 })
+		expect(#entries).toBe(2)
+		expect(entries[1].id).toBe("Common")
+		expect(entries[2].id).toBe("Uncommon")
+		local top = Hatch.ladder(TIERS, 5, { down = 0, up = 0 })
+		expect(top).toEqual({ { id = "Legendary", weight = 1 } })
+	end)
+
+	it("can leave the own tier out entirely", function()
+		local entries = Hatch.ladder(TIERS, 2, { down = 0.5, up = 0.5 })
+		expect(#entries).toBe(2)
+		expect(entries[1].id).toBe("Common")
+		expect(entries[2].id).toBe("Rare")
+	end)
+
+	it("rejects steps past either end and chances over the whole", function()
+		expect(function()
+			Hatch.ladder(TIERS, 1, { down = 0.1, up = 0 })
+		end).toThrow("lowest")
+		expect(function()
+			Hatch.ladder(TIERS, 5, { down = 0, up = 0.1 })
+		end).toThrow("top")
+		expect(function()
+			Hatch.ladder(TIERS, 3, { down = 0.6, up = 0.6 })
+		end).toThrow("share")
+		expect(function()
+			Hatch.ladder(TIERS, 6, { down = 0, up = 0 })
+		end).toThrow("out of range")
 	end)
 end)

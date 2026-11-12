@@ -97,10 +97,10 @@ return table.freeze({
 	-- head's middle, studs (PvpService): the drawn head with its fins and horns reaches about 8,
 	-- and a little more, so a hit that looks like it touched the head counts.
 	HIT_RADIUS = 12,
-	-- The star egg (Domain/StarEgg): of this rarity at least, with this much luck on top of its
-	-- own (EggConfig.luckOf): twice the first version's hunt luck.
-	STAR_EGG_MIN_RARITY = "Rare" :: EggConfig.RarityId,
-	STAR_EGG_LUCK = 0.7,
+	-- The star egg (Domain/StarEgg): of this rarity at least, and lucky: it hatches as a large egg
+	-- whatever its size (EggConfig.oddsSize; any luck above 0 does it, decision 113).
+	STAR_EGG_MIN_RARITY = "Epic" :: EggConfig.RarityId,
+	STAR_EGG_LUCK = 1,
 	-- A star egg lying loose when the hunt's time runs out stays this long, unguarded, for whoever
 	-- gets to it first, seconds: a knock-out in the last moment is not wasted.
 	STAR_EGG_LINGER_SECONDS = 30,

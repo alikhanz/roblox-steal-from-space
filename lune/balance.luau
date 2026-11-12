@@ -88,6 +88,8 @@ local PROFILES: { Profile } = {
 
 local DAY_SECONDS = 24 * 60 * 60
 local SNAPSHOT_DAYS = { 1, 7, 30, ASSUMPTIONS.days }
+-- The first session's marks, seconds: how fast a newbie's income and coins get going.
+local EARLY_MARKS = { 15 * 60, 30 * 60, 60 * 60, 2 * 60 * 60 }
 
 local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = SpeedConfig.STARTING_SPEED,
@@ -155,24 +157,32 @@ type Snapshot = {
 	bestPost: number,
 }
 
+type Early = {
+	-- Income per second at the mark, and every coin earned up to it (income, sales, rewards).
+	income: number,
+	earned: number,
+}
+
 type Run = {
 	firstBeat: { [number]: number },
 	-- When each incubator slot was bought: slot number -> time.
 	slotBought: { [number]: number },
 	snapshots: { [number]: Snapshot },
+	early: { [number]: Early },
 }
 
 local function simulate(profile: Profile, seed: number): Run
 	math.randomseed(seed)
 	local data = PlayerData.template(DEFAULTS)
 	local coins = 0
+	local earned = 0
 	local trained = toNumber(DEFAULTS.startingSpeed)
 	local trainerLevel = 0
 	local jetpackLevel = 0
 	local incomeRate = 0
 	local bestPost = 0
 	local nextTheftAt = 0
-	local run: Run = { firstBeat = {}, slotBought = {}, snapshots = {} }
+	local run: Run = { firstBeat = {}, slotBought = {}, snapshots = {}, early = {} }
 	local passEffects = Purchases.passEffects(profile.passes, MonetizationConfig.PASS_TUNING)
 
 	local function speed(): number
@@ -184,6 +194,10 @@ local function simulate(profile: Profile, seed: number): Run
 	local function canBeat(post: number): boolean
 		return speed() >= recommendedFor(post) * ASSUMPTIONS.escapeRatio
 	end
+	local function earn(amount: number)
+		coins += amount
+		earned += amount
+	end
 	local function refreshIncome()
 		incomeRate = toNumber(Bay.incomePerSecond(data, incomeOf))
 	end
@@ -192,7 +206,7 @@ local function simulate(profile: Profile, seed: number): Run
 	local function sellFloor()
 		while #data.floor > ASSUMPTIONS.shelfKept do
 			local alien = table.remove(data.floor) :: PlayerData.AlienRecord
-			coins += toNumber(incomeOf(alien.id)) * BayConfig.SELL_INCOME_SECONDS
+			earn(toNumber(incomeOf(alien.id)) * BayConfig.SELL_INCOME_SECONDS)
 		end
 	end
 
@@ -201,7 +215,7 @@ local function simulate(profile: Profile, seed: number): Run
 	local function payPlay(minutes: number, minimumCoins: BigNum.BigNum, withSpeed: boolean)
 		local rate = if withSpeed then Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING) else BigNum.ZERO
 		local paidCoins, paidTrained = PlayReward.worth(minutes, BigNum.fromNumber(incomeRate), rate, minimumCoins)
-		coins += toNumber(paidCoins)
+		earn(toNumber(paidCoins))
 		trained += toNumber(paidTrained)
 	end
 
@@ -271,8 +285,9 @@ local function simulate(profile: Profile, seed: number): Run
 			return
 		end
 		for _, egg in hatched do
-			local luck = EggConfig.luckOf(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
-			local tier = Hatch.pick(AlienConfig.HATCH_ENTRIES, luck, math.random())
+			local odds =
+				EggConfig.hatchEntries(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
+			local tier: AlienConfig.TierId = Loot.pick(odds, math.random())
 			local variant = (egg.variant or "Normal") :: AlienConfig.VariantId
 			local alienId = alienIdFor(egg.grade, tier, variant)
 			Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
@@ -368,7 +383,7 @@ local function simulate(profile: Profile, seed: number): Run
 				hatch(now)
 			end
 			trained += trainRate() * ASSUMPTIONS.trainShare * dt
-			coins += incomeRate * dt
+			earn(incomeRate * dt)
 			-- The solar storm comes round while the player is on, for everyone on the server.
 			if inDay % STORM_CYCLE >= STORM_CYCLE - STORM.schedule.activeSeconds then
 				Bay.advanceIncubator(data, dt * (StormConfig.HATCH_RATE - 1))
@@ -416,11 +431,14 @@ local function simulate(profile: Profile, seed: number): Run
 				trained += trainRate() * UpgradeConfig.OFFLINE_TRAINING_FACTOR * dt
 			end
 			if away < passEffects.offlineIncomeCapSeconds then
-				coins += incomeRate * dt
+				earn(incomeRate * dt)
 			end
 		end
 		buy(now)
 		now += dt
+		if table.find(EARLY_MARKS, now) then
+			run.early[now] = { income = incomeRate, earned = earned }
+		end
 
 		local day = now / DAY_SECONDS
 		if day == math.floor(day) and table.find(SNAPSHOT_DAYS, day) then
@@ -481,7 +499,7 @@ print(
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
 		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index; a solar storm every {STORM_CYCLE}s and a meteor shower every {METEOR_CYCLE}s `
 		.. `({ASSUMPTIONS.meteorEggsPerShower} egg if its guardian is beaten), a serpent hunt every {SERPENT_CYCLE}s `
-		.. `(the star egg, +{SerpentConfig.STAR_EGG_LUCK} luck, in {ASSUMPTIONS.starEggShare * 100}% of them) for all`
+		.. `(the star egg, {SerpentConfig.STAR_EGG_MIN_RARITY} or better and hatching as a large one, in {ASSUMPTIONS.starEggShare * 100}% of them) for all`
 )
 print("")
 
@@ -537,6 +555,29 @@ for slots = BayConfig.STARTING_INCUBATOR_SLOTS + 1, BayConfig.MAX_INCUBATOR_SLOT
 		)
 	end
 	print(line)
+end
+
+print("")
+print("The first session: income per second and coins earned so far (average)")
+header = pad("", POST_WIDTH + SPEED_WIDTH)
+for _, profile in PROFILES do
+	header ..= pad(profile.name, COLUMN_WIDTH)
+end
+print(header)
+for _, mark in EARLY_MARKS do
+	for _, field in { "income", "earned" } do
+		local line = pad(formatTime(mark), POST_WIDTH)
+			.. pad(if field == "income" then "income/s" else "earned", SPEED_WIDTH)
+		for _, profile in PROFILES do
+			local runs = runsByProfile[profile.name]
+			local total = 0
+			for _, run in runs do
+				total += (run.early[mark] :: any)[field]
+			end
+			line ..= pad(formatNumber(total / #runs), COLUMN_WIDTH)
+		end
+		print(line)
+	end
 end
 
 print("")

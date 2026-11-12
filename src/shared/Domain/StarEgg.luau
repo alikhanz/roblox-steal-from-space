@@ -1,7 +1,7 @@
 --!strict
 -- The star egg the serpent drops (decision 055): of the zone it was knocked out in, at that
--- zone's middle guardian's grade, rare or better, with extra luck. Pure Luau: the game and the
--- balance calculator roll it the same way.
+-- zone's middle guardian's grade, epic or better, and lucky: it hatches as a large egg (decision
+-- 113). Pure Luau: the game and the balance calculator roll it the same way.
 
 local EggConfig = require("../Config/EggConfig")
 local Loot = require("./Loot")

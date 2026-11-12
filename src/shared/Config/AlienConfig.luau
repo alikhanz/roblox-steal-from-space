@@ -46,8 +46,6 @@ export type Tier = {
 	read shortKey: keyof<typeof(Strings)>,
 	-- Multiplies the grade's base income.
 	read incomeFactor: number,
-	-- Base odds of hatching into this tier, before the egg's luck (see Hatch.shiftedWeights).
-	read hatchWeight: number,
 	-- How much bigger this tier stands than the grade's common one (decision 068).
 	read sizeFactor: number,
 }
@@ -86,7 +84,8 @@ export type Grade = {
 	read variants: { [VariantId]: { [KindId]: { [TierId]: AlienId } } },
 }
 
--- From the lowest tier up. Hatch and Crossbreed rely on this order.
+-- From the lowest tier up. Hatch and Crossbreed rely on this order; egg rarities share it
+-- (EggConfig.RARITY_ORDER).
 local TIER_ORDER: { TierId } = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 
 local TIERS: { [TierId]: Tier } = {
@@ -94,42 +93,39 @@ local TIERS: { [TierId]: Tier } = {
 		nameKey = "tier.common.title",
 		shortKey = "tier.commonShort.title",
 		incomeFactor = 1,
-		hatchWeight = 55,
 		sizeFactor = 1,
 	},
 	Uncommon = {
 		nameKey = "tier.uncommon.title",
 		shortKey = "tier.uncommonShort.title",
 		incomeFactor = 2,
-		hatchWeight = 28,
 		sizeFactor = 1.15,
 	},
 	Rare = {
 		nameKey = "tier.rare.title",
 		shortKey = "tier.rareShort.title",
 		incomeFactor = 5,
-		hatchWeight = 12,
 		sizeFactor = 1.3,
 	},
 	Epic = {
 		nameKey = "tier.epic.title",
 		shortKey = "tier.epicShort.title",
 		incomeFactor = 15,
-		hatchWeight = 4,
 		sizeFactor = 1.5,
 	},
 	Legendary = {
 		nameKey = "tier.legendary.title",
 		shortKey = "tier.legendaryShort.title",
 		incomeFactor = 50,
-		hatchWeight = 1,
 		sizeFactor = 1.8,
 	},
 }
 
 -- The common alien of guardian k earns INCOME_BASE * INCOME_GROWTH^(k-1) coins per second. Income
--- grows slower than guardian speed (x1.8 against x3), so money matters more with every zone.
-local INCOME_BASE = BigNum.fromNumber(1)
+-- grows slower than guardian speed (x1.7 against x3), so money matters more with every zone. Two
+-- since the hatch ladder (decision 113): eggs hatch mostly into their own tier, fewer epic and
+-- legendary aliens come out, and the doubled income keeps the pace of the game.
+local INCOME_BASE = BigNum.fromNumber(2)
 local INCOME_GROWTH = BigNum.fromNumber(1.7)
 -- Each guardian's aliens stand this many times bigger than the previous one's (decisions 068,
 -- 083): the last guardian's legendary model is about six times a player's height and ~30 studs
@@ -137,10 +133,8 @@ local INCOME_GROWTH = BigNum.fromNumber(1.7)
 local SIZE_GROWTH = 1.074
 
 local TIER_POSITIONS: { [TierId]: number } = {}
-local HATCH_ENTRIES: { Loot.Entry<TierId> } = {}
 for position, tier in TIER_ORDER do
 	TIER_POSITIONS[tier] = position
-	HATCH_ENTRIES[position] = table.freeze({ id = tier, weight = TIERS[tier].hatchWeight })
 end
 
 -- The usual variant first. Ids of the usual aliens carry no variant.
@@ -360,8 +354,6 @@ return table.freeze({
 	TIERS = table.freeze(TIERS),
 	-- Position of each tier in TIER_ORDER, 1 for the lowest.
 	TIER_POSITIONS = table.freeze(TIER_POSITIONS),
-	-- Hatch odds in tier order: the shape Hatch.shiftedWeights takes.
-	HATCH_ENTRIES = table.freeze(HATCH_ENTRIES),
 	INCOME_BASE = INCOME_BASE,
 	INCOME_GROWTH = INCOME_GROWTH,
 	VARIANT_ORDER = table.freeze(VARIANT_ORDER),

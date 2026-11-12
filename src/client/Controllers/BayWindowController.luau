@@ -56,6 +56,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	NoSuchPod = "notice.unknownAlien.toast",
 	WrongCount = "notice.wrongAliens.toast",
 	MixedGrades = "notice.wrongAliens.toast",
+	MixedTiers = "notice.mixedTiers.toast",
 	MixedVariants = "notice.mixedVariants.toast",
 	TooFast = "notice.tooFast.toast",
 	NotReady = "pvp.notReady.toast",
@@ -196,8 +197,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		pendingSale(nil)
 	end
 
-	-- The first selected alien when every selected one goes with it (the same grade and variant,
-	-- the server's rule in Domain/Crossbreed); otherwise nil and why they do not.
+	-- The first selected alien when every selected one goes with it (the same grade, tier and
+	-- variant, the server's rule in Domain/Crossbreed); otherwise nil and why they do not.
 	local function selectedLine(): (AlienConfig.Alien?, Crossbreed.Problem?)
 		local first: AlienConfig.Alien? = nil
 		for _, entry in selectedRecords() do
@@ -620,9 +621,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							end
 							local alienId = if record then record.id else ""
 							local alien = AlienConfig.ALIENS[alienId]
+							-- Not an if-expression: it would keep only the first of the two names.
+							local tierName = Names.alienParts(locale, alienId)
 							table.insert(trios, {
 								alienId = alienId,
-								name = Names.guardian(locale, trio.grade) or "?",
+								-- As aliens are named: "<tier> · <guardian>" (Names.alien).
+								name = `{tierName or "?"} · {Names.guardian(locale, trio.grade) or "?"}`,
 								count = `×{trio.count}`,
 								color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
 							})

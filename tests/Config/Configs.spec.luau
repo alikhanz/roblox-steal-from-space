@@ -167,7 +167,10 @@ describe("AlienConfig", function()
 		for _, tier in AlienConfig.TIER_ORDER do
 			expect((Strings :: { [string]: any })[AlienConfig.TIERS[tier].nameKey]).toBeTruthy()
 		end
-		expect(Loot.chances(AlienConfig.HATCH_ENTRIES).Common > 0.5).toBe(true)
+	end)
+
+	it("lists the tiers as the egg rarities, which hatch into the tier of their name", function()
+		expect(AlienConfig.TIER_ORDER).toEqual(EggConfig.RARITY_ORDER :: { any })
 	end)
 end)
 
@@ -180,16 +183,54 @@ describe("EggConfig", function()
 		expect(EggConfig.SIZES[EggConfig.TYPICAL_SIZE]).toBeTruthy()
 	end)
 
-	it("hatches rarer eggs slower, heavier and luckier, the rarest within 5 hours", function()
+	it("hatches rarer eggs slower and heavier, the rarest in 2 to 4 hours", function()
 		for position = 2, #EggConfig.RARITY_ORDER do
 			local lower = EggConfig.RARITIES[EggConfig.RARITY_ORDER[position - 1]]
 			local higher = EggConfig.RARITIES[EggConfig.RARITY_ORDER[position]]
 			expect(lower.hatchSeconds.max < higher.hatchSeconds.max).toBe(true)
 			expect(lower.weight < higher.weight).toBe(true)
-			expect(lower.luck < higher.luck).toBe(true)
 		end
 		local rarest = EggConfig.RARITIES[EggConfig.RARITY_ORDER[#EggConfig.RARITY_ORDER]]
-		expect(rarest.hatchSeconds.max <= 5 * 60 * 60).toBe(true)
+		expect(rarest.hatchSeconds).toEqual({ min = 2 * 60 * 60, max = 4 * 60 * 60 })
+	end)
+
+	-- The ladder the user approved (decision 113), percent: Common, Uncommon, Rare, Epic, Legendary.
+	local LADDER: { [string]: { [string]: { number } } } = {
+		Common = { Small = { 87.5, 12.5, 0, 0, 0 }, Medium = { 75, 25, 0, 0, 0 }, Large = { 50, 50, 0, 0, 0 } },
+		Uncommon = { Small = { 30, 60, 10, 0, 0 }, Medium = { 20, 60, 20, 0, 0 }, Large = { 10, 50, 40, 0, 0 } },
+		Rare = { Small = { 0, 30, 62.5, 7.5, 0 }, Medium = { 0, 20, 65, 15, 0 }, Large = { 0, 10, 60, 30, 0 } },
+		Epic = { Small = { 0, 0, 22.5, 72.5, 5 }, Medium = { 0, 0, 15, 75, 10 }, Large = { 0, 0, 7.5, 72.5, 20 } },
+		Legendary = { Small = { 0, 0, 0, 30, 70 }, Medium = { 0, 0, 0, 20, 80 }, Large = { 0, 0, 0, 10, 90 } },
+	}
+
+	it("hatches every egg by the ladder", function()
+		for _, rarity in EggConfig.RARITY_ORDER do
+			for size, percents in LADDER[rarity] do
+				local chances = Loot.chances(EggConfig.hatchEntries(rarity, size :: EggConfig.SizeId))
+				for position, tier in AlienConfig.TIER_ORDER do
+					expect((chances[tier] or 0) * 100).toBeCloseTo(percents[position], 1e-6)
+				end
+			end
+		end
+	end)
+
+	it("hatches a lucky egg (the star egg) as a large one", function()
+		expect(EggConfig.oddsSize("Small", 1)).toBe("Large")
+		expect(EggConfig.oddsSize("Small", 0)).toBe("Small")
+		expect(EggConfig.oddsSize("Medium", nil)).toBe("Medium")
+		expect(EggConfig.hatchEntries("Epic", "Small", SerpentConfig.STAR_EGG_LUCK)).toEqual(
+			EggConfig.hatchEntries("Epic", "Large")
+		)
+	end)
+
+	it("fills a fresh server with eggs no rarer than its cap, which still grows in zones", function()
+		expect(EggConfig.RARITIES[EggConfig.FIRST_FILL_MAX_RARITY]).toBeTruthy()
+		for _, id in ZoneConfig.ZONE_ORDER do
+			local chances = Loot.chances(Loot.capped(ZoneConfig.ZONES[id].rarityLoot, EggConfig.FIRST_FILL_MAX_RARITY))
+			expect(chances.Epic).toBeNil()
+			expect(chances.Legendary).toBeNil()
+			expect(chances[EggConfig.FIRST_FILL_MAX_RARITY] > 0).toBe(true)
+		end
 	end)
 end)
 
@@ -221,6 +262,14 @@ describe("ZoneConfig", function()
 			expect(rareOrBetter > previousRare).toBe(true)
 			previousRare = rareOrBetter
 		end
+	end)
+
+	it("keeps epic eggs out of the nearest zone and legendary ones in the far two", function()
+		local near = Loot.chances(ZoneConfig.ZONES.DebrisBelt.rarityLoot)
+		expect(near.Epic).toBeNil()
+		expect(near.Legendary).toBeNil()
+		expect(Loot.chances(ZoneConfig.ZONES.IceRings.rarityLoot).Legendary).toBeNil()
+		expect(Loot.chances(ZoneConfig.ZONES.EventHorizon.rarityLoot).Legendary).toBeCloseTo(0.015, 1e-9)
 	end)
 
 	it("maps global posts to zones and back", function()
@@ -286,6 +335,16 @@ describe("BayConfig", function()
 		expect(BayConfig.STARTING_PODS <= BayConfig.MAX_PODS).toBe(true)
 		expect(BayConfig.CROSSBREED_COUNT <= BayConfig.SHELF_SLOTS).toBe(true)
 		expect(BayConfig.SELL_MANY_MAX >= BayConfig.MAX_PODS + BayConfig.SHELF_SLOTS).toBe(true)
+	end)
+
+	it("crossbreeds a tier one up by the approved chances, the top tier staying on top", function()
+		expect(BayConfig.CROSSBREED_UP_CHANCE).toEqual({
+			Common = 0.43,
+			Uncommon = 0.39,
+			Rare = 0.33,
+			Epic = 0.27,
+			Legendary = 0,
+		} :: any)
 	end)
 end)
 
@@ -485,10 +544,9 @@ describe("SerpentConfig", function()
 		expect(Speed.chaseSpeed(100, power, weaker, SpeedConfig.CHASE) > 100).toBe(true)
 	end)
 
-	it("adds its luck on top of an egg's own", function()
-		local own = EggConfig.luckOf("Rare", "Large")
-		expect(own).toBe(EggConfig.RARITIES.Rare.luck + EggConfig.SIZES.Large.luck)
-		expect(EggConfig.luckOf("Rare", "Large", SerpentConfig.STAR_EGG_LUCK)).toBe(own + SerpentConfig.STAR_EGG_LUCK)
+	it("makes its egg lucky and epic or better", function()
+		expect(SerpentConfig.STAR_EGG_LUCK > 0).toBe(true)
+		expect(SerpentConfig.STAR_EGG_MIN_RARITY).toBe("Epic")
 	end)
 end)
 

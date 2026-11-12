@@ -34,6 +34,25 @@ function Loot.pick<T>(entries: { Entry<T> }, roll: number): T
 	return lastPickable
 end
 
+-- `entries` listed from the lowest up, with nothing above `cap`: the weight of every entry past it
+-- goes to `cap` (what would have rolled higher rolls `cap`). Unchanged when `cap` is not listed.
+function Loot.capped<T>(entries: { Entry<T> }, cap: T): { Entry<T> }
+	local capped: { Entry<T> } = {}
+	local capIndex: number? = nil
+	for index, entry in entries do
+		if capIndex then
+			local kept = capped[capIndex]
+			capped[capIndex] = { id = kept.id, weight = kept.weight + entry.weight }
+		else
+			capped[index] = { id = entry.id, weight = entry.weight }
+			if entry.id == cap then
+				capIndex = index
+			end
+		end
+	end
+	return capped
+end
+
 -- Chance of each id, for UI and balance checks.
 function Loot.chances<T>(entries: { Entry<T> }): { [T]: number }
 	local total = 0

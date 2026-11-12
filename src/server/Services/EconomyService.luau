@@ -27,6 +27,7 @@ export type Notice =
 	| "NoSuchPod"
 	| "WrongCount"
 	| "MixedGrades"
+	| "MixedTiers"
 	| "MixedVariants"
 	| "JetpackTop"
 	| "MaxIncubatorSlots"
@@ -163,17 +164,18 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			end
 			return Crossbreed.check(parents, BayConfig.CROSSBREED_COUNT)
 		end, function(data)
-			-- The check passed: every parent shares the first one's grade and variant.
+			-- The check passed: every parent shares the first one's grade, tier and variant.
 			local first = AlienConfig.ALIENS[(Bay.find(data, uids[1]) :: PlayerData.AlienRecord).id]
-			local positions = {}
 			local kinds: { AlienConfig.KindId } = {}
 			for _, uid in uids do
 				local record = Bay.remove(data, uid) :: PlayerData.AlienRecord
-				local parent = AlienConfig.ALIENS[record.id]
-				table.insert(positions, AlienConfig.TIER_POSITIONS[parent.tier])
-				table.insert(kinds, parent.kind)
+				table.insert(kinds, AlienConfig.ALIENS[record.id].kind)
 			end
-			local entries = Crossbreed.resultEntries(AlienConfig.HATCH_ENTRIES, positions, BayConfig.CROSSBREED_LUCK)
+			local entries = Crossbreed.resultEntries(
+				AlienConfig.TIER_ORDER,
+				AlienConfig.TIER_POSITIONS[first.tier],
+				BayConfig.CROSSBREED_UP_CHANCE[first.tier]
+			)
 			local tier = Loot.pick(entries, random:NextNumber())
 			local kind = Crossbreed.resultKind(kinds, random:NextNumber())
 			resultId = AlienConfig.GRADES[first.grade].variants[first.variant][kind][tier]

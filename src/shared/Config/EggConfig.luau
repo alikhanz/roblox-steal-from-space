@@ -4,6 +4,7 @@
 
 local Grab = require("../Domain/Grab")
 local Hatch = require("../Domain/Hatch")
+local Loot = require("../Domain/Loot")
 -- selene: allow(unused_variable) -- only its type is used, to keep name keys checked.
 local Strings = require("../Locale/Strings")
 
@@ -17,10 +18,11 @@ export type Rarity = {
 	-- Share of the speed stat a medium egg takes away while carried (see Speed.eggWeight).
 	read weight: number,
 	-- Time in the incubator, rolled between min and max (see Hatch.duration). The rarest eggs of
-	-- the game take up to 5 hours.
+	-- the game take up to 4 hours.
 	read hatchSeconds: Hatch.Range,
-	-- Tilts hatch odds toward the top tiers (see Hatch.shiftedWeights); adds up with the size's.
-	read luck: number,
+	-- What a medium egg hatches into (decision 113): the alien tier of its own name, or one tier
+	-- down or up with these chances (Hatch.ladder). The size scales them (Size).
+	read hatchStep: Hatch.Step,
 }
 
 export type Size = {
@@ -28,15 +30,18 @@ export type Size = {
 	read weightFactor: number,
 	-- Multiplies the egg model size.
 	read scale: number,
-	-- Tilts hatch odds toward the top tiers; adds up with the rarity's.
-	read luck: number,
+	-- Multiply the rarity's chances of hatching one tier down and one tier up (Hatch.scaled).
+	read hatchDownFactor: number,
+	read hatchUpFactor: number,
 }
 
 local SIZES: { [SizeId]: Size } = {
 	-- Scales set apart (decision 084): a large egg is plainly the bigger prize, as in games like it.
-	Small = { weightFactor = 0.7, scale = 0.65, luck = 0 },
-	Medium = { weightFactor = 1, scale = 1, luck = 0.15 },
-	Large = { weightFactor = 1.4, scale = 1.5, luck = 0.3 },
+	-- A large egg climbs twice as often and falls half as often as a medium one; a small one
+	-- climbs half as often and falls one and a half times as often (decision 113).
+	Small = { weightFactor = 0.7, scale = 0.65, hatchDownFactor = 1.5, hatchUpFactor = 0.5 },
+	Medium = { weightFactor = 1, scale = 1, hatchDownFactor = 1, hatchUpFactor = 1 },
+	Large = { weightFactor = 1.4, scale = 1.5, hatchDownFactor = 0.5, hatchUpFactor = 2 },
 }
 
 -- The magnetic grab: holding the grab input in reach locks the flyer onto the egg.
@@ -54,52 +59,77 @@ local RARITIES: { [RarityId]: Rarity } = {
 		grabSeconds = 2,
 		weight = 0.1,
 		hatchSeconds = { min = 10, max = 2 * 60 },
-		luck = 0,
+		hatchStep = { down = 0, up = 0.25 },
 	},
 	Uncommon = {
 		nameKey = "egg.uncommon.title",
 		grabSeconds = 2.5,
 		weight = 0.18,
 		hatchSeconds = { min = 60, max = 6 * 60 },
-		luck = 0.35,
+		hatchStep = { down = 0.2, up = 0.2 },
 	},
 	Rare = {
 		nameKey = "egg.rare.title",
 		grabSeconds = 3,
 		weight = 0.28,
 		hatchSeconds = { min = 5 * 60, max = 30 * 60 },
-		luck = 0.7,
+		hatchStep = { down = 0.2, up = 0.15 },
 	},
 	Epic = {
 		nameKey = "egg.epic.title",
 		grabSeconds = 3.5,
 		weight = 0.38,
 		hatchSeconds = { min = 30 * 60, max = 2 * 60 * 60 },
-		luck = 1,
+		hatchStep = { down = 0.15, up = 0.1 },
 	},
 	Legendary = {
 		nameKey = "egg.legendary.title",
 		grabSeconds = 4,
 		weight = 0.5,
-		hatchSeconds = { min = 1.5 * 60 * 60, max = 5 * 60 * 60 },
-		luck = 1.4,
+		hatchSeconds = { min = 2 * 60 * 60, max = 4 * 60 * 60 },
+		hatchStep = { down = 0.2, up = 0 },
 	},
 }
 
--- From the most common up. Which eggs grow where is in ZoneConfig.
+-- From the most common up. Which eggs grow where is in ZoneConfig. Egg rarities are named as
+-- the alien tiers (AlienConfig.TIER_ORDER, the same order: a test keeps them in step), so the
+-- hatch odds below list tiers by these ids.
 local RARITY_ORDER: { RarityId } = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
 
--- The luck an egg hatches with (Hatch.shiftedWeights): its rarity's and size's, plus any it was
--- given on the way (eggs delivered during the star serpent's hunt, SerpentConfig).
-local function luckOf(rarity: RarityId, size: SizeId, bonus: number?): number
-	return RARITIES[rarity].luck + SIZES[size].luck + (bonus or 0)
+-- The hatch odds of every rarity and size (Hatch.ladder), worked out once.
+local HATCH_ODDS: { [RarityId]: { [SizeId]: { Loot.Entry<RarityId> } } } = {}
+for position, rarity in RARITY_ORDER do
+	local bySize: { [SizeId]: { Loot.Entry<RarityId> } } = {}
+	for sizeId, size in SIZES do
+		local step = Hatch.scaled(RARITIES[rarity].hatchStep, size.hatchDownFactor, size.hatchUpFactor)
+		bySize[sizeId] = Hatch.ladder(RARITY_ORDER, position, step)
+	end
+	HATCH_ODDS[rarity] = table.freeze(bySize)
+end
+
+-- The size an egg hatches as: a lucky egg (one with luck, the star egg: EggRecord.luck) counts as
+-- a large one, whatever its own size (decision 113).
+local function oddsSize(size: SizeId, luck: number?): SizeId
+	return if luck and luck > 0 then "Large" else size
+end
+
+-- What an egg hatches into: alien tiers (named as the rarities) and their weights.
+local function hatchEntries(rarity: RarityId, size: SizeId, luck: number?): { Loot.Entry<RarityId> }
+	local bySize = assert(HATCH_ODDS[rarity], `unknown rarity {rarity}`)
+	return assert(bySize[oddsSize(size, luck)], `unknown size {size}`)
 end
 
 return table.freeze({
 	RARITIES = table.freeze(RARITIES),
 	RARITY_ORDER = table.freeze(RARITY_ORDER),
 	SIZES = table.freeze(SIZES),
-	luckOf = luckOf,
+	HATCH_ODDS = table.freeze(HATCH_ODDS),
+	oddsSize = oddsSize,
+	hatchEntries = hatchEntries,
+	-- A server's first eggs (every nest fills at once when it starts) are of this rarity at most;
+	-- rarer ones grow only as nests regrow during play, so a fresh server is no jackpot to hop to
+	-- (decision 113, Loot.capped).
+	FIRST_FILL_MAX_RARITY = "Rare" :: RarityId,
 	-- The guardian's recommended speed is computed for an egg of this size.
 	TYPICAL_SIZE = "Medium" :: SizeId,
 	MAGNET = table.freeze(MAGNET),
