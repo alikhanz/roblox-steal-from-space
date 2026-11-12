@@ -109,6 +109,34 @@ local function floatWhenDead(character: Model)
 	end)
 end
 
+-- Every death ends in a respawn. Roblox respawns a dead character by itself after
+-- Players.RespawnTime, but not always: a player who ran out of oxygen as they flew onto their
+-- island lay dead until they rejoined (friends' playtest, 2026-11-12). So once the character's
+-- health is gone (whether or not Humanoid.Died fires), the server checks a little after that
+-- time and respawns the player itself if the dead character is still theirs.
+local function respawnWhenDead(player: Player, character: Model, humanoid: Humanoid)
+	local scheduled = false
+	local function schedule()
+		if scheduled then
+			return
+		end
+		scheduled = true
+		task.delay(Players.RespawnTime + FlightConfig.RESPAWN_BACKSTOP_SECONDS, function()
+			if player.Parent ~= Players or player.Character ~= character then
+				return
+			end
+			warn(`[SpaceService] Roblox did not respawn {player.Name}; respawning`)
+			player:LoadCharacterAsync()
+		end)
+	end
+	humanoid.Died:Once(schedule)
+	humanoid.HealthChanged:Connect(function(health)
+		if health <= 0 then
+			schedule()
+		end
+	end)
+end
+
 -- Out of oxygen: the character dies and respawns at the station.
 local function suffocateEmptyTanks(suffocated: Signal.Signal<Player, Vector3>)
 	for _, player in Players:GetPlayers() do
@@ -131,6 +159,7 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 			return
 		end
 		addFlightConstraints(character:FindFirstChild("HumanoidRootPart") :: BasePart)
+		local player = Players:GetPlayerFromCharacter(character)
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid then
 			-- A body that comes apart would scatter its pieces in weightlessness (floatWhenDead).
@@ -138,8 +167,10 @@ function SpaceService.new(dependencies: Dependencies): SpaceService
 			humanoid.Died:Once(function()
 				floatWhenDead(character)
 			end)
+			if player then
+				respawnWhenDead(player, character, humanoid)
+			end
 		end
-		local player = Players:GetPlayerFromCharacter(character)
 		JetpackModel.attach(character, if player then dependencies.getJetpackLevel(player) else 0)
 
 		if flightAnimationId then

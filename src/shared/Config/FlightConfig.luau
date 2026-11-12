@@ -50,4 +50,7 @@ return table.freeze({
 	-- Workspace attribute: while set, nobody flies farther than this from the dome center
 	-- (studs), like at the edge of the map. The solar storm sets it to the station border.
 	RANGE_LIMIT_ATTRIBUTE = "FlightRangeLimit",
+	-- A dead character Roblox has not respawned this long after Players.RespawnTime is respawned
+	-- by the server itself (SpaceService), seconds.
+	RESPAWN_BACKSTOP_SECONDS = 1,
 })
