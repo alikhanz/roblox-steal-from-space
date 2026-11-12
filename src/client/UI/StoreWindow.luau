@@ -35,8 +35,9 @@ local CARD_TRANSPARENCY = 0.965
 -- How far the card's colour of its outline goes towards the glass.
 local CARD_LINE_DARKEN = 0.5
 local PASS_ICON_SIZE = 30
-local VALUE_ICON_SIZE = 20
-local VALUE_TEXT_SIZE = 20
+-- The widest value ("⚡+888.8Qad") still leaves room for its price on a phone at this size.
+local VALUE_ICON_SIZE = 18
+local VALUE_TEXT_SIZE = 18
 local OWNED_TRANSPARENCY = 0.5
 local CHECK_COLOR = Color3.fromHex("#5BDB6E")
 local CHECK_MARK = "✓"

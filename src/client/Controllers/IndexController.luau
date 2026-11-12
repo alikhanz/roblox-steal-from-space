@@ -32,6 +32,8 @@ local create = Vide.create
 local source = Vide.source
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
+-- The toasts of finds in a row replace each other (State/ToastState).
+local FINDS_TOAST_GROUP = "IndexFinds"
 
 -- The index sections, one per alien variant, with their switch texts.
 local SECTION_KEYS: { [AlienConfig.VariantId]: Text.Key } = {
@@ -269,16 +271,22 @@ function IndexController.new(dependencies: Dependencies): IndexController
 	end
 
 	-- New aliens in the index since the last update: cheer, once for a batch arriving together
-	-- (several eggs hatching on one tick). The first snapshot only sets what is known.
+	-- (several eggs hatching on one tick). Finds in a row are one toast that counts them, like
+	-- the hatches beside it: a toast per find pushed the hatch toast off a phone's screen
+	-- (docs/design/screens/toasts-and-signs.md). The first snapshot only sets what is known.
 	local known: { [string]: boolean }? = nil
 	local pendingFinds = 0
+	local shownFinds = 0
 	local function announceFinds()
-		local count = pendingFinds
+		if not dependencies.toasts.isShown(FINDS_TOAST_GROUP) then
+			shownFinds = 0
+		end
+		shownFinds += pendingFinds
 		pendingFinds = 0
-		local message = if count == 1
+		local message = if shownFinds == 1
 			then text("index.discovered.toast")
-			else text("index.discoveredMany.toast", { count = count })
-		toast(message, "Alien")
+			else text("index.discoveredMany.toast", { count = shownFinds })
+		toast(message, "Alien", nil, { group = FINDS_TOAST_GROUP })
 	end
 	local function watchFinds()
 		local found = profile.index().found
