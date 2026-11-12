@@ -103,12 +103,14 @@ return table.freeze({
 	-- each client runs the kiosks' names along them (KioskController, UI/RingBanner).
 	BANNER_TAG = "RingBanner",
 	-- The banner on a screen: pixels per stud (coarse, so the letters stand big), seen this far
-	-- (from every island), one kiosk's name and icon this share of the screen's width, sliding by
-	-- one in this many seconds.
+	-- (from every island), one kiosk's name and icon at least this share of the screen's width
+	-- (a longer name widens its own), with this share of the screen's height clear between two
+	-- names, sliding by one in this many seconds.
 	BANNER = table.freeze({
 		pixelsPerStud = 18,
 		maxDistance = 800,
 		itemShare = 0.75,
+		itemGapShare = 0.5,
 		secondsPerItem = 3,
 	}),
 })
