@@ -1133,7 +1133,7 @@ local function clusters(pet: Model, cf: CFrame, size: Vector3)
 		particles.FlipbookFramerate = NumberRange.new(FX.CLUSTER_FRAMERATE[1], FX.CLUSTER_FRAMERATE[2])
 		particles.FlipbookStartRandom = true
 		particles.Rotation = NumberRange.new(0, 360)
-		particles.Rate *= FX.CLUSTER_RATE
+		particles.Rate *= FX.CLUSTER_RATES[sheet]
 		local keys = {}
 		for _, key in particles.Size.Keypoints do
 			local scale = FX.CLUSTER_SIZE
