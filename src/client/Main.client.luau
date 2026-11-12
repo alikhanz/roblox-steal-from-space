@@ -72,7 +72,7 @@ local windowState = WindowState.new()
 -- The windows' tiles in the HUD menu row and their keys.
 local menuState = MenuState.new()
 local purchaseState = PurchaseState.new()
--- The hint after the tutorial (decision 106): the panel words it, the bay window lights for it.
+-- The hint after the tutorial (decision 110): the panel words it, the bay window lights for it.
 local coachState = CoachState.new()
 local bayWindowController = BayWindowController.new({
 	profile = profileState,

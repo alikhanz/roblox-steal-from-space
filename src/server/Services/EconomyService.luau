@@ -47,9 +47,9 @@ export type EconomyService = {
 	moveToShelf: (player: Player, uid: number) -> Notice?,
 	crossbreed: (player: Player, uids: { number }) -> Notice?,
 	sell: (player: Player, uid: number) -> Notice?,
-	-- Sells all of `uids` at once, or none of them ("Sell all", decision 106).
+	-- Sells all of `uids` at once, or none of them ("Sell all", decision 110).
 	sellMany: (player: Player, uids: { number }) -> Notice?,
-	-- One more pod; the best of the shelf stands in it at once (decision 106).
+	-- One more pod; the best of the shelf stands in it at once (decision 110).
 	buyPod: (player: Player) -> Notice?,
 	-- One more incubator slot.
 	buyIncubatorSlot: (player: Player) -> Notice?,
@@ -275,7 +275,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			paid = price(data)
 			data.coins = BigNum.sub(data.coins, price(data))
 			table.insert(data.pods, {})
-			-- The best of the shelf takes the new pod at once (decision 106).
+			-- The best of the shelf takes the new pod at once (decision 110).
 			Bay.fillPod(data, #data.pods, incomeOf)
 			balance = data.coins
 		end)

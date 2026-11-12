@@ -68,7 +68,7 @@ export type PlayerData = {
 	jetpackLevel: number,
 	-- Pods the player owns, earning when they hold an alien.
 	pods: { Pod },
-	-- Aliens with no pod, standing on the island's shelf (decisions 092, 106; the field keeps its
+	-- Aliens with no pod, standing on the island's shelf (decisions 092, 110; the field keeps its
 	-- old name). The shelf holds BayConfig.SHELF_SLOTS: a full one stops eggs from hatching, but
 	-- a profile from before v20 may hold more.
 	floor: { AlienRecord },
@@ -296,7 +296,7 @@ PlayerData.MIGRATIONS = {
 	[18] = function(_data: { [string]: any }) end,
 	-- v20 adds the controls window (decision 105): `controlsHidden`, false from the template.
 	[19] = function(_data: { [string]: any }) end,
-	-- v21: no inventory (decision 106). Its aliens go to the end of the shelf, which may now hold
+	-- v21: no inventory (decision 110). Its aliens go to the end of the shelf, which may now hold
 	-- more than it fits: eggs then wait until the player sells or crossbreeds. `coachDone` comes
 	-- from the template; what a player has already done is marked by the coach on the next join.
 	[20] = function(data: { [string]: any })

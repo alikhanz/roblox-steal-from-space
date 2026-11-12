@@ -7,7 +7,7 @@
 -- to steal from, the player's own bay while carrying an egg home, their egg in the incubator,
 -- their trainer. The server decides the hint (TutorialService); the client only finds the place
 -- to point at. After the tutorial the same panel, pin and path carry the hints of the coach
--- (decision 106, CoachState): to the places' terminal, to the station's kiosks, or a button that
+-- (decision 110, CoachState): to the places' terminal, to the station's kiosks, or a button that
 -- opens the bay window; the farewell line points at the station.
 
 local CollectionService = game:GetService("CollectionService")

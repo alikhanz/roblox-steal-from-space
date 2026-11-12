@@ -57,7 +57,7 @@ local ASSUMPTIONS = {
 	-- Random runs averaged per profile.
 	runs = 3,
 	-- Aliens with no pod the model keeps on the shelf for the next pod; it sells the rest at once.
-	-- Ten: what the inventory held before decision 106, so the pace stays comparable.
+	-- Ten: what the inventory held before decision 110, so the pace stays comparable.
 	shelfKept = 10,
 }
 
@@ -188,7 +188,7 @@ local function simulate(profile: Profile, seed: number): Run
 		incomeRate = toNumber(Bay.incomePerSecond(data, incomeOf))
 	end
 	-- The model keeps the best few with no pod on the shelf for the next pod it buys, and sells the
-	-- rest on the spot (as when the inventory held ten: the numbers stay those of before decision 106).
+	-- rest on the spot (as when the inventory held ten: the numbers stay those of before decision 110).
 	local function sellFloor()
 		while #data.floor > ASSUMPTIONS.shelfKept do
 			local alien = table.remove(data.floor) :: PlayerData.AlienRecord

@@ -367,7 +367,7 @@ local function buildShelf(origin: CFrame, parent: Instance)
 		buildGreyboxShelf(shelf, model)
 	end
 	local height = Shelf.height(ShelfShape)
-	-- Over the middle of the crown: where the client shows the shelf's count (decision 106).
+	-- Over the middle of the crown: where the client shows the shelf's count (decision 110).
 	local middle = ShelfShape.COLUMNS / 2
 	local counter = Instance.new("Part")
 	counter.Name = BayConfig.SHELF_COUNTER_NAME

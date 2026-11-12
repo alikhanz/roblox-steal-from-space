@@ -58,7 +58,7 @@ describe("Shelf.niche", function()
 		expect(Shelf.capacity(ShelfShape)).toBe(24)
 	end)
 
-	it("has a niche for every alien the shelf may hold (decision 106)", function()
+	it("has a niche for every alien the shelf may hold (decision 110)", function()
 		expect(Shelf.capacity(ShelfShape)).toBe(BayConfig.SHELF_SLOTS)
 	end)
 end)

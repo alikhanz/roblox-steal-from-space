@@ -1447,7 +1447,7 @@ local Strings = {
 		en = "Nothing to use it on. Here's ●+{coins}",
 	},
 	-- Aliens on the shelf, its limit, selling several, ready trios and the hints after the
-	-- tutorial (decision 106, docs/design/screens/aliens-and-hints.md).
+	-- tutorial (decision 110, docs/design/screens/aliens-and-hints.md).
 	["alien.openBay.button"] = {
 		ru = "В отсек",
 		en = "Open bay",

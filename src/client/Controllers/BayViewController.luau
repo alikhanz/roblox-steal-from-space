@@ -4,7 +4,7 @@
 -- terminals (places, incubator, trainer: docs/design/screens/terminals.md), a chip over every
 -- alien (what it earns), a countdown over every egg warming (and "waiting" over the queued ones),
 -- the shelf's count, and for the owner a free place's mark and an egg that cannot hatch (decision
--- 106, docs/design/screens/aliens-and-hints.md).
+-- 110, docs/design/screens/aliens-and-hints.md).
 -- Everything is keyed by the instance and torn down when it goes, since bays stream and are
 -- rebuilt by the server.
 
@@ -113,7 +113,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		return false
 	end
 
-	-- The owner's bay has no free place and a full shelf: ready eggs wait (decision 106).
+	-- The owner's bay has no free place and a full shelf: ready eggs wait (decision 110).
 	local function ownBayFull(): boolean
 		return not Bay.hasRoom(profile.bay(), BayConfig.SHELF_SLOTS)
 	end
@@ -398,7 +398,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		end)
 	end
 
-	-- The shelf's count over its crown, "12/24": red with its glow once full (decision 106).
+	-- The shelf's count over its crown, "12/24": red with its glow once full (decision 110).
 	local function watchShelf(bay: Instance)
 		task.spawn(function()
 			local shelf = bay:WaitForChild(BayConfig.SHELF_NAME, PART_WAIT_TIMEOUT)
@@ -525,7 +525,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 	end
 
 	-- Every egg warming in a slot shows its own countdown, then that it is ready to hatch (in the
-	-- owner's bay: or that the shelf is full and it cannot, decision 106); an egg in the queue
+	-- owner's bay: or that the shelf is full and it cannot, decision 110); an egg in the queue
 	-- says it waits.
 	local function watchIncubatorEgg(instance: Instance)
 		local own = inOwnBay(instance)

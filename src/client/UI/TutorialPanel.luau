@@ -4,7 +4,7 @@
 -- on glass in the HUD's bottom stack, above the oxygen bar (docs/design/screens/hud.md). On the
 -- left, a dot per step (passed ones green, the current one lit in the guide's colour) and the
 -- step's icon; the farewell line after the last step has neither. The hints after the tutorial
--- (decision 106) show here too: an icon without dots, and maybe a button that does it.
+-- (decision 110) show here too: an icon without dots, and maybe a button that does it.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

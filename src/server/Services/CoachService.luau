@@ -1,5 +1,5 @@
 --!strict
--- The hints after the tutorial (decision 106, docs/design/screens/aliens-and-hints.md): once a
+-- The hints after the tutorial (decision 110, docs/design/screens/aliens-and-hints.md): once a
 -- second works out the player's facts, which tip is wanted (Domain/Coach) and whether it may show
 -- yet (the pace), and tells the net service when the tip on screen changes. A tip is done for good
 -- by the player's state (a pod or a jetpack bought) or by an action the other services report (a

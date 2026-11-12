@@ -61,7 +61,7 @@ function Crossbreed.resultKind<T>(kinds: { T }, roll: number): T
 	return kinds[math.clamp(math.floor(roll * #kinds) + 1, 1, #kinds)]
 end
 
--- A ready group on the shelf (decision 106): aliens of one grade and variant, how many there are,
+-- A ready group on the shelf (decision 110): aliens of one grade and variant, how many there are,
 -- and the weakest `required` of them, which the window's button crossbreeds.
 export type Trio = {
 	grade: number,

@@ -99,7 +99,7 @@ export type Dependencies = {
 	tutorialLine: () -> string,
 	tutorialStep: () -> number?,
 	tutorialIcon: () -> Icons.Name?,
-	-- A button in the tutorial's panel (the hints after it, decision 106); nil: none.
+	-- A button in the tutorial's panel (the hints after it, decision 110); nil: none.
 	tutorialAction: () -> TutorialPanel.Action?,
 	-- The windows' tiles for the menu row.
 	menu: MenuState.MenuState,

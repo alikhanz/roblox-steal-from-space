@@ -3,7 +3,7 @@
 -- A menu tile of the HUD (DESIGN.md, "Плитка меню"): a square of coloured glass with the
 -- window's icon, no words. A red count in the top corner when something waits inside; on a
 -- keyboard, the window's key in the bottom corner; a pulsing ring when the hint after the tutorial
--- calls the player to it (decision 106).
+-- calls the player to it (decision 110).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")

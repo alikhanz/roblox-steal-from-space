@@ -39,10 +39,10 @@ return table.freeze({
 
 	-- Aliens with no pod stand on the shelf, one to a niche (docs/design/screens/storage-shelf.md,
 	-- Domain/Shelf.capacity); a full shelf and no free pod keep ready eggs from hatching (decision
-	-- 106, docs/design/screens/aliens-and-hints.md).
+	-- 110, docs/design/screens/aliens-and-hints.md).
 	SHELF_SLOTS = 24,
 
-	-- At most this many aliens are sold with one command ("Sell all", decision 106): more than the
+	-- At most this many aliens are sold with one command ("Sell all", decision 110): more than the
 	-- pods and the shelf can hold together.
 	SELL_MANY_MAX = 64,
 
@@ -85,7 +85,7 @@ return table.freeze({
 	TRAINER_NAME = "Trainer",
 	-- The shelf where aliens with no place stand (docs/design/screens/storage-shelf.md).
 	SHELF_NAME = "Shelf",
-	-- In the shelf: the point its count hangs at (decision 106).
+	-- In the shelf: the point its count hangs at (decision 110).
 	SHELF_COUNTER_NAME = "Counter",
 	CONTENTS_NAME = "Contents",
 	-- The terminals (docs/design/screens/terminals.md) and the part their screen is drawn on.
@@ -111,7 +111,7 @@ return table.freeze({
 	-- On the bay model: the owner's trainer level and pod count, for the terminals.
 	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
 	POD_COUNT_ATTRIBUTE = "PodCount",
-	-- On the bay model: how many aliens stand on the shelf (its counter, decision 106).
+	-- On the bay model: how many aliens stand on the shelf (its counter, decision 110).
 	SHELF_COUNT_ATTRIBUTE = "ShelfCount",
 	-- Alien models standing in pods or waiting on the floor.
 	ALIEN_TAG = "Alien",
@@ -129,7 +129,7 @@ return table.freeze({
 	-- the client glides it there with its alien.
 	PLACE_TAG = "BayPlace",
 	PLACE_PIVOT_ATTRIBUTE = "Pivot",
-	-- True on a bought place with no alien: the owner's client marks it free (decision 106).
+	-- True on a bought place with no alien: the owner's client marks it free (decision 110).
 	PLACE_EMPTY_ATTRIBUTE = "Empty",
 	-- True on an alien standing small on the shelf: the client shows only its model (no effects,
 	-- no motion) and its chip only up close.
@@ -145,7 +145,7 @@ return table.freeze({
 	-- On a prompt whose action is not the usual "do it" (green): what it does, for its colour
 	-- (docs/design/screens/buttons.md). A prompt that hatches for Robux is told by its ReadyNowTier.
 	PROMPT_ACTION_ATTRIBUTE = "Action",
-	-- The prompt on an alien on the shelf that opens the bay window with it chosen (decision 106),
+	-- The prompt on an alien on the shelf that opens the bay window with it chosen (decision 110),
 	-- and on a free place that puts the best of the shelf there.
 	PROMPT_ACTION_OPEN_BAY = "OpenBay",
 	PROMPT_ACTION_PLACE_BEST = "PlaceBest",

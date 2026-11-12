@@ -1,5 +1,5 @@
 --!strict
--- The hint after the tutorial the server shows now (decision 106, CoachService): the tutorial's
+-- The hint after the tutorial the server shows now (decision 110, CoachService): the tutorial's
 -- panel words it and leads to it, the bay window lights its tile and its ready trios for it.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

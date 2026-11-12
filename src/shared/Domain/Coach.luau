@@ -1,5 +1,5 @@
 --!strict
--- The hints after the tutorial (decision 106, docs/design/screens/aliens-and-hints.md): one at a
+-- The hints after the tutorial (decision 110, docs/design/screens/aliens-and-hints.md): one at a
 -- time, each shown while what it asks for makes sense and gone for good once the player has done
 -- it. Which tips are done is kept as a bit mask in the profile (`coachDone`); which one shows now
 -- is worked out from the player's facts, like the tutorial's hint. Pure Luau.

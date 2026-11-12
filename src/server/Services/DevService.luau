@@ -580,7 +580,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				then `tutorial at {progress}`
 				else "profile not active yet"
 		end,
-		-- The first player's hints after the tutorial (decision 106): `mask` of the done ones, by
+		-- The first player's hints after the tutorial (decision 110): `mask` of the done ones, by
 		-- Domain/Coach.TIPS (0: all of them come again, 31: none).
 		SetCoachDone = function(mask: number?): string
 			local player = firstPlayerRoot()
@@ -592,7 +592,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				else "profile not active yet"
 		end,
 		-- Fills the first player's shelf up to `count` aliens (the shelf's size by default) with
-		-- common aliens of guardian 1, to see a full shelf stop the eggs (decision 106).
+		-- common aliens of guardian 1, to see a full shelf stop the eggs (decision 110).
 		FillShelf = function(count: number?): string
 			local player = firstPlayerRoot()
 			local data = player and dependencies.getData(player)

@@ -67,7 +67,7 @@ local function colorOf(prompt: ProximityPrompt): Color3
 	if action == BayConfig.PROMPT_ACTION_OPEN_BAY or action == BayConfig.PROMPT_ACTION_PLACE_BEST then
 		return ACTION.Move
 	elseif action == BayConfig.PROMPT_ACTION_SHELF_FULL then
-		-- An egg that cannot hatch: red, like the shelf's counter when full (decision 106).
+		-- An egg that cannot hatch: red, like the shelf's counter when full (decision 110).
 		return ACTION.Sell
 	end
 	return ACTION.Main

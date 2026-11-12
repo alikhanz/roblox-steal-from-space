@@ -92,7 +92,7 @@ function Bay.freePods(data: { read pods: { PlayerData.Pod } }): number
 end
 
 -- True when a new alien has somewhere to stand: a free pod, or a free niche on a shelf of
--- `shelfSlots` (decision 106: with neither, eggs wait instead of hatching). Takes the profile or
+-- `shelfSlots` (decision 110: with neither, eggs wait instead of hatching). Takes the profile or
 -- the client's copy of the bay.
 function Bay.hasRoom(data: { read pods: { PlayerData.Pod }, read floor: { Alien } }, shelfSlots: number): boolean
 	return Bay.freePods(data) > 0 or #data.floor < shelfSlots

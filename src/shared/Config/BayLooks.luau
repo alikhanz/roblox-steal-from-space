@@ -291,7 +291,7 @@ return table.freeze({
 	-- 128, 255) burnt to white under Bloom, and (120, 60, 255) read magenta in the island's grading
 	-- (Studio, 2026-11-10).
 	SHELF_COLOR = Color3.fromRGB(85, 70, 255),
-	-- A full shelf (decision 106): its count and glow turn the danger red of the interface.
+	-- A full shelf (decision 110): its count and glow turn the danger red of the interface.
 	SHELF_FULL_COLOR = Color3.fromHex("#FF5A64"),
 	-- Its count hangs this far over the top of the shelf, studs.
 	SHELF_COUNTER_ABOVE = 1.6,

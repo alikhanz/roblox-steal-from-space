@@ -2,7 +2,7 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The bay window and what goes with it: its tile in the HUD menu, toasts for hatches, refused
 -- commands and a shelf gone full, the welcome-back screen, and the bay's prompts that open the
--- window (an alien on the shelf, an egg that cannot hatch: decision 106). Holds the selection;
+-- window (an alien on the shelf, an egg that cannot hatch: decision 110). Holds the selection;
 -- everything else is read from ProfileState and every action is sent to the server through
 -- Remotes.
 
@@ -178,7 +178,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return free
 	end
 
-	-- Any number can be chosen (to sell them all); three of a kind crossbreed (decision 106).
+	-- Any number can be chosen (to sell them all); three of a kind crossbreed (decision 110).
 	local function toggle(uid: number)
 		pendingSale(nil)
 		local list = table.clone(selection())
@@ -283,7 +283,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return #profile.bay().floor >= BayConfig.SHELF_SLOTS
 	end
 
-	-- Ready eggs in the incubator that cannot hatch: no free place and a full shelf (decision 106).
+	-- Ready eggs in the incubator that cannot hatch: no free place and a full shelf (decision 110).
 	local function stuckEggs(): number
 		local _ = clock()
 		local bay = profile.bay()
@@ -343,7 +343,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		end
 	end
 
-	-- The shelf has just gone full with no free place: from now on eggs wait (decision 106).
+	-- The shelf has just gone full with no free place: from now on eggs wait (decision 110).
 	local hadRoom: boolean? = nil
 	local function watchRoom()
 		local room = Bay.hasRoom(profile.bay(), BayConfig.SHELF_SLOTS)

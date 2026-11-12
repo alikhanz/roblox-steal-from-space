@@ -137,7 +137,7 @@ local questService = QuestService.new(questDependencies)
 -- So does the tutorial (decision 065).
 local tutorialDependencies = {} :: TutorialService.Dependencies
 local tutorialService = TutorialService.new(tutorialDependencies)
--- So do the hints after the tutorial (decision 106).
+-- So do the hints after the tutorial (decision 110).
 local coachDependencies = {} :: CoachService.Dependencies
 local coachService = CoachService.new(coachDependencies)
 -- The community gift (decision 098) sends its refusals through the net service and hears the

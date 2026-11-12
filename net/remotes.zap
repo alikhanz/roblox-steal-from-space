@@ -51,7 +51,7 @@ type WaitingEgg = struct {
 -- The owner's bay, as the profile holds it.
 type Bay = struct {
 	pods: Pod[],
-	-- The shelf (decision 106).
+	-- The shelf (decision 110).
 	floor: Alien[],
 	incubator: Egg[],
 	incubatorSlots: u8,
@@ -68,7 +68,7 @@ type Upgrades = struct {
 type Notice = enum {
 	NoProfile,
 	UnknownAlien,
-	-- The shelf has no free niche (decision 106).
+	-- The shelf has no free niche (decision 110).
 	ShelfFull,
 	NotEnoughCoins,
 	MaxPods,
@@ -224,7 +224,7 @@ event TutorialChanged = {
 	data: TutorialHint,
 }
 
--- The hint after the tutorial to show now (Domain/Coach, decision 106); none: no hint.
+-- The hint after the tutorial to show now (Domain/Coach, decision 110); none: no hint.
 type CoachTip = enum {
 	Shelf,
 	Jetpack,
@@ -489,7 +489,7 @@ event Sell = {
 	data: u32,
 }
 
--- Sells all of them at once, or none ("Sell all", decision 106; BayConfig.SELL_MANY_MAX).
+-- Sells all of them at once, or none ("Sell all", decision 110; BayConfig.SELL_MANY_MAX).
 event SellMany = {
 	from: Client,
 	type: Reliable,

@@ -127,7 +127,7 @@ type ShownPlace = {
 type ShownEgg = {
 	part: BasePart,
 	-- What it shows: "warming" or "ready" in a capsule, or "waiting" in the queue, with "Full"
-	-- after the first two while there is no room for the alien (decision 106). Its prompt and
+	-- after the first two while there is no room for the alien (decision 110). Its prompt and
 	-- light go with this, so a change builds it anew.
 	state: string,
 }
@@ -356,7 +356,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		prompt.Parent = body
 	end
 
-	-- An alien on the shelf opens the bay window with it chosen (decision 106): the owner's client
+	-- An alien on the shelf opens the bay window with it chosen (decision 110): the owner's client
 	-- does it on its own; the server has nothing to do.
 	local function addOpenBayPrompt(player: Player, model: Model, uid: number)
 		local body = model.PrimaryPart
@@ -402,7 +402,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	-- A ready egg with no room for its alien: the prompt says so, and the owner's client opens the
-	-- bay window when it is pressed (decision 106); the server has nothing to do.
+	-- bay window when it is pressed (decision 110); the server has nothing to do.
 	local function addShelfFullPrompt(player: Player, part: BasePart)
 		local words = Text.get(Text.localeOf(player), "egg.shelfFull.button")
 		addOwnerPrompt(player, part, words, function() end, {
@@ -442,7 +442,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		local kept: { [number]: boolean } = {}
 		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
 		bay.model:SetAttribute(BayConfig.SHELF_COUNT_ATTRIBUTE, #data.floor)
-		-- No free place and a full shelf: eggs wait instead of hatching (decision 106).
+		-- No free place and a full shelf: eggs wait instead of hatching (decision 110).
 		local full = not Bay.hasRoom(data, BayConfig.SHELF_SLOTS)
 
 		-- Places make room for their aliens: the layout follows their sizes (decision 068).
@@ -534,7 +534,7 @@ function BayService.new(dependencies: Dependencies): BayService
 				elseif ready then
 					addHatchPrompt(player, part, egg.uid)
 				elseif not full then
-					-- No Robux for an egg that could not hatch (decision 106).
+					-- No Robux for an egg that could not hatch (decision 110).
 					addHatchNowPrompt(player, part, egg)
 				end
 			end
@@ -560,7 +560,7 @@ function BayService.new(dependencies: Dependencies): BayService
 			incubator:SetAttribute(BayConfig.INCUBATOR_SLOTS_ATTRIBUTE, data.incubatorSlots)
 			incubator:SetAttribute(BayConfig.INCUBATOR_WAITING_ATTRIBUTE, #data.waiting)
 		end
-		-- Each alien on the shelf opens the bay window with it chosen (decision 106).
+		-- Each alien on the shelf opens the bay window with it chosen (decision 110).
 		for index, alien in data.floor do
 			-- Past the shelf's last niche an alien is only in the window.
 			local cframe = BayModel.shelfCFrame(bay.origin, index)
@@ -746,7 +746,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	-- The owner hatches a ready egg (its prompt): the alien goes where it fits, and the first
-	-- waiting egg takes the slot. With no free place and a full shelf it stays ready (decision 106):
+	-- waiting egg takes the slot. With no free place and a full shelf it stays ready (decision 110):
 	-- the bay is only rebuilt, so an egg made ready by a purchase shows it cannot hatch.
 	function hatchReady(player: Player, uid: number)
 		local alienId: AlienConfig.AlienId?, location: Bay.Location? = nil, nil
