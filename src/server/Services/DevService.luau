@@ -28,6 +28,7 @@
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
 --   game.ServerStorage.DevCommands.SetCoachDone:Invoke(0)
 --   game.ServerStorage.DevCommands.FillShelf:Invoke(24)
+--   game.ServerStorage.DevCommands.BenchFamily:Invoke("slime")
 --   game.ServerStorage.DevCommands.SetJetpack:Invoke(5)
 --   game.ServerStorage.DevCommands.ResetCommunityGift:Invoke()
 
@@ -42,6 +43,7 @@ local ActivityConfig = require(ReplicatedStorage.Shared.Config.ActivityConfig)
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local Bench = require(ReplicatedStorage.Shared.Domain.Bench)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CarryService = require(script.Parent.CarryService)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
@@ -610,6 +612,52 @@ function DevService.new(dependencies: Dependencies): DevService
 			end)
 			dependencies.refresh(player)
 			return `added {added}; the shelf holds {#data.floor}`
+		end,
+		-- The pet bench (decision 082) with every place of the first player's island filled by one
+		-- family's aliens (all its kinds, every tier, every third a meteor): to measure a family's
+		-- models alone, before and after a change (decision 118). Cleared by "/bench clear".
+		BenchFamily = function(family: string): string
+			local player = firstPlayerRoot()
+			if not player or not dependencies.getData(player) then
+				return "no player or profile"
+			end
+			local aliens: { string } = {}
+			local kinds: { string } = {}
+			for kindId, kind in AlienConfig.KINDS do
+				if kind.family == family then
+					table.insert(kinds, kindId)
+				end
+			end
+			table.sort(kinds)
+			if #kinds == 0 then
+				return `no kinds of family {family}`
+			end
+			local index = 0
+			while #aliens < BayConfig.MAX_PODS do
+				local before = #aliens
+				for _, grade in AlienConfig.GRADES do
+					for _, kindId in kinds do
+						local byTier = grade.variants.Normal[kindId]
+						if byTier and #aliens < BayConfig.MAX_PODS then
+							index += 1
+							local variant: AlienConfig.VariantId = if index % 3 == 0 then "Meteor" else "Normal"
+							local tier = AlienConfig.TIER_ORDER[(index - 1) % #AlienConfig.TIER_ORDER + 1]
+							table.insert(aliens, grade.variants[variant][kindId][tier])
+						end
+					end
+				end
+				if #aliens == before then
+					break
+				end
+			end
+			local filled = false
+			dependencies.update(player, function(data)
+				filled = Bench.fill(data, aliens, BayConfig.MAX_PODS)
+			end)
+			dependencies.refresh(player)
+			return if filled
+				then `bench of {#aliens} {family} aliens`
+				else "a bench stands already (/bench clear first)"
 		end,
 		-- The first player's community gift is not taken again, and the check at join and at the end
 		-- of the tutorial is skipped this playtest: the invitation shows even to a member (the
