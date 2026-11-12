@@ -244,6 +244,17 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 			local function full(): boolean
 				return count() >= BayConfig.MAX_PODS
 			end
+			-- What the spots earn (decision 110), or the old hint while nothing earns yet.
+			local income = Vide.source("")
+			local function readIncome()
+				local raw = bay:GetAttribute(BayConfig.INCOME_ATTRIBUTE)
+				income(if type(raw) == "string" then raw else "")
+			end
+			readIncome()
+			local connection = bay:GetAttributeChangedSignal(BayConfig.INCOME_ATTRIBUTE):Connect(readIncome)
+			Vide.cleanup(function()
+				connection:Disconnect()
+			end)
 			return TerminalScreen({
 				adornee = screen,
 				color = BayLooks.PLACES_COLOR,
@@ -252,7 +263,10 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					return Text.get(locale, "terminal.count.title", { count = count(), max = BayConfig.MAX_PODS })
 				end,
 				hint = function()
-					return Text.get(locale, "terminal.places.hint")
+					local earned = income()
+					return if earned ~= ""
+						then Text.get(locale, "terminal.placesIncome.hint", { income = earned })
+						else Text.get(locale, "terminal.places.hint")
 				end,
 				button = if isOwn(bay)
 					then {

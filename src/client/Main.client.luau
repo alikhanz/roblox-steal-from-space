@@ -7,11 +7,14 @@ local AbilityState = require(script.Parent.State.AbilityState)
 local AimController = require(script.Parent.Controllers.AimController)
 local AimMarkController = require(script.Parent.Controllers.AimMarkController)
 local AlarmSoundController = require(script.Parent.Controllers.AlarmSoundController)
+local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienMotionController = require(script.Parent.Controllers.AlienMotionController)
 local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
+local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local BenchController = require(script.Parent.Controllers.BenchController)
+local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CoachState = require(script.Parent.State.CoachState)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
 local CommunityController = require(script.Parent.Controllers.CommunityController)
@@ -115,6 +118,12 @@ Lifecycle.run({
 	AimController.new(),
 	HudController.new({
 		coins = profileState.coins,
+		income = function()
+			return Bay.incomePerSecond(profileState.bay(), function(alienId: string): BigNum.BigNum
+				local alien = AlienConfig.ALIENS[alienId]
+				return if alien then alien.income else BigNum.ZERO
+			end)
+		end,
 		toast = toastState.push,
 		abilities = abilityState,
 		speed = speedState.speed,

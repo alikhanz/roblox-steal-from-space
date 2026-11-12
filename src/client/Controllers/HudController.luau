@@ -88,6 +88,8 @@ end)()
 
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
+	-- What the aliens on spots earn a second (decision 110): a small line under the coins.
+	income: () -> BigNum.BigNum,
 	-- Shows a short message (grabbed, delivered or dropped egg).
 	toast: Toasts.Push,
 	abilities: AbilityState.AbilityState,
@@ -418,7 +420,8 @@ function HudController.new(dependencies: Dependencies): HudController
 						leftPadding(RESOURCE_ICON_ROOM),
 						create("UIListLayout")({
 							FillDirection = Enum.FillDirection.Horizontal,
-							VerticalAlignment = Enum.VerticalAlignment.Center,
+							-- Top: the coins' column is taller by its income line.
+							VerticalAlignment = Enum.VerticalAlignment.Top,
 							Padding = UDim.new(0, RESOURCE_GAP),
 							SortOrder = Enum.SortOrder.LayoutOrder,
 						}),
@@ -432,15 +435,47 @@ function HudController.new(dependencies: Dependencies): HudController
 							widest = WIDEST_NUMBER,
 							layoutOrder = 1,
 						}),
-						ResourcePill({
-							name = "Coins",
-							icon = "Coin",
-							color = Theme.NEON.COINS,
-							value = function()
-								return if loaded() then BigNum.format(dependencies.coins()) else NOT_LOADED
-							end,
-							widest = WIDEST_NUMBER,
-							layoutOrder = 2,
+						-- The coins and, under them, what the aliens on spots bring a second.
+						create("Frame")({
+							Name = "CoinsColumn",
+							LayoutOrder = 2,
+							AutomaticSize = Enum.AutomaticSize.XY,
+							BackgroundTransparency = 1,
+							create("UIListLayout")({
+								FillDirection = Enum.FillDirection.Vertical,
+								HorizontalAlignment = Enum.HorizontalAlignment.Center,
+								SortOrder = Enum.SortOrder.LayoutOrder,
+							}),
+							ResourcePill({
+								name = "Coins",
+								icon = "Coin",
+								color = Theme.NEON.COINS,
+								value = function()
+									return if loaded() then BigNum.format(dependencies.coins()) else NOT_LOADED
+								end,
+								widest = WIDEST_NUMBER,
+								layoutOrder = 1,
+							}),
+							create("TextLabel")({
+								Name = "Income",
+								LayoutOrder = 2,
+								AutomaticSize = Enum.AutomaticSize.XY,
+								BackgroundTransparency = 1,
+								FontFace = Theme.NEON.FONT,
+								TextSize = Theme.NEON.TEXT_SMALL,
+								TextColor3 = Theme.NEON.COINS,
+								Text = function()
+									return Text.get(
+										locale,
+										"coins.income.hint",
+										{ income = BigNum.format(dependencies.income()) }
+									)
+								end,
+								Visible = function()
+									return loaded() and not BigNum.isZero(dependencies.income())
+								end,
+								Layout.textStroke(),
+							}),
 						}),
 						-- How long nobody can rob this player (and they cannot rob anyone): last in
 						-- the row, as it goes away.

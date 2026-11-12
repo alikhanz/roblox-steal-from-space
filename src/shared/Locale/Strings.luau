@@ -1544,6 +1544,15 @@ local Strings = {
 		ru = "Станция",
 		en = "Station",
 	},
+	-- What the aliens on spots earn a second: under the coins in the HUD, on the places' terminal.
+	["coins.income.hint"] = {
+		ru = "+{income}/с",
+		en = "+{income}/s",
+	},
+	["terminal.placesIncome.hint"] = {
+		ru = "Доход: ●{income}/с",
+		en = "Income: ●{income}/s",
+	},
 }
 
 return table.freeze(Strings)
