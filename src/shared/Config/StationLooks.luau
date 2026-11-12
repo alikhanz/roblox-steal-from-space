@@ -91,7 +91,8 @@ return table.freeze({
 	HOME_ISLAND = table.freeze({
 		domeMaterial = Enum.Material.SmoothPlastic,
 		domeTransparency = 0.82,
-		-- The rim grows this much, studs: X is its thickness, Y and Z its diameter.
+		-- The rim grows this much, studs: X is its thickness (downwards only: it is a disc under
+		-- the floor, and its top stays below the floor), Y and Z its diameter.
 		rimGrowth = Vector3.new(4, 6, 6),
 	}),
 

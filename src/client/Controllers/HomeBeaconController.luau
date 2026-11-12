@@ -78,6 +78,7 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 		material: Enum.Material,
 		transparency: number,
 		size: Vector3,
+		cframe: CFrame,
 	}
 	local painted: { [BasePart]: Look } = {}
 	local islandConnections: { RBXScriptConnection } = {}
@@ -93,6 +94,7 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 			part.Material = look.material
 			part.Transparency = look.transparency
 			part.Size = look.size
+			part.CFrame = look.cframe
 		end
 		table.clear(painted)
 	end
@@ -122,10 +124,13 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 				material = child.Material,
 				transparency = child.Transparency,
 				size = child.Size,
+				cframe = child.CFrame,
 			}
 			child.Color = Theme.NEON.HOME
 			if isRim then
+				-- Its top stays where it was, under the floor's edge; it grows down and out.
 				child.Size += looks.rimGrowth
+				child.CFrame -= Vector3.yAxis * looks.rimGrowth.X / 2
 			else
 				child.Material = looks.domeMaterial
 				child.Transparency = looks.domeTransparency
