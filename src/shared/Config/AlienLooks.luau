@@ -98,10 +98,11 @@ local FX = table.freeze({
 	-- How often a layer emits, a share of its old single-grain rate, by its sheet. A sheet carries
 	-- 6 grains a particle. Dust: 1/4, not 1/6: at a sixth it was too thin to see (user,
 	-- 2026-11-10). Stars: at 1/4 that was 1.5 times the stars, all born on the shell outside the
-	-- body (the old ones were partly hidden inside it), far too many (user, 2026-11-12).
+	-- body (the old ones were partly hidden inside it), far too many (user, 2026-11-12). Then both
+	-- a fifth fewer: across a full bay they still piled up ("совсем слегка", user, 2026-11-12).
 	CLUSTER_RATES = table.freeze({
-		dustsheet = 1 / 4,
-		starsheet = 1 / 8,
+		dustsheet = 1 / 5,
+		starsheet = 1 / 10,
 	} :: { [string]: number }),
 	-- The shell the clusters are born on, a share of the pet's box (AlienDress.clusters).
 	CLUSTER_SHELL = 0.95,
