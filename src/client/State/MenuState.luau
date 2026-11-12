@@ -9,15 +9,20 @@ local UserInputService = game:GetService("UserInputService")
 
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
-export type Slot = "Bay" | "Store" | "Quests" | "Index" | "Gift" | "Community"
+export type Slot = "Bay" | "Store" | "Quests" | "Index" | "Controls" | "Gift" | "Community"
+
+-- A slot, its key, and a glyph for a tile drawn with a character instead of an icon.
+export type SlotSpec = { slot: Slot, key: Enum.KeyCode, glyph: string? }
 
 -- Left to right. A tile that can disappear goes last, so the row never has a gap (the gift
 -- waits for the first delivery; the community gift comes after the tutorial and goes for good).
-local SLOTS: { { slot: Slot, key: Enum.KeyCode } } = {
+local SLOTS: { SlotSpec } = {
 	{ slot = "Bay", key = Enum.KeyCode.B },
 	{ slot = "Store", key = Enum.KeyCode.M },
 	{ slot = "Quests", key = Enum.KeyCode.J },
 	{ slot = "Index", key = Enum.KeyCode.N },
+	-- What each button does (docs/design/screens/controls.md); hidden for good by the player.
+	{ slot = "Controls", key = Enum.KeyCode.H, glyph = "?" },
 	{ slot = "Gift", key = Enum.KeyCode.L },
 	{ slot = "Community", key = Enum.KeyCode.K },
 }
@@ -30,6 +35,9 @@ export type Tile = {
 	badge: (() -> number)?,
 	-- Shown unless this says otherwise.
 	visible: (() -> boolean)?,
+	-- Its key works even while the tile is hidden (the controls window, hidden by the player:
+	-- the key is the way back to it, and takes no room on the screen).
+	keyWhenHidden: boolean?,
 }
 
 export type MenuState = {
@@ -37,7 +45,7 @@ export type MenuState = {
 	start: () -> (),
 	add: (tile: Tile) -> (),
 	-- The slots left to right, with their keys.
-	slots: () -> { { slot: Slot, key: Enum.KeyCode } },
+	slots: () -> { SlotSpec },
 	-- The tile a window added to `slot` (reactive), or nil before it is added.
 	tile: (slot: Slot) -> Tile?,
 }
@@ -62,7 +70,7 @@ function MenuState.new(): MenuState
 			end
 			for _, entry in SLOTS do
 				local found = tile(entry.slot)
-				if input.KeyCode == entry.key and found and isShown(found) then
+				if input.KeyCode == entry.key and found and (found.keyWhenHidden or isShown(found)) then
 					found.onPress()
 					return
 				end

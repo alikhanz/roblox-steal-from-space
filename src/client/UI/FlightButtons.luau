@@ -369,4 +369,6 @@ end
 return table.freeze({
 	corner = corner,
 	row = row,
+	-- The key cap on a round button's corner, for anything drawn like a flight button.
+	KeyCap = KeyCap,
 })

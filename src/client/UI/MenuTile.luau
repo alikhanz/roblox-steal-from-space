@@ -16,6 +16,8 @@ local create = Vide.create
 
 local NEON = Theme.NEON
 local ICON_SIZE = 31
+-- A glyph in the icon's place, as big as the icon reads.
+local GLYPH_SIZE = 30
 local BADGE_SIZE = 20
 local KEY_SIZE = 17
 -- How far the badge and the key cap stick out of the tile's corners.
@@ -23,7 +25,9 @@ local CORNER_OUT = 6
 
 export type Props = {
 	name: string,
-	icon: Icons.Name,
+	-- The window's icon, or `glyph`: a character in the icon's place (the "?" of the controls).
+	icon: Icons.Name?,
+	glyph: string?,
 	color: Color3,
 	onPress: () -> (),
 	-- Something waits inside: a count, hidden at 0.
@@ -74,8 +78,21 @@ local function MenuTile(props: Props): ImageButton
 				Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
 				BackgroundTransparency = 1,
-				Image = Icons.ICONS[props.icon],
+				Image = if props.icon then Icons.ICONS[props.icon] else "",
 				ImageColor3 = Layout.iconColor(props.color),
+				Visible = props.icon ~= nil,
+			}),
+			create("TextLabel")({
+				Name = "Glyph",
+				ZIndex = 1,
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				FontFace = NEON.FONT,
+				TextSize = GLYPH_SIZE,
+				TextColor3 = Layout.iconColor(props.color),
+				Text = props.glyph or "",
+				Visible = props.glyph ~= nil,
+				Layout.textStroke(),
 			}),
 		}),
 		create("TextLabel")({

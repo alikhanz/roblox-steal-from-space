@@ -76,6 +76,8 @@ export type Dependencies = {
 	-- The guardian bench or gallery: set it round the player or take it away (Off;
 	-- BenchService.showGuardians).
 	benchGuardians: (player: Player, display: "Off" | "Bench" | "Gallery") -> (),
+	-- "Don't show again" in the controls window (ControlsService.setHidden).
+	setControlsHidden: (player: Player, hidden: boolean) -> (),
 }
 
 export type Notice =
@@ -361,6 +363,10 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.CommunityJoined.SetCallback(guarded(function(player)
 			return community.joined(player)
+		end))
+		Remotes.SetControlsHidden.SetCallback(guarded(function(player, hidden: boolean)
+			dependencies.setControlsHidden(player, hidden)
+			return nil
 		end))
 		Remotes.ClaimIndexAlien.SetCallback(guarded(function(player, alienId: string)
 			return alienIndex.claimAlien(player, alienId)

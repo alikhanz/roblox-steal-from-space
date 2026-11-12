@@ -12,6 +12,8 @@ local TILE: { [string]: Color3 } = {
 	Store = hex("#41C95A"),
 	Quests = hex("#FF9A2E"),
 	Index = hex("#A06BFF"),
+	-- The controls window: the cyan of the up and down buttons it explains.
+	Controls = hex("#8FF4FF"),
 	Gift = hex("#FF5A9E"),
 	Community = hex("#36E0D0"),
 }

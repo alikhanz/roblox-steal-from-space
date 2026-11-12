@@ -568,6 +568,15 @@ event CommunityJoined = {
 	call: SingleSync,
 }
 
+-- "Don't show again" in the controls window was ticked (true) or cleared (false): the server
+-- keeps it in the profile (decision 103). It changes nothing in play.
+event SetControlsHidden = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: boolean,
+}
+
 -- The client asks for its snapshot once its controllers are ready, in case the profile
 -- activated before they were.
 event RequestSnapshot = {

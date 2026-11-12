@@ -853,3 +853,32 @@ describe("PlayerData migration v18 -> v19", function()
 		expectCorrupted(broken, "communityGiftTaken is invalid")
 	end)
 end)
+
+describe("PlayerData migration v19 -> v20", function()
+	it("shows the controls tile to a profile from before", function()
+		local old = savedTemplate()
+		old.schemaVersion = 19
+		old.controlsHidden = nil
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.controlsHidden).toBe(false)
+		end
+	end)
+
+	it("keeps the controls hidden through a save", function()
+		local saved = savedTemplate()
+		saved.controlsHidden = true
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.controlsHidden).toBe(true)
+		end
+	end)
+
+	it("rejects a broken flag", function()
+		local broken = savedTemplate()
+		broken.controlsHidden = "yes"
+		expectCorrupted(broken, "controlsHidden is invalid")
+	end)
+end)

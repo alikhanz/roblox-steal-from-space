@@ -655,6 +655,95 @@ local Strings = {
 		ru = "Пробел",
 		en = "Space",
 	},
+	["key.shift.hint"] = {
+		ru = "Shift",
+		en = "Shift",
+	},
+	["key.move.hint"] = {
+		ru = "WASD",
+		en = "WASD",
+	},
+	-- The controls window (docs/design/screens/controls.md): what each flight button does.
+	["controls.window.title"] = {
+		ru = "Управление",
+		en = "Controls",
+	},
+	["controls.fly.title"] = {
+		ru = "Лететь",
+		en = "Fly",
+	},
+	["controls.flyTouch.hint"] = {
+		ru = "Джойстик: летишь туда, куда смотрит камера",
+		en = "Stick: you fly where the camera looks",
+	},
+	["controls.flyKeys.hint"] = {
+		ru = "Летишь туда, куда смотрит камера",
+		en = "You fly where the camera looks",
+	},
+	["controls.up.title"] = {
+		ru = "Вверх",
+		en = "Up",
+	},
+	["controls.up.hint"] = {
+		ru = "Выше. На станции прыгни дважды — и летишь",
+		en = "Go higher. On the station, double-jump to fly",
+	},
+	["controls.down.title"] = {
+		ru = "Вниз",
+		en = "Down",
+	},
+	["controls.down.hint"] = {
+		ru = "Ниже. Коснулся пола — снова идёшь пешком",
+		en = "Go lower. Touch the floor to walk again",
+	},
+	["controls.slowMode.title"] = {
+		ru = "Медленный режим",
+		en = "Slow mode",
+	},
+	["controls.slowMode.hint"] = {
+		ru = "Летишь тише: так проще подлететь к яйцу",
+		en = "Fly slower to line up with an egg",
+	},
+	["controls.grab.title"] = {
+		ru = "Схватить",
+		en = "Grab",
+	},
+	["controls.grab.hint"] = {
+		ru = "Рядом с яйцом: джетпак сам подлетит и возьмёт его",
+		en = "Near an egg: your jetpack flies in and takes it",
+	},
+	["controls.strike.title"] = {
+		ru = "Удар",
+		en = "Strike",
+	},
+	["controls.strike.hint"] = {
+		ru = "Рывок кулаком вперёд: выбивает яйцо у того, кто рядом",
+		en = "Punch forward to knock the egg out of someone close",
+	},
+	["controls.harpoon.title"] = {
+		ru = "Гарпун",
+		en = "Harpoon",
+	},
+	["controls.harpoon.hint"] = {
+		ru = "Бьёт издалека по прицелу и тянет яйцо к тебе",
+		en = "Hits what you aim at from afar and pulls the egg to you",
+	},
+	["controls.bomb.title"] = {
+		ru = "Гравибомба",
+		en = "Gravity bomb",
+	},
+	["controls.bomb.hint"] = {
+		ru = "Через секунду взрывается и отбрасывает всех рядом",
+		en = "Goes off after a second and throws everyone nearby back",
+	},
+	["controls.hide.hint"] = {
+		ru = "Больше не показывать",
+		en = "Don't show again",
+	},
+	["controls.ok.button"] = {
+		ru = "Понятно",
+		en = "Got it",
+	},
 	["event.meteor.title"] = {
 		ru = "Метеоритный дождь",
 		en = "Meteor shower",

@@ -94,6 +94,8 @@ export type PlayerData = {
 	domeFlightLearned: boolean,
 	-- The gift for joining the game's community is taken (decision 098, Domain/CommunityGift).
 	communityGiftTaken: boolean,
+	-- "Don't show again" in the controls window (decision 103): no "?" tile, no window on joining.
+	controlsHidden: boolean,
 	-- Today's daily quests (Domain/Quests).
 	quests: Quests.State,
 	-- The login gift streak (Domain/LoginGift).
@@ -129,7 +131,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 19
+PlayerData.SCHEMA_VERSION = 20
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -289,6 +291,8 @@ PlayerData.MIGRATIONS = {
 	-- v19 adds the community gift (decision 098): `communityGiftTaken`, false from the template;
 	-- a member from before gets it on their next join.
 	[18] = function(_data: { [string]: any }) end,
+	-- v20 adds the controls window (decision 103): `controlsHidden`, false from the template.
+	[19] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -318,6 +322,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		tutorialStep = Tutorial.NOT_STARTED,
 		domeFlightLearned = false,
 		communityGiftTaken = false,
+		controlsHidden = false,
 		quests = Quests.empty(),
 		loginGift = LoginGift.empty(),
 		index = AlienIndex.empty(),
@@ -594,7 +599,7 @@ local function validate(data: { [string]: any }): string?
 	if not isInteger(data.tutorialStep) or data.tutorialStep < 0 or data.tutorialStep > Tutorial.DONE then
 		return "tutorialStep is invalid"
 	end
-	for _, field in { "domeFlightLearned", "communityGiftTaken" } do
+	for _, field in { "domeFlightLearned", "communityGiftTaken", "controlsHidden" } do
 		if type(data[field]) ~= "boolean" then
 			return `{field} is invalid`
 		end

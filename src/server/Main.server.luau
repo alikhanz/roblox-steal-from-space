@@ -11,6 +11,7 @@ local BayService = require(script.Parent.Services.BayService)
 local BenchService = require(script.Parent.Services.BenchService)
 local CarryService = require(script.Parent.Services.CarryService)
 local CommunityService = require(script.Parent.Services.CommunityService)
+local ControlsService = require(script.Parent.Services.ControlsService)
 local DataService = require(script.Parent.Services.DataService)
 local DevService = require(script.Parent.Services.DevService)
 local DomeFlightService = require(script.Parent.Services.DomeFlightService)
@@ -137,6 +138,12 @@ local tutorialService = TutorialService.new(tutorialDependencies)
 -- tutorial, so it is bound later too.
 local communityDependencies = {} :: CommunityService.Dependencies
 local communityService = CommunityService.new(communityDependencies)
+-- The controls window's "Don't show again" (decision 103).
+local controlsService = ControlsService.new({
+	activated = profile.activated,
+	getData = profile.getData,
+	update = profile.update,
+})
 local netService = NetService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -160,6 +167,7 @@ local netService = NetService.new({
 	markActive = activityService.touch,
 	bench = benchService.run,
 	benchGuardians = benchService.showGuardians,
+	setControlsHidden = controlsService.setHidden,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -438,6 +446,7 @@ Lifecycle.run({
 	tutorialService,
 	communityService,
 	domeFlightService,
+	controlsService,
 	leaderboardService,
 	-- Before the offline settlement and the first activations, so it hears about them.
 	metricsService,

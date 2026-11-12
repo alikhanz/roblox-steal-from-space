@@ -26,6 +26,7 @@ local GrabState = require(script.Parent.Parent.State.GrabState)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Icons = require(script.Parent.Parent.UI.Icons)
+local KeyNames = require(script.Parent.Parent.UI.KeyNames)
 local Layout = require(script.Parent.Parent.UI.Layout)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local MenuTile = require(script.Parent.Parent.UI.MenuTile)
@@ -243,26 +244,10 @@ function HudController.new(dependencies: Dependencies): HudController
 		local playerGui = player:WaitForChild("PlayerGui", PLAYER_GUI_WAIT_TIMEOUT)
 		assert(playerGui, "[HudController] PlayerGui did not appear")
 
-		-- The key bound to an action, worded for the current input (reads the same bindings
-		-- the input uses).
-		local KEY_WORDS: { [string]: Text.Key } = {
-			MouseLeftButton = "key.mouseLeft.hint",
-			LeftShift = "key.shift.hint",
-			Space = "key.space.hint",
-		}
+		-- The key bound to an action, worded for the current input (UI/KeyNames).
 		local function keyOf(actionName: string): () -> string
 			return function()
-				local context = player:FindFirstChild(FlightInputs.CONTEXT_NAME)
-				local key = if context then FlightInputs.boundKey(context, actionName, inputMode()) else nil
-				if not key then
-					return ""
-				end
-				local word = KEY_WORDS[key.Name]
-				if word then
-					return Text.get(locale, word)
-				end
-				-- Gamepad buttons drop their "Button" prefix: ButtonR2 is "R2".
-				return (string.gsub(key.Name, "^Button", ""))
+				return KeyNames.forAction(player, locale, actionName, inputMode())
 			end
 		end
 		local function isSlow(): boolean
@@ -385,7 +370,9 @@ function HudController.new(dependencies: Dependencies): HudController
 					tiles,
 					MenuTile({
 						name = entry.slot,
-						icon = entry.slot,
+						-- A slot with a glyph has no picture; the others' icons share their names.
+						icon = if entry.glyph then nil else entry.slot :: any,
+						glyph = entry.glyph,
 						color = Theme.NEON.TILE[entry.slot],
 						onPress = function()
 							local tile = added()

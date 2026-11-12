@@ -14,5 +14,8 @@ TutorialConfig.TRAINING_TARGET = GuardianConfig.recommendedFor(TutorialConfig.ST
 TutorialConfig.FIRST_EGG_SECONDS = 0
 -- How long the last hint ("you are on your own now") stays before the panel goes away.
 TutorialConfig.DONE_HINT_SECONDS = 8
+-- The controls window (decision 103): the player's "Don't show again", published by the server
+-- on the player for the client (true: no "?" tile, no window on joining; nil: no profile yet).
+TutorialConfig.CONTROLS_HIDDEN_ATTRIBUTE = "ControlsHidden"
 
 return table.freeze(TutorialConfig)
