@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Подписи стражей: сила по твоей ⚡</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+.intro h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+.intro p { margin: 0 0 8px; max-width: 72ch; color: var(--muted-page); font-size: 16px; }
+.intro p b { color: var(--ink); }
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+figcaption { color: var(--muted-page); font-size: 15px; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+.legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 760px) { .legend { grid-template-columns: 1fr 1fr; } }
+.legend div { border: 1px solid var(--rule); border-radius: 12px; padding: 10px 12px; font-size: 14px; color: var(--muted-page); }
+.legend b { display: block; font-size: 16px; }
+
+/* ───────── Phone screen 844 × 390 ───────── */
+.screen {
+  --text: #EAF2FF; --muted: #9DB6D2; --line: rgba(130, 236, 255, .5); --glass: rgba(10, 14, 40, .62);
+  --weak: #9DB6D2; --fair: #43CC5F; --strong: #FF9A2E; --deadly: #FF5A64; --speed: #FFD34A;
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+  background: radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130, 70, 210, .42), transparent 70%),
+    radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40, 130, 230, .34), transparent 70%), #060919;
+}
+.ol { text-shadow: 0 0 .15cqw rgba(0,0,0,.7), 0 .1cqw .1cqw rgba(0,0,0,.7); }
+.ico { width: 1em; height: 1em; flex: none; overflow: visible; vertical-align: -.12em; }
+svg.world { position: absolute; inset: 0; width: 100%; height: 100%; }
+.abs { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: .25em; white-space: nowrap; }
+.hud { position: absolute; left: 2cqw; top: 2cqw; display: flex; gap: 1cqw; }
+.hchip { display: inline-flex; align-items: center; gap: .4cqw; padding: .5cqw 1.2cqw; border-radius: 99px; background: var(--glass); border: .12cqw solid var(--line); font-size: 1.8cqw; }
+
+/* the label's size: --s is its scale at that distance (near 1.0, far 0.55, floor) */
+.lbl { font-size: calc(var(--s) * 1.9cqw); }
+.name { color: var(--text); }
+/* A: icon + word in a glass pill under the name */
+.pill { display: inline-flex; align-items: center; gap: .3em; padding: .12em .6em .14em; border-radius: 99px; background: var(--glass);
+  border: .1em solid currentColor; font-size: .78em; }
+/* B: round badge before the name, the name in the tier's colour */
+.rowb { display: inline-flex; align-items: center; gap: .3em; }
+.badge { width: 1.35em; height: 1.35em; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--glass); border: .1em solid currentColor; font-size: .9em; }
+.badge .ico { font-size: .8em; }
+/* C: four pips under the name, filled up to the tier */
+.pips { display: inline-flex; gap: .18em; }
+.pips i { width: .9em; height: .36em; border-radius: .2em; background: rgba(157, 182, 210, .25); }
+.pips i.on { background: currentColor; box-shadow: 0 0 .3em currentColor; }
+.who { position: absolute; transform: translate(-50%, -50%); border-radius: 40%; opacity: .85; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="bolt" viewBox="-2 -2 28 28"><path d="M15 1.4 3.8 13.8h7l-1.8 8.8L20.4 9.4h-7z" fill="currentColor" fill-opacity=".5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+    <symbol id="check" viewBox="-2 -2 28 28"><path d="m5 12.5 4.6 4.6L19.5 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="down" viewBox="-2 -2 28 28"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="bang" viewBox="-2 -2 28 28"><path d="M12 4v10" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><circle cx="12" cy="19.5" r="2" fill="currentColor"/></symbol>
+    <symbol id="skull" viewBox="-2 -2 28 28"><path d="M12 2.6c-5 0-8.6 3.5-8.6 8.2 0 2.7 1.3 4.6 3.2 5.8v3.2c0 .8.6 1.4 1.4 1.4h8c.8 0 1.4-.6 1.4-1.4v-3.2c1.9-1.2 3.2-3.1 3.2-5.8 0-4.7-3.6-8.2-8.6-8.2z" fill="currentColor" fill-opacity=".42" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="8.6" cy="11.4" r="2" fill="currentColor"/><circle cx="15.4" cy="11.4" r="2" fill="currentColor"/><path d="M10 18v2.4M14 18v2.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <div class="intro">
+    <h1>Подписи стражей: по силам ли он тебе</h1>
+    <p>Сейчас силу стража показывает только цвет имени (красный → белый → зелёный), и каждый понимает его по-своему. Предлагаю <b>четыре явные ступени</b> от твоей ⚡, а не от плавного цвета, и <b>размер подписи от расстояния</b>: ближний страж подписан крупно, дальний — мельче (но не меньше читаемого на телефоне).</p>
+    <p>Ступени одинаковы во всех вариантах, отличается только вид. Слова — черновик, окончательные пройдут через <b>game-copy</b>.</p>
+  </div>
+
+  <div class="legend">
+    <div><b style="color:#9DB6D2">Слабый</b>Ты на 10× и больше сильнее: уйдёшь, но яйцо бедное (≈ 2 стража назад).</div>
+    <div><b style="color:#43CC5F">По силам</b>Твоя ⚡ не меньше его рекомендуемой: со средним яйцом уходишь. Лучшая добыча сейчас.</div>
+    <div><b style="color:#FF9A2E">Сильный</b>Он чуть быстрее тебя: уйти можно только с форой или лёгким яйцом.</div>
+    <div><b style="color:#FF5A64">Не уйти</b>Он летит в полную силу против тебя: догонит почти наверняка.</div>
+  </div>
+
+  <!-- A -->
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="hud"><span class="hchip ol" style="color:var(--speed)"><svg class="ico"><use href="#bolt"/></svg>27.6K</span></div>
+      <div class="who" style="left:30%; top:66%; width:15cqw; height:9cqw; background:#465a96"></div>
+      <div class="who" style="left:63%; top:47%; width:6cqw; height:4cqw; background:#3c9be0"></div>
+      <div class="who" style="left:80%; top:30%; width:3cqw; height:2cqw; background:#aa1e28"></div>
+      <div class="who" style="left:13%; top:32%; width:2.6cqw; height:2.2cqw; background:#78dc5a"></div>
+      <div class="abs lbl ol" style="--s:1; left:30%; top:53%"><span class="name">Ледяной червь</span><span class="pill" style="color:var(--fair)"><svg class="ico"><use href="#check"/></svg>По силам</span></div>
+      <div class="abs lbl ol" style="--s:.75; left:63%; top:40%"><span class="name">Ледяной скат</span><span class="pill" style="color:var(--strong)"><svg class="ico"><use href="#bang"/></svg>Сильный</span></div>
+      <div class="abs lbl ol" style="--s:.58; left:80%; top:26%"><span class="name">Рой пожирателей</span><span class="pill" style="color:var(--deadly)"><svg class="ico"><use href="#skull"/></svg>Не уйти</span></div>
+      <div class="abs lbl ol" style="--s:.55; left:13%; top:28%"><span class="name">Слизень-сторож</span><span class="pill" style="color:var(--weak)"><svg class="ico"><use href="#down"/></svg>Слабый</span></div>
+    </div></div>
+    <figcaption><b>А. Имя + плашка со значком и словом (советую).</b> Самое явное: ребёнок, который не читает, видит череп или галочку; кто читает — слово. Имя белое, цвет только у плашки. Минус — две строки над каждым стражем.</figcaption>
+  </figure>
+
+  <!-- B -->
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="hud"><span class="hchip ol" style="color:var(--speed)"><svg class="ico"><use href="#bolt"/></svg>27.6K</span></div>
+      <div class="who" style="left:30%; top:66%; width:15cqw; height:9cqw; background:#465a96"></div>
+      <div class="who" style="left:63%; top:47%; width:6cqw; height:4cqw; background:#3c9be0"></div>
+      <div class="who" style="left:80%; top:30%; width:3cqw; height:2cqw; background:#aa1e28"></div>
+      <div class="who" style="left:13%; top:32%; width:2.6cqw; height:2.2cqw; background:#78dc5a"></div>
+      <div class="abs lbl ol" style="--s:1; left:30%; top:56%"><span class="rowb" style="color:var(--fair)"><span class="badge"><svg class="ico"><use href="#check"/></svg></span>Ледяной червь</span></div>
+      <div class="abs lbl ol" style="--s:.75; left:63%; top:42%"><span class="rowb" style="color:var(--strong)"><span class="badge"><svg class="ico"><use href="#bang"/></svg></span>Ледяной скат</span></div>
+      <div class="abs lbl ol" style="--s:.58; left:80%; top:27%"><span class="rowb" style="color:var(--deadly)"><span class="badge"><svg class="ico"><use href="#skull"/></svg></span>Рой пожирателей</span></div>
+      <div class="abs lbl ol" style="--s:.55; left:13%; top:29%"><span class="rowb" style="color:var(--weak)"><span class="badge"><svg class="ico"><use href="#down"/></svg></span>Слизень-сторож</span></div>
+    </div></div>
+    <figcaption><b>Б. Значок перед именем, имя в цвете ступени.</b> Одна строка — меньше всего загромождает космос. Но смысл значка надо выучить (подсказка в туториале), а цветов теперь четыре фиксированных вместо плавного перехода.</figcaption>
+  </figure>
+
+  <!-- C -->
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="hud"><span class="hchip ol" style="color:var(--speed)"><svg class="ico"><use href="#bolt"/></svg>27.6K</span></div>
+      <div class="who" style="left:30%; top:66%; width:15cqw; height:9cqw; background:#465a96"></div>
+      <div class="who" style="left:63%; top:47%; width:6cqw; height:4cqw; background:#3c9be0"></div>
+      <div class="who" style="left:80%; top:30%; width:3cqw; height:2cqw; background:#aa1e28"></div>
+      <div class="who" style="left:13%; top:32%; width:2.6cqw; height:2.2cqw; background:#78dc5a"></div>
+      <div class="abs lbl ol" style="--s:1; left:30%; top:54%"><span class="name">Ледяной червь</span><span class="pips" style="color:var(--fair)"><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      <div class="abs lbl ol" style="--s:.75; left:63%; top:41%"><span class="name">Ледяной скат</span><span class="pips" style="color:var(--strong)"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      <div class="abs lbl ol" style="--s:.58; left:80%; top:26%"><span class="name">Рой пожирателей</span><span class="pips" style="color:var(--deadly)"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      <div class="abs lbl ol" style="--s:.55; left:13%; top:28%"><span class="name">Слизень-сторож</span><span class="pips" style="color:var(--weak)"><i class="on"></i><i></i><i></i><i></i></span></div>
+    </div></div>
+    <figcaption><b>В. Шкала опасности: 1–4 деления под именем.</b> Понятно как «уровень сложности», без слов и без перевода. Но «по силам» (лучшая добыча) не выделяется — это просто два деления из четырёх.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="device"><div class="screen">
+      <div class="hud"><span class="hchip ol" style="color:var(--speed)"><svg class="ico"><use href="#bolt"/></svg>27.6K</span></div>
+      <div class="who" style="left:52%; top:60%; width:22cqw; height:5cqw; background:linear-gradient(90deg,#f0d060,#8040c0); border-radius:3cqw"></div>
+      <div class="abs lbl ol" style="--s:.9; left:46%; top:52%"><span class="name">Звёздный змей</span><span class="pill" style="color:var(--strong)"><svg class="ico"><use href="#bang"/></svg>Сильный</span></div>
+    </div></div>
+    <figcaption><b>Звёздный змей</b> — та же подпись над головой (в выбранном варианте), ступень считается от силы змея в его зоне. Строка ивента «Звёздный змей 2/3» сверху не меняется.</figcaption>
+  </figure>
+</div>
+</body>
+</html>
