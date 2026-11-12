@@ -27,7 +27,13 @@ local function closest(
 	targetVelocityAt: (number) -> Vector3
 ): number
 	local position = aim * PvpConfig.BOMB_START_STUDS
-	local velocity = Homing.launchVelocity(throwerVelocity, aim, BOMB.throwSpeed)
+	-- As PvpService throws it.
+	local velocity = Homing.ensureClosing(
+		Homing.launchVelocity(throwerVelocity, aim, BOMB.throwSpeed),
+		(targetStart - position).Unit,
+		targetVelocityAt(0),
+		BOMB.throwSpeed
+	)
 	local target = targetStart
 	local nearest = math.huge
 	local elapsed = 0
@@ -61,6 +67,23 @@ describe("Homing.launchVelocity", function()
 		local thrower = Vector3.new(250, 0, 0)
 		local velocity = Homing.launchVelocity(thrower, aim, BOMB.throwSpeed)
 		expect(velocity:Dot(aim) > thrower:Dot(aim)).toBe(true)
+	end)
+end)
+
+describe("Homing.ensureClosing", function()
+	local toward = Vector3.new(0, 0, -1)
+
+	it("leaves a throw that already closes fast enough as it is", function()
+		local velocity = Vector3.new(0, 0, -300)
+		expectVector(Homing.ensureClosing(velocity, toward, Vector3.new(0, 0, -200), 80), velocity)
+	end)
+
+	it("speeds a throw up along the line to a faster target", function()
+		-- The thrower flies at 150, the target flees at 250: the throw alone would fall behind.
+		local velocity = Homing.launchVelocity(Vector3.new(0, 0, -150), toward, 80)
+		local target = Vector3.new(0, 0, -250)
+		local closing = (Homing.ensureClosing(velocity, toward, target, 80) - target):Dot(toward)
+		expect(closing).toBeCloseTo(80, 1e-4)
 	end)
 end)
 
@@ -102,6 +125,26 @@ describe("the bomb in flight", function()
 	it("catches a carrier fleeing in a straight line from a chaser at full speed", function()
 		local flight = Vector3.new(0, 0, -250)
 		local distance = closest(flight, Vector3.new(0, 0, -1), Vector3.new(0, 0, -60), constant(flight))
+		expect(distance <= BOMB.contactStuds).toBe(true)
+	end)
+
+	it("catches a carrier faster than the chaser", function()
+		local distance = closest(
+			Vector3.new(0, 0, -150),
+			Vector3.new(0, 0, -1),
+			Vector3.new(0, 0, -60),
+			constant(Vector3.new(0, 0, -250))
+		)
+		expect(distance <= BOMB.contactStuds).toBe(true)
+	end)
+
+	it("catches a faster carrier at the edge of the homing range", function()
+		local distance = closest(
+			Vector3.new(0, 0, -150),
+			Vector3.new(0, 0, -1),
+			Vector3.new(0, 0, -(BOMB.homingRangeStuds - 5)),
+			constant(Vector3.new(0, 0, -250))
+		)
 		expect(distance <= BOMB.contactStuds).toBe(true)
 	end)
 

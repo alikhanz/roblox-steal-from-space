@@ -518,6 +518,17 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			explode(player, character, center)
 		end
 		local velocity = Homing.launchVelocity(root.AssemblyLinearVelocity, direction, PvpConfig.BOMB.throwSpeed)
+		-- At a target faster than the thrower it leaves closing on them at the throw speed all the
+		-- same, so a fleeing carrier can be caught by a slower chaser.
+		local toTarget = if homing then homing.root.Position - start else nil
+		if homing and toTarget and toTarget.Magnitude > 1e-3 then
+			velocity = Homing.ensureClosing(
+				velocity,
+				toTarget.Unit,
+				homing.root.AssemblyLinearVelocity,
+				PvpConfig.BOMB.throwSpeed
+			)
+		end
 		local fuse = PvpConfig.BOMB.fuseSeconds
 		bombThrown.fire({
 			id = id,

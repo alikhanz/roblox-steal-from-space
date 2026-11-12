@@ -11,6 +11,22 @@ function Homing.launchVelocity(throwerVelocity: Vector3, aim: Vector3, speed: nu
 	return throwerVelocity + aim * speed
 end
 
+-- `velocity` sped up along `toward` (a unit vector at the target) just enough to close on a
+-- target moving at `targetVelocity` at `closingSpeed` at least. Thrown at someone faster than the
+-- thrower, a projectile with the thrower's velocity alone would never reach them.
+function Homing.ensureClosing(
+	velocity: Vector3,
+	toward: Vector3,
+	targetVelocity: Vector3,
+	closingSpeed: number
+): Vector3
+	local closing = (velocity - targetVelocity):Dot(toward)
+	if closing >= closingSpeed then
+		return velocity
+	end
+	return velocity + toward * (closingSpeed - closing)
+end
+
 -- The projectile's velocity after `deltaTime` of steering for a target at `targetPosition`
 -- moving at `targetVelocity`. Seen from the target, it wants to come straight at it, at least
 -- at `closingSpeed` (never slower than it already closes), so it sheds the drift that would

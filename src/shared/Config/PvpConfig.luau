@@ -37,11 +37,14 @@ local HARPOON: Abilities.Harpoon = {
 }
 
 -- The bomb leaves with the thrower's velocity plus `throwSpeed` along the aim, so it flies ahead
--- at any flight speed, and homes on the target nearest the crosshair (decision 103). It steers
+-- at any flight speed, sped up if need be to close on a faster target at `throwSpeed`, and homes
+-- on the target nearest the crosshair (decision 103). It steers
 -- far more weakly than a player turns (FlightConfig.TUNING.response): whoever flies straight is
 -- caught, a sharp turn dodges it.
 local BOMB: Abilities.Bomb = {
-	throwSpeed = 60,
+	-- Also the least speed it closes on its homing target at, however fast that flees: over the
+	-- fuse it reaches the whole homing range.
+	throwSpeed = 80,
 	fuseSeconds = 1.5,
 	contactStuds = 8,
 	radiusStuds = 25,
