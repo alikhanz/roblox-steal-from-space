@@ -55,8 +55,9 @@ export type Bomb = {
 local HARPOON: Harpoon = {
 	color = Color3.fromRGB(63, 217, 255),
 	coreColor = Color3.fromRGB(225, 250, 255),
-	hookSpeed = 220,
-	retractSpeed = 170,
+	-- The hit is the server's at the press; the hook should get there about as fast (decision 117).
+	hookSpeed = 450,
+	retractSpeed = 300,
 	grabSeconds = 0.1,
 	rideSeconds = 0.8,
 	rideRestSpeed = 4,
