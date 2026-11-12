@@ -319,6 +319,11 @@ local Strings = {
 		en = "Hatch",
 	},
 	-- On a warming egg: hatch this one now for Robux. {price}: "6 R$".
+	-- One tier's chance in the incubator's odds row under an egg's prompt (decision 113).
+	["egg.oddsChance.hint"] = {
+		ru = "{chance} %",
+		en = "{chance}%",
+	},
 	["egg.hatchNow.button"] = {
 		ru = "Вылупить за {price}",
 		en = "Hatch for {price}",

@@ -4,7 +4,9 @@
 -- action button, a round badge on its left (the key to press, or a hand on a touch screen) and the
 -- action's word on its right ("Hatch", "Take"). The whole pill is the button, with room to spare
 -- round it, so a finger cannot miss; it presses and clicks like every button (UI/Press). A prompt
--- that is held draws a ring of progress round its badge as the hold goes on (an egg's grab).
+-- that is held draws a ring of progress round its badge as the hold goes on (an egg's grab). An egg
+-- in the incubator shows its hatch odds under the pill (docs/design/screens/egg-odds.md): a dot in
+-- each tier's colour with its chance.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -35,6 +37,16 @@ local RING_LIGHTEN = 0.35
 local STUDS_ABOVE = 2.4
 -- The billboard's room: the widest pill there may be (a price in the word), points.
 local BILLBOARD_WIDTH = 300
+-- The odds row under the pill: its height, a dot's size and the room between chances, points.
+local ODDS_HEIGHT = 22
+local ODDS_DOT = 10
+local ODDS_GAP = 10
+
+-- One tier's chance in the odds row.
+export type Chance = {
+	color: Color3,
+	text: string,
+}
 
 export type Props = {
 	-- The thing to hover over (a part, or a point on one); nil hides the prompt.
@@ -55,7 +67,71 @@ export type Props = {
 	maxDistance: number?,
 	-- Height above the target's center, studs; default: over an egg.
 	studsAbove: number?,
+	-- The hatch odds under the pill, lowest tier first; absent: no row.
+	odds: { Chance }?,
 }
+
+-- The odds row: a glass strip of dots in the tiers' colours, each with its chance.
+local function OddsRow(odds: { Chance }): Frame
+	local children: { any } = {
+		create("UIListLayout")({
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			Padding = UDim.new(0, ODDS_GAP),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
+		Layout.padding(0, ODDS_GAP),
+	}
+	for index, chance in odds do
+		table.insert(
+			children,
+			create("Frame")({
+				Name = `Chance{index}`,
+				LayoutOrder = index,
+				AutomaticSize = Enum.AutomaticSize.X,
+				Size = UDim2.fromOffset(0, ODDS_HEIGHT),
+				BackgroundTransparency = 1,
+				create("UIListLayout")({
+					FillDirection = Enum.FillDirection.Horizontal,
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					Padding = UDim.new(0, 4),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+				create("Frame")({
+					Name = "Dot",
+					LayoutOrder = 1,
+					Size = UDim2.fromOffset(ODDS_DOT, ODDS_DOT),
+					BackgroundColor3 = chance.color,
+					create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
+				}),
+				create("TextLabel")({
+					Name = "Chance",
+					LayoutOrder = 2,
+					AutomaticSize = Enum.AutomaticSize.X,
+					Size = UDim2.fromScale(0, 1),
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_SMALL,
+					TextColor3 = NEON.TEXT,
+					Text = chance.text,
+					Layout.textStroke(),
+				}),
+			})
+		)
+	end
+	return create("Frame")({
+		Name = "Odds",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 1),
+		AutomaticSize = Enum.AutomaticSize.X,
+		Size = UDim2.fromOffset(0, ODDS_HEIGHT),
+		BackgroundColor3 = NEON.GLASS,
+		BackgroundTransparency = 0.25,
+		children,
+	}) :: Frame
+end
 
 local function GrabPrompt(props: Props): BillboardGui
 	local function color(): Color3
@@ -88,6 +164,7 @@ local function GrabPrompt(props: Props): BillboardGui
 		scale.Scale = press.scale()
 	end)
 
+	local oddsHeight = if props.odds then ODDS_HEIGHT else 0
 	return create("BillboardGui")({
 		Name = "GrabPrompt",
 		-- Vide's types expect a source of a non-optional Instance; a nil Adornee is valid here.
@@ -98,16 +175,20 @@ local function GrabPrompt(props: Props): BillboardGui
 		AlwaysOnTop = true,
 		-- Needed for the pill to receive touches on phones.
 		Active = true,
-		Size = UDim2.fromOffset(BILLBOARD_WIDTH, HEIGHT + SLACK * 2),
+		Size = UDim2.fromOffset(BILLBOARD_WIDTH, HEIGHT + SLACK * 2 + oddsHeight),
+		-- The pill stays where it was: the odds row hangs below it, not round it.
+		SizeOffset = Vector2.new(0, -oddsHeight / 2 / (HEIGHT + SLACK * 2 + oddsHeight)),
 		StudsOffset = Vector3.new(0, props.studsAbove or STUDS_ABOVE, 0),
 		MaxDistance = props.maxDistance or math.huge,
 		LightInfluence = 0,
 
-		-- The button: the pill and the slack round it.
+		if props.odds then OddsRow(props.odds) else nil,
+
+		-- The button: the pill and the slack round it, over the odds row when there is one.
 		create("TextButton")({
 			Name = "Press",
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.fromScale(0.5, 0),
 			AutomaticSize = Enum.AutomaticSize.X,
 			Size = UDim2.fromOffset(0, HEIGHT + SLACK * 2),
 			BackgroundTransparency = 1,

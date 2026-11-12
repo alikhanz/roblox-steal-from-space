@@ -54,4 +54,26 @@ function Hatch.ladder<T>(order: { T }, position: number, step: Step): { Loot.Ent
 	return table.freeze(entries)
 end
 
+-- The chance of each entry in percent, rounded to a tenth, in the entries' order (lowest tier
+-- first): what the incubator shows on an egg (docs/design/screens/egg-odds.md).
+function Hatch.percents<T>(entries: { Loot.Entry<T> }): { { id: T, percent: number } }
+	local total = 0
+	for _, entry in entries do
+		total += entry.weight
+	end
+	assert(total > 0, "odds need a positive total weight")
+	local result = {}
+	for _, entry in entries do
+		if entry.weight > 0 then
+			table.insert(result, { id = entry.id, percent = math.round(entry.weight / total * 1000) / 10 })
+		end
+	end
+	return result
+end
+
+-- A percent as the odds show it: whole numbers bare ("75"), others with one decimal ("87.5").
+function Hatch.percentText(percent: number): string
+	return if percent % 1 == 0 then string.format("%d", percent) else string.format("%.1f", percent)
+end
+
 return table.freeze(Hatch)

@@ -194,6 +194,9 @@ return table.freeze({
 	LOOSE_EGG_DROPPED_AT_ATTRIBUTE = "DroppedAt",
 	-- On every egg part: the alien variant it hatches into (AlienConfig.VariantId).
 	EGG_VARIANT_ATTRIBUTE = "Variant",
+	-- On a lucky egg's part (the star egg's): true. It hatches as a large one (oddsSize), and the
+	-- incubator's odds (docs/design/screens/egg-odds.md) say so.
+	EGG_LUCKY_ATTRIBUTE = "Lucky",
 
 	-- Character attributes.
 	GRAB_PROGRESS_ATTRIBUTE = "GrabProgress",

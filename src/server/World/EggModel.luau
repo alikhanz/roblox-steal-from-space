@@ -132,6 +132,7 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, opti
 		local sparkles = Instance.new("Sparkles")
 		sparkles.SparkleColor = EggLooks.LUCKY_SPARKLE_COLOR
 		sparkles.Parent = egg
+		egg:SetAttribute(EggConfig.EGG_LUCKY_ATTRIBUTE, true)
 	end
 
 	egg:SetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE, rarity)

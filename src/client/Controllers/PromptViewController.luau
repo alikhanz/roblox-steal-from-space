@@ -6,14 +6,18 @@
 -- once, and lifting the finger anywhere ends a hold (a finger slid off the pill used to leave the
 -- prompt held).
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local GrabPrompt = require(script.Parent.Parent.UI.GrabPrompt)
+local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -71,6 +75,29 @@ local function colorOf(prompt: ProximityPrompt): Color3
 		return ACTION.Sell
 	end
 	return ACTION.Main
+end
+
+-- The hatch odds of the egg a prompt hangs on, when it is an egg in the player's incubator, where
+-- "Hatch for R$" is sold (docs/design/screens/egg-odds.md); nil for any other prompt.
+local function oddsOf(prompt: ProximityPrompt, locale: Text.Locale): { GrabPrompt.Chance }?
+	local part = prompt.Parent
+	if not part or not CollectionService:HasTag(part, BayConfig.INCUBATOR_EGG_TAG) then
+		return nil
+	end
+	local rarity = part:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
+	local size = part:GetAttribute(EggConfig.LOOSE_EGG_SIZE_ATTRIBUTE)
+	if not EggConfig.RARITIES[rarity :: any] or not EggConfig.SIZES[size :: any] then
+		return nil
+	end
+	local luck = if part:GetAttribute(EggConfig.EGG_LUCKY_ATTRIBUTE) == true then 1 else nil
+	local chances: { GrabPrompt.Chance } = {}
+	for _, entry in Hatch.percents(EggConfig.hatchEntries(rarity :: any, size :: any, luck)) do
+		table.insert(chances, {
+			color = AlienLooks.TIERS[entry.id].color,
+			text = Text.get(locale, "egg.oddsChance.hint", { chance = Hatch.percentText(entry.percent) }),
+		})
+	end
+	return chances
 end
 
 -- A press on the pill: the prompt goes at once; a hold ends when that finger (or button) lifts,
@@ -174,6 +201,7 @@ function PromptViewController.new(): PromptViewController
 				onBadge = function(button)
 					bindPress(prompt, button)
 				end,
+				odds = oddsOf(prompt, locale),
 			})
 			-- Under PlayerGui, not the adornee: a BillboardGui in the world draws, but only one
 			-- under PlayerGui receives taps, so on a phone the badge could not be pressed.
