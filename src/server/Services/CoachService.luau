@@ -135,7 +135,8 @@ function CoachService.new(dependencies: Dependencies): CoachService
 				end
 			end
 		end
-		local candidate = Coach.candidate(after, facts)
+		-- The tip on screen (or the one an egg carried home hid) keeps its place.
+		local candidate = Coach.candidate(after, facts, pace.shown or pace.last)
 		local next = Coach.pace(pace, candidate, os.clock(), PAUSE_SECONDS)
 		paces[player] = next
 		if next.shown ~= pace.shown then

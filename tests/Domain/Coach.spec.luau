@@ -60,6 +60,17 @@ describe("Coach.candidate", function()
 		end
 		expect(Coach.candidate(mask, all)).toBeNil()
 	end)
+
+	it("keeps the tip on screen while it makes sense, over a higher one", function()
+		local trio = facts({ hasTrio = true, canAffordJetpack = true })
+		expect(Coach.candidate(0, trio)).toBe("Jetpack")
+		expect(Coach.candidate(0, trio, "Crossbreed")).toBe("Crossbreed")
+		-- Done, or no longer wanted: the next one by priority.
+		expect(Coach.candidate(Coach.mark(0, "Crossbreed"), trio, "Crossbreed")).toBe("Jetpack")
+		expect(Coach.candidate(0, facts({ canAffordJetpack = true }), "Crossbreed")).toBe("Jetpack")
+		-- Not while carrying an egg.
+		expect(Coach.candidate(0, facts({ hasTrio = true, carrying = true }), "Crossbreed")).toBeNil()
+	end)
 end)
 
 describe("Coach.mark and Coach.doneByState", function()

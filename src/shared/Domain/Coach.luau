@@ -77,9 +77,14 @@ end
 
 -- The tip that should show now, ignoring the pace: the first one not done that makes sense; nil
 -- before the end of the tutorial and while carrying an egg.
-function Coach.candidate(mask: number, facts: Facts): Tip?
+-- A tip on screen (`shown`) stays while it still makes sense, even when one of a higher priority
+-- comes up: a hint does not vanish under the player's eyes.
+function Coach.candidate(mask: number, facts: Facts, shown: Tip?): Tip?
 	if not facts.tutorialDone or facts.carrying then
 		return nil
+	end
+	if shown and not Coach.isDone(mask, shown) and Coach.wanted(shown, facts) then
+		return shown
 	end
 	for _, tip in Coach.TIPS do
 		if not Coach.isDone(mask, tip) and Coach.wanted(tip, facts) then
