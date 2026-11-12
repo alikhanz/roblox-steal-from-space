@@ -119,6 +119,9 @@ return table.freeze({
 	-- On the bay model: the owner's trainer level and pod count, for the terminals.
 	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
 	POD_COUNT_ATTRIBUTE = "PodCount",
+	-- On the bay model: how many of its places have an alien (the places' terminal counts these
+	-- of the bought ones, as every bay counter: taken of bought).
+	TAKEN_POD_COUNT_ATTRIBUTE = "TakenPodCount",
 	-- On the bay model: what its spots earn a second, formatted (BigNum.format; the places'
 	-- terminal shows it to everyone, decision 110).
 	INCOME_ATTRIBUTE = "Income",

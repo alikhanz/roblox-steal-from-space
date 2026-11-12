@@ -441,6 +441,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		-- changed is built anew or taken away.
 		local kept: { [number]: boolean } = {}
 		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
+		bay.model:SetAttribute(BayConfig.TAKEN_POD_COUNT_ATTRIBUTE, #data.pods - Bay.freePods(data))
 		bay.model:SetAttribute(BayConfig.SHELF_COUNT_ATTRIBUTE, #data.floor)
 		local income = Bay.incomePerSecond(data, incomeOf)
 		bay.model:SetAttribute(BayConfig.INCOME_ATTRIBUTE, if BigNum.isZero(income) then "" else BigNum.format(income))

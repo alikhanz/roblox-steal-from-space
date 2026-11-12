@@ -230,10 +230,12 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		end)
 	end
 
-	-- The places' terminal: how many of the most there can be, and for the owner one more.
+	-- The places' terminal: how many of the bought places have an alien (as every bay counter:
+	-- taken of bought, no maximum), and for the owner one more place.
 	local function watchPlacesTerminal(bay: Instance)
 		terminal(bay, BayConfig.PLACES_TERMINAL_NAME, function(screen)
 			local count = attributeSource(bay, BayConfig.POD_COUNT_ATTRIBUTE)
+			local taken = attributeSource(bay, BayConfig.TAKEN_POD_COUNT_ATTRIBUTE)
 			local function price(): BigNum.BigNum
 				return Bay.podPrice(
 					count(),
@@ -261,7 +263,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				color = BayLooks.PLACES_COLOR,
 				title = Text.get(locale, "terminal.places.title"),
 				value = function()
-					return Text.get(locale, "terminal.count.title", { count = count(), max = BayConfig.MAX_PODS })
+					return Text.get(locale, "terminal.count.title", { count = taken(), max = count() })
 				end,
 				hint = function()
 					local earned = income()
