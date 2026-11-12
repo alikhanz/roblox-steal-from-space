@@ -26,6 +26,7 @@ local EggPurchaseController = require(script.Parent.Controllers.EggPurchaseContr
 local EggSoundController = require(script.Parent.Controllers.EggSoundController)
 local EventController = require(script.Parent.Controllers.EventController)
 local FeedbackController = require(script.Parent.Controllers.FeedbackController)
+local FirstPersonMouseController = require(script.Parent.Controllers.FirstPersonMouseController)
 local FlightSoundController = require(script.Parent.Controllers.FlightSoundController)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GrabState = require(script.Parent.State.GrabState)
@@ -116,6 +117,10 @@ Lifecycle.run({
 	grabState,
 	menuState,
 	AimController.new(),
+	FirstPersonMouseController.new({
+		window = windowState.current,
+		welcomeOpen = bayWindowController.welcomeOpen,
+	}),
 	HudController.new({
 		coins = profileState.coins,
 		income = function()
