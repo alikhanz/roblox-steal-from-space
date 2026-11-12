@@ -20,6 +20,7 @@ local RigPose = require(script.Parent.Parent.Character.RigPose)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
+local Vitals = require(ReplicatedStorage.Shared.Character.Vitals)
 
 local PART_WAIT_TIMEOUT = 10
 -- Parts the jetpack attaches to; the character is only equipped once all of them exist.
@@ -110,10 +111,11 @@ local function floatWhenDead(character: Model)
 end
 
 -- Every death ends in a respawn. Roblox respawns a dead character by itself after
--- Players.RespawnTime, but not always: a player who ran out of oxygen as they flew onto their
--- island lay dead until they rejoined (friends' playtest, 2026-11-12). So once the character's
--- health is gone (whether or not Humanoid.Died fires), the server checks a little after that
--- time and respawns the player itself if the dead character is still theirs.
+-- Players.RespawnTime, unless something takes its humanoid out of the Dead state first (the
+-- flight simulation did, Character/Vitals): then the player lay dead until they rejoined. As a
+-- backstop, once the character's health is gone (whether or not Humanoid.Died fires), the server
+-- checks a little after that time and respawns the player itself if the dead character is still
+-- theirs.
 local function respawnWhenDead(player: Player, character: Model, humanoid: Humanoid)
 	local scheduled = false
 	local function schedule()
@@ -143,7 +145,7 @@ local function suffocateEmptyTanks(suffocated: Signal.Signal<Player, Vector3>)
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local oxygen = character and character:GetAttribute(OxygenConfig.ATTRIBUTE)
-		if humanoid and humanoid.Health > 0 and type(oxygen) == "number" and Oxygen.isEmpty(oxygen) then
+		if humanoid and Vitals.isAlive(humanoid) and type(oxygen) == "number" and Oxygen.isEmpty(oxygen) then
 			humanoid.Health = 0
 			suffocated.fire(player, (character :: Model):GetPivot().Position)
 		end

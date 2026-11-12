@@ -10,6 +10,7 @@ local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local Speed = require(ReplicatedStorage.Shared.Domain.Speed)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local TopSpeed = require(ReplicatedStorage.Shared.Simulation.TopSpeed)
+local Vitals = require(ReplicatedStorage.Shared.Character.Vitals)
 
 -- The egg a prey carries, as far as its weight goes.
 export type Load = {
@@ -41,7 +42,7 @@ function Prey.root(player: Player): (Model?, BasePart?)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if character and humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+	if character and humanoid and Vitals.isAlive(humanoid) and root and root:IsA("BasePart") then
 		return character, root
 	end
 	return nil, nil

@@ -29,6 +29,7 @@ local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpEffects = require(script.Parent.Parent.World.PvpEffects)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local Vitals = require(ReplicatedStorage.Shared.Character.Vitals)
 
 -- Input is polled at the guardians' rate: a press shorter than a tick is still a press, since
 -- the action's state holds until it is read.
@@ -212,7 +213,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 				continue
 			end
 			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid and humanoid.Health <= 0 then
+			if humanoid and not Vitals.isAlive(humanoid) then
 				continue
 			end
 			table.insert(targets, {

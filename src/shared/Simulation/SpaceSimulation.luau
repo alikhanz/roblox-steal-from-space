@@ -30,6 +30,7 @@ local StandConfig = require("../Config/StandConfig")
 local StationConfig = require("../Config/StationConfig")
 local TopSpeed = require("./TopSpeed")
 local Trainer = require("../Domain/Trainer")
+local Vitals = require("../Character/Vitals")
 local WorldConfig = require("../Config/WorldConfig")
 local Zones = require("../Domain/Zones")
 
@@ -56,7 +57,7 @@ local function findRig(player: Player): Rig?
 	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local root = character:FindFirstChild("HumanoidRootPart")
-	if not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") then
+	if not humanoid or not Vitals.isAlive(humanoid) or not root or not root:IsA("BasePart") then
 		return nil
 	end
 	local velocity = root:FindFirstChild(FlightConfig.VELOCITY_NAME)
