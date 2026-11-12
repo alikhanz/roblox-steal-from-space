@@ -41,6 +41,8 @@ local BILLBOARD_WIDTH = 300
 local ODDS_HEIGHT = 22
 local ODDS_DOT = 10
 local ODDS_GAP = 10
+-- Room between the pill's slack and the odds row, points.
+local ODDS_MARGIN = 4
 
 -- One tier's chance in the odds row.
 export type Chance = {
@@ -123,7 +125,7 @@ local function OddsRow(odds: { Chance }): Frame
 	end
 	return create("Frame")({
 		Name = "Odds",
-		AnchorPoint = Vector2.new(0.5, 0),
+		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.fromScale(0.5, 1),
 		AutomaticSize = Enum.AutomaticSize.X,
 		Size = UDim2.fromOffset(0, ODDS_HEIGHT),
@@ -164,6 +166,9 @@ local function GrabPrompt(props: Props): BillboardGui
 		scale.Scale = press.scale()
 	end)
 
+	-- A billboard draws nothing past its own size, so the odds row is inside it. The billboard
+	-- grows as much above the pill as below, so the pill stays at its centre, where it always is.
+	local oddsRoom = if props.odds then ODDS_HEIGHT + ODDS_MARGIN else 0
 	return create("BillboardGui")({
 		Name = "GrabPrompt",
 		-- Vide's types expect a source of a non-optional Instance; a nil Adornee is valid here.
@@ -174,9 +179,7 @@ local function GrabPrompt(props: Props): BillboardGui
 		AlwaysOnTop = true,
 		-- Needed for the pill to receive touches on phones.
 		Active = true,
-		Size = UDim2.fromOffset(BILLBOARD_WIDTH, HEIGHT + SLACK * 2),
-		-- The odds row hangs below the billboard's edge, so the pill stays where it always is.
-		ClipsDescendants = false,
+		Size = UDim2.fromOffset(BILLBOARD_WIDTH, HEIGHT + SLACK * 2 + oddsRoom * 2),
 		StudsOffset = Vector3.new(0, props.studsAbove or STUDS_ABOVE, 0),
 		MaxDistance = props.maxDistance or math.huge,
 		LightInfluence = 0,
