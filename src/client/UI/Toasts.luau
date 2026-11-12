@@ -82,6 +82,13 @@ export type Props = {
 	toasts: () -> { Toast },
 }
 
+-- The colour a toast wears (its badge and its frame): the tier's colour of the alien it is about
+-- (a hatch or a crossbreed shows what came out, never the egg it came from), else its kind's.
+local function accentOf(toast: Toast): Color3
+	local alien = AlienConfig.ALIENS[toast.alienId or ""]
+	return if alien then AlienLooks.TIERS[alien.tier].color else KINDS[toast.kind].color
+end
+
 local function Badge(toast: () -> Toast): Frame
 	local function look()
 		return KINDS[toast().kind]
@@ -92,8 +99,7 @@ local function Badge(toast: () -> Toast): Frame
 		return if alienId then AlienIcons.iconOf(alienId) else nil
 	end
 	local function color(): Color3
-		local alien = AlienConfig.ALIENS[toast().alienId or ""]
-		return if alien and alienIcon() then AlienLooks.TIERS[alien.tier].color else look().color
+		return if alienIcon() then accentOf(toast()) else look().color
 	end
 	local corner = UDim.new(0.5, 0)
 	local glass = Layout.glass(NEON.ACTION.Main, corner, true)
@@ -165,7 +171,7 @@ local function ToastView(toast: () -> Toast, index: number): Frame
 	outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	outline.Thickness = NEON.LINE_THICKNESS
 	Vide.effect(function()
-		outline.Color = KINDS[toast().kind].color
+		outline.Color = accentOf(toast())
 	end)
 	local padding = Layout.padding(0, PADDING_Y)
 	padding.PaddingLeft = UDim.new(0, PADDING_LEFT)
