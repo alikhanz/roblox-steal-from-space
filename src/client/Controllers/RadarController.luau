@@ -39,7 +39,7 @@ local STUDS_OVER_ROOT = 5
 local DISPLAY_ORDER = -1
 
 export type Dependencies = {
-	toast: (text: string, kind: Toasts.Kind, alienId: string?) -> (),
+	toast: Toasts.Push,
 }
 
 export type RadarController = {
