@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AbilityState = require(script.Parent.State.AbilityState)
 local AimController = require(script.Parent.Controllers.AimController)
+local AimMarkController = require(script.Parent.Controllers.AimMarkController)
 local AlarmSoundController = require(script.Parent.Controllers.AlarmSoundController)
 local AlienMotionController = require(script.Parent.Controllers.AlienMotionController)
 local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
@@ -158,6 +159,7 @@ Lifecycle.run({
 	ControlsController.new({ windows = windowState, menu = menuState, tutorialStep = tutorialController.step }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),
 	PvpEffectsController.new({ abilities = abilityState }),
+	AimMarkController.new({ abilities = abilityState }),
 	NewbieViewController.new(),
 	HomeBeaconController.new({ tutorialPointsHome = tutorialController.pointsHome }),
 	DomeFlightHintController.new({ toast = toastState.push, tutorialDone = tutorialController.isDone }),
