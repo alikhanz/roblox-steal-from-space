@@ -11,6 +11,8 @@
 --     back, is delivered, and as the hunt ends. Read from the event's folder attributes
 --     (SerpentConfig.EGG_ATTRIBUTE and the rest).
 --   * A white flash on its head as a hit lands (SerpentConfig.LAST_HIT_ATTRIBUTE).
+--   * The ring sight round its head while the egg is inside (World/SerpentTarget): only hits on
+--     the head count.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,6 +25,7 @@ local SerpentBody = require(ReplicatedStorage.Shared.Domain.SerpentBody)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SerpentHunt = require(ReplicatedStorage.Shared.Domain.SerpentHunt)
 local SerpentLooks = require(ReplicatedStorage.Shared.Config.SerpentLooks)
+local SerpentTarget = require(script.Parent.Parent.World.SerpentTarget)
 local SerpentVisual = require(script.Parent.Parent.World.SerpentVisual)
 local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
@@ -188,6 +191,7 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 		local head: BasePart? = nil
 		local body: Folder? = nil
 		local look: SerpentVisual.Visual? = nil
+		local ring: SerpentTarget.Target? = nil
 		local segments: { BasePart } = {}
 		local trail: { Vector3 } = {}
 		local connections: { RBXScriptConnection } = {}
@@ -204,7 +208,7 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 			if body then
 				body:Destroy()
 			end
-			head, body, look, segments, trail, connections = nil, nil, nil, {}, {}, {}
+			head, body, look, ring, segments, trail, connections = nil, nil, nil, nil, {}, {}, {}
 		end
 
 		local function follow(model: Instance)
@@ -217,6 +221,18 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 			bodyFolder.Name = "SerpentBody"
 			bodyFolder.Parent = workspace
 			head, body = part, bodyFolder
+			local sight = SerpentTarget.build(part, bodyFolder)
+			ring = sight
+			local function showSight()
+				SerpentTarget.setShown(sight, eggPlace() == "Inside")
+			end
+			showSight()
+			if folder then
+				table.insert(
+					connections,
+					folder:GetAttributeChangedSignal(SerpentConfig.EGG_ATTRIBUTE):Connect(showSight)
+				)
+			end
 			look = SerpentVisual.build(bodyFolder, looks.segments)
 			local current = look
 			if current then
@@ -242,6 +258,7 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 				connections,
 				part:GetAttributeChangedSignal(SerpentConfig.LAST_HIT_ATTRIBUTE):Connect(function()
 					flash(if current then current.model else model, if current then nil else body)
+					SerpentTarget.hit(sight, os.clock())
 					if part:IsA("BasePart") then
 						SoundPlayer.play("SerpentHit", { at = part })
 					end
@@ -283,6 +300,9 @@ function SerpentController.new(dependencies: Dependencies): SerpentController
 				)
 				else target
 			turned = shown
+			if ring then
+				SerpentTarget.update(ring, os.clock())
+			end
 			-- The neck joins the back of the head, not its middle.
 			local neck = shown.Position - shown.LookVector * (current.Size.Z / 2)
 			SerpentBody.record(trail, neck, TRAIL_STEP, length)

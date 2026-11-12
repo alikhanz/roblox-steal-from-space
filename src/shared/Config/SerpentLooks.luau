@@ -69,6 +69,25 @@ return table.freeze({
 			brightness = 3,
 		}),
 	}),
+	-- The ring sight round its head while the egg is inside it (World/SerpentTarget,
+	-- docs/design/screens/serpent-target.md): as wide as where hits land
+	-- (SerpentConfig.HIT_RADIUS), in the strike button's colour, breathing; a hit flashes it white
+	-- and shrinks it for a moment.
+	TARGET = table.freeze({
+		color = rgb(255, 122, 61),
+		transparency = 0.15,
+		-- The line's thickness, pixels: it breathes between these once a period.
+		thickness = 3,
+		breathThickness = 4,
+		breathSeconds = 1.2,
+		-- Four notches in from the ring, this share of its width long.
+		notchLength = 0.12,
+		flashColor = rgb(234, 242, 255),
+		flashSeconds = 0.25,
+		flashScale = 0.8,
+		-- Seen within this distance, studs; farther the event's pin leads.
+		maxDistance = 400,
+	}),
 	-- A hit on its head flashes it white for a moment.
 	HIT_FLASH = table.freeze({
 		color = rgb(255, 255, 255),
