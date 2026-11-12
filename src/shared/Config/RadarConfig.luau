@@ -15,6 +15,8 @@ return table.freeze({
 	PUBLISH_STEP = 2,
 	POSITION_ATTRIBUTE = "RadarAt",
 	EGG_ATTRIBUTE = "RadarEgg",
+	-- The kind of that egg (Domain/EggKind) when it is a special one; none for a normal egg.
+	EGG_KIND_ATTRIBUTE = "RadarEggKind",
 
 	-- A thief with an egg this rare or rarer is shown to the whole server: a bigger marker, its
 	-- name at the screen edge too.

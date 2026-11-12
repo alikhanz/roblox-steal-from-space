@@ -21,6 +21,8 @@ export type Name =
 	| "Coin"
 	| "Oxygen"
 	| "Egg"
+	| "MeteorEgg"
+	| "StarEgg"
 	| "Robux"
 	| "Shield"
 	| "Meteor"
@@ -50,6 +52,9 @@ local ICONS: { [Name]: string } = {
 	Coin = "rbxassetid://122240898300854",
 	Oxygen = "rbxassetid://97784935625653",
 	Egg = "rbxassetid://117551467296815",
+	-- Special eggs, each with its own icon (UI/EggIcon).
+	MeteorEgg = "rbxassetid://107413558717896",
+	StarEgg = "rbxassetid://132884270210434",
 	Robux = "rbxassetid://127663785262718",
 	Shield = "rbxassetid://89953779523463",
 	Meteor = "rbxassetid://92726378354461",

@@ -16,6 +16,7 @@ local AimTargets = require(script.Parent.Parent.World.AimTargets)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Crosshair = require(script.Parent.Parent.UI.Crosshair)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggIcon = require(script.Parent.Parent.UI.EggIcon)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
@@ -140,6 +141,8 @@ function HudController.new(dependencies: Dependencies): HudController
 	-- Rarity of the egg in the player's hands; nil with empty hands.
 	local carried = source(nil :: string?)
 	local readCarried = carried :: () -> string?
+	-- Its icon: a special egg has its own (UI/EggIcon).
+	local carriedIcon = source("Egg" :: Icons.Name)
 	local characterConnections: { RBXScriptConnection } = {}
 
 	local function watchCharacter(character: Model)
@@ -264,6 +267,11 @@ function HudController.new(dependencies: Dependencies): HudController
 		local function grabButton(size: number, right: number?, bottom: number?): FlightButtons.ButtonSpec
 			local spec = button("Grab", FlightInputs.GRAB, Theme.NEON.EGG, size, right, bottom)
 			spec.icon = "Egg"
+			spec.iconOf = function(): Icons.Name
+				local target = grab.target()
+				local part = target and target.part
+				return if part then EggIcon.ofPart(part) else "Egg"
+			end
 			spec.label = Text.get(locale, "egg.grabButton.button")
 			spec.visible = function()
 				return grab.target() ~= nil
@@ -564,6 +572,7 @@ function HudController.new(dependencies: Dependencies): HudController
 					ResourcePill({
 						name = "CarriedEgg",
 						icon = "Egg",
+						iconOf = carriedIcon,
 						color = Theme.NEON.EGG,
 						textSize = Theme.NEON.TEXT_SECTION,
 						value = function()
@@ -662,6 +671,11 @@ function HudController.new(dependencies: Dependencies): HudController
 			local rarity = character and character:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE)
 			local now = if type(rarity) == "string" then rarity else nil
 			local before = readCarried()
+			-- The egg model may arrive a moment after the attribute: looked up while carrying.
+			local icon = if now and character then EggIcon.carriedBy(character) else nil
+			if icon and icon ~= carriedIcon() then
+				carriedIcon(icon)
+			end
 			local sameCharacter = character == lastCharacter
 			lastCharacter = character
 			if now == before then

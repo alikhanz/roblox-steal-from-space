@@ -5,13 +5,16 @@
 -- and the position only once it has moved a little, so a player standing still sends nothing.
 -- Clients draw a near character where it really is; the attribute is for the far ones.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggKind = require(ReplicatedStorage.Shared.Domain.EggKind)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local Radar = require(ReplicatedStorage.Shared.Domain.Radar)
 local RadarConfig = require(ReplicatedStorage.Shared.Config.RadarConfig)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
+local Vitals = require(ReplicatedStorage.Shared.Character.Vitals)
 
 export type Dependencies = {
 	scheduler: Scheduler.Scheduler,
@@ -29,10 +32,24 @@ local function rootOf(player: Player): BasePart?
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") then
+	if not humanoid or not Vitals.isAlive(humanoid) or not root or not root:IsA("BasePart") then
 		return nil
 	end
 	return root
+end
+
+-- The kind of the egg `character` carries, or nil for none or a normal one. The carry service
+-- welds the egg model, tagged, to the character, marked like every egg (EggModel).
+local function carriedKind(character: Instance): EggKind.Kind?
+	for _, child in character:GetChildren() do
+		if CollectionService:HasTag(child, EggConfig.CARRIED_EGG_TAG) then
+			local variant = child:GetAttribute(EggConfig.EGG_VARIANT_ATTRIBUTE)
+			local isLucky = child:GetAttribute(EggConfig.EGG_LUCKY_ATTRIBUTE) == true
+			local kind = EggKind.of(if type(variant) == "string" then variant else nil, isLucky)
+			return if kind == "Normal" then nil else kind
+		end
+	end
+	return nil
 end
 
 function RadarService.new(dependencies: Dependencies): RadarService
@@ -44,6 +61,7 @@ function RadarService.new(dependencies: Dependencies): RadarService
 			published[player] = nil
 			player:SetAttribute(RadarConfig.POSITION_ATTRIBUTE, nil)
 			player:SetAttribute(RadarConfig.EGG_ATTRIBUTE, nil)
+			player:SetAttribute(RadarConfig.EGG_KIND_ATTRIBUTE, nil)
 			return
 		end
 		local position = root.Position
@@ -56,6 +74,10 @@ function RadarService.new(dependencies: Dependencies): RadarService
 		local rarity = if type(carried) == "string" then carried else nil
 		if player:GetAttribute(RadarConfig.EGG_ATTRIBUTE) ~= rarity then
 			player:SetAttribute(RadarConfig.EGG_ATTRIBUTE, rarity)
+		end
+		local kind = if rarity then carriedKind(root.Parent :: Instance) else nil
+		if player:GetAttribute(RadarConfig.EGG_KIND_ATTRIBUTE) ~= kind then
+			player:SetAttribute(RadarConfig.EGG_KIND_ATTRIBUTE, kind)
 		end
 	end
 

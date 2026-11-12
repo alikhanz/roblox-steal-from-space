@@ -61,6 +61,8 @@ export type ButtonSpec = {
 	-- The input action it drives (FlightInputs).
 	action: string,
 	icon: Icons.Name,
+	-- An icon that changes (the grab button wears the icon of the egg it grabs); `icon` otherwise.
+	iconOf: (() -> Icons.Name)?,
 	color: Color3,
 	-- Diameter, points; on a touch screen also the distance of its outer edges from the screen's
 	-- right and bottom (the PC row lays its buttons out itself).
@@ -271,7 +273,10 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 					then UDim2.fromScale(LABELLED_ICON_SHARE, LABELLED_ICON_SHARE)
 					else UDim2.fromScale(ICON_SHARE, ICON_SHARE),
 				BackgroundTransparency = 1,
-				Image = Icons.ICONS[spec.icon],
+				Image = function()
+					local iconOf = spec.iconOf
+					return Icons.ICONS[if iconOf then iconOf() else spec.icon]
+				end,
 				ImageColor3 = function()
 					return if isLit()
 						then NEON.GLASS

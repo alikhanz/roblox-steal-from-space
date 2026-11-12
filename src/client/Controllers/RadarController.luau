@@ -19,6 +19,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggIcon = require(script.Parent.Parent.UI.EggIcon)
+local EggKind = require(ReplicatedStorage.Shared.Domain.EggKind)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local PinArea = require(script.Parent.Parent.UI.PinArea)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
@@ -150,6 +152,7 @@ function RadarController.new(dependencies: Dependencies): RadarController
 				transparency = Radar.fade(kind, distance),
 				isNewbie = type(newbie) == "number" and newbie > 0,
 				timeLeft = 1,
+				eggIcon = EggIcon.of(EggKind.parse(player:GetAttribute(RadarConfig.EGG_KIND_ATTRIBUTE))),
 				body = body,
 				arrow = arrow,
 				angle = angle,
@@ -196,6 +199,7 @@ function RadarController.new(dependencies: Dependencies): RadarController
 				transparency = 0,
 				isNewbie = false,
 				timeLeft = if type(droppedAt) == "number" then Radar.timeLeft(droppedAt, now) else 1,
+				eggIcon = EggIcon.ofPart(part),
 				body = body,
 				arrow = arrow,
 				angle = angle,

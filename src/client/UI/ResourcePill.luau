@@ -24,6 +24,8 @@ local PADDING_Y = 4
 export type Props = {
 	name: string,
 	icon: Icons.Name,
+	-- An icon that changes (the egg in hand wears its own); `icon` otherwise.
+	iconOf: (() -> Icons.Name)?,
 	color: Color3,
 	-- The number or short text, e.g. "178K" or "12 min".
 	value: () -> string,
@@ -76,7 +78,10 @@ local function ResourcePill(props: Props): Frame
 			Position = UDim2.new(0, -(ICON_OVERHANG + PADDING_X), 0.5, 0),
 			Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
 			BackgroundTransparency = 1,
-			Image = Icons.ICONS[props.icon],
+			Image = function()
+				local iconOf = props.iconOf
+				return Icons.ICONS[if iconOf then iconOf() else props.icon]
+			end,
 			ImageColor3 = props.color,
 		}),
 		create("TextLabel")({

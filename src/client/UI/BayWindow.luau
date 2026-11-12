@@ -70,6 +70,8 @@ export type Row = {
 
 export type EggSlot = {
 	color: Color3,
+	-- The egg's icon (UI/EggIcon): a special egg has its own.
+	icon: Icons.Name,
 	-- "1:20" while it warms, "Ready!" when it is.
 	label: string,
 	ready: boolean,
@@ -254,7 +256,11 @@ local function EggCell(slot: () -> EggSlot?, order: number): Frame
 			Position = UDim2.fromScale(0.5, 0.42),
 			Size = UDim2.fromOffset(EGG_SIZE, EGG_SIZE),
 			BackgroundTransparency = 1,
-			Image = Icons.ICONS.Egg,
+			Image = function()
+				local current = egg()
+				local icon: Icons.Name = if current then current.icon else "Egg"
+				return Icons.ICONS[icon]
+			end,
 			ImageColor3 = function()
 				local current = egg()
 				return if current then current.color else NEON.MUTED

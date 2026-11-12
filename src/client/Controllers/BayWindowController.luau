@@ -20,6 +20,7 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CoachState = require(script.Parent.Parent.State.CoachState)
 local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
+local EggIcon = require(script.Parent.Parent.UI.EggIcon)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
@@ -441,6 +442,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			local look = (EggLooks.RARITIES :: any)[egg.rarity]
 			table.insert(slots, {
 				color = if look then look.color else Theme.NEON.MUTED,
+				icon = EggIcon.ofRecord(egg),
 				label = if left > 0 then Duration.clock(left) else text("egg.ready.hint"),
 				ready = left <= 0,
 			})

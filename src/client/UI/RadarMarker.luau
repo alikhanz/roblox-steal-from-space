@@ -64,6 +64,8 @@ export type State = {
 	isNewbie: boolean,
 	-- A loose egg's time left, 0 to 1.
 	timeLeft: number,
+	-- The egg's icon (UI/EggIcon): a special egg has its own.
+	eggIcon: Icons.Name,
 	-- Where the body stands, and the arrow at the edge if the target is out of view.
 	body: Vector2,
 	arrow: Vector2?,
@@ -131,6 +133,10 @@ function RadarMarker.new(): Marker
 	local transparency = source(0)
 	local isNewbie = source(false)
 	local timeLeft = source(1)
+	local eggIcon = source("Egg" :: Icons.Name)
+	local function eggImage(): string
+		return Icons.ICONS[eggIcon()]
+	end
 	local body = source(Vector2.zero)
 	local onEdge = source(false)
 	local arrow = source(Vector2.zero)
@@ -169,6 +175,7 @@ function RadarMarker.new(): Marker
 		transparency(state.transparency)
 		isNewbie(state.isNewbie)
 		timeLeft(state.timeLeft)
+		eggIcon(state.eggIcon)
 		body(state.body)
 		local edge = state.arrow
 		onEdge(edge ~= nil)
@@ -222,7 +229,7 @@ function RadarMarker.new(): Marker
 					return UDim2.fromOffset(size, size)
 				end,
 				BackgroundTransparency = 1,
-				Image = Icons.ICONS.Egg,
+				Image = eggImage,
 				ImageColor3 = color,
 				Visible = isThief,
 			}),
@@ -285,7 +292,7 @@ function RadarMarker.new(): Marker
 				Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.fromOffset(BADGE_ICON_SIZE, BADGE_ICON_SIZE),
 				BackgroundTransparency = 1,
-				Image = Icons.ICONS.Egg,
+				Image = eggImage,
 				ImageColor3 = color,
 			}),
 		})

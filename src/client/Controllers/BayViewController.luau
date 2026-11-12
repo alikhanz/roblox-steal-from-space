@@ -22,6 +22,7 @@ local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggIcon = require(script.Parent.Parent.UI.EggIcon)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local Incubator = require(ReplicatedStorage.Shared.Domain.Incubator)
 local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
@@ -562,7 +563,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 			local color = eggColor(part)
 			return WorldChip({
 				adornee = part,
-				icon = "Egg",
+				icon = EggIcon.ofPart(part),
 				iconColor = color,
 				text = remaining,
 				color = function()
@@ -584,7 +585,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		label(instance, nil, function(part)
 			return WorldChip({
 				adornee = part,
-				icon = "Egg",
+				icon = EggIcon.ofPart(part),
 				iconColor = eggColor(part),
 				text = Text.get(locale, "egg.waiting.hint"),
 				color = Theme.NEON.MUTED,
