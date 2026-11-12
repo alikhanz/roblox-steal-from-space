@@ -26,6 +26,8 @@
 --   game.ServerStorage.DevCommands.ReplayLastReceipt:Invoke()
 --   game.ServerStorage.DevCommands.GivePass:Invoke("NightShift")
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
+--   game.ServerStorage.DevCommands.SetCoachDone:Invoke(0)
+--   game.ServerStorage.DevCommands.FillShelf:Invoke(24)
 --   game.ServerStorage.DevCommands.SetJetpack:Invoke(5)
 --   game.ServerStorage.DevCommands.ResetCommunityGift:Invoke()
 
@@ -112,6 +114,8 @@ export type Dependencies = {
 	notePass: (player: Player, pass: Purchases.PassId) -> boolean,
 	-- Sets the tutorial's progress (TutorialService.setProgress).
 	setTutorialProgress: (player: Player, progress: number) -> boolean,
+	-- Sets which hints after the tutorial are done (CoachService.setDone; 0: all again).
+	setCoachDone: (player: Player, mask: number) -> boolean,
 	-- The community gift is not taken again; this session's automatic checks are skipped
 	-- (CommunityService.reset).
 	resetCommunityGift: (player: Player) -> boolean,
@@ -559,10 +563,11 @@ function DevService.new(dependencies: Dependencies): DevService
 			return `coins {BigNum.format(data.coins)} | trained {BigNum.format(data.trained)}`
 				.. ` | trainer {data.trainerLevel} | jetpack {data.jetpackLevel}`
 				.. ` | played {math.floor(data.playSeconds)}s | pods [{podList}]`
-				.. ` | inventory [{ids(data.inventory)}] | floor [{ids(data.floor)}] | eggs {#data.incubator}`
+				.. ` | shelf [{ids(data.floor)}] | eggs {#data.incubator}`
 				.. ` | slots {data.incubatorSlots}, waiting {#data.waiting}`
 				.. ` | passes [{table.concat(data.passes, ", ")}] | receipts {#data.purchaseIds}`
-				.. ` | tutorial {data.tutorialStep} | community gift {data.communityGiftTaken}`
+				.. ` | tutorial {data.tutorialStep} | hints done {data.coachDone}`
+				.. ` | community gift {data.communityGiftTaken}`
 		end,
 		-- The first player's tutorial progress (Domain/Tutorial: 0 starts over, 4 is done).
 		SetTutorialStep = function(progress: number): string
@@ -574,6 +579,37 @@ function DevService.new(dependencies: Dependencies): DevService
 			return if dependencies.setTutorialProgress(player, progress)
 				then `tutorial at {progress}`
 				else "profile not active yet"
+		end,
+		-- The first player's hints after the tutorial (decision 106): `mask` of the done ones, by
+		-- Domain/Coach.TIPS (0: all of them come again, 31: none).
+		SetCoachDone = function(mask: number?): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			return if dependencies.setCoachDone(player, mask or 0)
+				then `hints done: {mask or 0}`
+				else "profile not active yet"
+		end,
+		-- Fills the first player's shelf up to `count` aliens (the shelf's size by default) with
+		-- common aliens of guardian 1, to see a full shelf stop the eggs (decision 106).
+		FillShelf = function(count: number?): string
+			local player = firstPlayerRoot()
+			local data = player and dependencies.getData(player)
+			if not player or not data then
+				return "no player or profile"
+			end
+			local target = math.floor(count or BayConfig.SHELF_SLOTS)
+			local alienId = AlienConfig.GRADES[1].variants.Normal[AlienConfig.GRADES[1].kinds[1]].Common
+			local added = 0
+			dependencies.update(player, function(current)
+				while #current.floor < target do
+					table.insert(current.floor, { uid = Bay.newUid(current), id = alienId })
+					added += 1
+				end
+			end)
+			dependencies.refresh(player)
+			return `added {added}; the shelf holds {#data.floor}`
 		end,
 		-- The first player's community gift is not taken again, and the check at join and at the end
 		-- of the tutorial is skipped this playtest: the invitation shows even to a member (the

@@ -40,7 +40,7 @@ function Bench.fill(data: Data, aliens: { string }, maxPods: number): boolean
 	return true
 end
 
--- Takes the bench's aliens away, wherever they went (a place, the inventory, the floor), and the
+-- Takes the bench's aliens away, wherever they went (a place, the shelf), and the
 -- places it added while they stand empty. False when no bench stands.
 function Bench.clear(data: Data): boolean
 	local record = data.bench
@@ -56,11 +56,9 @@ function Bench.clear(data: Data): boolean
 			pod.alien = nil
 		end
 	end
-	for _, list in { data.inventory, data.floor } do
-		for index = #list, 1, -1 do
-			if added[list[index].uid] then
-				table.remove(list, index)
-			end
+	for index = #data.floor, 1, -1 do
+		if added[data.floor[index].uid] then
+			table.remove(data.floor, index)
 		end
 	end
 	while #data.pods > record.pods and not data.pods[#data.pods].alien do

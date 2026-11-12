@@ -30,7 +30,7 @@ export type Quests = Remotes.Quests
 export type LoginGift = Remotes.LoginGift
 -- The alien index: alien id -> its reward is taken (present: found); grades whose set is taken.
 export type Index = Remotes.Index
-export type Location = "Pod" | "Inventory" | "Floor"
+export type Location = "Pod" | "Floor"
 -- What a taken gift paid (speed as the stat shows it).
 export type GiftReward = { day: number, coins: BigNum.BigNum, speed: BigNum.BigNum, egg: boolean }
 
@@ -67,7 +67,7 @@ export type ProfileState = {
 local ProfileState = {}
 
 local function emptyBay(): Bay
-	return { pods = {}, inventory = {}, floor = {}, incubator = {}, incubatorSlots = 2, waiting = {} }
+	return { pods = {}, floor = {}, incubator = {}, incubatorSlots = 2, waiting = {} }
 end
 
 function ProfileState.new(): ProfileState

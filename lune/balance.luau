@@ -56,6 +56,9 @@ local ASSUMPTIONS = {
 	starEggShare = 0.5,
 	-- Random runs averaged per profile.
 	runs = 3,
+	-- Aliens with no pod the model keeps on the shelf for the next pod; it sells the rest at once.
+	-- Ten: what the inventory held before decision 106, so the pace stays comparable.
+	shelfKept = 10,
 }
 
 type Profile = {
@@ -184,12 +187,13 @@ local function simulate(profile: Profile, seed: number): Run
 	local function refreshIncome()
 		incomeRate = toNumber(Bay.incomePerSecond(data, incomeOf))
 	end
-	-- Aliens with no room are sold on the spot.
+	-- The model keeps the best few with no pod on the shelf for the next pod it buys, and sells the
+	-- rest on the spot (as when the inventory held ten: the numbers stay those of before decision 106).
 	local function sellFloor()
-		for _, alien in data.floor do
+		while #data.floor > ASSUMPTIONS.shelfKept do
+			local alien = table.remove(data.floor) :: PlayerData.AlienRecord
 			coins += toNumber(incomeOf(alien.id)) * BayConfig.SELL_INCOME_SECONDS
 		end
-		table.clear(data.floor)
 	end
 
 	-- A reward worth `minutes` of play (Domain/PlayReward, as the game pays it): coins at the
@@ -276,7 +280,7 @@ local function simulate(profile: Profile, seed: number): Run
 				collect(alienId)
 			end
 		end
-		Bay.autoPlace(data, incomeOf, BayConfig.INVENTORY_SLOTS)
+		Bay.autoPlace(data, incomeOf)
 		sellFloor()
 		refreshIncome()
 	end
@@ -328,10 +332,10 @@ local function simulate(profile: Profile, seed: number): Run
 				Bay.fillSlots(data, now)
 				continue
 			end
-			if #data.pods < BayConfig.MAX_PODS and #data.inventory > 0 and coins >= podPrice() then
+			if #data.pods < BayConfig.MAX_PODS and #data.floor > 0 and coins >= podPrice() then
 				coins -= podPrice()
 				table.insert(data.pods, {})
-				Bay.autoPlace(data, incomeOf, BayConfig.INVENTORY_SLOTS)
+				Bay.autoPlace(data, incomeOf)
 				refreshIncome()
 				continue
 			end

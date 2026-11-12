@@ -360,10 +360,6 @@ local Strings = {
 		ru = "{income}/с",
 		en = "{income}/s",
 	},
-	["bay.inventoryEmpty.hint"] = {
-		ru = "Пусто",
-		en = "Empty",
-	},
 	["bay.buyPlace.button"] = {
 		ru = "Место: ●{price}",
 		en = "Spot: ●{price}",
@@ -401,22 +397,6 @@ local Strings = {
 	["bay.incubatorEmpty.hint"] = {
 		ru = "Пусто. Укради яйцо и принеси его сюда",
 		en = "Empty. Steal an egg and bring it here",
-	},
-	["bay.inventory.title"] = {
-		ru = "Инвентарь {count}/{max}",
-		en = "Inventory {count}/{max}",
-	},
-	["bay.floor.title"] = {
-		ru = "На стеллаже: {count}",
-		en = "On the shelf: {count}",
-	},
-	["bay.pickUpFloor.hint"] = {
-		ru = "Подойди к стеллажу и подбери, чтобы положить в инвентарь",
-		en = "Walk to the shelf and pick them up for your inventory",
-	},
-	["bay.floorFull.hint"] = {
-		ru = "Инвентарь полный: продай или скрести кого-нибудь, тогда сможешь подбирать",
-		en = "Inventory full: sell or crossbreed someone, then you can pick them up",
 	},
 	-- Hatches in a row, one toast: how many, and the best earner of them.
 	["alien.hatchedMany.toast"] = {
@@ -481,8 +461,8 @@ local Strings = {
 		en = "To inventory",
 	},
 	["bay.fromPlace.button"] = {
-		ru = "Убрать с места",
-		en = "Off the spot",
+		ru = "На стеллаж",
+		en = "To shelf",
 	},
 	["alien.hatched.toast"] = {
 		ru = "Вылупился {name}",
@@ -495,10 +475,6 @@ local Strings = {
 	["place.spot.hint"] = {
 		ru = "на место",
 		en = "to a spot",
-	},
-	["place.inventory.hint"] = {
-		ru = "в инвентарь",
-		en = "to the inventory",
 	},
 	["place.floor.hint"] = {
 		ru = "на стеллаж",
@@ -523,22 +499,6 @@ local Strings = {
 	["egg.dropped.toast"] = {
 		ru = "Яйцо выпало! Подбери его",
 		en = "Egg dropped! Grab it back",
-	},
-	["bay.crossbreedSame.hint"] = {
-		ru = "Скрещивание: {guardian} {count} из 3. Выбери ещё {left} таких же",
-		en = "Crossbreed: {guardian} {count} of 3. Pick {left} more of the same",
-	},
-	["bay.crossbreedMixed.hint"] = {
-		ru = "Это разные стражи. Для скрещивания нужны 3 пришельца одного стража",
-		en = "Different guardians. Crossbreeding needs 3 aliens of one guardian",
-	},
-	["bay.crossbreedVariants.hint"] = {
-		ru = "Метеоритные скрещиваются только с метеоритными",
-		en = "Meteor aliens crossbreed only with meteor ones",
-	},
-	["notice.inventoryFull.toast"] = {
-		ru = "Инвентарь полный: продай или скрести",
-		en = "Inventory full: sell or crossbreed",
 	},
 	["notice.notEnoughCoins.toast"] = {
 		ru = "Не хватает монет. Подожди доход",
@@ -1230,10 +1190,6 @@ local Strings = {
 		ru = "Бесконечность",
 		en = "Infinity",
 	},
-	["alien.pickUp.button"] = {
-		ru = "Подобрать",
-		en = "Pick up",
-	},
 	["alien.income.hint"] = {
 		ru = "●{income}/с",
 		en = "●{income}/s",
@@ -1345,8 +1301,8 @@ local Strings = {
 		en = "You're faster now! Steal from the next guardian",
 	},
 	["tutorial.done.hint"] = {
-		ru = "Так держать! Цель слева покажет, сколько ⚡ нужно дальше",
-		en = "Nice! The goal on the left shows the ⚡ you need next",
+		ru = "Отлично! На станции тебя ждут джетпаки и задания",
+		en = "Nice! Jetpacks and quests are waiting at the station",
 	},
 	-- Pins over what the tutorial points at.
 	["tutorial.egg.title"] = {
@@ -1489,6 +1445,104 @@ local Strings = {
 	["store.compensated.toast"] = {
 		ru = "Не к чему применить. Держи ●+{coins}",
 		en = "Nothing to use it on. Here's ●+{coins}",
+	},
+	-- Aliens on the shelf, its limit, selling several, ready trios and the hints after the
+	-- tutorial (decision 106, docs/design/screens/aliens-and-hints.md).
+	["alien.openBay.button"] = {
+		ru = "В отсек",
+		en = "Open bay",
+	},
+	["place.placeBest.button"] = {
+		ru = "Лучшего сюда",
+		en = "Best one here",
+	},
+	["place.free.hint"] = {
+		ru = "Свободное место",
+		en = "Free spot",
+	},
+	["egg.shelfFull.button"] = {
+		ru = "Стеллаж полный",
+		en = "Shelf is full",
+	},
+	["egg.shelfFull.hint"] = {
+		ru = "Стеллаж полный",
+		en = "Shelf full",
+	},
+	["bay.shelf.title"] = {
+		ru = "Стеллаж {count}/{max}",
+		en = "Shelf {count}/{max}",
+	},
+	["bay.shelfEmpty.hint"] = {
+		ru = "Пусто",
+		en = "Empty",
+	},
+	["bay.shelfFull.hint"] = {
+		ru = "Стеллаж полный, яйца ждут. Продай или скрести кого-нибудь",
+		en = "Shelf full, eggs are waiting. Sell or crossbreed someone",
+	},
+	["bay.shelfFull.toast"] = {
+		ru = "Стеллаж полный! Яйца не вылупятся",
+		en = "Shelf full! Eggs can't hatch",
+	},
+	["notice.shelfFull.toast"] = {
+		ru = "Стеллаж полный: продай или скрести",
+		en = "Shelf full: sell or crossbreed",
+	},
+	["alien.toPlace.toast"] = {
+		ru = "{name} → на место",
+		en = "{name} → to a spot",
+	},
+	["bay.trios.title"] = {
+		ru = "Можно скрестить",
+		en = "Ready to crossbreed",
+	},
+	["bay.selectAll.button"] = {
+		ru = "Выбрать всех",
+		en = "Select all",
+	},
+	["bay.selectNone.button"] = {
+		ru = "Снять выбор",
+		en = "Unselect all",
+	},
+	["bay.selectedMany.hint"] = {
+		ru = "Выбрано: {count}",
+		en = "Selected: {count}",
+	},
+	["bay.sellMany.button"] = {
+		ru = "Продать {count} ●{price}",
+		en = "Sell {count} ●{price}",
+	},
+	["coach.shelf.hint"] = {
+		ru = "Места заняты, новый пришелец на стеллаже. Купи место у терминала, и он встанет сам",
+		en = "All spots taken. Buy one at the terminal and your new alien moves in",
+	},
+	["coach.jetpack.hint"] = {
+		ru = "Хватает на новый джетпак! Лети в магазин джетпаков на станции",
+		en = "You can afford a new jetpack! Fly to the jetpack shop at the station",
+	},
+	["coach.quest.hint"] = {
+		ru = "Задание выполнено! Лети на станцию за наградой",
+		en = "Quest done! Fly to the station for your reward",
+	},
+	["coach.crossbreed.hint"] = {
+		ru = "Трое одинаковых! Скрести их: шанс на ступень выше",
+		en = "Three of a kind! Crossbreed them for a shot at a higher tier",
+	},
+	["coach.sell.hint"] = {
+		ru = "Стеллаж полный, яйца ждут. Продай слабых: монеты сразу",
+		en = "Shelf full, eggs are waiting. Sell the weak ones for coins",
+	},
+	["coach.crossbreed.button"] = {
+		ru = "Скрестить",
+		en = "Crossbreed",
+	},
+	["coach.bay.button"] = {
+		ru = "Открыть отсек",
+		en = "Open bay",
+	},
+	["tutorial.station.title"] = {
+		ru = "Станция",
+		en = "Station",
 	},
 }
 

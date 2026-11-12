@@ -2,7 +2,9 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- The client side of bays: the owner's name on their sign board, the screens of the island's
 -- terminals (places, incubator, trainer: docs/design/screens/terminals.md), a chip over every
--- alien (what it earns), a countdown over every egg warming (and "waiting" over the queued ones).
+-- alien (what it earns), a countdown over every egg warming (and "waiting" over the queued ones),
+-- the shelf's count, and for the owner a free place's mark and an egg that cannot hatch (decision
+-- 106, docs/design/screens/aliens-and-hints.md).
 -- Everything is keyed by the instance and torn down when it goes, since bays stream and are
 -- rebuilt by the server.
 
@@ -10,6 +12,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
@@ -63,6 +66,13 @@ local SHELF_CHIP_MAX_DISTANCE = 12
 local SHELF_CHIP_STUDS_ABOVE = 0.3
 -- Countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
+-- The shelf's count reads from across the island; a free place's mark from near it.
+local SHELF_COUNT_MAX_DISTANCE = 120
+local FREE_PLACE_MAX_DISTANCE = 60
+local FREE_PLACE_STUDS_ABOVE = 2.5
+-- A free place's ring breathes: its transparency swings to this, one beat this long.
+local FREE_RING_FADE = 0.75
+local FREE_RING_SECONDS = 0.8
 
 export type Dependencies = {
 	-- The owner's own data: the buttons on their terminals need the coins and the jetpack.
@@ -89,6 +99,23 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 
 	local function isOwn(bay: Instance): boolean
 		return bay:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE) == Players.LocalPlayer.UserId
+	end
+
+	-- True when `instance` stands in the local player's own bay.
+	local function inOwnBay(instance: Instance): boolean
+		local current = instance.Parent
+		while current and current ~= workspace do
+			if CollectionService:HasTag(current, BayConfig.TAG) then
+				return isOwn(current)
+			end
+			current = current.Parent
+		end
+		return false
+	end
+
+	-- The owner's bay has no free place and a full shelf: ready eggs wait (decision 106).
+	local function ownBayFull(): boolean
+		return not Bay.hasRoom(profile.bay(), BayConfig.SHELF_SLOTS)
 	end
 
 	local function canAfford(price: BigNum.BigNum): boolean
@@ -371,11 +398,101 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		end)
 	end
 
+	-- The shelf's count over its crown, "12/24": red with its glow once full (decision 106).
+	local function watchShelf(bay: Instance)
+		task.spawn(function()
+			local shelf = bay:WaitForChild(BayConfig.SHELF_NAME, PART_WAIT_TIMEOUT)
+			if not shelf or not bay:IsDescendantOf(workspace) then
+				return
+			end
+			label(shelf, BayConfig.SHELF_COUNTER_NAME, function(part)
+				local count = attributeSource(bay, BayConfig.SHELF_COUNT_ATTRIBUTE)
+				local function full(): boolean
+					return count() >= BayConfig.SHELF_SLOTS
+				end
+				local glow = shelf:FindFirstChild("Glow")
+				Vide.effect(function()
+					if glow and glow:IsA("BasePart") then
+						glow.Color = if full() then BayLooks.SHELF_FULL_COLOR else BayLooks.SHELF_COLOR
+					end
+				end)
+				return WorldChip({
+					adornee = part,
+					icon = "Bay",
+					iconColor = BayLooks.SHELF_COLOR,
+					text = function()
+						return Text.get(
+							locale,
+							"terminal.count.title",
+							{ count = count(), max = BayConfig.SHELF_SLOTS }
+						)
+					end,
+					color = function()
+						return if full() then BayLooks.SHELF_FULL_COLOR else Theme.NEON.TEXT
+					end,
+					studsAbove = 0,
+					maxDistance = SHELF_COUNT_MAX_DISTANCE,
+				}),
+					nil
+			end)
+		end)
+	end
+
+	-- A free place of the owner's: "Free place" over it and its ring breathing, while it is free.
+	local function watchPlace(instance: Instance)
+		if not inOwnBay(instance) then
+			return
+		end
+		label(instance, "Pad", function(part)
+			local empty = Vide.source(instance:GetAttribute(BayConfig.PLACE_EMPTY_ATTRIBUTE) == true)
+			local connection = instance:GetAttributeChangedSignal(BayConfig.PLACE_EMPTY_ATTRIBUTE):Connect(function()
+				empty(instance:GetAttribute(BayConfig.PLACE_EMPTY_ATTRIBUTE) == true)
+			end)
+			local ring = instance:FindFirstChild("Ring")
+			local tween = if ring and ring:IsA("BasePart")
+				then TweenService:Create(
+					ring,
+					TweenInfo.new(FREE_RING_SECONDS, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+					{ Transparency = FREE_RING_FADE }
+				)
+				else nil
+			Vide.effect(function()
+				if not tween then
+					return
+				end
+				if empty() then
+					tween:Play()
+				else
+					tween:Cancel();
+					(ring :: BasePart).Transparency = 0
+				end
+			end)
+			Vide.cleanup(function()
+				connection:Disconnect()
+				if tween then
+					tween:Cancel()
+				end
+			end)
+			local chip = WorldChip({
+				adornee = part,
+				text = Text.get(locale, "place.free.hint"),
+				color = BayLooks.PLACES_COLOR,
+				studsAbove = FREE_PLACE_STUDS_ABOVE,
+				maxDistance = FREE_PLACE_MAX_DISTANCE,
+			})
+			Vide.effect(function()
+				chip.Enabled = empty()
+			end)
+			return chip, nil
+		end)
+	end
+
 	local function watchBay(instance: Instance)
 		label(instance, BayConfig.SIGN_NAME, function(part)
 			local owner = instance:GetAttribute(BayConfig.OWNER_NAME_ATTRIBUTE)
 			return ownerBoard(part, Text.get(locale, "bay.owner.title", { name = tostring(owner or "?") })), nil
 		end)
+		watchShelf(instance)
 		watchPlacesTerminal(instance)
 		watchIncubatorTerminal(instance)
 		watchTrainerTerminal(instance)
@@ -407,15 +524,25 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		end)
 	end
 
-	-- Every egg warming in a slot shows its own countdown, then that it is ready to hatch; an egg
-	-- in the queue says it waits.
+	-- Every egg warming in a slot shows its own countdown, then that it is ready to hatch (in the
+	-- owner's bay: or that the shelf is full and it cannot, decision 106); an egg in the queue
+	-- says it waits.
 	local function watchIncubatorEgg(instance: Instance)
+		local own = inOwnBay(instance)
 		label(instance, nil, function(part)
 			local remaining = Vide.source("")
+			local stuck = Vide.source(false)
 			local function tick()
 				local hatchAt = part:GetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE)
 				local left = if type(hatchAt) == "number" then hatchAt - workspace:GetServerTimeNow() else 0
-				remaining(if left > 0 then Duration.clock(left) else Text.get(locale, "egg.ready.hint"))
+				local blocked = left <= 0 and own and ownBayFull()
+				stuck(blocked)
+				remaining(
+					if left > 0
+						then Duration.clock(left)
+						elseif blocked then Text.get(locale, "egg.shelfFull.hint")
+						else Text.get(locale, "egg.ready.hint")
+				)
 			end
 			tick()
 			local color = eggColor(part)
@@ -424,7 +551,9 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				icon = "Egg",
 				iconColor = color,
 				text = remaining,
-				color = color,
+				color = function()
+					return if stuck() then BayLooks.SHELF_FULL_COLOR else color
+				end,
 				studsAbove = Incubator.chipAbove(
 					part.Size.Y,
 					IncubatorShape,
@@ -467,6 +596,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 		observe(BayConfig.ALIEN_TAG, watchAlien)
 		observe(BayConfig.INCUBATOR_EGG_TAG, watchIncubatorEgg)
 		observe(BayConfig.WAITING_EGG_TAG, watchWaitingEgg)
+		observe(BayConfig.PLACE_TAG, watchPlace)
 
 		local sinceCountdown = 0
 		RunService.Heartbeat:Connect(function(deltaTime)

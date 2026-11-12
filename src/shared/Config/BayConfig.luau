@@ -1,5 +1,5 @@
 --!strict
--- A player's bay on the station: pods, inventory, crossbreeding, selling and offline income.
+-- A player's bay on the station: pods, the shelf, crossbreeding, selling and offline income.
 
 local BigNum = require("../Domain/BigNum")
 local Trainer = require("../Domain/Trainer")
@@ -37,7 +37,14 @@ return table.freeze({
 	SLOT_PRICE_BASE = BigNum.fromNumber(150),
 	SLOT_PRICE_GROWTH = BigNum.fromNumber(30),
 
-	INVENTORY_SLOTS = 10,
+	-- Aliens with no pod stand on the shelf, one to a niche (docs/design/screens/storage-shelf.md,
+	-- Domain/Shelf.capacity); a full shelf and no free pod keep ready eggs from hatching (decision
+	-- 106, docs/design/screens/aliens-and-hints.md).
+	SHELF_SLOTS = 24,
+
+	-- At most this many aliens are sold with one command ("Sell all", decision 106): more than the
+	-- pods and the shelf can hold together.
+	SELL_MANY_MAX = 64,
 
 	-- Aliens of one grade that make one crossbreed.
 	CROSSBREED_COUNT = 3,
@@ -61,7 +68,7 @@ return table.freeze({
 	-- The bay shows at most this many queued eggs as models; the rest stay in the profile and the
 	-- window (a pile of eighty glowing eggs lit the whole station). The incubator shows all of its
 	-- eggs: no more than MAX_INCUBATOR_SLOTS. Aliens with no place: as many as the shelf has niches
-	-- (Domain/Shelf.capacity), the rest only in the window.
+	-- (SHELF_SLOTS), the rest (only an old profile has more) only in the window.
 	WAITING_SHOWN_MAX = 24,
 
 	-- Bay model attributes and tags (replicated for the client views).
@@ -78,6 +85,8 @@ return table.freeze({
 	TRAINER_NAME = "Trainer",
 	-- The shelf where aliens with no place stand (docs/design/screens/storage-shelf.md).
 	SHELF_NAME = "Shelf",
+	-- In the shelf: the point its count hangs at (decision 106).
+	SHELF_COUNTER_NAME = "Counter",
 	CONTENTS_NAME = "Contents",
 	-- The terminals (docs/design/screens/terminals.md) and the part their screen is drawn on.
 	PLACES_TERMINAL_NAME = "PlacesTerminal",
@@ -102,6 +111,8 @@ return table.freeze({
 	-- On the bay model: the owner's trainer level and pod count, for the terminals.
 	TRAINER_LEVEL_ATTRIBUTE = "TrainerLevel",
 	POD_COUNT_ATTRIBUTE = "PodCount",
+	-- On the bay model: how many aliens stand on the shelf (its counter, decision 106).
+	SHELF_COUNT_ATTRIBUTE = "ShelfCount",
 	-- Alien models standing in pods or waiting on the floor.
 	ALIEN_TAG = "Alien",
 	ALIEN_ID_ATTRIBUTE = "AlienId",
@@ -118,6 +129,8 @@ return table.freeze({
 	-- the client glides it there with its alien.
 	PLACE_TAG = "BayPlace",
 	PLACE_PIVOT_ATTRIBUTE = "Pivot",
+	-- True on a bought place with no alien: the owner's client marks it free (decision 106).
+	PLACE_EMPTY_ATTRIBUTE = "Empty",
 	-- True on an alien standing small on the shelf: the client shows only its model (no effects,
 	-- no motion) and its chip only up close.
 	ALIEN_PLAIN_ATTRIBUTE = "Plain",
@@ -132,7 +145,15 @@ return table.freeze({
 	-- On a prompt whose action is not the usual "do it" (green): what it does, for its colour
 	-- (docs/design/screens/buttons.md). A prompt that hatches for Robux is told by its ReadyNowTier.
 	PROMPT_ACTION_ATTRIBUTE = "Action",
-	PROMPT_ACTION_PICK_UP = "PickUp",
+	-- The prompt on an alien on the shelf that opens the bay window with it chosen (decision 106),
+	-- and on a free place that puts the best of the shelf there.
+	PROMPT_ACTION_OPEN_BAY = "OpenBay",
+	PROMPT_ACTION_PLACE_BEST = "PlaceBest",
+	-- On a ready egg that cannot hatch (the shelf is full and no place is free): the owner's client
+	-- draws it red, and pressing it opens the bay window.
+	PROMPT_ACTION_SHELF_FULL = "ShelfFull",
+	-- On the prompt of an alien on the shelf: its uid, for the window to open with it chosen.
+	PROMPT_ALIEN_UID_ATTRIBUTE = "AlienUid",
 	-- On the prompt of a warming egg that hatches it for Robux: the "Egg ready now" price tier
 	-- (MonetizationConfig.readyNowTierOf). The owner's client words it with the price and asks
 	-- Roblox for the purchase.

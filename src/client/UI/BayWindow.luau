@@ -1,10 +1,11 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The bay window (docs/design/screens/bay-window.md): two columns in a neon window. Left: the
--- pods as a list by income, one row for the free ones, the big "best into pods" and "+ pod"
--- buttons. Right: the incubator's slots with timers, the queue, buying slots, the inventory and
--- the floor, the crossbreed note. The footer: the selected alien and its actions, or what to
--- do. Rows come in ready (sorted, worded) from the controller; every action is a request to the
+-- The bay window (docs/design/screens/bay-window.md, aliens-and-hints.md): two columns in a neon
+-- window. Left: the pods as a list by income, one row for the free ones, the big "best into pods"
+-- and "+ pod" buttons. Right: the incubator's slots with timers, the queue, buying slots, the
+-- shelf's ready trios with a crossbreed button each, the shelf (with "select all"), the
+-- crossbreed note. The footer: the selected alien and its actions, several selected and their
+-- sale, or what to do. Rows come in ready (sorted, worded) from the controller; every action is a request to the
 -- server. Texts come in resolved: the component knows no keys.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -44,6 +45,11 @@ local FOOTER_PICK_GAP = 4
 local FOOTER_PICKS_MAX = 3
 -- Below the slots: the last row's timer labels hang under them.
 local SLOTS_BOTTOM_ROOM = 8
+-- A ready trio's row: its height and the alien picture in it.
+local TRIO_HEIGHT = 34
+local TRIO_PICTURE = 26
+-- A trio row lit by the hint after the tutorial ("crossbreed them").
+local TRIO_LIT_STROKE = 2.5
 
 local function bottomPadding(pixels: number): UIPadding
 	local instance = Instance.new("UIPadding")
@@ -69,8 +75,18 @@ export type EggSlot = {
 	ready: boolean,
 }
 
--- What is selected: nothing, one alien in a pod, one elsewhere, or several (a crossbreed).
+-- What is selected: nothing, one alien in a pod, one on the shelf, or several (to sell them all,
+-- or three to crossbreed).
 export type Selection = "None" | "Pod" | "Away" | "Many"
+
+-- A group of the shelf that crossbreeds (Domain/Crossbreed.trios): the alien its picture shows,
+-- its name and "×4".
+export type Trio = {
+	alienId: string,
+	name: string,
+	count: string,
+	color: Color3,
+}
 
 export type Texts = {
 	title: string,
@@ -91,10 +107,14 @@ export type Texts = {
 	waiting: () -> string,
 	buySlot: () -> string,
 	buySlotRobux: () -> string,
-	inventory: () -> string,
-	inventoryEmpty: string,
-	floor: () -> string,
-	floorHint: () -> string,
+	-- "Shelf 12/24".
+	shelf: () -> string,
+	shelfEmpty: string,
+	-- Under a full shelf: what to do.
+	shelfFull: string,
+	selectAll: () -> string,
+	trios: string,
+	trioButton: string,
 	crossbreedHint: string,
 	-- The footer's line while nothing or several aliens are selected.
 	status: () -> string,
@@ -112,8 +132,14 @@ export type Props = {
 	coins: () -> string,
 	texts: Texts,
 	pods: () -> { Row },
-	inventory: () -> { Row },
-	floor: () -> { Row },
+	shelf: () -> { Row },
+	-- The shelf has no free niche.
+	shelfIsFull: () -> boolean,
+	trios: () -> { Trio },
+	-- The ready trios are lit (the hint "crossbreed them").
+	triosLit: () -> boolean,
+	onTrio: (index: number) -> (),
+	onSelectAll: () -> (),
 	-- The incubator's eggs in their slots, and how many slots it has.
 	eggs: () -> { EggSlot },
 	slots: () -> number,
@@ -121,12 +147,10 @@ export type Props = {
 	-- The selected aliens' ids, in the order picked: their pictures lead the footer.
 	selectedAliens: () -> { string },
 	isSelected: (uid: number) -> boolean,
-	-- True for an alien that cannot join the current crossbreed selection.
-	isDimmed: (alienId: string) -> boolean,
 	onToggle: (uid: number) -> (),
 	canCrossbreed: () -> boolean,
 	canMoveToPod: () -> boolean,
-	canMoveToInventory: () -> boolean,
+	canMoveToShelf: () -> boolean,
 	canBuyPod: () -> boolean,
 	-- Every pod the bay can hold is bought.
 	podsAtMax: () -> boolean,
@@ -140,7 +164,7 @@ export type Props = {
 	onCrossbreed: () -> (),
 	onSell: () -> (),
 	onMoveToPod: () -> (),
-	onMoveToInventory: () -> (),
+	onMoveToShelf: () -> (),
 	onBuyPod: () -> (),
 	onBuySlot: () -> (),
 	onBuySlotRobux: () -> (),
@@ -295,7 +319,7 @@ local function BayWindow(props: Props): Frame
 					return props.isSelected(row().uid)
 				end,
 				dimmed = function()
-					return props.isDimmed(row().alienId)
+					return false
 				end,
 				idle = idle,
 				onTap = function()
@@ -409,11 +433,11 @@ local function BayWindow(props: Props): Frame
 				text = texts.fromPod,
 				color = NEON.ACTION.Move,
 				layoutOrder = 1,
-				enabled = props.canMoveToInventory,
+				enabled = props.canMoveToShelf,
 				visible = function()
 					return selection() == "Pod"
 				end,
-				onClick = props.onMoveToInventory,
+				onClick = props.onMoveToShelf,
 			}),
 			ActionButton({
 				name = "ToPod",
@@ -432,8 +456,7 @@ local function BayWindow(props: Props): Frame
 				color = NEON.ACTION.Sell,
 				layoutOrder = 3,
 				visible = function()
-					local current = selection()
-					return current == "Pod" or current == "Away"
+					return selection() ~= "None"
 				end,
 				onClick = props.onSell,
 			}),
@@ -444,9 +467,130 @@ local function BayWindow(props: Props): Frame
 				layoutOrder = 4,
 				enabled = props.canCrossbreed,
 				visible = function()
-					return selection() ~= "None"
+					return selection() == "Many"
 				end,
 				onClick = props.onCrossbreed,
+			}),
+		}) :: Frame
+	end
+
+	-- A ready trio: its alien, name and count, and the button that crossbreeds it.
+	local function trioRows(): any
+		return indexes(props.trios, function(trio: () -> Trio, index: number)
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = NEON.ACTION.Crossbreed
+			stroke.Thickness = TRIO_LIT_STROKE
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			Vide.effect(function()
+				stroke.Enabled = props.triosLit()
+			end)
+			return create("Frame")({
+				Name = `Trio{index}`,
+				LayoutOrder = index,
+				Size = UDim2.new(1, 0, 0, TRIO_HEIGHT),
+				BackgroundColor3 = NEON.ACTION.Crossbreed,
+				BackgroundTransparency = 0.86,
+				create("UICorner")({ CornerRadius = UDim.new(0, 9) }),
+				stroke,
+				Layout.padding(6, 0),
+				create("UIListLayout")({
+					FillDirection = Enum.FillDirection.Horizontal,
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					Padding = UDim.new(0, 6),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+				create("Frame")({
+					Name = "Picture",
+					LayoutOrder = 1,
+					Size = UDim2.fromOffset(TRIO_PICTURE, TRIO_PICTURE),
+					BackgroundTransparency = 1,
+					AlienPicture({
+						icon = function()
+							return AlienIcons.iconOf(trio().alienId)
+						end,
+						color = function()
+							return trio().color
+						end,
+					}),
+				}),
+				create("TextLabel")({
+					Name = "Name",
+					LayoutOrder = 2,
+					AutomaticSize = Enum.AutomaticSize.X,
+					Size = UDim2.fromScale(0, 1),
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_BODY,
+					TextColor3 = NEON.TEXT,
+					Text = function()
+						return trio().name
+					end,
+					Layout.textStroke(),
+				}),
+				create("TextLabel")({
+					Name = "Count",
+					LayoutOrder = 3,
+					AutomaticSize = Enum.AutomaticSize.X,
+					Size = UDim2.fromScale(0, 1),
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_SMALL,
+					TextColor3 = NEON.MUTED,
+					Text = function()
+						return trio().count
+					end,
+				}),
+				ActionButton({
+					name = "Crossbreed",
+					text = texts.trioButton,
+					color = NEON.ACTION.Crossbreed,
+					size = "Small",
+					layoutOrder = 4,
+					onClick = function()
+						props.onTrio(index)
+					end,
+				}),
+			})
+		end)
+	end
+
+	-- The shelf's title ("Shelf 12/24", red when full) and "select all" on its right.
+	local function shelfHead(order: number): Frame
+		return create("Frame")({
+			Name = "ShelfHead",
+			LayoutOrder = order,
+			Size = UDim2.new(1, 0, 0, SECTION_HEIGHT),
+			BackgroundTransparency = 1,
+			create("TextLabel")({
+				Name = "Title",
+				Size = UDim2.fromScale(0.6, 1),
+				BackgroundTransparency = 1,
+				FontFace = NEON.FONT,
+				TextSize = NEON.TEXT_SECTION,
+				TextColor3 = function()
+					return if props.shelfIsFull() then NEON.DANGER else NEON.TEXT
+				end,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Text = texts.shelf,
+				Layout.textStroke(),
+			}),
+			create("TextButton")({
+				Name = "SelectAll",
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.fromScale(1, 0.5),
+				AutomaticSize = Enum.AutomaticSize.X,
+				Size = UDim2.fromScale(0, 1),
+				BackgroundTransparency = 1,
+				FontFace = NEON.FONT,
+				TextSize = NEON.TEXT_SMALL,
+				TextColor3 = NEON.ACTION.Move,
+				Text = texts.selectAll,
+				Visible = function()
+					return #props.shelf() > 0
+				end,
+				Activated = function()
+					props.onSelectAll()
+				end,
 			}),
 		}) :: Frame
 	end
@@ -637,21 +781,26 @@ local function BayWindow(props: Props): Frame
 					onClick = props.onBuySlotRobux,
 				}),
 			}),
-			sectionTitle(texts.inventory, 6),
-			list("Inventory", 7, rows(props.inventory, true)),
-			label("InventoryEmpty", texts.inventoryEmpty, 8, {
+			sectionTitle(
+				function()
+					return texts.trios
+				end,
+				6,
+				function()
+					return #props.trios() > 0
+				end
+			),
+			list("Trios", 7, trioRows()),
+			shelfHead(8),
+			list("Shelf", 9, rows(props.shelf, true)),
+			label("ShelfEmpty", texts.shelfEmpty, 10, {
 				visible = function()
-					return #props.inventory() == 0
+					return #props.shelf() == 0
 				end,
 			}),
-			sectionTitle(texts.floor, 9, function()
-				return #props.floor() > 0
-			end),
-			list("Floor", 10, rows(props.floor, true)),
-			label("FloorHint", texts.floorHint, 11, {
-				visible = function()
-					return #props.floor() > 0
-				end,
+			label("ShelfFull", texts.shelfFull, 11, {
+				color = NEON.DANGER,
+				visible = props.shelfIsFull,
 			}),
 			label("Crossbreed", texts.crossbreedHint, 12, { size = NEON.TEXT_SMALL }),
 		}),

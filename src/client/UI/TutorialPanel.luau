@@ -3,10 +3,12 @@
 -- The tutorial's line (decision 065, docs/design/screens/tutorial-arrows.md): what to do now,
 -- on glass in the HUD's bottom stack, above the oxygen bar (docs/design/screens/hud.md). On the
 -- left, a dot per step (passed ones green, the current one lit in the guide's colour) and the
--- step's icon; the farewell line after the last step has neither.
+-- step's icon; the farewell line after the last step has neither. The hints after the tutorial
+-- (decision 106) show here too: an icon without dots, and maybe a button that does it.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local ActionButton = require(script.Parent.ActionButton)
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
 local Theme = require(script.Parent.Theme)
@@ -30,14 +32,22 @@ local GUIDE = NEON.FLIGHT.Vertical
 local DONE_COLOR = Color3.fromHex("#5BDB6E")
 local AHEAD_TRANSPARENCY = 0.82
 
+-- A button after the line: its word and what it does (it opens a window: the "move" blue).
+export type Action = {
+	text: string,
+	onPress: () -> (),
+}
+
 export type Props = {
 	-- The line to show; empty hides the panel.
 	text: () -> string,
 	-- The current step, 1..`steps`; nil for none (the farewell line).
 	step: () -> number?,
 	steps: number,
-	-- The current step's icon.
+	-- The current step's (or hint's) icon.
 	icon: () -> Icons.Name?,
+	-- A button after the line; nil: none.
+	action: () -> Action?,
 	layoutOrder: number,
 }
 
@@ -135,7 +145,7 @@ local function TutorialPanel(props: Props): Frame
 			end,
 			ImageColor3 = Layout.iconColor(GUIDE),
 			Visible = function()
-				return hasStep() and props.icon() ~= nil
+				return props.icon() ~= nil
 			end,
 		}),
 		create("TextLabel")({
@@ -150,6 +160,25 @@ local function TutorialPanel(props: Props): Frame
 			Text = props.text,
 			Layout.textStroke(),
 			Layout.maxSize(MAX_TEXT_WIDTH, math.huge),
+		}),
+		ActionButton({
+			name = "Action",
+			text = function()
+				local action = props.action()
+				return if action then action.text else ""
+			end,
+			color = NEON.ACTION.Move,
+			size = "Small",
+			layoutOrder = 5,
+			visible = function()
+				return props.action() ~= nil
+			end,
+			onClick = function()
+				local action = props.action()
+				if action then
+					action.onPress()
+				end
+			end,
 		}),
 	}) :: Frame
 end

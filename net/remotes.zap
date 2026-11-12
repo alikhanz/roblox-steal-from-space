@@ -51,7 +51,7 @@ type WaitingEgg = struct {
 -- The owner's bay, as the profile holds it.
 type Bay = struct {
 	pods: Pod[],
-	inventory: Alien[],
+	-- The shelf (decision 106).
 	floor: Alien[],
 	incubator: Egg[],
 	incubatorSlots: u8,
@@ -68,7 +68,8 @@ type Upgrades = struct {
 type Notice = enum {
 	NoProfile,
 	UnknownAlien,
-	InventoryFull,
+	-- The shelf has no free niche (decision 106).
+	ShelfFull,
 	NotEnoughCoins,
 	MaxPods,
 	NoSuchPod,
@@ -223,6 +224,22 @@ event TutorialChanged = {
 	data: TutorialHint,
 }
 
+-- The hint after the tutorial to show now (Domain/Coach, decision 106); none: no hint.
+type CoachTip = enum {
+	Shelf,
+	Jetpack,
+	Quest,
+	Crossbreed,
+	Sell,
+}
+
+event CoachChanged = {
+	from: Server,
+	type: Reliable,
+	call: SingleSync,
+	data: CoachTip?,
+}
+
 event IndexChanged = {
 	from: Server,
 	type: Reliable,
@@ -328,7 +345,7 @@ event Hatched = {
 	call: SingleSync,
 	data: struct {
 		alienId: string.utf8,
-		location: enum { Pod, Inventory, Floor },
+		location: enum { Pod, Floor },
 	},
 }
 
@@ -339,7 +356,7 @@ event Crossbred = {
 	call: SingleSync,
 	data: struct {
 		alienId: string.utf8,
-		location: enum { Pod, Inventory, Floor },
+		location: enum { Pod, Floor },
 	},
 }
 
@@ -449,7 +466,8 @@ event MoveToPod = {
 	},
 }
 
-event MoveToInventory = {
+-- From a pod onto the shelf.
+event MoveToShelf = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,
@@ -469,6 +487,14 @@ event Sell = {
 	type: Reliable,
 	call: SingleSync,
 	data: u32,
+}
+
+-- Sells all of them at once, or none ("Sell all", decision 106; BayConfig.SELL_MANY_MAX).
+event SellMany = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: u32[1..64],
 }
 
 event BuyPod = {

@@ -37,8 +37,8 @@ local TutorialConfig = require(ReplicatedStorage.Shared.Config.TutorialConfig)
 local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 
 local FOLDER_NAME = "Bays"
--- A floor alien can be picked up, and a ready egg hatched, from this far, studs; the server
--- accepts a little more.
+-- The bay's prompts (hatch an egg, open the window from the shelf, place the best) work from this
+-- far, studs; the server accepts a little more.
 local PROMPT_DISTANCE = 8
 local PROMPT_TOLERANCE = 4
 -- Every session transition of the bay is printed in Studio to make playtests easy to follow.
@@ -73,7 +73,8 @@ export type BayService = {
 		variant: AlienConfig.VariantId?,
 		luck: number?
 	) -> boolean,
-	-- Gives the player an alien: into a free pod, else onto the floor. Nil without an active profile.
+	-- Gives the player an alien: into a free pod, else onto the shelf (even a full one: a Studio
+	-- command). Nil without an active profile.
 	addAlien: (player: Player, alienId: AlienConfig.AlienId) -> Bay.Location?,
 	-- Makes every egg in the incubator's slots ready now, to hatch with its prompt (playtests).
 	hastenHatching: (player: Player) -> boolean,
@@ -125,7 +126,8 @@ type ShownPlace = {
 
 type ShownEgg = {
 	part: BasePart,
-	-- What it shows: "warming" or "ready" in a capsule, or "waiting" in the queue. Its prompt and
+	-- What it shows: "warming" or "ready" in a capsule, or "waiting" in the queue, with "Full"
+	-- after the first two while there is no room for the alien (decision 106). Its prompt and
 	-- light go with this, so a change builds it anew.
 	state: string,
 }
@@ -133,7 +135,7 @@ type ShownEgg = {
 type ShownAlien = {
 	model: Model,
 	id: AlienConfig.AlienId,
-	-- Its scale override (the floor's), or 0 for its own size.
+	-- Its scale override (the shelf's), or 0 for its own size.
 	scale: number,
 	-- The frame it stands on.
 	stand: CFrame,
@@ -162,7 +164,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	local changed = Signal.new() :: Signal.Signal<Player>
 	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
 	local incomePaid = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>
-	-- Defined below; picking up an alien rebuilds the bay, and its prompts hatch eggs.
+	-- Defined below; the prompts rebuild the bay and hatch eggs.
 	local refresh: (player: Player) -> ()
 	local hatchReady: (player: Player, uid: number) -> ()
 
@@ -184,7 +186,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	-- Shows `alien` standing on `cframe` in `bay`, its own size or `scale` (the small ones on the
-	-- floor): the model it already has, moved there if it stood elsewhere, or a new one when it has
+	-- shelf): the model it already has, moved there if it stood elsewhere, or a new one when it has
 	-- none or the one it has is of another kind or size. `kept` collects the uids shown.
 	local function showAlien(
 		bay: PlayerBay,
@@ -219,8 +221,8 @@ function BayService.new(dependencies: Dependencies): BayService
 		return model
 	end
 
-	-- The prompt to pick a floor alien up: there while the inventory has room, gone otherwise.
-	local function pickUpPromptOf(model: Model): ProximityPrompt?
+	-- The prompt on a model's primary part (an alien on the shelf, a free place), if it has one.
+	local function promptOf(model: Model): ProximityPrompt?
 		local body = model.PrimaryPart
 		return if body then body:FindFirstChildOfClass("ProximityPrompt") else nil
 	end
@@ -242,9 +244,13 @@ function BayService.new(dependencies: Dependencies): BayService
 		parent: Instance,
 		kept: { [number]: boolean },
 		hatchAt: number?,
-		ready: boolean?
+		ready: boolean?,
+		full: boolean?
 	): (BasePart?, boolean)
 		local state = if hatchAt == nil then "waiting" elseif ready then "ready" else "warming"
+		if hatchAt ~= nil and full then
+			state ..= "Full"
+		end
 		-- `cframe` is where a medium egg lies; every egg stands on its bottom there.
 		if EggConfig.SIZES[egg.size :: EggConfig.SizeId] then
 			cframe += Vector3.yAxis * EggLooks.liftOf(egg.size :: EggConfig.SizeId)
@@ -308,17 +314,17 @@ function BayService.new(dependencies: Dependencies): BayService
 		return (root.Position - body.Position).Magnitude <= PROMPT_DISTANCE + PROMPT_TOLERANCE
 	end
 
-	-- Moves a floor alien into the inventory. The owner, the distance and the room are all
-	-- checked here.
-	local function pickUp(player: Player, uid: number, body: BasePart)
+	-- Puts the best of the shelf into free place `pod` ("Place the best" at the place). The owner,
+	-- the distance and that the place is still free are all checked here.
+	local function placeBest(player: Player, pod: number, body: BasePart)
 		if not withinReach(player, body) then
 			return
 		end
-		local picked = false
+		local moved = false
 		dependencies.update(player, function(data)
-			picked = Bay.pickUp(data, uid, BayConfig.INVENTORY_SLOTS)
+			moved = Bay.fillPod(data, pod, incomeOf) ~= nil
 		end)
-		if picked then
+		if moved then
 			refresh(player)
 		end
 	end
@@ -350,16 +356,31 @@ function BayService.new(dependencies: Dependencies): BayService
 		prompt.Parent = body
 	end
 
-	local function addPickUpPrompt(player: Player, model: Model, uid: number)
+	-- An alien on the shelf opens the bay window with it chosen (decision 106): the owner's client
+	-- does it on its own; the server has nothing to do.
+	local function addOpenBayPrompt(player: Player, model: Model, uid: number)
 		local body = model.PrimaryPart
 		if not body then
 			return
 		end
-		local words = Text.get(Text.localeOf(player), "alien.pickUp.button")
+		local words = Text.get(Text.localeOf(player), "alien.openBay.button")
+		addOwnerPrompt(player, body, words, function() end, {
+			[BayConfig.PROMPT_ACTION_ATTRIBUTE] = BayConfig.PROMPT_ACTION_OPEN_BAY,
+			[BayConfig.PROMPT_ALIEN_UID_ATTRIBUTE] = uid,
+		})
+	end
+
+	-- A free place offers the best of the shelf.
+	local function addPlaceBestPrompt(player: Player, model: Model, pod: number)
+		local body = model.PrimaryPart
+		if not body then
+			return
+		end
+		local words = Text.get(Text.localeOf(player), "place.placeBest.button")
 		addOwnerPrompt(player, body, words, function()
-			pickUp(player, uid, body)
+			placeBest(player, pod, body)
 		end, {
-			[BayConfig.PROMPT_ACTION_ATTRIBUTE] = BayConfig.PROMPT_ACTION_PICK_UP,
+			[BayConfig.PROMPT_ACTION_ATTRIBUTE] = BayConfig.PROMPT_ACTION_PLACE_BEST,
 		})
 	end
 
@@ -376,6 +397,16 @@ function BayService.new(dependencies: Dependencies): BayService
 				hatchReady(player, uid)
 			end
 		end, {
+			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = eggPromptHeight(part),
+		})
+	end
+
+	-- A ready egg with no room for its alien: the prompt says so, and the owner's client opens the
+	-- bay window when it is pressed (decision 106); the server has nothing to do.
+	local function addShelfFullPrompt(player: Player, part: BasePart)
+		local words = Text.get(Text.localeOf(player), "egg.shelfFull.button")
+		addOwnerPrompt(player, part, words, function() end, {
+			[BayConfig.PROMPT_ACTION_ATTRIBUTE] = BayConfig.PROMPT_ACTION_SHELF_FULL,
 			[BayConfig.PROMPT_STUDS_ABOVE_ATTRIBUTE] = eggPromptHeight(part),
 		})
 	end
@@ -410,6 +441,9 @@ function BayService.new(dependencies: Dependencies): BayService
 		-- changed is built anew or taken away.
 		local kept: { [number]: boolean } = {}
 		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
+		bay.model:SetAttribute(BayConfig.SHELF_COUNT_ATTRIBUTE, #data.floor)
+		-- No free place and a full shelf: eggs wait instead of hatching (decision 106).
+		local full = not Bay.hasRoom(data, BayConfig.SHELF_SLOTS)
 
 		-- Places make room for their aliens: the layout follows their sizes (decision 068).
 		local widths: { number } = {}
@@ -434,9 +468,20 @@ function BayService.new(dependencies: Dependencies): BayService
 				model.Parent = contents
 				bay.places[index] = { model = model, width = widths[index] }
 			end
+			local placeModel = bay.places[index].model
+			placeModel:SetAttribute(BayConfig.PLACE_EMPTY_ATTRIBUTE, pod.alien == nil)
+			-- A free place offers the best of the shelf while there is anyone on it.
+			local placePrompt = promptOf(placeModel)
+			local offers = pod.alien == nil and #data.floor > 0
+			if offers and not placePrompt then
+				addPlaceBestPrompt(player, placeModel, index)
+			elseif placePrompt and not offers then
+				placePrompt:Destroy()
+			end
 			if pod.alien then
+				-- An alien that came from the shelf brings its shelf prompt along: not here.
 				local model = showAlien(bay, pod.alien, BayModel.placeAlienCFrame(placeFrames[index]), contents, kept)
-				local prompt = if model then pickUpPromptOf(model) else nil
+				local prompt = if model then promptOf(model) else nil
 				if prompt then
 					prompt:Destroy()
 				end
@@ -479,14 +524,17 @@ function BayService.new(dependencies: Dependencies): BayService
 			local capsule = bay.eggCapsules[egg.uid]
 			states[capsule] = if ready then "Ready" else "Warming"
 			local cframe = BayModel.eggCFrame(bay.origin, capsule)
-			local part, new = showEgg(bay, egg, cframe, contents, keptEggs, egg.hatchAt, ready)
+			local part, new = showEgg(bay, egg, cframe, contents, keptEggs, egg.hatchAt, ready, full)
 			if ready then
 				bay.ready += 1
 			end
 			if part and new then
-				if ready then
+				if ready and full then
+					addShelfFullPrompt(player, part)
+				elseif ready then
 					addHatchPrompt(player, part, egg.uid)
-				else
+				elseif not full then
+					-- No Robux for an egg that could not hatch (decision 106).
 					addHatchNowPrompt(player, part, egg)
 				end
 			end
@@ -512,8 +560,7 @@ function BayService.new(dependencies: Dependencies): BayService
 			incubator:SetAttribute(BayConfig.INCUBATOR_SLOTS_ATTRIBUTE, data.incubatorSlots)
 			incubator:SetAttribute(BayConfig.INCUBATOR_WAITING_ATTRIBUTE, #data.waiting)
 		end
-		-- Floor aliens can be picked up only while the inventory has room: no prompt otherwise.
-		local hasRoom = #data.inventory < BayConfig.INVENTORY_SLOTS
+		-- Each alien on the shelf opens the bay window with it chosen (decision 106).
 		for index, alien in data.floor do
 			-- Past the shelf's last niche an alien is only in the window.
 			local cframe = BayModel.shelfCFrame(bay.origin, index)
@@ -521,16 +568,11 @@ function BayService.new(dependencies: Dependencies): BayService
 				break
 			end
 			local model = showAlien(bay, alien, cframe, contents, kept, shelfScale(alien.id))
-			if model then
-				local prompt = pickUpPromptOf(model)
-				if hasRoom and not prompt then
-					addPickUpPrompt(player, model, alien.uid)
-				elseif prompt and not hasRoom then
-					prompt:Destroy()
-				end
+			if model and not promptOf(model) then
+				addOpenBayPrompt(player, model, alien.uid)
 			end
 		end
-		-- Aliens no longer in the bay (sold, crossbred, picked up, past the floor's shown ones).
+		-- Aliens no longer in the bay (sold, crossbred, past the shelf's shown ones).
 		for uid, shown in bay.aliens do
 			if not kept[uid] then
 				shown.model:Destroy()
@@ -704,11 +746,20 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	-- The owner hatches a ready egg (its prompt): the alien goes where it fits, and the first
-	-- waiting egg takes the slot.
+	-- waiting egg takes the slot. With no free place and a full shelf it stays ready (decision 106):
+	-- the bay is only rebuilt, so an egg made ready by a purchase shows it cannot hatch.
 	function hatchReady(player: Player, uid: number)
 		local alienId: AlienConfig.AlienId?, location: Bay.Location? = nil, nil
 		local taken = false
+		local current = dependencies.getData(player)
+		if current and not Bay.hasRoom(current, BayConfig.SHELF_SLOTS) then
+			refresh(player)
+			return
+		end
 		dependencies.update(player, function(data)
+			if not Bay.hasRoom(data, BayConfig.SHELF_SLOTS) then
+				return
+			end
 			local egg = Bay.hatch(data, uid, now())
 			if egg then
 				taken = true

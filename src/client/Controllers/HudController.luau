@@ -99,6 +99,8 @@ export type Dependencies = {
 	tutorialLine: () -> string,
 	tutorialStep: () -> number?,
 	tutorialIcon: () -> Icons.Name?,
+	-- A button in the tutorial's panel (the hints after it, decision 106); nil: none.
+	tutorialAction: () -> TutorialPanel.Action?,
 	-- The windows' tiles for the menu row.
 	menu: MenuState.MenuState,
 	-- Opens the shop from the speed goal; nil where nothing is sold (an unpublished place).
@@ -346,6 +348,10 @@ function HudController.new(dependencies: Dependencies): HudController
 							local tile = added()
 							return if tile and tile.badge then tile.badge() else 0
 						end,
+						pulse = function()
+							local tile = added()
+							return tile ~= nil and tile.pulse ~= nil and tile.pulse()
+						end,
 						keyText = function()
 							return if inputMode() == Enum.PreferredInput.KeyboardAndMouse then entry.key.Name else ""
 						end,
@@ -540,6 +546,7 @@ function HudController.new(dependencies: Dependencies): HudController
 						step = dependencies.tutorialStep,
 						steps = Tutorial.STEP_COUNT,
 						icon = dependencies.tutorialIcon,
+						action = dependencies.tutorialAction,
 						layoutOrder = 2,
 					}),
 					OxygenBar({

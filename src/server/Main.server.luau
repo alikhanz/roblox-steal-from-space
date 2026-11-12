@@ -10,6 +10,7 @@ local AlienModels = require(script.Parent.World.AlienModels) :: { [string]: stri
 local BayService = require(script.Parent.Services.BayService)
 local BenchService = require(script.Parent.Services.BenchService)
 local CarryService = require(script.Parent.Services.CarryService)
+local CoachService = require(script.Parent.Services.CoachService)
 local CommunityService = require(script.Parent.Services.CommunityService)
 local ControlsService = require(script.Parent.Services.ControlsService)
 local DataService = require(script.Parent.Services.DataService)
@@ -136,6 +137,9 @@ local questService = QuestService.new(questDependencies)
 -- So does the tutorial (decision 065).
 local tutorialDependencies = {} :: TutorialService.Dependencies
 local tutorialService = TutorialService.new(tutorialDependencies)
+-- So do the hints after the tutorial (decision 106).
+local coachDependencies = {} :: CoachService.Dependencies
+local coachService = CoachService.new(coachDependencies)
 -- The community gift (decision 098) sends its refusals through the net service and hears the
 -- tutorial, so it is bound later too.
 local communityDependencies = {} :: CommunityService.Dependencies
@@ -163,6 +167,7 @@ local netService = NetService.new({
 	loginGift = loginGiftService,
 	index = indexService,
 	tutorial = tutorialService,
+	coach = coachService,
 	community = communityService,
 	purchased = purchaseService.purchased,
 	notePrompt = purchaseService.notePrompt,
@@ -234,6 +239,16 @@ tutorialDependencies.eggGrabbed = carryService.grabbed
 tutorialDependencies.eggDelivered = carryService.delivered
 tutorialDependencies.eggLost = carryService.lost
 tutorialDependencies.hatched = bayService.hatched
+
+coachDependencies.activated = profile.activated
+coachDependencies.getData = profile.getData
+coachDependencies.update = profile.update
+coachDependencies.scheduler = scheduler
+coachDependencies.isCarrying = pvpDependencies.isCarrying
+coachDependencies.tutorialAdvanced = tutorialService.advanced
+coachDependencies.coinsTraded = economyService.coinsTraded
+coachDependencies.crossbred = economyService.crossbred
+coachDependencies.questClaimed = questService.rewarded
 
 communityDependencies.activated = profile.activated
 communityDependencies.getData = profile.getData
@@ -333,6 +348,12 @@ local metricsService = MetricsService.new({
 	abilityUsed = pvpService.abilityUsed,
 })
 tutorialService.advanced.connect(metricsService.tutorialStep)
+coachService.shown.connect(function(player, tip)
+	metricsService.count(player, "CoachShown", { tip })
+end)
+coachService.done.connect(function(player, tip)
+	metricsService.count(player, "CoachDone", { tip })
+end)
 questService.rewarded.connect(function(player, paid)
 	metricsService.earned(player, "Coins", "Quest", paid.coins)
 	metricsService.earned(player, "Speed", "Quest", paid.speed)
@@ -411,6 +432,7 @@ local devService = DevService.new({
 	chooseReadyNowEgg = purchaseService.chooseReadyNowEgg,
 	notePass = purchaseService.notePass,
 	setTutorialProgress = tutorialService.setProgress,
+	setCoachDone = coachService.setDone,
 	resetCommunityGift = communityService.reset,
 	-- As a bought level: the model and speed, and the client's copy of the levels too.
 	refreshJetpack = function(player: Player)
@@ -447,6 +469,7 @@ Lifecycle.run({
 	indexService,
 	purchaseService,
 	tutorialService,
+	coachService,
 	communityService,
 	domeFlightService,
 	controlsService,

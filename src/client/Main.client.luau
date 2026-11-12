@@ -12,6 +12,7 @@ local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local BenchController = require(script.Parent.Controllers.BenchController)
+local CoachState = require(script.Parent.State.CoachState)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
 local CommunityController = require(script.Parent.Controllers.CommunityController)
 local ControlsController = require(script.Parent.Controllers.ControlsController)
@@ -71,12 +72,15 @@ local windowState = WindowState.new()
 -- The windows' tiles in the HUD menu row and their keys.
 local menuState = MenuState.new()
 local purchaseState = PurchaseState.new()
+-- The hint after the tutorial (decision 106): the panel words it, the bay window lights for it.
+local coachState = CoachState.new()
 local bayWindowController = BayWindowController.new({
 	profile = profileState,
 	purchases = purchaseState,
 	toasts = toastState,
 	windows = windowState,
 	menu = menuState,
+	coach = coachState,
 })
 local storeController = StoreController.new({
 	profile = profileState,
@@ -86,7 +90,15 @@ local storeController = StoreController.new({
 	menu = menuState,
 })
 local eventController = EventController.new()
-local tutorialController = TutorialController.new({ speed = speedState.speed, grab = grabState })
+local tutorialController = TutorialController.new({
+	speed = speedState.speed,
+	grab = grabState,
+	coach = coachState,
+	openBay = function()
+		bayWindowController.openWith({})
+	end,
+	openBayWithTrio = bayWindowController.openWithTrio,
+})
 
 Lifecycle.run({
 	-- First: every GUI made after it keeps Roblox's auto-translation off (decision 071).
@@ -94,6 +106,7 @@ Lifecycle.run({
 	-- Before anything that preloads: the player's own jetpack is asked for first (LoadConfig).
 	JetpackLoadController.new(),
 	profileState,
+	coachState,
 	purchaseState,
 	abilityState,
 	speedState,
@@ -110,6 +123,7 @@ Lifecycle.run({
 		tutorialLine = tutorialController.line,
 		tutorialStep = tutorialController.step,
 		tutorialIcon = tutorialController.icon,
+		tutorialAction = tutorialController.action,
 		openStore = if purchaseState.available
 			then function()
 				storeController.open("Goal")

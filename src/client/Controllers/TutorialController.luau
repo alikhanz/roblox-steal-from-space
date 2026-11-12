@@ -6,7 +6,9 @@
 -- the world a path of chevrons to it with the thing lit (UI/GuidePath): a nest of the guardian
 -- to steal from, the player's own bay while carrying an egg home, their egg in the incubator,
 -- their trainer. The server decides the hint (TutorialService); the client only finds the place
--- to point at.
+-- to point at. After the tutorial the same panel, pin and path carry the hints of the coach
+-- (decision 106, CoachState): to the places' terminal, to the station's kiosks, or a button that
+-- opens the bay window; the farewell line points at the station.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -15,6 +17,7 @@ local RunService = game:GetService("RunService")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local CoachState = require(script.Parent.Parent.State.CoachState)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local GrabState = require(script.Parent.Parent.State.GrabState)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
@@ -23,10 +26,12 @@ local Icons = require(script.Parent.Parent.UI.Icons)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local StationLooks = require(ReplicatedStorage.Shared.Config.StationLooks)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Tutorial = require(ReplicatedStorage.Shared.Domain.Tutorial)
 local TutorialConfig = require(ReplicatedStorage.Shared.Config.TutorialConfig)
+local TutorialPanel = require(script.Parent.Parent.UI.TutorialPanel)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local source = Vide.source
@@ -51,11 +56,38 @@ local HINT_ICONS: { [Hint]: Icons.Name } = {
 	CarryHomeStronger = "Home",
 }
 
+type Tip = CoachState.Tip
+
+-- Each coach hint's line and icon.
+local TIP_LINES: { [Tip]: Text.Key } = {
+	Shelf = "coach.shelf.hint",
+	Jetpack = "coach.jetpack.hint",
+	Quest = "coach.quest.hint",
+	Crossbreed = "coach.crossbreed.hint",
+	Sell = "coach.sell.hint",
+}
+local TIP_ICONS: { [Tip]: Icons.Name } = {
+	Shelf = "Bay",
+	Jetpack = "Jetpack",
+	Quest = "Quests",
+	Crossbreed = "Bay",
+	Sell = "Bay",
+}
+-- The station kiosk a hint leads to.
+local TIP_KIOSKS: { [Tip]: StationLooks.KioskId } = {
+	Jetpack = "Jetpacks",
+	Quest = "Quests",
+}
+
 export type Dependencies = {
 	-- The player's speed stat: a dropped egg leads back only if its guardian is outrun.
 	speed: () -> BigNum.BigNum,
 	-- The grab button: next to an egg the stealing line says to press it.
 	grab: GrabState.GrabState,
+	-- The hint after the tutorial, and the bay window it may open.
+	coach: CoachState.CoachState,
+	openBay: () -> (),
+	openBayWithTrio: () -> (),
 }
 
 export type TutorialController = {
@@ -66,6 +98,8 @@ export type TutorialController = {
 	-- The step of the hint, 1..Tutorial.STEP_COUNT; nil for none, and for the farewell line.
 	step: () -> number?,
 	icon: () -> Icons.Name?,
+	-- A button after the line (a coach hint's); nil: none (reactive).
+	action: () -> TutorialPanel.Action?,
 	-- True while its pin leads to the player's island (carrying an egg home).
 	pointsHome: () -> boolean,
 	-- True once the tutorial is over (not reactive).
@@ -106,6 +140,15 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 			return Text.get(locale, "tutorial.stealStronger.hint")
 		end
 		return ""
+	end
+
+	-- The coach's hint while the tutorial says nothing (it is over and its farewell is gone).
+	local function readTip(): Tip?
+		local current = readHint()
+		if (current ~= nil and current ~= "Done") or farewell() ~= "" then
+			return nil
+		end
+		return dependencies.coach.tip()
 	end
 
 	local function ownBay(): Instance?
@@ -190,9 +233,58 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 		return nil, nil
 	end
 
+	-- The station kiosk `id`: where it stands, and its model.
+	local function kiosk(id: StationLooks.KioskId): (Vector3?, Instance?)
+		for _, model in CollectionService:GetTagged(StationLooks.KIOSK_TAG) do
+			if model:GetAttribute(StationLooks.KIOSK_ATTRIBUTE) == id and model:IsA("Model") then
+				return model:GetPivot().Position, model
+			end
+		end
+		return nil, nil
+	end
+
+	-- The middle of the station: the kiosks stand round it.
+	local function station(): Vector3?
+		local sum = Vector3.zero
+		local count = 0
+		for _, model in CollectionService:GetTagged(StationLooks.KIOSK_TAG) do
+			if model:IsA("Model") then
+				sum += model:GetPivot().Position
+				count += 1
+			end
+		end
+		return if count > 0 then sum / count else nil
+	end
+
+	-- Where a coach hint leads: the places' terminal or a kiosk; nil for the hints done in the bay
+	-- window (their button opens it).
+	local function tipTarget(tip: Tip): (Vector3?, string, Instance?)
+		local kioskId = TIP_KIOSKS[tip]
+		if kioskId then
+			local point, model = kiosk(kioskId)
+			local key: Text.Key = if kioskId == "Jetpacks" then "kiosk.jetpacks.title" else "kiosk.quests.title"
+			return point, Text.get(locale, key), model
+		elseif tip == "Shelf" then
+			local bay = ownBay()
+			if bay then
+				local point, terminal = bayPart(bay, BayConfig.PLACES_TERMINAL_NAME)
+				return point, Text.get(locale, "terminal.places.title"), terminal
+			end
+		end
+		return nil, "", nil
+	end
+
 	-- Where the pin and the path go for `current`, the pin's title and the thing to light; no
 	-- place: none of them.
 	local function target(current: Hint?, from: Vector3): (Vector3?, string, Instance?)
+		local tip = readTip()
+		if tip then
+			return tipTarget(tip)
+		end
+		-- The farewell points at the station: its kiosks are what comes next.
+		if current == "Done" and farewell() ~= "" then
+			return station(), Text.get(locale, "tutorial.station.title"), nil
+		end
 		if not current then
 			return nil, "", nil
 		end
@@ -251,7 +343,7 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 		-- distance. Off screen, at the edge, the name says where the arrow leads.
 		local location = ScreenPin.locate(camera, point)
 		local current = readHint()
-		local named = location.arrow ~= nil or not (current and STEAL_GRADE[current])
+		local named = location.arrow ~= nil or not (current and STEAL_GRADE[current]) or readTip() ~= nil
 		local shownTitle = if named then title else ""
 		if shownTitle ~= Vide.untrack(pinTitle) then
 			pinTitle(shownTitle)
@@ -296,7 +388,14 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 		-- The line the HUD shows in its bottom stack (UI/TutorialPanel); empty: none.
 		line = function(): string
 			local line = lineFor(readHint())
-			return if line ~= "" then line else farewell()
+			if line ~= "" then
+				return line
+			end
+			local tip = readTip()
+			if tip then
+				return Text.get(locale, TIP_LINES[tip])
+			end
+			return farewell()
 		end,
 		step = function(): number?
 			local current = readHint()
@@ -304,7 +403,21 @@ function TutorialController.new(dependencies: Dependencies): TutorialController
 		end,
 		icon = function(): Icons.Name?
 			local current = readHint()
-			return if current then HINT_ICONS[current] else nil
+			local icon = if current then HINT_ICONS[current] else nil
+			if icon then
+				return icon
+			end
+			local tip = readTip()
+			return if tip then TIP_ICONS[tip] else nil
+		end,
+		action = function(): TutorialPanel.Action?
+			local tip = readTip()
+			if tip == "Crossbreed" then
+				return { text = Text.get(locale, "coach.crossbreed.button"), onPress = dependencies.openBayWithTrio }
+			elseif tip == "Sell" then
+				return { text = Text.get(locale, "coach.bay.button"), onPress = dependencies.openBay }
+			end
+			return nil
 		end,
 		pointsHome = function(): boolean
 			local current = Vide.untrack(readHint)

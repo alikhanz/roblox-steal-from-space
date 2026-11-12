@@ -61,4 +61,66 @@ function Crossbreed.resultKind<T>(kinds: { T }, roll: number): T
 	return kinds[math.clamp(math.floor(roll * #kinds) + 1, 1, #kinds)]
 end
 
+-- A ready group on the shelf (decision 106): aliens of one grade and variant, how many there are,
+-- and the weakest `required` of them, which the window's button crossbreeds.
+export type Trio = {
+	grade: number,
+	variant: string,
+	count: number,
+	uids: { number },
+}
+
+type Owned = { uid: number, id: string }
+
+-- Every group of `aliens` with at least `required` that go together, best group first (by its
+-- best earner). `parentOf` gives an alien's grade and variant (nil: unknown, left out); `incomeOf`
+-- its income per second as a comparable number.
+function Crossbreed.trios(
+	aliens: { Owned },
+	parentOf: (id: string) -> Parent?,
+	incomeOf: (id: string) -> number,
+	required: number
+): { Trio }
+	local groups: { [string]: { Owned } } = {}
+	local parents: { [string]: Parent } = {}
+	for _, alien in aliens do
+		local parent = parentOf(alien.id)
+		if parent then
+			local key = `{parent.grade}.{parent.variant}`
+			groups[key] = groups[key] or {}
+			table.insert(groups[key], alien)
+			parents[key] = parent
+		end
+	end
+	local weakerFirst = function(left: Owned, right: Owned): boolean
+		local a, b = incomeOf(left.id), incomeOf(right.id)
+		if a ~= b then
+			return a < b
+		end
+		return left.uid < right.uid
+	end
+	local result: { Trio } = {}
+	local best: { [Trio]: number } = {}
+	for key, members in groups do
+		if #members >= required then
+			table.sort(members, weakerFirst)
+			local uids = {}
+			for position = 1, required do
+				table.insert(uids, members[position].uid)
+			end
+			local trio: Trio =
+				{ grade = parents[key].grade, variant = parents[key].variant, count = #members, uids = uids }
+			best[trio] = incomeOf(members[#members].id)
+			table.insert(result, trio)
+		end
+	end
+	table.sort(result, function(left: Trio, right: Trio): boolean
+		if best[left] ~= best[right] then
+			return best[left] > best[right]
+		end
+		return left.uids[1] < right.uids[1]
+	end)
+	return result
+end
+
 return table.freeze(Crossbreed)

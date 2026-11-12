@@ -367,6 +367,17 @@ local function buildShelf(origin: CFrame, parent: Instance)
 		buildGreyboxShelf(shelf, model)
 	end
 	local height = Shelf.height(ShelfShape)
+	-- Over the middle of the crown: where the client shows the shelf's count (decision 106).
+	local middle = ShelfShape.COLUMNS / 2
+	local counter = Instance.new("Part")
+	counter.Name = BayConfig.SHELF_COUNTER_NAME
+	counter.Size = Vector3.one * 0.2
+	counter.CFrame = shelfColumnFrame(shelf, middle):Lerp(shelfColumnFrame(shelf, middle + 1), 0.5)
+		* CFrame.new(0, height + BayLooks.SHELF_COUNTER_ABOVE, 0)
+	counter.Transparency = 1
+	counter.CanCollide = false
+	scenery(counter)
+	counter.Parent = model
 	for column = 1, ShelfShape.COLUMNS do
 		local block = Instance.new("Part")
 		block.Name = "Block"

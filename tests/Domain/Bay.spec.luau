@@ -55,7 +55,7 @@ describe("Bay.newUid", function()
 end)
 
 describe("Bay.addHatched", function()
-	it("fills the first free pod, then the floor", function()
+	it("fills the first free pod, then the shelf", function()
 		local data = fresh()
 		expect(Bay.addHatched(data, alien(1, "Common"))).toBe("Pod")
 		expect(Bay.addHatched(data, alien(2, "Common"))).toBe("Pod")
@@ -67,16 +67,23 @@ describe("Bay.addHatched", function()
 	end)
 end)
 
-describe("Bay.addCrossbred", function()
-	it("goes to the inventory while there is room, then wherever a hatch would", function()
+describe("Bay.hasRoom", function()
+	it("is true with a free pod or a free niche, false with neither", function()
 		local data = fresh()
-		expect(Bay.addCrossbred(data, alien(1, "Common"), 1)).toBe("Inventory")
-		expect(Bay.addCrossbred(data, alien(2, "Common"), 1)).toBe("Pod")
-		expect(Bay.addCrossbred(data, alien(3, "Common"), 1)).toBe("Pod")
-		expect(Bay.addCrossbred(data, alien(4, "Common"), 1)).toBe("Pod")
-		expect(Bay.addCrossbred(data, alien(5, "Common"), 1)).toBe("Floor")
-		expect(uids(data.inventory)).toEqual({ 1 })
-		expect(uids(data.floor)).toEqual({ 5 })
+		expect(Bay.hasRoom(data, 2)).toBe(true)
+		for uid = 1, 3 do
+			Bay.addHatched(data, alien(uid, "Common"))
+		end
+		expect(Bay.hasRoom(data, 2)).toBe(true)
+		data.floor = { alien(4, "Common") }
+		expect(Bay.hasRoom(data, 2)).toBe(true)
+		table.insert(data.floor, alien(5, "Common"))
+		expect(Bay.hasRoom(data, 2)).toBe(false)
+		-- A shelf over its size (an old profile) has no room either.
+		table.insert(data.floor, alien(6, "Common"))
+		expect(Bay.hasRoom(data, 2)).toBe(false)
+		data.pods[1].alien = nil
+		expect(Bay.hasRoom(data, 2)).toBe(true)
 	end)
 end)
 
@@ -84,12 +91,9 @@ describe("Bay.find and Bay.remove", function()
 	it("finds aliens wherever they are", function()
 		local data = fresh()
 		data.pods[2].alien = alien(1, "Common")
-		data.inventory = { alien(2, "Rare") }
 		data.floor = { alien(3, "Epic") }
 		local _, where = Bay.find(data, 1)
 		expect(where).toBe("Pod")
-		_, where = Bay.find(data, 2)
-		expect(where).toBe("Inventory")
 		_, where = Bay.find(data, 3)
 		expect(where).toBe("Floor")
 		expect(Bay.find(data, 4)).toBeNil()
@@ -98,31 +102,112 @@ describe("Bay.find and Bay.remove", function()
 	it("removes an alien and leaves the rest in place", function()
 		local data = fresh()
 		data.pods[2].alien = alien(1, "Common")
-		data.inventory = { alien(2, "Rare"), alien(3, "Rare") }
+		data.floor = { alien(2, "Rare"), alien(3, "Rare") }
 		expect(Bay.remove(data, 1)).toEqual(alien(1, "Common"))
 		expect(data.pods[2].alien).toBeNil()
 		expect(Bay.remove(data, 2)).toEqual(alien(2, "Rare"))
-		expect(uids(data.inventory)).toEqual({ 3 })
+		expect(uids(data.floor)).toEqual({ 3 })
 		expect(Bay.remove(data, 9)).toBeNil()
 	end)
 end)
 
-describe("Bay.pickUp", function()
-	it("moves a floor alien into the inventory while there is room", function()
+describe("Bay.removeMany", function()
+	it("takes out every alien named, from pods and the shelf", function()
 		local data = fresh()
-		data.floor = { alien(1, "Common"), alien(2, "Common"), alien(3, "Common") }
-		expect(Bay.pickUp(data, 1, SLOTS)).toBe(true)
-		expect(Bay.pickUp(data, 2, SLOTS)).toBe(true)
-		expect(Bay.pickUp(data, 3, SLOTS)).toBe(false)
-		expect(uids(data.inventory)).toEqual({ 1, 2 })
+		data.pods[1].alien = alien(1, "Rare")
+		data.floor = { alien(2, "Common"), alien(3, "Common"), alien(4, "Epic") }
+		local removed = Bay.removeMany(data, { 3, 1 })
+		expect(removed and uids(removed)).toEqual({ 3, 1 })
+		expect(data.pods[1].alien).toBeNil()
+		expect(uids(data.floor)).toEqual({ 2, 4 })
+	end)
+
+	it("takes out none when a uid repeats or is not the player's", function()
+		local data = fresh()
+		data.floor = { alien(2, "Common"), alien(3, "Common") }
+		expect(Bay.removeMany(data, { 2, 2 })).toBeNil()
+		expect(Bay.removeMany(data, { 2, 9 })).toBeNil()
+		expect(uids(data.floor)).toEqual({ 2, 3 })
+	end)
+end)
+
+describe("Bay.fillPod", function()
+	it("puts the best of the shelf into an empty pod", function()
+		local data = fresh()
+		data.floor = { alien(1, "Common"), alien(2, "Epic"), alien(3, "Rare"), alien(4, "Epic") }
+		local moved = Bay.fillPod(data, 2, incomeOf)
+		expect(moved and moved.uid).toBe(2)
+		expect(podUids(data)).toEqual({ nil, 2 })
+		expect(uids(data.floor)).toEqual({ 1, 3, 4 })
+	end)
+
+	it("does nothing for a taken or missing pod, or an empty shelf", function()
+		local data = fresh()
+		data.pods[1].alien = alien(1, "Common")
+		data.floor = { alien(2, "Epic") }
+		expect(Bay.fillPod(data, 1, incomeOf)).toBeNil()
+		expect(Bay.fillPod(data, 9, incomeOf)).toBeNil()
+		expect(Bay.fillPod(fresh(), 1, incomeOf)).toBeNil()
+		expect(uids(data.floor)).toEqual({ 2 })
+	end)
+end)
+
+describe("Bay.moveToPod", function()
+	it("swaps a shelf alien with the one in the pod, in its place on the shelf", function()
+		local data = fresh()
+		data.pods[1].alien = alien(1, "Common")
+		data.floor = { alien(2, "Rare"), alien(3, "Epic"), alien(4, "Rare") }
+		expect(Bay.moveToPod(data, 3, 1)).toBe(true)
+		expect(podUids(data)).toEqual({ 3 })
+		expect(uids(data.floor)).toEqual({ 2, 1, 4 })
+	end)
+
+	it("takes a shelf alien off the shelf into an empty pod", function()
+		local data = fresh()
+		data.floor = { alien(2, "Rare"), alien(3, "Epic") }
+		expect(Bay.moveToPod(data, 2, 3)).toBe(true)
+		expect(podUids(data)).toEqual({ nil, nil, 2 })
 		expect(uids(data.floor)).toEqual({ 3 })
 	end)
 
-	it("ignores aliens that are not on the floor", function()
+	it("swaps two pods without touching the shelf", function()
 		local data = fresh()
-		data.inventory = { alien(1, "Common") }
-		expect(Bay.pickUp(data, 1, SLOTS)).toBe(false)
-		expect(Bay.pickUp(data, 7, SLOTS)).toBe(false)
+		data.pods[1].alien = alien(1, "Common")
+		data.pods[2].alien = alien(2, "Rare")
+		data.floor = { alien(5, "Epic") }
+		expect(Bay.moveToPod(data, 1, 2)).toBe(true)
+		expect(podUids(data)).toEqual({ 2, 1 })
+		expect(Bay.moveToPod(data, 1, 3)).toBe(true)
+		expect(podUids(data)).toEqual({ 2, nil, 1 })
+		expect(uids(data.floor)).toEqual({ 5 })
+	end)
+
+	it("refuses an unknown alien or pod", function()
+		local data = fresh()
+		data.floor = { alien(2, "Rare") }
+		expect(Bay.moveToPod(data, 9, 1)).toBe(false)
+		expect(Bay.moveToPod(data, 2, 9)).toBe(false)
+		expect(uids(data.floor)).toEqual({ 2 })
+	end)
+end)
+
+describe("Bay.toShelf", function()
+	it("moves an alien from its pod to the end of the shelf while there is room", function()
+		local data = fresh()
+		data.pods[1].alien = alien(1, "Common")
+		data.pods[2].alien = alien(2, "Rare")
+		data.floor = { alien(3, "Epic") }
+		expect(Bay.toShelf(data, 1, SLOTS)).toBe(true)
+		expect(uids(data.floor)).toEqual({ 3, 1 })
+		expect(Bay.toShelf(data, 2, SLOTS)).toBe(false)
+		expect(podUids(data)).toEqual({ nil, 2 })
+	end)
+
+	it("refuses an alien that is not in a pod", function()
+		local data = fresh()
+		data.floor = { alien(3, "Epic") }
+		expect(Bay.toShelf(data, 3, SLOTS)).toBe(false)
+		expect(Bay.toShelf(data, 9, SLOTS)).toBe(false)
 	end)
 end)
 
@@ -131,41 +216,37 @@ describe("Bay.incomePerSecond", function()
 		local data = fresh()
 		data.pods[1].alien = alien(1, "Rare")
 		data.pods[3].alien = alien(2, "Epic")
-		data.inventory = { alien(3, "Epic") }
+		data.floor = { alien(3, "Epic") }
 		expect(Bay.incomePerSecond(data, incomeOf).mantissa).toBe(20)
 		expect(Bay.incomePerSecond(fresh(), incomeOf)).toBe(BigNum.ZERO)
 	end)
 end)
 
 describe("Bay.autoPlace", function()
-	it("puts the best earners in pods, the next in the inventory, the rest on the floor", function()
+	it("puts the best earners in pods and the rest on the shelf, best first", function()
 		local data = fresh()
 		data.pods[1].alien = alien(1, "Common")
 		data.pods[2].alien = alien(2, "Common")
-		data.inventory = { alien(3, "Epic"), alien(4, "Common") }
-		data.floor = { alien(5, "Rare"), alien(6, "Rare"), alien(7, "Common") }
-		Bay.autoPlace(data, incomeOf, SLOTS)
+		data.floor = { alien(3, "Epic"), alien(4, "Common"), alien(5, "Rare"), alien(6, "Rare"), alien(7, "Common") }
+		Bay.autoPlace(data, incomeOf)
 		expect(podUids(data)).toEqual({ 3, 5, 6 })
-		expect(uids(data.inventory)).toEqual({ 1, 2 })
-		expect(uids(data.floor)).toEqual({ 4, 7 })
+		expect(uids(data.floor)).toEqual({ 1, 2, 4, 7 })
 	end)
 
 	it("changes nothing when run again", function()
 		local data = fresh()
-		data.inventory = { alien(3, "Epic"), alien(4, "Common") }
-		data.floor = { alien(5, "Rare"), alien(6, "Rare"), alien(7, "Common"), alien(8, "Common") }
-		Bay.autoPlace(data, incomeOf, SLOTS)
-		local pods, inventory, floor = podUids(data), uids(data.inventory), uids(data.floor)
-		Bay.autoPlace(data, incomeOf, SLOTS)
+		data.floor = { alien(3, "Epic"), alien(4, "Common"), alien(5, "Rare"), alien(6, "Rare"), alien(7, "Common") }
+		Bay.autoPlace(data, incomeOf)
+		local pods, floor = podUids(data), uids(data.floor)
+		Bay.autoPlace(data, incomeOf)
 		expect(podUids(data)).toEqual(pods)
-		expect(uids(data.inventory)).toEqual(inventory)
 		expect(uids(data.floor)).toEqual(floor)
 	end)
 
 	it("leaves pods empty when there are fewer aliens than pods", function()
 		local data = fresh()
 		data.floor = { alien(1, "Common") }
-		Bay.autoPlace(data, incomeOf, SLOTS)
+		Bay.autoPlace(data, incomeOf)
 		expect(podUids(data)).toEqual({ 1 })
 		expect(Bay.freePods(data)).toBe(2)
 		expect(#data.floor).toBe(0)

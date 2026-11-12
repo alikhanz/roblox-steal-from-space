@@ -4,6 +4,7 @@
 
 local fs = require("@lune/fs")
 
+local BayConfig = require("../../src/shared/Config/BayConfig")
 local Shelf = require("../../src/shared/Domain/Shelf")
 local ShelfShape = require("../../src/shared/Config/ShelfShape")
 local Test = require("../../lune/lib/Test")
@@ -55,6 +56,10 @@ describe("Shelf.niche", function()
 
 	it("holds as many aliens as the island showed on its floor", function()
 		expect(Shelf.capacity(ShelfShape)).toBe(24)
+	end)
+
+	it("has a niche for every alien the shelf may hold (decision 106)", function()
+		expect(Shelf.capacity(ShelfShape)).toBe(BayConfig.SHELF_SLOTS)
 	end)
 end)
 

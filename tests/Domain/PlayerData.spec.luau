@@ -77,8 +77,7 @@ describe("PlayerData.load", function()
 	it("keeps the bay as saved", function()
 		local saved = savedTemplate()
 		saved.pods = { { alien = alien(1) }, {}, { alien = alien(2, "DebrisBelt2.droneRay.Rare") }, {} }
-		saved.inventory = { alien(3) }
-		saved.floor = { alien(4) }
+		saved.floor = { alien(3), alien(4) }
 		saved.incubator = { { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000 } }
 		saved.nextUid = 6
 		saved.lastSeenAt = 900
@@ -88,7 +87,6 @@ describe("PlayerData.load", function()
 		if outcome.ok then
 			expect(#outcome.data.pods).toBe(4)
 			expect(outcome.data.pods[3].alien).toEqual(snapshot.pods[3].alien)
-			expect(outcome.data.inventory).toEqual(snapshot.inventory)
 			expect(outcome.data.floor).toEqual(snapshot.floor)
 			expect(outcome.data.incubator).toEqual(snapshot.incubator)
 			expect(outcome.data.nextUid).toBe(6)
@@ -185,14 +183,14 @@ describe("PlayerData.load", function()
 			},
 			{
 				patch = function(data)
-					data.inventory = { alien(1), alien(2) }
+					data.pods = { { alien = alien(1) }, { alien = alien(2) } }
 					data.floor = { alien(2) }
 				end,
 				detail = "floor: uid 2 repeats",
 			},
 			{
 				patch = function(data)
-					data.inventory = { { uid = 1.5, id = "DebrisBelt1.Common" } }
+					data.floor = { { uid = 1.5, id = "DebrisBelt1.Common" } }
 				end,
 				detail = "uid is invalid",
 			},
@@ -287,7 +285,6 @@ describe("PlayerData migration v1 -> v2", function()
 			expect(data.trainerLevel).toBe(0)
 			expect(data.jetpackLevel).toBe(0)
 			expect(#data.pods).toBe(DEFAULTS.startingPods)
-			expect(data.inventory).toEqual({})
 			expect(data.floor).toEqual({})
 			expect(data.incubator).toEqual({})
 			expect(data.nextUid).toBe(1)
@@ -545,8 +542,9 @@ describe("PlayerData migration v15 -> v16", function()
 			expect(data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect((data.pods[1].alien :: any).id).toBe("DebrisBelt2.crabDrone.Rare")
 			expect((data.pods[3].alien :: any).id).toBe("EventHorizon6.spaceWhale.Legendary.Meteor")
-			expect(data.inventory[1].id).toBe("IceRings1.iceWorm.Common")
+			-- The inventory went to the end of the shelf in v20.
 			expect(data.floor[1].id).toBe("RedNebula4.redSwarm.Epic")
+			expect(data.floor[2].id).toBe("IceRings1.iceWorm.Common")
 			expect(data.index.found).toEqual({
 				["DebrisBelt2.crabDrone.Rare"] = true,
 				["IceRings1.iceWorm.Common"] = false,
@@ -880,5 +878,62 @@ describe("PlayerData migration v19 -> v20", function()
 		local broken = savedTemplate()
 		broken.controlsHidden = "yes"
 		expectCorrupted(broken, "controlsHidden is invalid")
+	end)
+end)
+
+describe("PlayerData migration v20 -> v21", function()
+	it("moves the inventory to the end of the shelf", function()
+		local old = savedTemplate()
+		old.schemaVersion = 20
+		old.coachDone = nil
+		old.inventory = { alien(1), alien(2) }
+		old.floor = { alien(3) }
+		old.nextUid = 4
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			local uids = {}
+			for _, record in outcome.data.floor do
+				table.insert(uids, record.uid)
+			end
+			expect(uids).toEqual({ 3, 1, 2 })
+			expect((outcome.data :: any).inventory).toBeNil()
+			expect(outcome.data.coachDone).toBe(0)
+		end
+	end)
+
+	it("keeps a shelf over its size whole", function()
+		local old = savedTemplate()
+		old.schemaVersion = 20
+		old.inventory = {}
+		old.floor = {}
+		for uid = 1, 30 do
+			table.insert(old.floor, alien(uid))
+		end
+		old.nextUid = 31
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(#outcome.data.floor).toBe(30)
+		end
+	end)
+
+	it("copes with a profile with no inventory or no shelf", function()
+		local old = savedTemplate()
+		old.schemaVersion = 20
+		old.inventory = { alien(1) }
+		old.floor = nil
+		old.nextUid = 2
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(#outcome.data.floor).toBe(1)
+		end
+	end)
+
+	it("rejects a broken hint mask", function()
+		local broken = savedTemplate()
+		broken.coachDone = -1
+		expectCorrupted(broken, "coachDone is invalid")
 	end)
 end)

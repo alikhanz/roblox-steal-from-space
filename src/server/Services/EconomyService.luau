@@ -21,7 +21,7 @@ local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 export type Notice =
 	"NoProfile"
 	| "UnknownAlien"
-	| "InventoryFull"
+	| "ShelfFull"
 	| "NotEnoughCoins"
 	| "MaxPods"
 	| "NoSuchPod"
@@ -41,11 +41,15 @@ export type Dependencies = {
 export type EconomyService = {
 	name: string,
 	autoPlace: (player: Player) -> Notice?,
-	-- Puts the alien into pod `pod` (1-based); whoever stood there goes to the inventory or floor.
+	-- Puts the alien into pod `pod` (1-based); whoever stood there swaps with it (Bay.moveToPod).
 	moveToPod: (player: Player, uid: number, pod: number) -> Notice?,
-	moveToInventory: (player: Player, uid: number) -> Notice?,
+	-- Takes an alien out of its pod onto the shelf, while the shelf has room.
+	moveToShelf: (player: Player, uid: number) -> Notice?,
 	crossbreed: (player: Player, uids: { number }) -> Notice?,
 	sell: (player: Player, uid: number) -> Notice?,
+	-- Sells all of `uids` at once, or none of them ("Sell all", decision 106).
+	sellMany: (player: Player, uids: { number }) -> Notice?,
+	-- One more pod; the best of the shelf stands in it at once (decision 106).
 	buyPod: (player: Player) -> Notice?,
 	-- One more incubator slot.
 	buyIncubatorSlot: (player: Player) -> Notice?,
@@ -106,7 +110,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		return command(player, function()
 			return nil
 		end, function(data)
-			Bay.autoPlace(data, incomeOf, BayConfig.INVENTORY_SLOTS)
+			Bay.autoPlace(data, incomeOf)
 		end)
 	end
 
@@ -120,34 +124,22 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			end
 			return nil
 		end, function(data)
-			local alien = Bay.remove(data, uid) :: PlayerData.AlienRecord
-			local displaced = data.pods[pod].alien
-			data.pods[pod].alien = alien
-			if displaced then
-				if #data.inventory < BayConfig.INVENTORY_SLOTS then
-					table.insert(data.inventory, displaced)
-				else
-					table.insert(data.floor, displaced)
-				end
-			end
+			Bay.moveToPod(data, uid, pod)
 		end)
 	end
 
-	local function moveToInventory(player: Player, uid: number): Notice?
+	local function moveToShelf(player: Player, uid: number): Notice?
 		return command(player, function(data)
 			local _, location = Bay.find(data, if isUid(uid) then uid else 0)
-			if not location then
+			if location ~= "Pod" then
 				return "UnknownAlien"
 			end
-			if location ~= "Inventory" and #data.inventory >= BayConfig.INVENTORY_SLOTS then
-				return "InventoryFull"
+			if #data.floor >= BayConfig.SHELF_SLOTS then
+				return "ShelfFull"
 			end
 			return nil
 		end, function(data)
-			local _, location = Bay.find(data, uid)
-			if location ~= "Inventory" then
-				table.insert(data.inventory, Bay.remove(data, uid) :: PlayerData.AlienRecord)
-			end
+			Bay.toShelf(data, uid, BayConfig.SHELF_SLOTS)
 		end)
 	end
 
@@ -185,8 +177,8 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			local tier = Loot.pick(entries, random:NextNumber())
 			local kind = Crossbreed.resultKind(kinds, random:NextNumber())
 			resultId = AlienConfig.GRADES[first.grade].variants[first.variant][kind][tier]
-			resultLocation =
-				Bay.addCrossbred(data, { uid = Bay.newUid(data), id = resultId :: string }, BayConfig.INVENTORY_SLOTS)
+			-- Three went, one comes: there is always room for it.
+			resultLocation = Bay.addHatched(data, { uid = Bay.newUid(data), id = resultId :: string })
 		end)
 		if not notice and resultId and resultLocation then
 			crossbred.fire(player, resultId, resultLocation)
@@ -203,6 +195,54 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		end, function(data)
 			local record = Bay.remove(data, uid) :: PlayerData.AlienRecord
 			local price = BigNum.mul(incomeOf(record.id), BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
+			Wallet.earn(data, price)
+			gained, balance = price, data.coins
+		end)
+		if not notice and gained and balance then
+			coinsTraded.fire(player, "Sell", BigNum.mul(gained, BigNum.fromNumber(-1)), balance)
+		end
+		return notice
+	end
+
+	-- Every uid a whole number, at most SELL_MANY_MAX of them (the client asks; the profile decides).
+	local function isUidList(uids: any): boolean
+		if type(uids) ~= "table" or #uids == 0 or #uids > BayConfig.SELL_MANY_MAX then
+			return false
+		end
+		for _, uid in uids do
+			if not isUid(uid) then
+				return false
+			end
+		end
+		return true
+	end
+
+	local function sellMany(player: Player, uids: { number }): Notice?
+		local gained: BigNum.BigNum? = nil
+		local balance: BigNum.BigNum? = nil
+		local notice = command(player, function(data)
+			if not isUidList(uids) then
+				return "UnknownAlien"
+			end
+			local seen: { [number]: boolean } = {}
+			for _, uid in uids do
+				local record = if seen[uid] then nil else Bay.find(data, uid)
+				if not record or not AlienConfig.ALIENS[record.id] then
+					return "UnknownAlien"
+				end
+				seen[uid] = true
+			end
+			return nil
+		end, function(data)
+			local removed = Bay.removeMany(data, uids)
+			if not removed then
+				return
+			end
+			local total = BigNum.ZERO
+			for _, record in removed do
+				total = BigNum.add(total, incomeOf(record.id))
+			end
+			local price = BigNum.mul(total, BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
 			Wallet.earn(data, price)
 			gained, balance = price, data.coins
 		end)
@@ -235,6 +275,8 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			paid = price(data)
 			data.coins = BigNum.sub(data.coins, price(data))
 			table.insert(data.pods, {})
+			-- The best of the shelf takes the new pod at once (decision 106).
+			Bay.fillPod(data, #data.pods, incomeOf)
 			balance = data.coins
 		end)
 		if not notice and paid and balance then
@@ -337,9 +379,10 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		name = "EconomyService",
 		autoPlace = autoPlace,
 		moveToPod = moveToPod,
-		moveToInventory = moveToInventory,
+		moveToShelf = moveToShelf,
 		crossbreed = crossbreed,
 		sell = sell,
+		sellMany = sellMany,
 		buyPod = buyPod,
 		buyIncubatorSlot = buyIncubatorSlot,
 		upgradeTrainer = upgradeTrainer,

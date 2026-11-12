@@ -96,3 +96,53 @@ describe("Crossbreed.resultKind", function()
 		end).toThrow("at least one parent")
 	end)
 end)
+
+describe("Crossbreed.trios", function()
+	-- "<grade>.<variant>.<income>"
+	local function parentOf(id: string): Crossbreed.Parent?
+		local grade, variant = string.match(id, "^(%d+)%.(%a+)%.")
+		return if grade and variant then { grade = tonumber(grade) :: number, variant = variant } else nil
+	end
+	local function incomeOf(id: string): number
+		return tonumber(string.match(id, "(%d+)$")) :: number
+	end
+	local function owned(uid: number, id: string)
+		return { uid = uid, id = id }
+	end
+
+	it("finds groups of one grade and variant, with their weakest three", function()
+		local trios = Crossbreed.trios({
+			owned(1, "1.Normal.5"),
+			owned(2, "1.Normal.1"),
+			owned(3, "1.Normal.9"),
+			owned(4, "1.Normal.1"),
+			owned(5, "1.Meteor.2"),
+			owned(6, "2.Normal.3"),
+		}, parentOf, incomeOf, 3)
+		expect(#trios).toBe(1)
+		expect(trios[1].grade).toBe(1)
+		expect(trios[1].variant).toBe("Normal")
+		expect(trios[1].count).toBe(4)
+		expect(trios[1].uids).toEqual({ 2, 4, 1 })
+	end)
+
+	it("keeps variants apart and puts the best group first", function()
+		local trios = Crossbreed.trios({
+			owned(1, "1.Normal.1"),
+			owned(2, "1.Normal.1"),
+			owned(3, "1.Normal.1"),
+			owned(4, "3.Meteor.40"),
+			owned(5, "3.Meteor.20"),
+			owned(6, "3.Meteor.30"),
+			owned(7, "unknown"),
+		}, parentOf, incomeOf, 3)
+		expect(#trios).toBe(2)
+		expect(trios[1].variant).toBe("Meteor")
+		expect(trios[1].uids).toEqual({ 5, 6, 4 })
+		expect(trios[2].uids).toEqual({ 1, 2, 3 })
+	end)
+
+	it("finds nothing with fewer than three of a kind", function()
+		expect(#Crossbreed.trios({ owned(1, "1.Normal.1"), owned(2, "1.Normal.1") }, parentOf, incomeOf, 3)).toBe(0)
+	end)
+end)

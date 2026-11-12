@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local CoachService = require(script.Parent.CoachService)
 local CommunityService = require(script.Parent.CommunityService)
 local EconomyService = require(script.Parent.EconomyService)
 local IndexService = require(script.Parent.IndexService)
@@ -58,6 +59,7 @@ export type Dependencies = {
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
 	tutorial: TutorialService.TutorialService,
+	coach: CoachService.CoachService,
 	-- The community gift (decision 098).
 	community: CommunityService.CommunityService,
 	-- Granted Robux purchases: what they gave goes to the client.
@@ -107,7 +109,6 @@ end
 local function bayOf(data: PlayerData.PlayerData)
 	return {
 		pods = data.pods,
-		inventory = data.inventory,
 		floor = data.floor,
 		incubator = data.incubator,
 		incubatorSlots = data.incubatorSlots,
@@ -166,6 +167,7 @@ function NetService.new(dependencies: Dependencies): NetService
 		if hint then
 			Remotes.TutorialChanged.Fire(player, hint)
 		end
+		Remotes.CoachChanged.Fire(player, dependencies.coach.getTip(player))
 	end
 
 	local function sendUpgrades(player: Player)
@@ -273,6 +275,9 @@ function NetService.new(dependencies: Dependencies): NetService
 		dependencies.tutorial.changed.connect(function(player, hint)
 			Remotes.TutorialChanged.Fire(player, hint)
 		end)
+		dependencies.coach.changed.connect(function(player, tip)
+			Remotes.CoachChanged.Fire(player, tip)
+		end)
 		loginGift.rewarded.connect(function(player, reward)
 			Remotes.LoginGiftRewarded.Fire(player, {
 				day = reward.day,
@@ -320,14 +325,17 @@ function NetService.new(dependencies: Dependencies): NetService
 		Remotes.MoveToPod.SetCallback(guarded(function(player, value: { uid: number, pod: number })
 			return economy.moveToPod(player, value.uid, value.pod)
 		end))
-		Remotes.MoveToInventory.SetCallback(guarded(function(player, uid: number)
-			return economy.moveToInventory(player, uid)
+		Remotes.MoveToShelf.SetCallback(guarded(function(player, uid: number)
+			return economy.moveToShelf(player, uid)
 		end))
 		Remotes.Crossbreed.SetCallback(guarded(function(player, uids: { number })
 			return economy.crossbreed(player, uids)
 		end))
 		Remotes.Sell.SetCallback(guarded(function(player, uid: number)
 			return economy.sell(player, uid)
+		end))
+		Remotes.SellMany.SetCallback(guarded(function(player, uids: { number })
+			return economy.sellMany(player, uids)
 		end))
 		Remotes.BuyPod.SetCallback(guarded(function(player)
 			return economy.buyPod(player)

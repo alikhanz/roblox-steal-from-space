@@ -64,15 +64,14 @@ describe("Bench.clear", function()
 		expect(data.bench).toBeNil()
 	end)
 
-	it("finds its aliens moved to the inventory or the floor", function()
+	it("finds its aliens moved to the shelf", function()
 		local data = fresh()
 		Bench.fill(data, ALIENS, MAX_PODS)
 		local moved = data.pods[1].alien :: PlayerData.AlienRecord
 		data.pods[1].alien = nil
-		table.insert(data.inventory, moved)
+		table.insert(data.floor, moved)
 		table.insert(data.floor, { uid = 7, id = "Own" })
 		Bench.clear(data)
-		expect(#data.inventory).toBe(0)
 		expect(#data.floor).toBe(1)
 	end)
 

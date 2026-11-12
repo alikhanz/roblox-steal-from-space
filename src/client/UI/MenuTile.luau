@@ -2,9 +2,11 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- A menu tile of the HUD (DESIGN.md, "Плитка меню"): a square of coloured glass with the
 -- window's icon, no words. A red count in the top corner when something waits inside; on a
--- keyboard, the window's key in the bottom corner.
+-- keyboard, the window's key in the bottom corner; a pulsing ring when the hint after the tutorial
+-- calls the player to it (decision 106).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
@@ -22,6 +24,12 @@ local BADGE_SIZE = 20
 local KEY_SIZE = 17
 -- How far the badge and the key cap stick out of the tile's corners.
 local CORNER_OUT = 6
+-- The calling ring: its colour (the hint's), width, how far it stands off the tile, and one beat
+-- of its glow, seconds.
+local PULSE_COLOR = NEON.FLIGHT.Vertical
+local PULSE_THICKNESS = 3
+local PULSE_OUT = 3
+local PULSE_SECONDS = 0.6
 
 export type Props = {
 	name: string,
@@ -36,6 +44,8 @@ export type Props = {
 	keyText: () -> string,
 	visible: () -> boolean,
 	layoutOrder: number,
+	-- Glows to call the player to it; nil: never.
+	pulse: (() -> boolean)?,
 }
 
 local function MenuTile(props: Props): ImageButton
@@ -48,6 +58,16 @@ local function MenuTile(props: Props): ImageButton
 		pressScale.Scale = press.scale()
 		fill.BackgroundColor3 = props.color:Lerp(Color3.new(1, 1, 1), press.light())
 	end)
+	-- The ring breathes on its own (a looped tween); the tile only shows or hides it.
+	local ringStroke = Instance.new("UIStroke")
+	ringStroke.Color = PULSE_COLOR
+	ringStroke.Thickness = PULSE_THICKNESS
+	TweenService:Create(
+		ringStroke,
+		TweenInfo.new(PULSE_SECONDS, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Transparency = 0.85 }
+	):Play()
+	local pulse = props.pulse
 	return create("ImageButton")({
 		Name = props.name,
 		LayoutOrder = props.layoutOrder,
@@ -94,6 +114,19 @@ local function MenuTile(props: Props): ImageButton
 				Visible = props.glyph ~= nil,
 				Layout.textStroke(),
 			}),
+		}),
+		create("Frame")({
+			Name = "Pulse",
+			ZIndex = 0,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(1, PULSE_OUT * 2, 1, PULSE_OUT * 2),
+			BackgroundTransparency = 1,
+			Visible = function()
+				return pulse ~= nil and pulse()
+			end,
+			create("UICorner")({ CornerRadius = NEON.CORNER }),
+			ringStroke,
 		}),
 		create("TextLabel")({
 			Name = "Badge",

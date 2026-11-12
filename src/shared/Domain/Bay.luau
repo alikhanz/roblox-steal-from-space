@@ -1,12 +1,13 @@
 --!strict
--- A player's bay: pods that earn, the inventory, aliens waiting on the floor and eggs in the
--- incubator. Pure functions over the saved data that change it in place; they are meant to run
--- inside one DataService update each.
+-- A player's bay: pods that earn, the shelf of aliens with no pod (saved as `floor`, decision
+-- 092) and eggs in the incubator. Pure functions over the saved data that change it in place;
+-- they are meant to run inside one DataService update each.
 
 local BigNum = require("./BigNum")
 local PlayerData = require("./PlayerData")
 
-export type Location = "Pod" | "Inventory" | "Floor"
+-- Where an alien stands: in a pod, or on the shelf ("Floor": the name it keeps in the save).
+export type Location = "Pod" | "Floor"
 export type IncomeOf = (alienId: string) -> BigNum.BigNum
 
 type Data = PlayerData.PlayerData
@@ -29,17 +30,22 @@ local function indexOf(list: { Alien }, uid: number): number?
 	return nil
 end
 
-function Bay.find(data: Data, uid: number): (Alien?, Location?)
-	for _, pod in data.pods do
+-- The pod an alien stands in, by its number; nil when it is not in a pod.
+local function podOf(data: Data, uid: number): number?
+	for index, pod in data.pods do
 		if pod.alien and pod.alien.uid == uid then
-			return pod.alien, "Pod"
+			return index
 		end
 	end
-	local index = indexOf(data.inventory, uid)
-	if index then
-		return data.inventory[index], "Inventory"
+	return nil
+end
+
+function Bay.find(data: Data, uid: number): (Alien?, Location?)
+	local pod = podOf(data, uid)
+	if pod then
+		return data.pods[pod].alien, "Pod"
 	end
-	index = indexOf(data.floor, uid)
+	local index = indexOf(data.floor, uid)
 	if index then
 		return data.floor[index], "Floor"
 	end
@@ -48,23 +54,34 @@ end
 
 -- Takes an alien out of wherever it is. Returns nil when the player has no such alien.
 function Bay.remove(data: Data, uid: number): Alien?
-	for _, pod in data.pods do
-		local alien = pod.alien
-		if alien and alien.uid == uid then
-			pod.alien = nil
-			return alien
-		end
+	local pod = podOf(data, uid)
+	if pod then
+		local alien = data.pods[pod].alien
+		data.pods[pod].alien = nil
+		return alien
 	end
-	for _, list in { data.inventory, data.floor } do
-		local index = indexOf(list, uid)
-		if index then
-			return table.remove(list, index)
-		end
-	end
-	return nil
+	local index = indexOf(data.floor, uid)
+	return if index then table.remove(data.floor, index) else nil
 end
 
-function Bay.freePods(data: Data): number
+-- Takes out every alien of `uids`, or none: nil when a uid repeats or names no alien of the
+-- player. In the order of `uids`.
+function Bay.removeMany(data: Data, uids: { number }): { Alien }?
+	local seen: { [number]: boolean } = {}
+	for _, uid in uids do
+		if seen[uid] or not Bay.find(data, uid) then
+			return nil
+		end
+		seen[uid] = true
+	end
+	local removed: { Alien } = {}
+	for _, uid in uids do
+		table.insert(removed, Bay.remove(data, uid) :: Alien)
+	end
+	return removed
+end
+
+function Bay.freePods(data: { read pods: { PlayerData.Pod } }): number
 	local free = 0
 	for _, pod in data.pods do
 		if not pod.alien then
@@ -74,7 +91,14 @@ function Bay.freePods(data: Data): number
 	return free
 end
 
--- A newly hatched (or crossbred) alien goes into the first free pod, else onto the floor.
+-- True when a new alien has somewhere to stand: a free pod, or a free niche on a shelf of
+-- `shelfSlots` (decision 106: with neither, eggs wait instead of hatching). Takes the profile or
+-- the client's copy of the bay.
+function Bay.hasRoom(data: { read pods: { PlayerData.Pod }, read floor: { Alien } }, shelfSlots: number): boolean
+	return Bay.freePods(data) > 0 or #data.floor < shelfSlots
+end
+
+-- A newly hatched (or crossbred) alien goes into the first free pod, else onto the shelf.
 function Bay.addHatched(data: Data, alien: Alien): Location
 	for _, pod in data.pods do
 		if not pod.alien then
@@ -86,24 +110,80 @@ function Bay.addHatched(data: Data, alien: Alien): Location
 	return "Floor"
 end
 
--- Puts a crossbred alien where the player will look for it: the inventory (its parents mostly
--- came from there), else a free pod, else the floor.
-function Bay.addCrossbred(data: Data, alien: Alien, inventorySlots: number): Location
-	if #data.inventory < inventorySlots then
-		table.insert(data.inventory, alien)
-		return "Inventory"
+-- Orders aliens best earner first; ties keep the older alien first, so sorting again changes
+-- nothing.
+local function byIncome(incomeOf: IncomeOf): (Alien, Alien) -> boolean
+	return function(left: Alien, right: Alien): boolean
+		local order = BigNum.compare(incomeOf(left.id), incomeOf(right.id))
+		if order ~= 0 then
+			return order > 0
+		end
+		return left.uid < right.uid
 	end
-	return Bay.addHatched(data, alien)
 end
 
--- Moves an alien from the floor into the inventory. False when it is not on the floor or the
--- inventory is full.
-function Bay.pickUp(data: Data, uid: number, inventorySlots: number): boolean
-	local index = indexOf(data.floor, uid)
-	if not index or #data.inventory >= inventorySlots then
+-- The best earner on the shelf: its index there, or nil for an empty shelf.
+function Bay.bestOnShelf(data: { read floor: { Alien } }, incomeOf: IncomeOf): number?
+	local best: number? = nil
+	local before = byIncome(incomeOf)
+	for index, alien in data.floor do
+		if not best or before(alien, data.floor[best]) then
+			best = index
+		end
+	end
+	return best
+end
+
+-- Puts the best earner from the shelf into pod number `pod` when it stands empty (a pod just
+-- bought, "Place the best" at a free pod). Returns the alien that moved, or nil.
+function Bay.fillPod(data: Data, pod: number, incomeOf: IncomeOf): Alien?
+	local target = data.pods[pod]
+	local best = Bay.bestOnShelf(data, incomeOf)
+	if not target or target.alien or not best then
+		return nil
+	end
+	local alien = table.remove(data.floor, best) :: Alien
+	target.alien = alien
+	return alien
+end
+
+-- Puts an alien into pod number `pod`. Whoever stood there swaps with it: into the pod it came
+-- from, or into its place on the shelf, so the shelf never grows. False when there is no such
+-- alien or pod.
+function Bay.moveToPod(data: Data, uid: number, pod: number): boolean
+	local target = data.pods[pod]
+	local _, location = Bay.find(data, uid)
+	if not target or not location then
 		return false
 	end
-	table.insert(data.inventory, table.remove(data.floor, index) :: Alien)
+	local displaced = target.alien
+	if displaced and displaced.uid == uid then
+		return true
+	end
+	if location == "Pod" then
+		local from = podOf(data, uid) :: number
+		target.alien, data.pods[from].alien = data.pods[from].alien, displaced
+	else
+		local index = indexOf(data.floor, uid) :: number
+		target.alien = data.floor[index]
+		if displaced then
+			data.floor[index] = displaced
+		else
+			table.remove(data.floor, index)
+		end
+	end
+	return true
+end
+
+-- Moves an alien from its pod onto the shelf. False when it is not in a pod or the shelf of
+-- `shelfSlots` is full.
+function Bay.toShelf(data: Data, uid: number, shelfSlots: number): boolean
+	local pod = podOf(data, uid)
+	if not pod or #data.floor >= shelfSlots then
+		return false
+	end
+	table.insert(data.floor, data.pods[pod].alien :: Alien)
+	data.pods[pod].alien = nil
 	return true
 end
 
@@ -118,9 +198,8 @@ function Bay.incomePerSecond(data: { read pods: { PlayerData.Pod } }, incomeOf: 
 	return total
 end
 
--- Puts the best earners into the pods, the next ones into the inventory and the rest onto the
--- floor. Ties keep the older alien first, so repeating it changes nothing.
-function Bay.autoPlace(data: Data, incomeOf: IncomeOf, inventorySlots: number)
+-- Puts the best earners into the pods and the rest onto the shelf, best first.
+function Bay.autoPlace(data: Data, incomeOf: IncomeOf)
 	local all: { Alien } = {}
 	for _, pod in data.pods do
 		if pod.alien then
@@ -128,26 +207,15 @@ function Bay.autoPlace(data: Data, incomeOf: IncomeOf, inventorySlots: number)
 			pod.alien = nil
 		end
 	end
-	for _, list in { data.inventory, data.floor } do
-		for _, alien in list do
-			table.insert(all, alien)
-		end
+	for _, alien in data.floor do
+		table.insert(all, alien)
 	end
-	table.sort(all, function(left: Alien, right: Alien): boolean
-		local order = BigNum.compare(incomeOf(left.id), incomeOf(right.id))
-		if order ~= 0 then
-			return order > 0
-		end
-		return left.uid < right.uid
-	end)
+	table.sort(all, byIncome(incomeOf))
 
-	table.clear(data.inventory)
 	table.clear(data.floor)
 	for position, alien in all do
 		if position <= #data.pods then
 			data.pods[position].alien = alien
-		elseif #data.inventory < inventorySlots then
-			table.insert(data.inventory, alien)
 		else
 			table.insert(data.floor, alien)
 		end

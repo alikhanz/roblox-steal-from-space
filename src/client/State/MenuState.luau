@@ -38,6 +38,8 @@ export type Tile = {
 	-- Its key works even while the tile is hidden (the controls window, hidden by the player:
 	-- the key is the way back to it, and takes no room on the screen).
 	keyWhenHidden: boolean?,
+	-- The tile glows to call the player to it (the hint after the tutorial, decision 106).
+	pulse: (() -> boolean)?,
 }
 
 export type MenuState = {

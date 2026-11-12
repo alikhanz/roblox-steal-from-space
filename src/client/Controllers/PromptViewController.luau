@@ -62,8 +62,13 @@ end
 local function colorOf(prompt: ProximityPrompt): Color3
 	if prompt:GetAttribute(BayConfig.READY_NOW_TIER_ATTRIBUTE) ~= nil then
 		return ACTION.Robux
-	elseif prompt:GetAttribute(BayConfig.PROMPT_ACTION_ATTRIBUTE) == BayConfig.PROMPT_ACTION_PICK_UP then
+	end
+	local action = prompt:GetAttribute(BayConfig.PROMPT_ACTION_ATTRIBUTE)
+	if action == BayConfig.PROMPT_ACTION_OPEN_BAY or action == BayConfig.PROMPT_ACTION_PLACE_BEST then
 		return ACTION.Move
+	elseif action == BayConfig.PROMPT_ACTION_SHELF_FULL then
+		-- An egg that cannot hatch: red, like the shelf's counter when full (decision 106).
+		return ACTION.Sell
 	end
 	return ACTION.Main
 end

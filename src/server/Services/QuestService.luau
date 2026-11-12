@@ -90,10 +90,8 @@ local function canCrossbreed(data: PlayerData.PlayerData): boolean
 			count(pod.alien.id)
 		end
 	end
-	for _, list in { data.inventory, data.floor } do
-		for _, alien in list do
-			count(alien.id)
-		end
+	for _, alien in data.floor do
+		count(alien.id)
 	end
 	for _, total in byGrade do
 		if total >= 3 then

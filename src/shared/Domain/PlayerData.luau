@@ -68,8 +68,9 @@ export type PlayerData = {
 	jetpackLevel: number,
 	-- Pods the player owns, earning when they hold an alien.
 	pods: { Pod },
-	inventory: { AlienRecord },
-	-- Hatched aliens with no pod and no inventory room, waiting on the bay floor.
+	-- Aliens with no pod, standing on the island's shelf (decisions 092, 106; the field keeps its
+	-- old name). The shelf holds BayConfig.SHELF_SLOTS: a full one stops eggs from hatching, but
+	-- a profile from before v20 may hold more.
 	floor: { AlienRecord },
 	-- Eggs in the incubator's slots, all warming at once (no more of them than slots).
 	incubator: { EggRecord },
@@ -90,6 +91,8 @@ export type PlayerData = {
 	bestPost: number,
 	-- Tutorial milestones passed (Domain/Tutorial: 0 not started ... Tutorial.DONE).
 	tutorialStep: number,
+	-- The hints after the tutorial the player has done, as a bit mask (Domain/Coach).
+	coachDone: number,
 	-- Has flown under a dome (decision 096): the double-jump hint is no longer shown.
 	domeFlightLearned: boolean,
 	-- The gift for joining the game's community is taken (decision 098, Domain/CommunityGift).
@@ -131,7 +134,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 20
+PlayerData.SCHEMA_VERSION = 21
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -293,6 +296,20 @@ PlayerData.MIGRATIONS = {
 	[18] = function(_data: { [string]: any }) end,
 	-- v20 adds the controls window (decision 105): `controlsHidden`, false from the template.
 	[19] = function(_data: { [string]: any }) end,
+	-- v21: no inventory (decision 106). Its aliens go to the end of the shelf, which may now hold
+	-- more than it fits: eggs then wait until the player sells or crossbreeds. `coachDone` comes
+	-- from the template; what a player has already done is marked by the coach on the next join.
+	[20] = function(data: { [string]: any })
+		if type(data.inventory) == "table" then
+			if type(data.floor) ~= "table" then
+				data.floor = {}
+			end
+			for _, alien in data.inventory do
+				table.insert(data.floor, alien)
+			end
+		end
+		data.inventory = nil
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -309,7 +326,6 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		trainerLevel = 0,
 		jetpackLevel = 0,
 		pods = pods,
-		inventory = {},
 		floor = {},
 		incubator = {},
 		incubatorSlots = defaults.startingIncubatorSlots,
@@ -320,6 +336,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		onboardingSteps = 0,
 		bestPost = 0,
 		tutorialStep = Tutorial.NOT_STARTED,
+		coachDone = 0,
 		domeFlightLearned = false,
 		communityGiftTaken = false,
 		controlsHidden = false,
@@ -564,7 +581,6 @@ local function validate(data: { [string]: any }): string?
 
 	local seen: Uids = {}
 	local problem = validateList(data.pods, "pods", validatePod, seen)
-		or validateList(data.inventory, "inventory", validateAlien, seen)
 		or validateList(data.floor, "floor", validateAlien, seen)
 		or validateList(data.incubator, "incubator", validateEgg, seen)
 		or validateList(data.waiting, "waiting", validateWaitingEgg, seen)
@@ -591,7 +607,7 @@ local function validate(data: { [string]: any }): string?
 	if not isFinite(data.playSeconds) or data.playSeconds < 0 then
 		return "playSeconds is invalid"
 	end
-	for _, field in { "onboardingSteps", "bestPost" } do
+	for _, field in { "onboardingSteps", "bestPost", "coachDone" } do
 		if not isInteger(data[field]) or data[field] < 0 then
 			return `{field} is invalid`
 		end

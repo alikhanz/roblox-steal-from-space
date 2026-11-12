@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пришельцы и подсказки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Page chrome: one dark "space" theme by choice, like the other mockups. */
+:root {
+  --bg: #0a0d1c; --surface: #121733; --ink: #e9ecf7; --muted-page: #9aa3c2; --rule: #262d52;
+  --good: #5BDB6E; --bad: #FF5A64; --pick: #FFC83D;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 40px; }
+h1 { font-weight: 900; font-size: clamp(26px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; }
+h2 { font-weight: 900; font-size: 24px; margin: 0 0 6px; }
+h3 { font-weight: 900; font-size: 18px; margin: 0 0 6px; }
+p { margin: 0 0 8px; max-width: 76ch; color: var(--muted-page); font-size: 16px; }
+p b, li b { color: var(--ink); }
+section { display: flex; flex-direction: column; gap: 16px; }
+ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; color: var(--muted-page); }
+.tag { display: inline-block; padding: 1px 10px; border-radius: 99px; font-size: 13px; font-weight: 900; vertical-align: middle; margin-left: 8px; }
+.tag.rec { background: rgba(91,219,110,.16); color: var(--good); border: 1px solid rgba(91,219,110,.5); }
+.tag.min { background: rgba(157,182,210,.12); color: #9DB6D2; border: 1px solid rgba(157,182,210,.4); }
+.tag.auto { background: rgba(255,200,61,.12); color: var(--pick); border: 1px solid rgba(255,200,61,.45); }
+
+/* Today's path */
+.flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 760px) { .flow { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 14px 16px; }
+.card .n { font-weight: 900; color: #8FF4FF; font-size: 13px; letter-spacing: .04em; }
+.card h4 { margin: 2px 0 6px; font-weight: 900; font-size: 16px; }
+.card p { font-size: 14.5px; margin: 0; }
+.card .prob { margin-top: 8px; color: #ffb3b8; font-size: 14px; }
+.card .prob::before { content: "✗ "; color: var(--bad); font-weight: 900; }
+.card.hot { border-color: rgba(255,90,100,.55); box-shadow: 0 0 0 1px rgba(255,90,100,.2) inset; }
+
+/* Options */
+.option { border-top: 1px solid var(--rule); padding-top: 28px; display: flex; flex-direction: column; gap: 14px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+.pros li::marker { content: "+  "; color: var(--good); font-weight: 900; }
+.cons li::marker { content: "−  "; color: var(--bad); font-weight: 900; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+figcaption { color: var(--muted-page); font-size: 14.5px; }
+figcaption b { color: var(--ink); }
+.device { background: #000; padding: 8px; border-radius: 26px; box-shadow: 0 0 0 1px #2a3156, 0 18px 40px rgba(0,0,0,.45); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+
+/* ───────── Phone screen 844 × 390 ───────── */
+.screen {
+  --text: #EAF2FF; --muted: #9DB6D2; --line: rgba(130, 236, 255, .5); --glass: rgba(10, 14, 40, .55);
+  --speed: #FFD34A; --coin: #FFC83D; --guide: #8FF4FF; --shelf: #5546FF; --place: #5FD4FF;
+  position: relative; container-type: inline-size; aspect-ratio: 844 / 390; overflow: hidden; border-radius: 20px;
+  font-family: "Nunito", sans-serif; font-weight: 900; color: var(--text); line-height: 1.15;
+  background: radial-gradient(ellipse 60cqw 30cqw at 82% 8%, rgba(130, 70, 210, .42), transparent 70%),
+    radial-gradient(ellipse 46cqw 30cqw at 8% 62%, rgba(40, 130, 230, .34), transparent 70%), #060919;
+}
+svg.world { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hud { position: absolute; left: 1.6cqw; top: 2cqw; display: flex; flex-direction: column; gap: .8cqw; }
+.chips { display: flex; gap: .8cqw; }
+.chip { display: flex; align-items: center; gap: .5cqw; padding: .35cqw 1.1cqw; background: var(--glass); border: .12cqw solid var(--line); border-radius: 99px; font-size: 1.7cqw; }
+.chip.s { color: var(--speed); } .chip.c { color: var(--coin); }
+.tiles { display: flex; gap: .7cqw; }
+.tile { position: relative; width: 4.6cqw; height: 4.6cqw; border-radius: 1.1cqw; display: grid; place-items: center; font-size: 2.2cqw;
+  background: linear-gradient(rgba(62,166,255,.22), rgba(62,166,255,.07)); border: .14cqw solid #2f6fae; }
+.tile.store { background: linear-gradient(rgba(65,201,90,.2), rgba(65,201,90,.06)); border-color: #348a4a; }
+.tile.quest { background: linear-gradient(rgba(255,154,46,.2), rgba(255,154,46,.06)); border-color: #a5672a; }
+.tile.idx { background: linear-gradient(rgba(160,107,255,.2), rgba(160,107,255,.06)); border-color: #6a4fa8; }
+.tile.pulse { box-shadow: 0 0 0 .3cqw rgba(143,244,255,.75), 0 0 2cqw rgba(143,244,255,.7); }
+.badge { position: absolute; right: -.7cqw; top: -.7cqw; min-width: 2cqw; height: 2cqw; padding: 0 .4cqw; border-radius: 99px; background: #FF5A64; font-size: 1.3cqw; display: grid; place-items: center; }
+.toast { position: absolute; left: 50%; top: 2.2cqw; transform: translateX(-50%); padding: .7cqw 1.6cqw; background: var(--glass); border: .12cqw solid var(--line); border-radius: 1.2cqw; font-size: 1.75cqw; white-space: nowrap; display: flex; gap: .8cqw; align-items: center; }
+.toast .ic { color: #A46BFF; }
+/* A prompt, as PromptViewController draws them: key + action, coloured by what it does */
+.prompt { position: absolute; transform: translate(-50%, -100%); display: flex; align-items: center; gap: .7cqw; padding: .45cqw 1.1cqw .45cqw .5cqw;
+  background: rgba(10,14,40,.72); border: .14cqw solid var(--c, #43CC5F); border-radius: 99px; font-size: 1.6cqw; white-space: nowrap; }
+.prompt .k { width: 2.4cqw; height: 2.4cqw; border-radius: 50%; display: grid; place-items: center; background: var(--c, #43CC5F); color: #08102a; font-size: 1.4cqw; }
+.prompt small { color: var(--muted); font-size: 1.3cqw; }
+.prompt.blue { --c: #3EA6FF; } .prompt.red { --c: #FF5A64; } .prompt.gold { --c: #FFBB2E; } .prompt.violet { --c: #A46BFF; }
+.label3d { position: absolute; transform: translate(-50%, -100%); font-size: 1.45cqw; color: var(--place); text-align: center; white-space: nowrap; text-shadow: 0 0 .6cqw rgba(0,0,0,.9); }
+.panel { position: absolute; left: 50%; bottom: 2cqw; transform: translateX(-50%); display: flex; align-items: center; gap: 1.1cqw;
+  padding: .7cqw 1.2cqw .7cqw 1cqw; background: var(--glass); border: .12cqw solid var(--line); border-radius: 1.4cqw; white-space: nowrap; }
+.panel .ico { font-size: 2.4cqw; color: var(--guide); }
+.panel .line { font-size: 1.8cqw; }
+.panel .btn { padding: .45cqw 1.2cqw; border-radius: .9cqw; font-size: 1.6cqw; background: rgba(164,107,255,.5); border: .14cqw solid #A46BFF; }
+.panel .btn.green { background: rgba(67,204,95,.45); border-color: #43CC5F; }
+.panel .x { color: var(--muted); font-size: 1.6cqw; padding-left: .4cqw; }
+.pin { position: absolute; transform: translate(-50%, -100%); text-align: center; font-size: 1.6cqw; color: var(--guide); }
+.pin small { display: block; font-size: 1.3cqw; color: var(--text); opacity: .85; }
+.note { position: absolute; font-family: "Nunito", sans-serif; font-weight: 800; font-size: 1.45cqw; color: #FFC83D; background: rgba(0,0,0,.55); padding: .3cqw .8cqw; border-radius: .6cqw; border: .1cqw dashed rgba(255,200,61,.6); }
+
+/* Bay window (simplified) */
+.win { position: absolute; left: 10%; top: 4%; width: 80%; height: 92%; border-radius: 1.6cqw; border: .14cqw solid var(--line);
+  background: linear-gradient(#181E56, #0A0C28); display: flex; flex-direction: column; padding: 1.2cqw 1.6cqw; gap: 1cqw; }
+.win-head { display: flex; align-items: center; gap: 1.2cqw; font-size: 2.1cqw; }
+.win-head .x { margin-left: auto; color: #FF5A64; }
+.win-cols { flex: 1; display: grid; grid-template-columns: 1.1fr 1fr; gap: 1.6cqw; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: .6cqw; overflow: hidden; }
+.col .h { font-size: 1.6cqw; display: flex; gap: .8cqw; align-items: baseline; }
+.m { color: var(--muted); font-size: 1.35cqw; }
+.link { margin-left: auto; color: #3EA6FF; font-size: 1.3cqw; text-decoration: underline; }
+.row { display: flex; justify-content: space-between; padding: .45cqw .9cqw; border-radius: .8cqw; font-size: 1.45cqw; background: rgba(10,14,40,.6); border: .14cqw solid var(--t); }
+.row .inc { color: var(--coin); } .row .inc.grey { color: var(--muted); }
+.row.sel { box-shadow: 0 0 0 .22cqw #E070C6; }
+.r-com { --t: #8a93a8; } .r-unc { --t: #5BDB6E; } .r-rare { --t: #3EA6FF; }
+.trio { display: flex; justify-content: space-between; align-items: center; padding: .45cqw .6cqw .45cqw .9cqw; border-radius: .8cqw; font-size: 1.45cqw;
+  background: rgba(164,107,255,.14); border: .14cqw solid rgba(164,107,255,.7); }
+.tbtn { padding: .3cqw .9cqw; border-radius: .7cqw; background: rgba(164,107,255,.55); border: .12cqw solid #A46BFF; font-size: 1.3cqw; }
+.win-foot { display: flex; align-items: center; gap: 1.2cqw; font-size: 1.6cqw; }
+.fbtn { padding: .55cqw 1.4cqw; border-radius: .9cqw; font-size: 1.5cqw; }
+.fbtn.sell { margin-left: auto; background: rgba(255,90,100,.5); border: .14cqw solid #FF5A64; }
+.fbtn.off { background: rgba(164,107,255,.15); border: .14cqw solid rgba(164,107,255,.35); color: var(--muted); }
+
+/* Coach steps */
+.timeline { position: relative; padding: 14px 0 6px; }
+.tl-bar { position: relative; height: 54px; border-radius: 12px; background: var(--surface); border: 1px solid var(--rule); }
+.tl-seg { position: absolute; top: 8px; bottom: 8px; border-radius: 8px; font-size: 12.5px; font-weight: 900; display: grid; place-items: center; color: #08102a; overflow: hidden; white-space: nowrap; }
+.tl-ticks { position: relative; height: 20px; font-size: 12.5px; color: var(--muted-page); }
+.tl-ticks span { position: absolute; transform: translateX(-50%); }
+.steps { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.step { display: grid; grid-template-columns: 44px 1.1fr 1.6fr 1fr; gap: 14px; align-items: start; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 12px 14px; }
+@media (max-width: 760px) { .step { grid-template-columns: 36px 1fr; } .step > :nth-child(n+3) { grid-column: 2; } }
+.step .num { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; background: rgba(143,244,255,.14); color: #8FF4FF; border: 1px solid rgba(143,244,255,.45); }
+.step b { color: var(--ink); }
+.step .when, .step .done { font-size: 14px; color: var(--muted-page); }
+.step .say { font-size: 15px; color: var(--ink); background: rgba(10,14,40,.7); border: 1px solid rgba(130,236,255,.4); border-radius: 10px; padding: 7px 10px; }
+.step .say i { color: var(--muted-page); font-style: normal; font-size: 13px; display: block; margin-top: 3px; }
+.rules { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--ink); font-weight: 900; }
+td { color: var(--muted-page); }
+td b { color: var(--ink); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- A small robo-pet: pearl body, dark visor, two eyes -->
+    <symbol id="pet" viewBox="0 0 40 44">
+      <ellipse cx="20" cy="41" rx="13" ry="3" fill="#000" opacity=".35"/>
+      <path d="M6 26 Q6 8 20 8 Q34 8 34 26 Q34 40 20 40 Q6 40 6 26Z" fill="#E7EEFF"/>
+      <path d="M10 22 Q10 14 20 14 Q30 14 30 22 Q30 28 20 28 Q10 28 10 22Z" fill="#1B2350"/>
+      <circle cx="16" cy="21" r="2.6" fill="#8FF4FF"/><circle cx="24" cy="21" r="2.6" fill="#8FF4FF"/>
+      <path d="M20 8 L20 3" stroke="#E7EEFF" stroke-width="2"/><circle cx="20" cy="3" r="2" fill="#FF9ACB"/>
+    </symbol>
+    <symbol id="hero" viewBox="0 0 40 80">
+      <ellipse cx="20" cy="77" rx="14" ry="3.5" fill="#000" opacity=".4"/>
+      <rect x="8" y="30" width="24" height="26" rx="4" fill="#3B6BD6"/>
+      <rect x="10" y="56" width="8" height="20" rx="3" fill="#2A3A7A"/><rect x="22" y="56" width="8" height="20" rx="3" fill="#2A3A7A"/>
+      <rect x="11" y="10" width="18" height="18" rx="4" fill="#F6D2A8"/>
+      <rect x="2" y="32" width="6" height="20" rx="3" fill="#F6D2A8"/><rect x="32" y="32" width="6" height="20" rx="3" fill="#F6D2A8"/>
+      <rect x="12" y="32" width="16" height="16" rx="3" fill="#B0B8CC" opacity=".9"/>
+    </symbol>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2150"/><stop offset="1" stop-color="#0d1236"/></linearGradient>
+    <linearGradient id="dome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FF4FF" stop-opacity=".08"/><stop offset="1" stop-color="#8FF4FF" stop-opacity="0"/></linearGradient>
+  </defs>
+</svg>
+
+<div class="page">
+
+<header>
+  <h1>Пришельцы на острове и подсказки после туториала</h1>
+  <p>Макет к задаче «управление пришельцами» (тест Prod на iPhone, 2026-11-11). Сначала — как устроено сейчас и где игрок теряется, потом три варианта, как сделать понятнее, и шаги обучения после туториала. <b>Вид экранов условный</b>: важно, что и где появляется, а не точные формы.</p>
+</header>
+
+<!-- ─────────────── Chosen ─────────────── -->
+<section>
+  <h2>Выбрано (2026-11-11): А без инвентаря, стеллаж с пределом 24</h2>
+  <p>Бриф — <b>docs/design/screens/aliens-and-hints.md</b>. Инвентаря и «Подобрать» нет: запас — только стеллаж. Пока он полный и мест нет, яйцо не вылупляется, и это видно сразу в трёх местах.</p>
+  <div class="pair">
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+          <!-- shelf at the back, full, red crown -->
+          <path d="M520 70 Q660 50 820 80 L820 230 Q660 205 520 225Z" fill="#20285a" stroke="#FF5A64" stroke-width="3"/>
+          <g stroke="#5546FF" stroke-width="2"><path d="M520 122 Q660 100 820 130" fill="none"/><path d="M520 174 Q660 152 820 182" fill="none"/></g>
+          <g opacity=".9">
+            <use href="#pet" x="540" y="78" width="30" height="34"/><use href="#pet" x="590" y="72" width="30" height="34"/><use href="#pet" x="640" y="70" width="30" height="34"/><use href="#pet" x="690" y="72" width="30" height="34"/><use href="#pet" x="740" y="76" width="30" height="34"/>
+            <use href="#pet" x="540" y="128" width="30" height="34"/><use href="#pet" x="590" y="122" width="30" height="34"/><use href="#pet" x="640" y="120" width="30" height="34"/><use href="#pet" x="690" y="122" width="30" height="34"/><use href="#pet" x="740" y="128" width="30" height="34"/>
+            <use href="#pet" x="540" y="178" width="30" height="34"/><use href="#pet" x="590" y="172" width="30" height="34"/><use href="#pet" x="640" y="170" width="30" height="34"/><use href="#pet" x="690" y="172" width="30" height="34"/><use href="#pet" x="740" y="178" width="30" height="34"/>
+          </g>
+          <!-- incubator capsule with a ready egg -->
+          <ellipse cx="260" cy="300" rx="70" ry="18" fill="#2a2f60"/>
+          <path d="M200 300 Q200 170 260 160 Q320 170 320 300Z" fill="#8FF4FF" opacity=".12" stroke="#8FF4FF" stroke-width="2" stroke-opacity=".5"/>
+          <ellipse cx="260" cy="250" rx="30" ry="40" fill="#E9F3FF"/><ellipse cx="252" cy="236" rx="8" ry="12" fill="#fff" opacity=".7"/>
+          <use href="#hero" x="390" y="230" width="52" height="104"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 1,2K</div><div class="chip s">⚡ 180</div></div>
+          <div class="tiles"><div class="tile">▦<div class="badge">!</div></div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="label3d" style="left:79cqw; top:7.4cqw; color:#FF5A64; font-size:2cqw">24/24</div>
+        <div class="label3d" style="left:30.8cqw; top:18cqw; color:#FF5A64; font-size:1.8cqw">Стеллаж полный</div>
+        <div class="prompt red" style="left:30.8cqw; top:42cqw"><span class="k">E</span>Стеллаж полный<small>открыть отсек</small></div>
+      </div></div>
+      <figcaption><b>Полный стеллаж:</b> счётчик на венце «24/24» красный; над готовым яйцом — «Стеллаж полный» вместо «Готово!»; подсказка у яйца открывает отсек; на плитке отсека — «!».</figcaption>
+    </figure>
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+          <ellipse cx="200" cy="260" rx="70" ry="20" fill="#5FD4FF" opacity=".25" stroke="#5FD4FF" stroke-width="2"/>
+          <use href="#pet" x="160" y="170" width="80" height="88"/>
+          <ellipse cx="650" cy="260" rx="70" ry="20" fill="#5FD4FF" opacity=".25" stroke="#5FD4FF" stroke-width="2"/>
+          <use href="#pet" x="610" y="170" width="80" height="88"/>
+          <ellipse cx="425" cy="250" rx="72" ry="21" fill="none" stroke="#8FF4FF" stroke-width="3" stroke-dasharray="10 7"/>
+          <ellipse cx="425" cy="250" rx="90" ry="28" fill="none" stroke="#8FF4FF" stroke-width="1.5" opacity=".5"/>
+          <use href="#hero" x="500" y="230" width="46" height="92"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 120</div><div class="chip s">⚡ 52</div></div>
+          <div class="tiles"><div class="tile">▦</div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="label3d" style="left:50.4cqw; top:22cqw">Свободное место</div>
+        <div class="prompt blue" style="left:50.4cqw; top:30cqw"><span class="k">E</span>Поставить лучшего<small>+8 ●/с</small></div>
+      </div></div>
+      <figcaption><b>Пустое место</b> пульсирует пунктиром; подсказка ставит самого доходного со стеллажа. Купленное у терминала место занимает лучший сразу.</figcaption>
+    </figure>
+  </div>
+  <div class="pair">
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="460" rx="700" ry="210" fill="url(#floor)"/>
+          <!-- station far away with a kiosk -->
+          <ellipse cx="640" cy="110" rx="120" ry="26" fill="#1c2460" stroke="#8FF4FF" stroke-opacity=".35"/>
+          <path d="M540 108 Q640 20 740 108" fill="#8FF4FF" opacity=".06" stroke="#8FF4FF" stroke-opacity=".3"/>
+          <rect x="618" y="78" width="22" height="26" rx="8" fill="#FFC83D" opacity=".85"/>
+          <path d="M420 330 C 480 260, 560 170, 628 106" fill="none" stroke="#8FF4FF" stroke-width="5" stroke-dasharray="4 14" stroke-linecap="round"/>
+          <use href="#hero" x="395" y="250" width="50" height="100"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 2,1K</div><div class="chip s">⚡ 120</div></div>
+          <div class="tiles"><div class="tile">▦</div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="pin" style="left:75.6cqw; top:8.6cqw">Джетпаки<small>180 м</small></div>
+        <div class="panel"><span class="ico">🚀</span><span class="line">Хватает на новый джетпак! Лети на станцию — киоск джетпаков</span></div>
+      </div></div>
+      <figcaption><b>Подсказка 2 — джетпак:</b> та же панель и дорожка, что у туториала; уходит, когда джетпак куплен.</figcaption>
+    </figure>
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+          <path d="M150 60 Q420 10 700 60 L700 300 Q420 250 150 300Z" fill="#20285a" stroke="#5546FF" stroke-width="3"/>
+          <g stroke="#5546FF" stroke-width="3"><path d="M150 140 Q420 90 700 140" fill="none"/><path d="M150 220 Q420 170 700 220" fill="none"/></g>
+          <use href="#pet" x="315" y="140" width="64" height="72"/><use href="#pet" x="435" y="132" width="64" height="72"/><use href="#pet" x="555" y="140" width="64" height="72"/>
+          <use href="#pet" x="200" y="150" width="56" height="62" opacity=".7"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 610</div><div class="chip s">⚡ 52</div></div>
+          <div class="tiles"><div class="tile pulse">▦</div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="label3d" style="left:50cqw; top:6cqw; color:#9DB6D2; font-size:1.8cqw">4/24</div>
+        <div class="panel"><span class="ico">⚗</span><span class="line">Трое одинаковых — скрести их: шанс на редкость выше</span><span class="btn">Скрестить</span></div>
+      </div></div>
+      <figcaption><b>Подсказка 4 — скрестить:</b> плитка отсека пульсирует; кнопка в панели открывает окно с уже выбранной тройкой. Крестика нет: подсказка уходит после первого скрещивания.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ─────────────── Window: crossbreed triples + sell many ─────────────── -->
+<section>
+  <h2>Окно отсека: тройки для скрещивания и продажа нескольких</h2>
+  <p>По замечаниям друзей на плейтесте (2026-11-12): одинаковых не надо искать по списку, и выбранных можно продать всех сразу.</p>
+  <figure>
+    <div class="device"><div class="screen">
+      <div style="position:absolute; inset:0; background:rgba(2,4,14,.5)"></div>
+      <div class="win">
+        <div class="win-head"><span>Твой отсек</span><span class="chip c" style="font-size:1.5cqw">● 6,4K</span><span class="x">✕</span></div>
+        <div class="win-cols">
+          <div class="col">
+            <div class="h">Места 6/6 <span class="m">+48 ●/с</span></div>
+            <div class="row r-rare"><span>Слизень</span><span class="inc">+14 ●/с</span></div>
+            <div class="row r-unc"><span>Краб-дрон</span><span class="inc">+9 ●/с</span></div>
+            <div class="row r-unc sel"><span>Слизень</span><span class="inc">+8 ●/с</span></div>
+            <div class="row r-com"><span>Слизень</span><span class="inc">+7 ●/с</span></div>
+            <div class="row r-com"><span>Краб-дрон</span><span class="inc">+5 ●/с</span></div>
+          </div>
+          <div class="col">
+            <div class="h">Можно скрестить</div>
+            <div class="trio"><span>Слизень <span class="m">×4</span></span><span class="tbtn">Скрестить 3 → 1</span></div>
+            <div class="trio"><span>Краб-дрон <span class="m">×3</span></span><span class="tbtn">Скрестить 3 → 1</span></div>
+            <div class="h" style="margin-top:1cqw">Стеллаж 11/24 <span class="link">Выбрать всех</span></div>
+            <div class="row r-com sel"><span>Слизень</span><span class="inc grey">+4 ●/с</span></div>
+            <div class="row r-com sel"><span>Слизень</span><span class="inc grey">+4 ●/с</span></div>
+            <div class="row r-com sel"><span>Краб-дрон</span><span class="inc grey">+3 ●/с</span></div>
+            <div class="row r-com sel"><span>Краб-дрон</span><span class="inc grey">+3 ●/с</span></div>
+          </div>
+        </div>
+        <div class="win-foot"><span>Выбрано: 5</span><span class="fbtn sell">Продать 5 ● 3,2K</span><span class="fbtn off">Скрестить 3 → 1</span></div>
+      </div>
+    </div></div>
+    <figcaption><b>Справа сверху — готовые тройки</b> со стеллажа: одна кнопка, без выбора, берёт трёх самых слабых из группы. <b>Внизу — выбранные</b> (розовая рамка) с любого места: «Продать 5 ● 3,2K», второе нажатие — «Точно? +3,2K». «Скрестить» внизу горит, только когда выбраны ровно трое подходящих.</figcaption>
+  </figure>
+</section>
+
+<!-- ─────────────── Today ─────────────── -->
+<section>
+  <h2>Как сейчас: от яйца до места</h2>
+  <div class="flow">
+    <div class="card">
+      <div class="n">1 · ВЫЛУПИЛ</div>
+      <h4>Пришелец встаёт на свободное место</h4>
+      <p>У новичка 3 места. Тост «Вылупился Слизень → на место». Пока места есть — всё понятно.</p>
+    </div>
+    <div class="card hot">
+      <div class="n">2 · МЕСТА ЗАНЯТЫ</div>
+      <h4>Новые — на стеллаж</h4>
+      <p>С 4-го пришельца (минута 4–6) все уходят на стеллаж справа от спавна, даже если новый лучше того, что на месте.</p>
+      <div class="prob">Пришелец лучше старого не зарабатывает, пока игрок сам его не переставит.</div>
+    </div>
+    <div class="card hot">
+      <div class="n">3 · «ПОДОБРАТЬ»</div>
+      <h4>Пришелец исчезает</h4>
+      <p>Подсказка у стеллажа перекладывает пришельца в инвентарь (10 мест). Инвентарь есть только в окне отсека, в мире его не видно. Ни тоста, ни полёта.</p>
+      <div class="prob">«Подобрал — и они куда-то исчезли». Шаг ничего не даёт: и со стеллажа, и из инвентаря в окне доступны одни и те же кнопки.</div>
+    </div>
+    <div class="card hot">
+      <div class="n">4 · КУПИЛ МЕСТО</div>
+      <h4>Место стоит пустым</h4>
+      <p>У терминала «Место: ● 100». Купленное место пустое, пришелец со стеллажа сам на него не встаёт.</p>
+      <div class="prob">Надо догадаться открыть отсек → выбрать → «На место».</div>
+    </div>
+    <div class="card hot">
+      <div class="n">5 · СКРЕСТИТЬ / ПРОДАТЬ</div>
+      <h4>Только в окне отсека</h4>
+      <p>Есть подсказка внизу инвентаря и кнопка «Лучших на места», но в окно ничто не зовёт: на плитке отсека нет значка, туториал про него молчит.</p>
+      <div class="prob">Игрок не узнаёт, что можно скрещивать и продавать.</div>
+    </div>
+    <div class="card hot">
+      <div class="n">6 · ПОСЛЕ ТУТОРИАЛА</div>
+      <h4>«Дальше сам»</h4>
+      <p>Последняя строка указывает на цель роста. Про центральную станцию (джетпаки, задания, магазин) игрок узнаёт, только если сам туда залетит. Первый джетпак стоит 2 000 — по модели баланса это 6–7-я минута.</p>
+      <div class="prob">Станцию не замечают; первую покупку джетпака откладывают.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── Option A ─────────────── -->
+<section class="option">
+  <h2>А. Подсказки к тому, что есть <span class="tag min">меньше всего работы</span></h2>
+  <p>Инвентарь и стеллаж остаются как есть. Добавляем то, чего не хватает глазу: видно, куда ушёл пришелец, и пустое место зовёт к себе.</p>
+  <div class="pair">
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="420" rx="620" ry="190" fill="url(#floor)"/>
+          <!-- shelf -->
+          <path d="M470 120 Q610 90 760 130 L760 300 Q610 262 470 290Z" fill="#20285a" stroke="#5546FF" stroke-width="3"/>
+          <g stroke="#5546FF" stroke-width="2" opacity=".9"><path d="M470 178 Q610 148 760 188" fill="none"/><path d="M470 234 Q610 204 760 244" fill="none"/></g>
+          <use href="#pet" x="560" y="182" width="34" height="38"/><use href="#pet" x="660" y="190" width="34" height="38"/>
+          <!-- the picked one flying to the bay tile -->
+          <path d="M610 190 C 470 40, 200 30, 70 80" fill="none" stroke="#8FF4FF" stroke-width="3" stroke-dasharray="8 8" opacity=".8"/>
+          <use href="#pet" x="300" y="38" width="30" height="34" opacity=".9"/>
+          <use href="#hero" x="350" y="200" width="56" height="112"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 340</div><div class="chip s">⚡ 52</div></div>
+          <div class="tiles"><div class="tile pulse">▦<div class="badge">1</div></div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="toast"><span class="ic">◆</span>Слизень → в инвентарь. Он в отсеке ▦</div>
+        <div class="note" style="left:44cqw; top:30cqw">пришелец улетает в плитку отсека</div>
+      </div></div>
+      <figcaption><b>«Подобрать»:</b> пришелец улетает в плитку отсека, на плитке — значок «1», тост называет, где он теперь.</figcaption>
+    </figure>
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+          <!-- places: two taken, one empty glowing -->
+          <ellipse cx="200" cy="260" rx="70" ry="20" fill="#5FD4FF" opacity=".25" stroke="#5FD4FF" stroke-width="2"/>
+          <use href="#pet" x="160" y="170" width="80" height="88"/>
+          <ellipse cx="650" cy="260" rx="70" ry="20" fill="#5FD4FF" opacity=".25" stroke="#5FD4FF" stroke-width="2"/>
+          <use href="#pet" x="610" y="170" width="80" height="88"/>
+          <ellipse cx="425" cy="250" rx="72" ry="21" fill="none" stroke="#8FF4FF" stroke-width="3" stroke-dasharray="10 7"/>
+          <ellipse cx="425" cy="250" rx="90" ry="28" fill="none" stroke="#8FF4FF" stroke-width="1.5" opacity=".5"/>
+          <use href="#hero" x="500" y="230" width="46" height="92"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 120</div><div class="chip s">⚡ 52</div></div>
+          <div class="tiles"><div class="tile">▦<div class="badge">2</div></div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="label3d" style="left:50.4cqw; top:22cqw">Свободное место</div>
+        <div class="prompt blue" style="left:50.4cqw; top:30cqw"><span class="k">E</span>Поставить лучшего<small>+8 ●/с</small></div>
+      </div></div>
+      <figcaption><b>Пустое место</b> светится пунктиром и подписано; подсказка у него ставит самого доходного из ждущих. Купленное место заполняется само.</figcaption>
+    </figure>
+  </div>
+  <div class="cols">
+    <ul class="pros">
+      <li>Мало кода, сохранения не меняются.</li>
+      <li>«Исчезли» больше не будет: видно, куда ушёл.</li>
+    </ul>
+    <ul class="cons">
+      <li>Два запаса — стеллаж и инвентарь — остаются, хотя разницы между ними для игрока нет. Шаг «Подобрать» по-прежнему лишний.</li>
+      <li>Скрестить и продать — всё так же только в окне.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─────────────── Option B ─────────────── -->
+<section class="option">
+  <h2>Б. Стеллаж — это и есть запас <span class="tag rec">рекомендую</span></h2>
+  <p>Инвентарь пропадает как отдельное хранилище: все пришельцы без места стоят на стеллаже (первые 24 в нишах, остальные — в окне). Вместо «Подобрать» у пришельца на стеллаже две подсказки: <b>«На место»</b> и <b>«Продать»</b>. Лучшие встают на места сами, но переставить можно и руками.</p>
+  <div class="pair">
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+          <path d="M150 60 Q420 10 700 60 L700 330 Q420 280 150 330Z" fill="#20285a" stroke="#5546FF" stroke-width="3"/>
+          <g stroke="#5546FF" stroke-width="3"><path d="M150 150 Q420 100 700 150" fill="none"/><path d="M150 240 Q420 190 700 240" fill="none"/></g>
+          <g stroke="#2d3570" stroke-width="2"><path d="M290 42 L290 312"/><path d="M420 30 L420 300"/><path d="M555 42 L555 312"/></g>
+          <use href="#pet" x="320" y="150" width="70" height="78"/>
+          <use href="#pet" x="452" y="150" width="70" height="78"/>
+          <use href="#pet" x="200" y="160" width="62" height="70" opacity=".85"/>
+          <use href="#pet" x="590" y="165" width="62" height="70" opacity=".85"/>
+          <use href="#hero" x="400" y="255" width="60" height="120" opacity=".95"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 340</div><div class="chip s">⚡ 52</div></div>
+          <div class="tiles"><div class="tile">▦</div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="label3d" style="left:46cqw; top:17cqw; color:#EAF2FF">Слизень · Необычный<br><span style="color:#FFC83D">+12 ●/с</span></div>
+        <div class="prompt blue" style="left:42cqw; top:33cqw"><span class="k">E</span>На место</div>
+        <div class="prompt red" style="left:58cqw; top:33cqw"><span class="k">F</span>Продать ● 1,4K</div>
+      </div></div>
+      <figcaption><b>У стеллажа</b> — у ближайшего пришельца имя, доход и две кнопки. Мест нет — «На место» меняет его на самого слабого с места, если он лучше (тот встаёт в нишу); не лучше — кнопки нет. На телефоне — две кнопки рядом.</figcaption>
+    </figure>
+    <figure>
+      <div class="device"><div class="screen">
+        <svg class="world" viewBox="0 0 844 390">
+          <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+          <ellipse cx="250" cy="270" rx="80" ry="22" fill="#5FD4FF" opacity=".25" stroke="#5FD4FF" stroke-width="2"/>
+          <use href="#pet" x="205" y="170" width="90" height="100"/>
+          <ellipse cx="560" cy="275" rx="80" ry="22" fill="#5FD4FF" opacity=".35" stroke="#8FF4FF" stroke-width="3"/>
+          <use href="#pet" x="505" y="150" width="110" height="122"/>
+          <path d="M760 120 C 700 60, 620 70, 580 140" fill="none" stroke="#8FF4FF" stroke-width="3" stroke-dasharray="8 8"/>
+          <polygon points="574,128 590,146 570,150" fill="#8FF4FF"/>
+          <use href="#hero" x="60" y="230" width="50" height="100"/>
+        </svg>
+        <div class="hud">
+          <div class="chips"><div class="chip c">● 410</div><div class="chip s">⚡ 52</div></div>
+          <div class="tiles"><div class="tile">▦</div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+        </div>
+        <div class="toast"><span class="ic">◆</span>Вылупился Редкий Слизень → на место, вместо Слизня</div>
+        <div class="note" style="left:72cqw; top:9cqw">старый уходит на стеллаж</div>
+      </div></div>
+      <figcaption><b>Сами встают лучшие:</b> новый пришелец лучше самого слабого на месте — занимает его место, слабый уходит на стеллаж. Купил место — на него сразу встаёт лучший со стеллажа. Ручная перестановка в окне остаётся.</figcaption>
+    </figure>
+  </div>
+  <figure>
+    <div class="device" style="max-width:540px"><div class="screen">
+      <svg class="world" viewBox="0 0 844 390">
+        <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+        <path d="M150 60 Q420 10 700 60 L700 330 Q420 280 150 330Z" fill="#20285a" stroke="#5546FF" stroke-width="3"/>
+        <g stroke="#5546FF" stroke-width="3"><path d="M150 150 Q420 100 700 150" fill="none"/><path d="M150 240 Q420 190 700 240" fill="none"/></g>
+        <g fill="none" stroke="#A46BFF" stroke-width="4"><rect x="300" y="140" width="100" height="92" rx="10"/><rect x="420" y="132" width="100" height="92" rx="10"/><rect x="540" y="140" width="100" height="92" rx="10"/></g>
+        <use href="#pet" x="315" y="150" width="70" height="78"/><use href="#pet" x="435" y="142" width="70" height="78"/><use href="#pet" x="555" y="150" width="70" height="78"/>
+        <use href="#pet" x="190" y="160" width="62" height="70" opacity=".6"/>
+      </svg>
+      <div class="hud">
+        <div class="chips"><div class="chip c">● 610</div><div class="chip s">⚡ 52</div></div>
+        <div class="tiles"><div class="tile">▦</div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+      </div>
+      <div class="prompt violet" style="left:50cqw; top:36cqw"><span class="k">R</span>Скрестить 3 → 1</div>
+    </div></div>
+    <figcaption><b>Скрестить у стеллажа (по желанию):</b> когда на стеллаже трое одного стража, их ниши светятся фиолетовым, у них третья кнопка «Скрестить 3 → 1» (самые слабые три). Можно оставить скрещивание только в окне — тогда его покажет подсказка обучения.</figcaption>
+  </figure>
+  <div class="cols">
+    <ul class="pros">
+      <li>Одно хранилище, которое видно в мире. Нечему «исчезать».</li>
+      <li>Доход растёт сам: лучшие на местах без похода в окно — так в большинстве игр с питомцами («поставить лучших»).</li>
+      <li>Продать и поставить — там, где игрок стоит; окно — для тех, кто хочет точнее.</li>
+    </ul>
+    <ul class="cons">
+      <li>Миграция сохранений: инвентарь переезжает на стеллаж (поле профиля <code>inventory</code> пустеет). Prod закрыт — делаем аккуратно, как для живых игроков.</li>
+      <li>Правки в окне отсека: колонка «Инвентарь» становится «Стеллаж», кнопки «Убрать с места» → «На стеллаж». Бриф окна — новая версия.</li>
+      <li>Две-три подсказки у пришельца — на телефоне проверить, что не мешают.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─────────────── Option C ─────────────── -->
+<section class="option">
+  <h2>В. Всё само <span class="tag auto">проще всего игроку</span></h2>
+  <p>Места всегда заняты самыми доходными — игра расставляет сама после каждого вылупления, скрещивания и покупки места. Руками не переставить. У стеллажа — только «Продать»; в окне — продать и скрестить.</p>
+  <figure>
+    <div class="device" style="max-width:540px"><div class="screen">
+      <svg class="world" viewBox="0 0 844 390">
+        <ellipse cx="420" cy="430" rx="640" ry="200" fill="url(#floor)"/>
+        <path d="M150 60 Q420 10 700 60 L700 330 Q420 280 150 330Z" fill="#20285a" stroke="#5546FF" stroke-width="3"/>
+        <g stroke="#5546FF" stroke-width="3"><path d="M150 150 Q420 100 700 150" fill="none"/><path d="M150 240 Q420 190 700 240" fill="none"/></g>
+        <use href="#pet" x="385" y="145" width="72" height="80"/>
+        <use href="#pet" x="250" y="155" width="62" height="70" opacity=".8"/>
+        <use href="#pet" x="530" y="155" width="62" height="70" opacity=".8"/>
+        <use href="#hero" x="400" y="255" width="60" height="120" opacity=".95"/>
+      </svg>
+      <div class="hud">
+        <div class="chips"><div class="chip c">● 340</div><div class="chip s">⚡ 52</div></div>
+        <div class="tiles"><div class="tile">▦</div><div class="tile store">🛒</div><div class="tile quest">✓</div><div class="tile idx">★</div></div>
+      </div>
+      <div class="label3d" style="left:50cqw; top:17cqw; color:#EAF2FF">Слизень · ждёт места</div>
+      <div class="prompt red" style="left:50cqw; top:33cqw"><span class="k">E</span>Продать ● 1,4K</div>
+    </div></div>
+    <figcaption><b>У стеллажа</b> — одна кнопка. Места игрок не трогает: они всегда лучшие.</figcaption>
+  </figure>
+  <div class="cols">
+    <ul class="pros">
+      <li>Ошибиться нельзя: доход всегда наибольший.</li>
+      <li>Меньше всего кнопок на телефоне.</li>
+    </ul>
+    <ul class="cons">
+      <li>Нельзя поставить любимца ради вида — а пришельцы растут до ×8 роста игрока, ими хвастаются.</li>
+      <li>Та же миграция, что в Б, и окно отсека теряет половину кнопок.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─────────────── Coach ─────────────── -->
+<section class="option">
+  <h2>Обучение после туториала: подсказки по событиям</h2>
+  <p>Та же панель внизу, что у туториала, та же дорожка-шеврон и метка. Каждая подсказка — <b>один раз</b>, по событию, и уходит, как только игрок сделал дело (или сам дошёл до него раньше — тогда её не будет вовсе). Ничего не блокирует. Ниже — для варианта Б; для А и В тексты чуть другие.</p>
+
+  <div class="timeline">
+    <div class="tl-bar">
+      <div class="tl-seg" style="left:0%; width:30%; background:#8FF4FF">туториал (5 шагов)</div>
+      <div class="tl-seg" style="left:30.5%; width:13%; background:#7c6cff; color:#fff">1 · стеллаж</div>
+      <div class="tl-seg" style="left:44%; width:13%; background:#FFC83D">2 · джетпак</div>
+      <div class="tl-seg" style="left:57.5%; width:13%; background:#FF9A2E">3 · задание</div>
+      <div class="tl-seg" style="left:71%; width:13%; background:#A46BFF; color:#fff">4 · скрестить</div>
+      <div class="tl-seg" style="left:84.5%; width:15%; background:#FF5A64; color:#fff">5 · продать</div>
+    </div>
+    <div class="tl-ticks"><span style="left:0">0</span><span style="left:30%">~5 мин</span><span style="left:44%">~7</span><span style="left:57.5%">~9</span><span style="left:71%">~10–15</span><span style="left:96%">когда стеллаж полный</span></div>
+  </div>
+  <p style="font-size:14px">Минуты — по модели баланса (<code>lune run balance</code>: 4-е место на 6-й минуте, первый джетпак на 6–7-й у «идеального» игрока); живой игрок медленнее. Порядок задают события, а не таймер: что случилось раньше, то и показывается.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="num">1</div>
+      <div><b>Стеллаж</b><div class="when">Первый пришелец без места (все места заняты, этот не лучше).</div></div>
+      <div class="say">Места заняты — новый пришелец ждёт на стеллаже. Купи место у терминала, и он встанет сам<i>дорожка → терминал мест, подсвечен стеллаж</i></div>
+      <div class="done">Готово: купил место, или стеллаж опустел.</div>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <div><b>Джетпак</b><div class="when">Монет ≥ цена первого джетпака (2 000), джетпак ещё стартовый, игрок не несёт яйцо.</div></div>
+      <div class="say">Хватает на новый джетпак! Лети на центральную станцию — киоск джетпаков<i>дорожка и метка → киоск джетпаков; на станции — подсветка киоска</i></div>
+      <div class="done">Готово: купил джетпак (любым путём).</div>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <div><b>Задания</b><div class="when">Первое выполненное задание дня, награда не забрана.</div></div>
+      <div class="say">Задание выполнено! Забери награду на станции — киоск заданий<i>дорожка → киоск заданий; значок на плитке заданий как сейчас</i></div>
+      <div class="done">Готово: забрал награду (киоск или плитка — всё равно).</div>
+    </div>
+    <div class="step">
+      <div class="num">4</div>
+      <div><b>Скрещивание</b><div class="when">На стеллаже трое одного стража и варианта.</div></div>
+      <div class="say">Трое одинаковых — скрести их: выйдет один, с шансом на редкость выше <span class="btn" style="padding:1px 8px;border-radius:8px;background:rgba(164,107,255,.5);border:1px solid #A46BFF">Скрестить</span><i>кнопка открывает отсек, трое уже выбраны; плитка отсека пульсирует</i></div>
+      <div class="done">Готово: первое скрещивание.</div>
+    </div>
+    <div class="step">
+      <div class="num">5</div>
+      <div><b>Продажа</b><div class="when">На стеллаже 24 (все ниши заняты).</div></div>
+      <div class="say">Стеллаж полный — продай слабых: монеты сразу<i>дорожка → стеллаж; у ближайшего — кнопка «Продать»</i></div>
+      <div class="done">Готово: первая продажа.</div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div>
+      <h3>Ритм — чтобы не затягивать</h3>
+      <ul>
+        <li>Одна подсказка за раз. Следующая — не раньше чем через ~40 с после прошлой.</li>
+        <li>Пока игрок несёт яйцо или в погоне — подсказок нет (ему не до этого).</li>
+        <li>Каждая — один раз на аккаунт. Уже сделал сам — подсказки не будет.</li>
+        <li>Подсказку можно смахнуть крестиком — она больше не придёт.</li>
+        <li>В аналитике — воронка подсказок: показана → сделано; видно, где новички застревают в первые 15 минут (это и есть D1).</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Что ещё</h3>
+      <table>
+        <tr><th>Подарок за вход</th><td>Окно и так открывается само после первой доставки — отдельной подсказки не нужно.</td></tr>
+        <tr><th>Конец туториала</th><td>Прощальная строка — «На центральной станции джетпаки и задания», с меткой станции на 8 с, вместо «цель слева».</td></tr>
+        <tr><th>Магазин за R$</th><td>Не зовём: первые минуты — про игру, не про покупки.</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

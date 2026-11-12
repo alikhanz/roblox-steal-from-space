@@ -1,10 +1,13 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The bay window and what goes with it: its tile in the HUD menu, toasts for hatches and
--- refused commands, the welcome-back screen. Holds the selection; everything else is read from
--- ProfileState and every action is sent to the server through Remotes.
+-- The bay window and what goes with it: its tile in the HUD menu, toasts for hatches, refused
+-- commands and a shelf gone full, the welcome-back screen, and the bay's prompts that open the
+-- window (an alien on the shelf, an egg that cannot hatch: decision 106). Holds the selection;
+-- everything else is read from ProfileState and every action is sent to the server through
+-- Remotes.
 
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -14,6 +17,7 @@ local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayWindow = require(script.Parent.Parent.UI.BayWindow)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local CoachState = require(script.Parent.Parent.State.CoachState)
 local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
@@ -44,7 +48,7 @@ local HATCH_TOAST_GROUP = "Hatch"
 local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	NoProfile = "notice.noProfile.toast",
 	UnknownAlien = "notice.unknownAlien.toast",
-	InventoryFull = "notice.inventoryFull.toast",
+	ShelfFull = "notice.shelfFull.toast",
 	NotEnoughCoins = "notice.notEnoughCoins.toast",
 	MaxPods = "notice.maxPlaces.toast",
 	JetpackTop = "notice.jetpackTop.toast",
@@ -81,6 +85,8 @@ export type Dependencies = {
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
 	menu: MenuState.MenuState,
+	-- The hint after the tutorial: "crossbreed" and "sell" light the tile, "crossbreed" the trios.
+	coach: CoachState.CoachState,
 }
 
 export type BayWindowController = {
@@ -88,6 +94,10 @@ export type BayWindowController = {
 	start: () -> (),
 	-- The welcome-back screen is up (other screens on login wait for it).
 	welcomeOpen: () -> boolean,
+	-- Opens the window with these aliens chosen (none: nothing chosen).
+	openWith: (uids: { number }) -> (),
+	-- Opens the window with the shelf's best ready trio chosen (the hint "crossbreed them").
+	openWithTrio: () -> (),
 }
 
 -- What the welcome-back screen shows; doubleTier: the "Collect x2" tier on offer, 0 for none.
@@ -107,12 +117,12 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	local isOpen = dependencies.windows.slot("Bay")
 	-- Selected uids, in the order they were tapped; a fresh table each change so Vide sees it.
 	local selection = source({} :: { number })
-	-- The alien whose sale waits for a second tap.
-	local pendingSale = source(nil :: number?)
+	-- The selection whose sale waits for a second tap (its uids joined), or nil.
+	local pendingSale = source(nil :: string?)
 	local reward = source(nil :: Reward?)
 	-- Optional sources are read through a plain getter: Vide types a source as an intersection
 	-- of reader and writer, which is ambiguous to call without arguments when T is optional.
-	local readPendingSale = pendingSale :: () -> number?
+	local readPendingSale = pendingSale :: () -> string?
 	local readReward = reward :: () -> Reward?
 	-- Bumped every second so egg lines recompute.
 	local clock = source(0)
@@ -126,7 +136,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 	local PLACE_KEYS: { [ProfileState.Location]: Text.Key } = {
 		Pod = "place.spot.hint",
-		Inventory = "place.inventory.hint",
 		Floor = "place.floor.hint",
 	}
 
@@ -143,11 +152,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			for _, pod in bay.pods do
 				if pod.alien and pod.alien.uid == uid then
 					table.insert(found, { record = pod.alien, location = "Pod" :: ProfileState.Location })
-				end
-			end
-			for _, alien in bay.inventory do
-				if alien.uid == uid then
-					table.insert(found, { record = alien, location = "Inventory" :: ProfileState.Location })
 				end
 			end
 			for _, alien in bay.floor do
@@ -174,6 +178,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return free
 	end
 
+	-- Any number can be chosen (to sell them all); three of a kind crossbreed (decision 106).
 	local function toggle(uid: number)
 		pendingSale(nil)
 		local list = table.clone(selection())
@@ -182,9 +187,6 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			table.remove(list, index)
 		else
 			table.insert(list, uid)
-			while #list > BayConfig.CROSSBREED_COUNT do
-				table.remove(list, 1)
-			end
 		end
 		selection(list)
 	end
@@ -231,17 +233,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		elseif canCrossbreed() then
 			return text("bay.crossbreedReady.hint")
 		end
-		local line, problem = selectedLine()
-		if problem == "MixedVariants" then
-			return text("bay.crossbreedVariants.hint")
-		elseif not line then
-			return text("bay.crossbreedMixed.hint")
-		end
-		return text("bay.crossbreedSame.hint", {
-			guardian = Names.guardian(locale, line.grade) or "?",
-			count = #records,
-			left = BayConfig.CROSSBREED_COUNT - #records,
-		})
+		return text("bay.selectedMany.hint", { count = #records })
 	end
 
 	local function podPrice(): BigNum.BigNum
@@ -257,6 +249,55 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		local alien = AlienConfig.ALIENS[alienId]
 		local income = if alien then alien.income else BigNum.ZERO
 		return BigNum.mul(income, BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
+	end
+
+	-- What the selected aliens sell for together.
+	local function selectionPrice(): BigNum.BigNum
+		local total = BigNum.ZERO
+		for _, entry in selectedRecords() do
+			total = BigNum.add(total, sellPrice(entry.record.id))
+		end
+		return total
+	end
+
+	-- The selection as one key: a sale asked for once waits for a second tap on the same aliens.
+	local function selectionKey(): string
+		local uids = table.clone(selection())
+		table.sort(uids)
+		return table.concat(uids, ",")
+	end
+
+	local function incomeNumber(alienId: string): number
+		local alien = AlienConfig.ALIENS[alienId]
+		return if alien then BigNum.toNumber(alien.income) else 0
+	end
+
+	-- The shelf's ready trios (Domain/Crossbreed.trios), best first.
+	local function shelfTrios(): { Crossbreed.Trio }
+		return Crossbreed.trios(profile.bay().floor, function(alienId: string): Crossbreed.Parent?
+			return AlienConfig.ALIENS[alienId]
+		end, incomeNumber, BayConfig.CROSSBREED_COUNT)
+	end
+
+	local function shelfIsFull(): boolean
+		return #profile.bay().floor >= BayConfig.SHELF_SLOTS
+	end
+
+	-- Ready eggs in the incubator that cannot hatch: no free place and a full shelf (decision 106).
+	local function stuckEggs(): number
+		local _ = clock()
+		local bay = profile.bay()
+		if Bay.hasRoom(bay, BayConfig.SHELF_SLOTS) then
+			return 0
+		end
+		local now = workspace:GetServerTimeNow()
+		local stuck = 0
+		for _, egg in bay.incubator do
+			if egg.hatchAt <= now then
+				stuck += 1
+			end
+		end
+		return stuck
 	end
 
 	local function slotPrice(): BigNum.BigNum
@@ -287,10 +328,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 				known[pod.alien.uid] = true
 			end
 		end
-		for _, list in { bay.inventory, bay.floor } do
-			for _, alien in list do
-				known[alien.uid] = true
-			end
+		for _, alien in bay.floor do
+			known[alien.uid] = true
 		end
 		local current = Vide.untrack(selection)
 		local kept = {}
@@ -301,6 +340,33 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		end
 		if #kept ~= #current then
 			selection(kept)
+		end
+	end
+
+	-- The shelf has just gone full with no free place: from now on eggs wait (decision 106).
+	local hadRoom: boolean? = nil
+	local function watchRoom()
+		local room = Bay.hasRoom(profile.bay(), BayConfig.SHELF_SLOTS)
+		local before = hadRoom
+		hadRoom = room
+		if before == true and not room then
+			toast(text("bay.shelfFull.toast"), "Bad")
+		end
+	end
+
+	-- A pod just bought takes the best of the shelf at once: say who moved in.
+	local podCount: number? = nil
+	local function watchNewPod()
+		local pods = profile.bay().pods
+		local before = podCount
+		podCount = #pods
+		local newest = pods[#pods]
+		if before and #pods == before + 1 and newest and newest.alien then
+			toast(
+				text("alien.toPlace.toast", { name = Names.alien(locale, newest.alien.id) or "?" }),
+				"Alien",
+				newest.alien.id
+			)
 		end
 	end
 
@@ -381,6 +447,32 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return slots
 	end
 
+	-- Every alien on the shelf is chosen ("select all" then lets go of them).
+	local function allShelfSelected(): boolean
+		local floor = profile.bay().floor
+		if #floor == 0 then
+			return false
+		end
+		local chosen = selection()
+		for _, alien in floor do
+			if not table.find(chosen, alien.uid) then
+				return false
+			end
+		end
+		return true
+	end
+
+	local function openWith(uids: { number })
+		pendingSale(nil)
+		selection(table.clone(uids))
+		isOpen(true)
+	end
+
+	local function openWithTrio()
+		local trio = shelfTrios()[1]
+		openWith(if trio then trio.uids else {})
+	end
+
 	local function selectionKind(): BayWindow.Selection
 		local records = selectedRecords()
 		if #records == 0 then
@@ -395,6 +487,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		Vide.mount(function()
 			Vide.effect(pruneSelection)
 			Vide.effect(watchIncubator)
+			Vide.effect(watchRoom)
+			Vide.effect(watchNewPod)
 			-- The window shows Robux prices: fresh ones each time it opens.
 			Vide.effect(function()
 				if isOpen() then
@@ -453,21 +547,21 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 								{ price = robux(purchases.productPrice("IncubatorSlot", slotTier())) }
 							)
 						end,
-						inventory = function()
+						shelf = function()
 							return text(
-								"bay.inventory.title",
-								{ count = #profile.bay().inventory, max = BayConfig.INVENTORY_SLOTS }
+								"bay.shelf.title",
+								{ count = #profile.bay().floor, max = BayConfig.SHELF_SLOTS }
 							)
 						end,
-						inventoryEmpty = text("bay.inventoryEmpty.hint"),
-						floor = function()
-							return text("bay.floor.title", { count = #profile.bay().floor })
+						shelfEmpty = text("bay.shelfEmpty.hint"),
+						shelfFull = text("bay.shelfFull.hint"),
+						selectAll = function()
+							return if allShelfSelected()
+								then text("bay.selectNone.button")
+								else text("bay.selectAll.button")
 						end,
-						floorHint = function()
-							return if #profile.bay().inventory < BayConfig.INVENTORY_SLOTS
-								then text("bay.pickUpFloor.hint")
-								else text("bay.floorFull.hint")
-						end,
+						trios = text("bay.trios.title"),
+						trioButton = text("bay.crossbreed.button"),
 						crossbreedHint = text("bay.crossbreed.hint"),
 						status = status,
 						selectedName = function()
@@ -489,15 +583,14 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							return `{tier or "?"} · {incomeText(alien.income)}`
 						end,
 						sell = function()
-							local pending = readPendingSale()
-							local entry = single()
-							if pending and entry and entry.record.uid == pending then
-								return text(
-									"bay.sellConfirm.button",
-									{ price = BigNum.format(sellPrice(entry.record.id)) }
-								)
+							local count = #selectedRecords()
+							local price = BigNum.format(selectionPrice())
+							if readPendingSale() == selectionKey() then
+								return text("bay.sellConfirm.button", { price = price })
 							end
-							return text("bay.sell.button")
+							return if count > 1
+								then text("bay.sellMany.button", { count = count, price = price })
+								else text("bay.sell.button")
 						end,
 						toPod = text("bay.toPlace.button"),
 						fromPod = text("bay.fromPlace.button"),
@@ -512,11 +605,53 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						end
 						return rowsOf(aliens)
 					end,
-					inventory = function()
-						return rowsOf(profile.bay().inventory)
-					end,
-					floor = function()
+					shelf = function()
 						return rowsOf(profile.bay().floor)
+					end,
+					shelfIsFull = shelfIsFull,
+					trios = function()
+						local trios: { BayWindow.Trio } = {}
+						for _, trio in shelfTrios() do
+							local record = nil
+							for _, alien in profile.bay().floor do
+								if alien.uid == trio.uids[#trio.uids] then
+									record = alien
+								end
+							end
+							local alienId = if record then record.id else ""
+							local alien = AlienConfig.ALIENS[alienId]
+							table.insert(trios, {
+								alienId = alienId,
+								name = Names.guardian(locale, trio.grade) or "?",
+								count = `×{trio.count}`,
+								color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
+							})
+						end
+						return trios
+					end,
+					triosLit = function()
+						return dependencies.coach.tip() == "Crossbreed"
+					end,
+					onTrio = function(index: number)
+						local trio = shelfTrios()[index]
+						if trio then
+							clearSelection()
+							Remotes.Crossbreed.Fire(trio.uids)
+						end
+					end,
+					onSelectAll = function()
+						pendingSale(nil)
+						if allShelfSelected() then
+							selection({})
+							return
+						end
+						local list = table.clone(selection())
+						for _, alien in profile.bay().floor do
+							if not table.find(list, alien.uid) then
+								table.insert(list, alien.uid)
+							end
+						end
+						selection(list)
 					end,
 					eggs = eggSlots,
 					slots = function()
@@ -533,24 +668,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					isSelected = function(uid)
 						return table.find(selection(), uid) ~= nil
 					end,
-					-- Once a guardian is picked, aliens of other guardians or variants fade: they
-					-- cannot join the crossbreed (they can still be tapped for a move or a sale).
-					isDimmed = function(alienId)
-						local line = selectedLine()
-						local alien = AlienConfig.ALIENS[alienId]
-						return line ~= nil and alien ~= nil and Crossbreed.mismatch(line, alien) ~= nil
-					end,
 					onToggle = toggle,
 					canCrossbreed = canCrossbreed,
 					canMoveToPod = function()
 						local entry = single()
 						return entry ~= nil and entry.location ~= "Pod" and freePods() > 0
 					end,
-					canMoveToInventory = function()
+					canMoveToShelf = function()
 						local entry = single()
-						return entry ~= nil
-							and entry.location ~= "Inventory"
-							and #profile.bay().inventory < BayConfig.INVENTORY_SLOTS
+						return entry ~= nil and entry.location == "Pod" and not shelfIsFull()
 					end,
 					canBuyPod = function()
 						return #profile.bay().pods < BayConfig.MAX_PODS
@@ -582,16 +708,21 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						clearSelection()
 						Remotes.Crossbreed.Fire(uids)
 					end,
+					-- The first tap asks again with the sum, the second sells them all.
 					onSell = function()
-						local entry = single()
-						if not entry then
+						local uids = table.clone(selection())
+						if #uids == 0 then
 							return
 						end
-						if readPendingSale() == entry.record.uid then
-							clearSelection()
-							Remotes.Sell.Fire(entry.record.uid)
+						if readPendingSale() ~= selectionKey() then
+							pendingSale(selectionKey())
+							return
+						end
+						clearSelection()
+						if #uids == 1 then
+							Remotes.Sell.Fire(uids[1])
 						else
-							pendingSale(entry.record.uid)
+							Remotes.SellMany.Fire({ table.unpack(uids, 1, math.min(#uids, BayConfig.SELL_MANY_MAX)) })
 						end
 					end,
 					onMoveToPod = function()
@@ -607,11 +738,11 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							end
 						end
 					end,
-					onMoveToInventory = function()
+					onMoveToShelf = function()
 						local entry = single()
 						if entry then
 							clearSelection()
-							Remotes.MoveToInventory.Fire(entry.record.uid)
+							Remotes.MoveToShelf.Fire(entry.record.uid)
 						end
 					end,
 					onBuyPod = function()
@@ -774,17 +905,39 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 			end
 		end)
 
-		-- The tile in the HUD menu row; its key (B) is answered by MenuState.
+		-- The tile in the HUD menu row; its key (B) is answered by MenuState. Its count: ready eggs
+		-- that wait for room; it glows while the hint asks to crossbreed or sell.
 		dependencies.menu.add({
 			slot = "Bay",
 			onPress = function()
 				isOpen(not isOpen())
 			end,
+			badge = stuckEggs,
+			pulse = function()
+				local tip = dependencies.coach.tip()
+				return tip == "Crossbreed" or tip == "Sell"
+			end,
 		})
+		-- The bay's own prompts that only open the window: an alien on the shelf (chosen in it) and
+		-- a ready egg that cannot hatch.
+		ProximityPromptService.PromptTriggered:Connect(function(prompt, who)
+			if who ~= Players.LocalPlayer then
+				return
+			end
+			local action = prompt:GetAttribute(BayConfig.PROMPT_ACTION_ATTRIBUTE)
+			if action == BayConfig.PROMPT_ACTION_OPEN_BAY then
+				local uid = prompt:GetAttribute(BayConfig.PROMPT_ALIEN_UID_ATTRIBUTE)
+				openWith(if type(uid) == "number" then { uid } else {})
+			elseif action == BayConfig.PROMPT_ACTION_SHELF_FULL then
+				openWith({})
+			end
+		end)
+		-- Egg countdowns while the window is open; the tile's count of stuck eggs needs the time
+		-- too, less often.
 		local sinceTick = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
 			sinceTick += deltaTime
-			if sinceTick >= COUNTDOWN_INTERVAL and isOpen() then
+			if sinceTick >= COUNTDOWN_INTERVAL then
 				sinceTick = 0
 				clock(clock() + 1)
 			end
@@ -797,6 +950,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		welcomeOpen = function()
 			return readReward() ~= nil
 		end,
+		openWith = openWith,
+		openWithTrio = openWithTrio,
 	}
 end
 
