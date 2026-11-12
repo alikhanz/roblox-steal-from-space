@@ -159,6 +159,15 @@ local MOTION = table.freeze({
 		transparency = 0.45,
 		brightness = 1.2,
 	}),
+	-- A legendary's light (AlienDress.legendaryGlow, wings): its gold wings' strokes and its two
+	-- big soft glows, at their brightest this see-through. At 0.45 (strokes), 0.82 and 0.78 the
+	-- gold burnt to a white wall over the medal of rays and the pet (user, 2026-11-12).
+	LEGENDARY_LIGHT = table.freeze({
+		strokeTransparency = 0.7,
+		strokeBrightness = 0.5,
+		radianceTransparency = 0.92,
+		heartTransparency = 0.9,
+	}),
 	-- A jetpack's flame (AlienDress.jets): two camera-facing beams down from each nozzle, the flame
 	-- in its colour and a white core, `length` and `width` times the hidden Blender cone's length,
 	-- the fire scrolling along them `scroll` times a second. It was two streams of particles (~30

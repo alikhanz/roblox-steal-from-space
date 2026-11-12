@@ -32,6 +32,7 @@ local MODELS = AlienLooks.MODELS
 local TEX = MODELS.TEXTURES
 local MOTION_LOOKS = AlienLooks.MOTION
 local WING_STROKE = MOTION_LOOKS.WING_STROKE
+local LEGENDARY_LIGHT = MOTION_LOOKS.LEGENDARY_LIGHT
 local GOLD = Color3.fromRGB(255, 200, 70)
 local FIRE = Color3.fromRGB(255, 120, 30)
 local WHITE = Color3.new(1, 1, 1)
@@ -811,7 +812,12 @@ local function legendaryGlow(fx: BasePart, top: Attachment, size: Vector3, radiu
 	emitter(glow, "Radiance", {
 		Texture = TEX.ember,
 		Color = colours({ { 0, pale }, { 1, warm } }),
-		Transparency = seq({ { 0, 1 }, { 0.35, 0.82 }, { 0.7, 0.85 }, { 1, 1 } }),
+		Transparency = seq({
+			{ 0, 1 },
+			{ 0.35, LEGENDARY_LIGHT.radianceTransparency },
+			{ 0.7, LEGENDARY_LIGHT.radianceTransparency + 0.01 },
+			{ 1, 1 },
+		}),
 		Size = seq({ { 0, radius * 2.4 }, { 1, radius * 3.2 } }),
 		Lifetime = NumberRange.new(2.5, 3.5),
 		Rate = 1, -- sparse: overlapping copies add up and wash out the medal
@@ -824,7 +830,7 @@ local function legendaryGlow(fx: BasePart, top: Attachment, size: Vector3, radiu
 	emitter(glow, "RadianceHeart", {
 		Texture = TEX.ember,
 		Color = ColorSequence.new(pale),
-		Transparency = seq({ { 0, 1 }, { 0.4, 0.78 }, { 1, 1 } }),
+		Transparency = seq({ { 0, 1 }, { 0.4, LEGENDARY_LIGHT.heartTransparency }, { 1, 1 } }),
 		Size = seq({ { 0, radius * 1.3 }, { 1, radius * 1.7 } }),
 		Lifetime = NumberRange.new(1.8, 2.4),
 		Rate = 1,
@@ -917,7 +923,10 @@ local function colorWings(pet: Model, wingParts: { MeshPart }, paints: { [string
 	end
 end
 
-local function wings(wingParts: { MeshPart }, paints: { [string]: Paint }, accent: Color3)
+local function wings(wingParts: { MeshPart }, paints: { [string]: Paint }, accent: Color3, legendary: boolean)
+	-- A legendary's gold strokes burn white at a plain pet's strength (AlienLooks LEGENDARY_LIGHT).
+	local brightness = if legendary then LEGENDARY_LIGHT.strokeBrightness else WING_STROKE.brightness
+	local transparency = if legendary then LEGENDARY_LIGHT.strokeTransparency else WING_STROKE.transparency
 	-- The wing's outer edge leaves a glowing stroke behind it as the wing beats: a ribbon between
 	-- every two neighbouring Dust points (they lie along the edge, from the tip down), so the whole
 	-- edge sweeps a soft afterimage, fading in a moment. It was a spray of sparkles at the tip
@@ -948,9 +957,9 @@ local function wings(wingParts: { MeshPart }, paints: { [string]: Paint }, accen
 			stroke.MinLength = 0
 			stroke.LightEmission = 1
 			stroke.LightInfluence = 0
-			stroke.Brightness = WING_STROKE.brightness
+			stroke.Brightness = brightness
 			stroke.Color = colours({ { 0, WHITE }, { 0.3, accent }, { 1, accent } })
-			stroke.Transparency = seq({ { 0, WING_STROKE.transparency }, { 1, 1 } })
+			stroke.Transparency = seq({ { 0, transparency }, { 1, 1 } })
 			stroke.Parent = membrane
 		end
 	end
@@ -1193,7 +1202,7 @@ function AlienDress.adorn(pet: Model)
 	if tier == 4 then
 		legendaryGlow(fx, top, size, radius, meteor)
 	end
-	wings(wingParts, paints, accent)
+	wings(wingParts, paints, accent, tier == 4)
 	-- Comets instead of orbit rings (tier 3+), unless a meteor's fireballs fly already.
 	if tier >= 3 and not meteor then
 		for index = 1, tier - 1 do
