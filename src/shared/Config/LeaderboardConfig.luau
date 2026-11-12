@@ -5,7 +5,7 @@
 
 return table.freeze({
 	-- The ranked store all servers share. Changing the name starts a new board from nothing.
-	STORE_NAME = "CoinsEarned_v1",
+	STORE_NAME = "CoinsEarned_v2",
 	-- Rows on the board.
 	TOP_SIZE = 10,
 	-- Each server writes its players' scores this often (only changed ones) and when a player

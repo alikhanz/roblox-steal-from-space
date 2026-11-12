@@ -16,7 +16,9 @@ local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 
-local STORE_NAME = "PlayerData"
+-- Changing the name starts every player from nothing; the old store stays as it was (decision 115:
+-- progress wiped before launch, 2026-11-12, the old one was "PlayerData").
+local STORE_NAME = "PlayerData_v2"
 local LOAD_TIMEOUT_SECONDS = 30
 -- What a new profile starts with; also fills fields that older profiles lack.
 local DEFAULTS: PlayerData.Defaults = {
