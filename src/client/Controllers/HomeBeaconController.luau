@@ -7,8 +7,9 @@
 -- attribute (BayService). While the tutorial itself points home, its own pin says the same and
 -- this one steps aside.
 --
--- The player's own island also wears the home colour: its rim and dome, on this client only (the
--- others see theirs so), so it stands out of the eight at a glance.
+-- The player's own island also wears the home colour, on this client only (the others see theirs
+-- so), so it stands out of the eight at a glance and from across the map: a thicker rim and a
+-- smooth tinted dome (StationLooks.HOME_ISLAND).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +19,7 @@ local RadarConfig = require(ReplicatedStorage.Shared.Config.RadarConfig)
 local ScreenPin = require(script.Parent.Parent.UI.ScreenPin)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+local StationLooks = require(ReplicatedStorage.Shared.Config.StationLooks)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -27,7 +29,8 @@ local PLAYER_GUI_WAIT_TIMEOUT = 30
 local ISLAND_WAIT_TIMEOUT = 30
 -- WorldService builds each island in workspace.World as `Island<index>`, with these glowing parts.
 local WORLD_FOLDER_NAME = "World"
-local TINTED_PARTS = { Rim = true, Dome = true }
+local RIM_NAME = "Rim"
+local DOME_NAME = "Dome"
 
 export type Dependencies = {
 	-- True while the tutorial's own pin leads to the player's island.
@@ -68,9 +71,15 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 		pin.place(camera, point, ScreenPin.distanceText(locale, distance))
 	end
 
-	-- The home island's rim and dome in the home colour; each part keeps its own colour to give
-	-- back if the island changes. Parts stream in and out: each one that arrives is painted.
-	local painted: { [BasePart]: Color3 } = {}
+	-- The home island's rim and dome in the home look; each part keeps its own look to give back
+	-- if the island changes. Parts stream in and out: each one that arrives is painted.
+	type Look = {
+		color: Color3,
+		material: Enum.Material,
+		transparency: number,
+		size: Vector3,
+	}
+	local painted: { [BasePart]: Look } = {}
 	local islandConnections: { RBXScriptConnection } = {}
 	local paintedIndex: number? = nil
 
@@ -79,8 +88,11 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 			connection:Disconnect()
 		end
 		table.clear(islandConnections)
-		for part, color in painted do
-			part.Color = color
+		for part, look in painted do
+			part.Color = look.color
+			part.Material = look.material
+			part.Transparency = look.transparency
+			part.Size = look.size
 		end
 		table.clear(painted)
 	end
@@ -96,10 +108,27 @@ function HomeBeaconController.new(dependencies: Dependencies): HomeBeaconControl
 			-- The island changed while this one was waiting.
 			return
 		end
+		local looks = StationLooks.HOME_ISLAND
 		local function apply(child: Instance)
-			if child:IsA("BasePart") and TINTED_PARTS[child.Name] and not painted[child] then
-				painted[child] = child.Color
-				child.Color = Theme.NEON.HOME
+			if not child:IsA("BasePart") or painted[child] then
+				return
+			end
+			local isRim, isDome = child.Name == RIM_NAME, child.Name == DOME_NAME
+			if not isRim and not isDome then
+				return
+			end
+			painted[child] = {
+				color = child.Color,
+				material = child.Material,
+				transparency = child.Transparency,
+				size = child.Size,
+			}
+			child.Color = Theme.NEON.HOME
+			if isRim then
+				child.Size += looks.rimGrowth
+			else
+				child.Material = looks.domeMaterial
+				child.Transparency = looks.domeTransparency
 			end
 		end
 		for _, child in folder:GetChildren() do

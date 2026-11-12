@@ -44,8 +44,9 @@ local NEON = table.freeze({
 	SHIELD = hex("#8FF0A0"),
 	EGG = hex("#FFE0A8"),
 	-- The player's own island: its pin, its rim and dome as only they see them
-	-- (docs/design/screens/markers.md; the user's pick, 2026-11-12).
-	HOME = hex("#5BE3A0"),
+	-- (docs/design/screens/markers.md). Warm, unlike the station's cyan and the sky's violet: the
+	-- first pick, mint, merged with the cyan (user, 2026-11-12).
+	HOME = hex("#FFB833"),
 	TILE = table.freeze(TILE),
 	FLIGHT = table.freeze(FLIGHT),
 	-- Action buttons, by what the press does.

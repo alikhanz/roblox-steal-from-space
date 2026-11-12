@@ -84,6 +84,16 @@ return table.freeze({
 	-- The station's dome, a touch brighter and greener than the islands' so it stands apart.
 	DOME_COLOR = Color3.fromRGB(120, 225, 255),
 	DOME_TRANSPARENCY = 0.75,
+	-- The player's own island as only they see it (docs/design/screens/markers.md), in the home
+	-- colour (Theme.NEON.HOME): its dome a smooth see-through bubble, not the others' ForceField,
+	-- which keeps little of its colour and fades out from afar; its rim a thicker band, seen across
+	-- the map (the user, 2026-11-12: "from far away my island looks like all the others").
+	HOME_ISLAND = table.freeze({
+		domeMaterial = Enum.Material.SmoothPlastic,
+		domeTransparency = 0.82,
+		-- The rim grows this much, studs: X is its thickness, Y and Z its diameter.
+		rimGrowth = Vector3.new(4, 6, 6),
+	}),
 
 	STEEL_COLOR = Color3.fromRGB(149, 155, 173),
 	STEEL_LIGHT_COLOR = Color3.fromRGB(222, 225, 235),
