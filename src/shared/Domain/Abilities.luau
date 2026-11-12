@@ -27,18 +27,26 @@ export type StrikeTimers = {
 
 export type Harpoon = {
 	read rangeStuds: number,
+	-- Half-angle of the aim assist's cone: the harpoon finds a carrier this far off the aim.
 	read halfAngleRadians: number,
 	read cooldownSeconds: number,
 	read missCooldownSeconds: number,
 }
 
 export type Bomb = {
+	-- Speed away from the thrower, on top of the thrower's own velocity, studs per second.
 	read throwSpeed: number,
 	read fuseSeconds: number,
 	-- The bomb goes off early when it comes this close to someone.
 	read contactStuds: number,
 	read radiusStuds: number,
 	read cooldownSeconds: number,
+	-- Homing: the bomb steers for the target the aim is best on within this reach and half-angle
+	-- at the throw (Abilities.bestInCone), changing its velocity by at most `steerAcceleration`
+	-- studs per second squared (Domain/Homing), so a sharp turn still dodges it.
+	read homingRangeStuds: number,
+	read homingHalfAngleRadians: number,
+	read steerAcceleration: number,
 }
 
 -- Advances the strike timers by `deltaTime`. `wantsToStrike` is the strike input held while
@@ -119,6 +127,39 @@ function Abilities.nearestInCone<T>(
 				best = target.id
 				bestDistance = distance
 			end
+		end
+	end
+	return best
+end
+
+-- The aim assist's pick (decision 103): of `targets` inside the cone, the one the aim is best on.
+-- Each is scored by its angle off `facing` as a share of `halfAngle` plus its distance as a share
+-- of `reach`, and the lowest score wins: the target nearest the crosshair, unless another one
+-- almost as near the crosshair is much closer. Targets are {id, position}; nil when none is in.
+function Abilities.bestInCone<T>(
+	origin: Vector,
+	facing: Vector,
+	targets: { { id: T, position: Vector } },
+	reach: number,
+	halfAngle: number
+): T?
+	local best: T? = nil
+	local bestScore = math.huge
+	local facingLength = length(facing)
+	for _, target in targets do
+		if not Abilities.isInCone(origin, facing, target.position, reach, halfAngle) then
+			continue
+		end
+		local offset = subtract(target.position, origin)
+		local distance = length(offset)
+		local angle = 0
+		if distance > 1e-6 and facingLength > 1e-6 then
+			angle = math.acos(math.clamp(dot(offset, facing) / (distance * facingLength), -1, 1))
+		end
+		local score = (if halfAngle > 0 then angle / halfAngle else 0) + (if reach > 0 then distance / reach else 0)
+		if score < bestScore then
+			best = target.id
+			bestScore = score
 		end
 	end
 	return best

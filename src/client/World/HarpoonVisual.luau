@@ -6,11 +6,15 @@
 -- or the drift worked out when it is not here), then lets go and reels in. A miss hangs at the
 -- end of the reach, the cable sagging, and reels in empty. The server decided everything before
 -- this starts (PvpService); this only shows it.
+-- The hook flies out and reels in relative to the shooter (decision 103): it covers the way from
+-- the muzzle to its goal in a set time wherever the shooter flies meanwhile, and a miss's end of
+-- the reach moves with the shooter, so at full flight speed it still goes ahead, not behind.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpFx = require(ReplicatedStorage.Shared.Domain.PvpFx)
 local PvpKit = require(script.Parent.PvpKit)
 local PvpLooks = require(ReplicatedStorage.Shared.Config.PvpLooks)
@@ -27,6 +31,7 @@ local LONGEST_SECONDS = 4
 export type Shot = {
 	shooter: Player,
 	target: Vector3,
+	aim: Vector3,
 	hit: boolean,
 	egg: boolean,
 }
@@ -153,11 +158,25 @@ function HarpoonVisual.new(shot: Shot, folder: Instance): Effect?
 	local flashAt: CFrame? = nil
 	local flashTime = 0
 	local sag = 0
-	local hookPosition = (CFrame.lookAt(hand.Position, shot.target) * muzzleAt).Position
+	local aim = if shot.aim.Magnitude > 1e-3 then shot.aim.Unit else hand.CFrame.LookVector
+	-- A miss's end of the reach, carried along with the shooter.
+	local function missEnd(): Vector3
+		return hand.Position + aim * PvpConfig.HARPOON.rangeStuds
+	end
+	local firstGoal = if shot.hit then shot.target else missEnd()
+	local hookPosition = (CFrame.lookAt(hand.Position, firstGoal) * muzzleAt).Position
+	-- The way out, and the hook's place relative to the hand as it starts reeling in.
+	local outDistance = math.max((firstGoal - hookPosition).Magnitude, 1)
+	local backOffset = hookPosition - hand.Position
+	local backDistance = 1
 
 	local function enter(next: Phase)
 		phase = next
 		phaseTime = 0
+		if next == "Back" then
+			backOffset = hookPosition - hand.Position
+			backDistance = math.max(backOffset.Magnitude, 1)
+		end
 		local isClosed = shot.hit and next ~= "Out"
 		clawsOpen.part.Transparency = if isClosed then 1 else 0
 		clawsClosed.part.Transparency = if isClosed then 0 else 1
@@ -204,10 +223,10 @@ function HarpoonVisual.new(shot: Shot, folder: Instance): Effect?
 		local muzzle = (launcherFrame * muzzleAt).Position
 
 		if phase == "Out" then
-			local goal = if shot.egg then grip() else shot.target
-			local reach = LOOK.hookSpeed * deltaTime
-			if (goal - hookPosition).Magnitude <= reach then
-				hookPosition = goal
+			local goal = if not shot.hit then missEnd() elseif shot.egg then grip() else shot.target
+			local share = math.min(phaseTime * LOOK.hookSpeed / outDistance, 1)
+			hookPosition = muzzle:Lerp(goal, share)
+			if share >= 1 then
 				if shot.hit then
 					flashAt = facing(goal, goal - muzzle) * CFrame.Angles(math.pi / 2, 0, 0)
 					flashTime = 0
@@ -215,8 +234,6 @@ function HarpoonVisual.new(shot: Shot, folder: Instance): Effect?
 				else
 					enter("Hang")
 				end
-			else
-				hookPosition += (goal - hookPosition).Unit * reach
 			end
 		elseif phase == "Grab" then
 			hookPosition = if shot.egg then grip() else hookPosition
@@ -234,16 +251,18 @@ function HarpoonVisual.new(shot: Shot, folder: Instance): Effect?
 				enter("Back")
 			end
 		elseif phase == "Hang" then
+			hookPosition = missEnd()
 			sag = LOOK.missSagStuds * math.min(phaseTime / LOOK.missHoldSeconds, 1)
 			if phaseTime >= LOOK.missHoldSeconds then
 				enter("Back")
 			end
 		else
-			local reach = LOOK.retractSpeed * deltaTime
-			if (muzzle - hookPosition).Magnitude <= reach then
+			-- Reeled in by the cable: from where it let go, carried along with the shooter.
+			local share = phaseTime * LOOK.retractSpeed / backDistance
+			if share >= 1 then
 				return finish()
 			end
-			hookPosition += (muzzle - hookPosition).Unit * reach
+			hookPosition = (hand.Position + backOffset):Lerp(muzzle, share)
 		end
 
 		-- The hook points away from the shooter, out or back.

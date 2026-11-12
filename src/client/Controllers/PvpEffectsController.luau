@@ -121,12 +121,30 @@ function PvpEffectsController.new(dependencies: Dependencies): PvpEffectsControl
 			if throw.thrower ~= Players.LocalPlayer then
 				SoundPlayer.play("BombThrow", { at = throw.start })
 			end
-			-- Drawn if it starts or could end near: it flies at most `fuse` seconds.
+			-- Drawn if it starts or could end near: it flies at most `fuse` seconds, or towards
+			-- its target.
 			local ending = throw.start + throw.velocity * throw.fuse
-			if not isNear(throw.start) and not isNear(ending) then
+			local target = throw.target
+			if not isNear(throw.start) and not isNear(ending) and not (target and isNear(target.Position)) then
 				return
 			end
-			local effect = BombVisual.thrown(throw, folder)
+			local from = throw.start
+			-- The local player's own character runs ahead of the server's by the round trip: at
+			-- flight speed the bomb would appear well behind them. Their own throw starts from
+			-- their hands, along the aim, as it did at the press.
+			local root = rootOf(Players.LocalPlayer)
+			local camera = workspace.CurrentCamera
+			if throw.thrower == Players.LocalPlayer and root and camera then
+				from = root.Position + camera.CFrame.LookVector * PvpConfig.BOMB_START_STUDS
+			end
+			local effect = BombVisual.thrown({
+				id = throw.id,
+				thrower = throw.thrower,
+				start = from,
+				velocity = throw.velocity,
+				fuse = throw.fuse,
+				target = target,
+			}, folder)
 			bombs[throw.id] = effect
 			table.insert(effects, effect)
 		end)

@@ -4,16 +4,15 @@
 -- flight buttons. Reads the local character's simulation attributes (predicted, so the HUD is
 -- lag-free) and the profile copy for coins.
 
-local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
 
-local Abilities = require(ReplicatedStorage.Shared.Domain.Abilities)
 local AbilityState = require(script.Parent.Parent.State.AbilityState)
 local ActionButton = require(script.Parent.Parent.UI.ActionButton)
+local AimTargets = require(script.Parent.Parent.World.AimTargets)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Crosshair = require(script.Parent.Parent.UI.Crosshair)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
@@ -127,50 +126,13 @@ function HudController.new(dependencies: Dependencies): HudController
 	local stunned = source(false)
 	-- What the current hit says: a guardian's catch, the serpent's or a player's strike.
 	local hitToast = source("guardian.caught.toast" :: Text.Key)
-	-- True while an egg carrier is in the harpoon's reach of the camera's aim.
+	-- True while the harpoon has an egg carrier to hit along the camera's aim (World/AimTargets).
 	local harpoonLocked = source(false)
 	-- Keyboard, gamepad or touch: the key hints follow it.
 	local inputMode = source(UserInputService.PreferredInput)
 	-- Seconds of newbie protection left, from the player attribute.
 	local newbieSecondsLeft = source(0)
 
-	-- The same cone the server checks, on what this client can see: other characters that
-	-- carry an egg, and test dummies.
-	local function findHarpoonTarget(player: Player): boolean
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		local camera = workspace.CurrentCamera
-		if not character or not root or not root:IsA("BasePart") or not camera then
-			return false
-		end
-		local origin = root.Position
-		local facing = camera.CFrame.LookVector
-		local function inReach(part: BasePart): boolean
-			return Abilities.isInCone(
-				{ x = origin.X, y = origin.Y, z = origin.Z },
-				{ x = facing.X, y = facing.Y, z = facing.Z },
-				{ x = part.Position.X, y = part.Position.Y, z = part.Position.Z },
-				PvpConfig.HARPOON.rangeStuds,
-				PvpConfig.HARPOON.halfAngleRadians
-			)
-		end
-		for _, other in Players:GetPlayers() do
-			local otherCharacter = other.Character
-			local otherRoot = otherCharacter and otherCharacter:FindFirstChild("HumanoidRootPart")
-			if other ~= player and otherCharacter and otherRoot and otherRoot:IsA("BasePart") then
-				if otherCharacter:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE) ~= nil and inReach(otherRoot) then
-					return true
-				end
-			end
-		end
-		for _, dummy in CollectionService:GetTagged(PvpConfig.DUMMY_TAG) do
-			local dummyRoot = dummy:FindFirstChild("HumanoidRootPart")
-			if dummyRoot and dummyRoot:IsA("BasePart") and inReach(dummyRoot) then
-				return true
-			end
-		end
-		return false
-	end
 	-- Rarity of the egg in the player's hands; nil with empty hands.
 	local carried = source(nil :: string?)
 	local readCarried = carried :: () -> string?
@@ -653,7 +615,7 @@ function HudController.new(dependencies: Dependencies): HudController
 				end
 			end
 
-			harpoonLocked(inSpace() and findHarpoonTarget(player))
+			harpoonLocked(inSpace() and AimTargets.harpoon(player) ~= nil)
 
 			local rarity = character and character:GetAttribute(EggConfig.CARRIED_RARITY_ATTRIBUTE)
 			local now = if type(rarity) == "string" then rarity else nil

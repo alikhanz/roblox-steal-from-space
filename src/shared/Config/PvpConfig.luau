@@ -25,21 +25,30 @@ local STRIKE: Abilities.Strike = {
 	cooldownSeconds = 1.5,
 }
 
+-- Aim assist (decision 103): of the egg carriers within the range and the cone, the one nearest
+-- the crosshair is hit (Abilities.bestInCone). The cone is wide enough for a thumb on a phone and
+-- for what a client sees lagging behind the server at flight speeds.
 local HARPOON: Abilities.Harpoon = {
-	rangeStuds = 50,
-	-- Half-angle of the aim cone a carrier must be in.
-	halfAngleRadians = math.rad(8),
+	rangeStuds = 70,
+	halfAngleRadians = math.rad(18),
 	cooldownSeconds = 20,
 	-- A shot that finds nobody costs less.
 	missCooldownSeconds = 5,
 }
 
+-- The bomb leaves with the thrower's velocity plus `throwSpeed` along the aim, so it flies ahead
+-- at any flight speed, and homes on the target nearest the crosshair (decision 103). It steers
+-- far more weakly than a player turns (FlightConfig.TUNING.response): whoever flies straight is
+-- caught, a sharp turn dodges it.
 local BOMB: Abilities.Bomb = {
-	throwSpeed = 40,
-	fuseSeconds = 1,
-	contactStuds = 6,
+	throwSpeed = 60,
+	fuseSeconds = 1.5,
+	contactStuds = 8,
 	radiusStuds = 25,
 	cooldownSeconds = 45,
+	homingRangeStuds = 120,
+	homingHalfAngleRadians = math.rad(30),
+	steerAcceleration = 180,
 }
 
 -- No shield (decision 060): it made every attack pointless.
@@ -63,6 +72,8 @@ return table.freeze({
 	-- Player attribute: seconds of newbie protection left, 0 once it is over (for the sign over
 	-- the player and the newbie's own HUD).
 	NEWBIE_ATTRIBUTE = "NewbieSecondsLeft",
+	-- The bomb leaves this far ahead of the thrower, along the aim.
+	BOMB_START_STUDS = 3,
 	-- Test targets (playtests) carry this tag so the client's aim sees them like carriers.
 	DUMMY_TAG = "PvpDummy",
 

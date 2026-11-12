@@ -43,6 +43,48 @@ describe("Abilities.nearestInCone", function()
 	end)
 end)
 
+describe("Abilities.bestInCone", function()
+	local REACH = 70
+	local HALF_ANGLE = math.rad(18)
+
+	it("picks the target nearest the crosshair over a nearer one off to the side", function()
+		local targets = {
+			-- 5 studs off the aim at 60: about 5 degrees.
+			{ id = "onAim", position = { x = 5, y = 0, z = -60 } },
+			-- 8 studs off the aim at 30: about 15 degrees.
+			{ id = "aside", position = { x = 8, y = 0, z = -30 } },
+		}
+		expect(Abilities.bestInCone(ORIGIN, FORWARD, targets, REACH, HALF_ANGLE)).toBe("onAim")
+	end)
+
+	it("prefers the much nearer one when both are about as near the crosshair", function()
+		local targets = {
+			{ id = "far", position = { x = 0, y = 0, z = -65 } },
+			{ id = "near", position = { x = 1, y = 0, z = -15 } },
+		}
+		expect(Abilities.bestInCone(ORIGIN, FORWARD, targets, REACH, HALF_ANGLE)).toBe("near")
+	end)
+
+	it("ignores targets outside the cone or the reach", function()
+		local targets = {
+			{ id = "wide", position = { x = 30, y = 0, z = -30 } },
+			{ id = "behind", position = { x = 0, y = 0, z = 10 } },
+			{ id = "beyond", position = { x = 0, y = 0, z = -80 } },
+		}
+		expect(Abilities.bestInCone(ORIGIN, FORWARD, targets, REACH, HALF_ANGLE)).toBeNil()
+		expect(Abilities.bestInCone(ORIGIN, FORWARD, {}, REACH, HALF_ANGLE)).toBeNil()
+	end)
+
+	it("finds a target the old narrow harpoon cone missed", function()
+		-- 12 degrees off the aim: outside 8, inside 18.
+		local angle = math.rad(12)
+		local targets =
+			{ { id = "carrier", position = { x = 40 * math.sin(angle), y = 0, z = -40 * math.cos(angle) } } }
+		expect(Abilities.nearestInCone(ORIGIN, FORWARD, targets, 50, math.rad(8))).toBeNil()
+		expect(Abilities.bestInCone(ORIGIN, FORWARD, targets, REACH, HALF_ANGLE)).toBe("carrier")
+	end)
+end)
+
 describe("Abilities.withinRadius", function()
 	it("lists everyone inside the radius", function()
 		local targets = {

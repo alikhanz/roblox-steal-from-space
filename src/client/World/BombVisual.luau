@@ -2,14 +2,15 @@
 -- One gravity bomb on this client (brief docs/design/screens/pvp-abilities.md, "Гравибомба
 -- «гироскоп»"). In flight: a dark core with a lit belt and a light, two violet orbits tumbling
 -- round it and a Trail behind; the orbits spin and the light blinks faster towards the end of the
--- fuse, and close in on the core over its last moments (Domain/PvpFx.bombCharge). It flies the
--- same straight line as on the server (World/BombFlight) and is put where the server says it
--- went off. The blast: a flash at the centre and a flat ring wave out to the blast's radius
+-- fuse, and close in on the core over its last moments (Domain/PvpFx.bombCharge). It flies as on
+-- the server (World/BombFlight): from the throw with the thrower's velocity, homing on the same
+-- target (decision 103), and is put where the server says it went off. The blast: a flash at the centre and a flat ring wave out to the blast's radius
 -- (PvpFx.wave), so what it reached is plain to see.
 
 local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Homing = require(ReplicatedStorage.Shared.Domain.Homing)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpFx = require(ReplicatedStorage.Shared.Domain.PvpFx)
 local PvpKit = require(script.Parent.PvpKit)
@@ -31,6 +32,8 @@ export type Throw = {
 	start: Vector3,
 	velocity: Vector3,
 	fuse: number,
+	-- The root part it homes on; nil: it flies straight.
+	target: BasePart?,
 }
 
 export type Effect = {
@@ -109,18 +112,48 @@ local function build(throw: Throw?, center: Vector3?, folder: Instance): Effect
 		trail.Enabled = false
 	end
 
+	local position = if throw then throw.start else Vector3.zero
+	local velocity = if throw then throw.velocity else Vector3.zero
+	local lastTargetPosition: Vector3? = nil
+	local targetVelocity = Vector3.zero
+
+	-- Homes as the server's bomb does (PvpService, Domain/Homing), on where this client sees the
+	-- target; the server's blast puts it right in the end.
+	local function steer(deltaTime: number, target: BasePart)
+		local now = target.Position
+		targetVelocity = if lastTargetPosition and deltaTime > 0
+			then (now - lastTargetPosition) / deltaTime
+			else target.AssemblyLinearVelocity
+		lastTargetPosition = now
+		velocity = Homing.steer(
+			position,
+			velocity,
+			now,
+			targetVelocity,
+			PvpConfig.BOMB.throwSpeed,
+			PvpConfig.BOMB.steerAcceleration,
+			deltaTime
+		)
+	end
+
 	local function flight(deltaTime: number, current: Throw)
 		elapsed += deltaTime
 		if elapsed > current.fuse + LATE_SECONDS then
-			explode(current.start + current.velocity * elapsed)
+			explode(position)
 			return
 		end
-		local position = current.start + current.velocity * math.min(elapsed, current.fuse)
+		if elapsed <= current.fuse then
+			local target = current.target
+			if target and target.Parent then
+				steer(deltaTime, target)
+			end
+			position += velocity * deltaTime
+		end
 		local angle, scale, isLit = PvpFx.bombCharge(elapsed, current.fuse, LOOK.charge)
 		if GuiService.ReducedMotionEnabled then
 			angle, isLit = 0, true
 		end
-		local frame = facing(position, current.velocity)
+		local frame = facing(position, velocity)
 		light.part.Transparency = if isLit then 0 else LIGHT_OFF_TRANSPARENCY
 		local place = CFrame.new(position)
 		local leaning = place * CFrame.Angles(0, angle, 0) * CFrame.Angles(ORBIT_LEAN, 0, 0)

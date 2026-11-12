@@ -356,7 +356,8 @@ event AbilityResult = {
 }
 
 -- Someone fired the harpoon (to every client, which draws the hook: World/HarpoonVisual). `target`
--- is where the hook flies: the target's surface, or the end of its reach on a miss. `egg`: an egg
+-- is where the hook flies: the target's surface, or the end of its reach on a miss. `aim`: the
+-- direction it was fired in (a miss flies out along it, moving with the shooter). `egg`: an egg
 -- came loose there and drifts towards the shooter, the hook rides it.
 event HarpoonShot = {
 	from: Server,
@@ -365,13 +366,15 @@ event HarpoonShot = {
 	data: struct {
 		shooter: Instance.Player,
 		target: Vector3,
+		aim: Vector3,
 		hit: boolean,
 		egg: boolean,
 	},
 }
 
 -- Someone threw the gravity bomb (to every client, which draws it: World/BombVisual). It flies
--- straight from `start` at `velocity` until BombExploded with the same `id`, at most `fuse` seconds.
+-- from `start` at `velocity` until BombExploded with the same `id`, at most `fuse` seconds,
+-- steering for `target` (a root part; nil: straight) as Domain/Homing does on the server.
 event BombThrown = {
 	from: Server,
 	type: Reliable,
@@ -382,6 +385,7 @@ event BombThrown = {
 		start: Vector3,
 		velocity: Vector3,
 		fuse: f32,
+		target: Instance.BasePart?,
 	},
 }
 

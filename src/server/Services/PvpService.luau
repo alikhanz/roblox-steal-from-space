@@ -4,8 +4,10 @@
 -- Domain/Pvp's rules and counted, so the numbers say whether players fight at all.
 --   Strike: a lunge along the aim, run by the simulation; whoever the attacker touches on the
 --     way takes a guardian's hit, right at the touch.
---   Harpoon: the nearest egg carrier in a narrow cone loses the egg toward the shooter.
---   Bomb: flies ahead until it reaches someone, then throws everyone around it.
+--   Harpoon: the egg carrier nearest the crosshair in the aim assist's cone loses the egg toward
+--     the shooter (decision 103).
+--   Bomb: leaves with the thrower's velocity, homes on the target nearest the crosshair until it
+--     reaches someone, then throws everyone around it (decision 103).
 -- No shield (decision 060): the only defence is speed.
 
 local Players = game:GetService("Players")
@@ -21,6 +23,7 @@ local Flight = require(ReplicatedStorage.Shared.Domain.Flight)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local Homing = require(ReplicatedStorage.Shared.Domain.Homing)
 local Knockback = require(script.Parent.Parent.Character.Knockback)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
@@ -95,10 +98,18 @@ export type PvpService = {
 }
 
 -- A harpoon shot: where the hook flies (the target's surface, or the end of the reach on a
--- miss), whether it hit and whether an egg came loose there.
-export type Shot = { shooter: Player, target: Vector3, hit: boolean, egg: boolean }
--- A bomb thrown: it flies straight from `start` at `velocity` for at most `fuse` seconds.
-export type Throw = { id: number, thrower: Player, start: Vector3, velocity: Vector3, fuse: number }
+-- miss), the aim it was fired along, whether it hit and whether an egg came loose there.
+export type Shot = { shooter: Player, target: Vector3, aim: Vector3, hit: boolean, egg: boolean }
+-- A bomb thrown: it flies from `start` at `velocity` for at most `fuse` seconds, steering for
+-- `target` (a root part) when it has one.
+export type Throw = {
+	id: number,
+	thrower: Player,
+	start: Vector3,
+	velocity: Vector3,
+	fuse: number,
+	target: BasePart?,
+}
 -- The bomb `id` went off at `center`.
 export type Blast = { id: number, center: Vector3 }
 
@@ -247,14 +258,16 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		return Abilities.nearestPoint(toVector(target.root.Position), target.radius, toVector(from))
 	end
 
-	-- The nearest target in the cone ahead of `root`, among those passing `filter`.
+	-- The target in the cone ahead of `root` that `choose` picks (Abilities.nearestInCone or
+	-- Abilities.bestInCone), among those passing `filter`.
 	local function findInCone(
 		root: BasePart,
 		direction: Vector3,
 		targets: { Target },
 		reach: number,
 		halfAngle: number,
-		filter: (Target) -> boolean
+		filter: (Target) -> boolean,
+		choose: typeof(Abilities.nearestInCone)
 	): Target?
 		local candidates: { { id: number, position: Abilities.Vector } } = {}
 		for index, target in targets do
@@ -262,8 +275,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 				table.insert(candidates, { id = index, position = contactPoint(target, root.Position) })
 			end
 		end
-		local index =
-			Abilities.nearestInCone(toVector(root.Position), toVector(direction), candidates, reach, halfAngle)
+		local index = choose(toVector(root.Position), toVector(direction), candidates, reach, halfAngle)
 		return if index then targets[index] else nil
 	end
 
@@ -331,7 +343,8 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			targetsFor(player),
 			PvpConfig.STRIKE.contactStuds,
 			PvpConfig.STRIKE.contactHalfAngleRadians,
-			anyone
+			anyone,
+			Abilities.nearestInCone
 		)
 		if not target then
 			return
@@ -353,36 +366,46 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		end
 	end
 
-	-- The harpoon: the nearest egg carrier in a narrow cone loses the egg, which flies toward
-	-- the shooter. Nothing else happens to the carrier.
+	-- The harpoon: of the egg carriers in the aim assist's cone, the one nearest the crosshair
+	-- that the rules let the shooter attack loses the egg, which flies toward the shooter.
+	-- Nothing else happens to the carrier.
 	local function harpoon(player: Player, state: PlayerState)
 		local character, root, direction = prepare(player, state, "Harpoon")
 		if not character or not root or not direction then
 			return
 		end
 		local attacker = sideOf(player, character)
-		local target = findInCone(
-			root,
-			direction,
-			targetsFor(player),
-			PvpConfig.HARPOON.rangeStuds,
-			PvpConfig.HARPOON.halfAngleRadians,
-			function(candidate)
-				return candidate.isCarrying()
-			end
-		)
+		local targets = targetsFor(player)
+		local function find(filter: (Target) -> boolean): Target?
+			return findInCone(
+				root,
+				direction,
+				targets,
+				PvpConfig.HARPOON.rangeStuds,
+				PvpConfig.HARPOON.halfAngleRadians,
+				filter,
+				Abilities.bestInCone
+			)
+		end
+		local target = find(function(candidate)
+			return candidate.isCarrying() and candidate.refusal(attacker) == nil
+		end)
 		if not target then
+			-- Only carriers the rules protect were in the cone: say why, and the harpoon stays.
+			local protected = find(function(candidate)
+				return candidate.isCarrying()
+			end)
+			local refusal = if protected then protected.refusal(attacker) else nil
+			if refusal then
+				dependencies.notify(player, refusal)
+				count("Harpoon", false)
+				return
+			end
 			local discount = PvpConfig.HARPOON.cooldownSeconds - PvpConfig.HARPOON.missCooldownSeconds
 			state.lastUsedAt.Harpoon = time() - discount
 			local reach = root.Position + direction * PvpConfig.HARPOON.rangeStuds
-			harpoonShot.fire({ shooter = player, target = reach, hit = false, egg = false })
+			harpoonShot.fire({ shooter = player, target = reach, aim = direction, hit = false, egg = false })
 			resolved(player, "Harpoon", false, false)
-			return
-		end
-		local refusal = target.refusal(attacker)
-		if refusal then
-			dependencies.notify(player, refusal)
-			count("Harpoon", false)
 			return
 		end
 		state.lastUsedAt.Harpoon = time()
@@ -391,12 +414,12 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		local landing = fromVector(contactPoint(target, root.Position))
 		-- The egg is out before the clients hear of the shot, so the hook finds it there.
 		local dropped = target.onHarpoon(launch, player)
-		harpoonShot.fire({ shooter = player, target = landing, hit = true, egg = dropped })
+		harpoonShot.fire({ shooter = player, target = landing, aim = direction, hit = true, egg = dropped })
 		resolved(player, "Harpoon", true, dropped)
 	end
 
-	-- The bomb flies straight ahead for the fuse, then everyone around it is thrown outward
-	-- and their eggs come loose; the thrower is spared, and so is anyone the rules protect.
+	-- The bomb goes off: everyone around it is thrown outward and their eggs come loose; the
+	-- thrower is spared, and so is anyone the rules protect.
 	local function explode(player: Player, character: Model, center: Vector3)
 		if character.Parent == nil then
 			return
@@ -421,21 +444,72 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		resolved(player, "Bomb", hit, dropped)
 	end
 
+	-- The steering for a bomb homing on `target` (Domain/Homing), the target's velocity read from
+	-- how it moved (a test dummy is anchored and moved by hand). It flies straight on once the
+	-- target is gone or the rules protect it (back under a dome).
+	local function steering(target: Target, attacker: Pvp.Side)
+		local last = target.root.Position
+		local lastVelocity = target.root.AssemblyLinearVelocity
+		return function(position: Vector3, velocity: Vector3, deltaTime: number): Vector3
+			if target.root.Parent == nil or target.refusal(attacker) then
+				return velocity
+			end
+			local now = target.root.Position
+			if deltaTime > 0 then
+				lastVelocity = (now - last) / deltaTime
+			end
+			last = now
+			return Homing.steer(
+				position,
+				velocity,
+				now,
+				lastVelocity,
+				PvpConfig.BOMB.throwSpeed,
+				PvpConfig.BOMB.steerAcceleration,
+				deltaTime
+			)
+		end
+	end
+
+	-- The bomb leaves ahead of the thrower with their velocity, homes on the target nearest the
+	-- crosshair that the rules let them attack, and goes off on reaching anyone or at the end
+	-- of its fuse.
 	local function bomb(player: Player, state: PlayerState)
 		local character, root, direction = prepare(player, state, "Bomb")
 		if not character or not root or not direction then
 			return
 		end
 		state.lastUsedAt.Bomb = time()
-		local start = root.Position + direction * 3
-		-- Goes off early when it reaches someone, so a throw at a player lands on them.
-		local function touches(position: Vector3): boolean
+		local attacker = sideOf(player, character)
+		local start = root.Position + direction * PvpConfig.BOMB_START_STUDS
+		local homing = findInCone(
+			root,
+			direction,
+			targetsFor(player),
+			PvpConfig.BOMB.homingRangeStuds,
+			PvpConfig.BOMB.homingHalfAngleRadians,
+			function(candidate)
+				return candidate.refusal(attacker) == nil
+			end,
+			Abilities.bestInCone
+		)
+		-- Goes off early when it reaches someone (protected or not), so a throw at a player lands
+		-- on them. Checked along the whole step, against how each target moved over it.
+		local seen: { [Model]: Vector3 } = {}
+		local function meets(from: Vector3, to: Vector3): Vector3?
+			local met: Vector3? = nil
+			local soonest = math.huge
 			for _, target in targetsFor(player) do
-				if (fromVector(contactPoint(target, position)) - position).Magnitude <= PvpConfig.BOMB.contactStuds then
-					return true
+				local now = target.root.Position
+				local before = seen[target.model] or now
+				seen[target.model] = now
+				local distance, share = Homing.closestApproach(from, to, before, now)
+				if distance - target.radius <= PvpConfig.BOMB.contactStuds and share < soonest then
+					met = from:Lerp(to, share)
+					soonest = share
 				end
 			end
-			return false
+			return met
 		end
 		lastBombId = lastBombId % BOMB_ID_LIMIT + 1
 		local id = lastBombId
@@ -443,10 +517,24 @@ function PvpService.new(dependencies: Dependencies): PvpService
 			bombExploded.fire({ id = id, center = center })
 			explode(player, character, center)
 		end
-		local velocity = direction * PvpConfig.BOMB.throwSpeed
+		local velocity = Homing.launchVelocity(root.AssemblyLinearVelocity, direction, PvpConfig.BOMB.throwSpeed)
 		local fuse = PvpConfig.BOMB.fuseSeconds
-		bombThrown.fire({ id = id, thrower = player, start = start, velocity = velocity, fuse = fuse })
-		BombFlight.launch(start, velocity, fuse, touches, onExplode)
+		bombThrown.fire({
+			id = id,
+			thrower = player,
+			start = start,
+			velocity = velocity,
+			fuse = fuse,
+			target = if homing then homing.root else nil,
+		})
+		BombFlight.launch({
+			start = start,
+			velocity = velocity,
+			fuseSeconds = fuse,
+			steer = if homing then steering(homing, attacker) else nil,
+			meets = meets,
+			onExplode = onExplode,
+		})
 	end
 
 	local ABILITIES: { [AbilityKind]: (Player, PlayerState) -> () } = {
