@@ -37,10 +37,14 @@ local RING_LIGHTEN = 0.35
 local STUDS_ABOVE = 2.4
 -- The billboard's room: the widest pill there may be (a price in the word), points.
 local BILLBOARD_WIDTH = 300
--- The odds row under the pill: its height, a dot's size and the room between chances, points.
-local ODDS_HEIGHT = 22
-local ODDS_DOT = 10
-local ODDS_GAP = 10
+-- The odds row under the pill: its height, a dot's size, the room between chances and between a
+-- dot and its chance, points. As wide as the pill (wider only if its chances need it), outlined in
+-- the prompt's colour, so it reads as the pill's own strip (the user, 2026-11-12: a short frame
+-- looked stubby).
+local ODDS_HEIGHT = 26
+local ODDS_DOT = 12
+local ODDS_GAP = 14
+local ODDS_DOT_GAP = 5
 -- Room between the pill's slack and the odds row, points.
 local ODDS_MARGIN = 4
 
@@ -73,9 +77,17 @@ export type Props = {
 	odds: { Chance }?,
 }
 
--- The odds row: a glass strip of dots in the tiers' colours, each with its chance.
-local function OddsRow(odds: { Chance }): Frame
+-- The odds row: a glass strip of dots in the tiers' colours, each with its chance, at least
+-- `width()` wide and outlined in `color()`.
+local function OddsRow(odds: { Chance }, width: () -> number, color: () -> Color3): Frame
+	local outline = Instance.new("UIStroke")
+	outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	outline.Thickness = NEON.LINE_THICKNESS
+	Vide.effect(function()
+		outline.Color = Layout.lineColor(color())
+	end)
 	local children: { any } = {
+		outline,
 		create("UIListLayout")({
 			FillDirection = Enum.FillDirection.Horizontal,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -98,7 +110,7 @@ local function OddsRow(odds: { Chance }): Frame
 				create("UIListLayout")({
 					FillDirection = Enum.FillDirection.Horizontal,
 					VerticalAlignment = Enum.VerticalAlignment.Center,
-					Padding = UDim.new(0, 4),
+					Padding = UDim.new(0, ODDS_DOT_GAP),
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				}),
 				create("Frame")({
@@ -115,7 +127,7 @@ local function OddsRow(odds: { Chance }): Frame
 					Size = UDim2.fromScale(0, 1),
 					BackgroundTransparency = 1,
 					FontFace = NEON.FONT,
-					TextSize = NEON.TEXT_SMALL,
+					TextSize = NEON.TEXT_BODY,
 					TextColor3 = NEON.TEXT,
 					Text = chance.text,
 					Layout.textStroke(),
@@ -127,10 +139,13 @@ local function OddsRow(odds: { Chance }): Frame
 		Name = "Odds",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.fromScale(0.5, 1),
+		-- Grows past the pill's width when the chances need more room.
 		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.fromOffset(0, ODDS_HEIGHT),
+		Size = function()
+			return UDim2.fromOffset(width(), ODDS_HEIGHT)
+		end,
 		BackgroundColor3 = NEON.GLASS,
-		BackgroundTransparency = 0.25,
+		BackgroundTransparency = 0.2,
 		children,
 	}) :: Frame
 end
@@ -169,6 +184,13 @@ local function GrabPrompt(props: Props): BillboardGui
 	-- A billboard draws nothing past its own size, so the odds row is inside it. The billboard
 	-- grows as much above the pill as below, so the pill stays at its centre, where it always is.
 	local oddsRoom = if props.odds then ODDS_HEIGHT + ODDS_MARGIN else 0
+	-- The pill's width at rest (a press shrinks it for a moment; the strip under it stays put).
+	local pillWidth = Vide.source(0)
+	local function measure(pill: Frame)
+		pill:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			pillWidth(pill.AbsoluteSize.X / math.max(scale.Scale, 1e-3))
+		end)
+	end
 	return create("BillboardGui")({
 		Name = "GrabPrompt",
 		-- Vide's types expect a source of a non-optional Instance; a nil Adornee is valid here.
@@ -184,7 +206,7 @@ local function GrabPrompt(props: Props): BillboardGui
 		MaxDistance = props.maxDistance or math.huge,
 		LightInfluence = 0,
 
-		if props.odds then OddsRow(props.odds) else nil,
+		if props.odds then OddsRow(props.odds, pillWidth, color) else nil,
 
 		-- The button: the pill and the slack round it.
 		create("TextButton")({
@@ -204,6 +226,9 @@ local function GrabPrompt(props: Props): BillboardGui
 
 			create("Frame")({
 				Name = "Pill",
+				action(function(instance)
+					measure(instance :: Frame)
+				end),
 				AutomaticSize = Enum.AutomaticSize.X,
 				Size = UDim2.fromOffset(0, HEIGHT),
 				BackgroundTransparency = 1,
