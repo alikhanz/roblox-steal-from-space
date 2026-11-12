@@ -4,6 +4,7 @@
 
 local Abilities = require("../Domain/Abilities")
 local Pvp = require("../Domain/Pvp")
+local PvpFx = require("../Domain/PvpFx")
 
 local RULES: Pvp.Rules = {
 	-- A player is a newbie, safe from attacks and unable to attack, for this much play time.
@@ -54,12 +55,24 @@ local BOMB: Abilities.Bomb = {
 	steerAcceleration = 180,
 }
 
+-- The blast's ring wave (decision 103): it grows from `startRadius` to BOMB.radiusStuds, holds,
+-- then fades. While it grows and holds it strikes whoever it reaches (PvpFx.waveReach), as every
+-- client draws it (PvpLooks.BOMB.wave is this): someone flying into the ring is hit as it touches
+-- them. At the blast itself everyone in the whole radius is hit, as before.
+local BOMB_WAVE: PvpFx.Wave = {
+	startRadius = 2,
+	growSeconds = 0.3,
+	holdSeconds = 0.12,
+	fadeSeconds = 0.3,
+}
+
 -- No shield (decision 060): it made every attack pointless.
 return table.freeze({
 	RULES = table.freeze(RULES),
 	STRIKE = table.freeze(STRIKE),
 	HARPOON = table.freeze(HARPOON),
 	BOMB = table.freeze(BOMB),
+	BOMB_WAVE = table.freeze(BOMB_WAVE),
 
 	-- The strike lives in the simulation (predicted, so the attacker's lunge has no lag) and
 	-- keeps its state on the character: seconds of lunge left, seconds of cooldown left and the

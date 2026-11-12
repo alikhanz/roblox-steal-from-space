@@ -1,6 +1,8 @@
 --!strict
 
 local Abilities = require("../../src/shared/Domain/Abilities")
+local PvpConfig = require("../../src/shared/Config/PvpConfig")
+local PvpFx = require("../../src/shared/Domain/PvpFx")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
@@ -82,6 +84,76 @@ describe("Abilities.bestInCone", function()
 			{ { id = "carrier", position = { x = 40 * math.sin(angle), y = 0, z = -40 * math.cos(angle) } } }
 		expect(Abilities.nearestInCone(ORIGIN, FORWARD, targets, 50, math.rad(8))).toBeNil()
 		expect(Abilities.bestInCone(ORIGIN, FORWARD, targets, REACH, HALF_ANGLE)).toBe("carrier")
+	end)
+end)
+
+describe("Abilities.waveStep", function()
+	local WAVE = PvpConfig.BOMB_WAVE
+	local RADIUS = PvpConfig.BOMB.radiusStuds
+	local STEP = 1 / 60
+
+	-- Sweeps a blast at the origin as PvpService does: the whole radius at once, then the ring
+	-- every frame while it strikes. `positionAt(seconds)` places each target. Returns when each
+	-- was struck, in seconds after the blast.
+	local function sweep(positionAt: { [string]: (number) -> Abilities.Vector }): { [string]: number }
+		local struck: { [string]: boolean } = {}
+		local at: { [string]: number } = {}
+		local function step(elapsed: number, radius: number)
+			local targets = {}
+			for id, place in positionAt do
+				table.insert(targets, { id = id, position = place(elapsed) })
+			end
+			for _, id in Abilities.waveStep(ORIGIN, targets, radius, struck) do
+				at[id] = elapsed
+			end
+		end
+		step(0, RADIUS)
+		local elapsed = 0
+		while true do
+			elapsed += STEP
+			local reach = PvpFx.waveReach(elapsed, RADIUS, WAVE)
+			if not reach then
+				break
+			end
+			step(elapsed, reach)
+		end
+		return at
+	end
+
+	local function still(x: number): (number) -> Abilities.Vector
+		return function()
+			return { x = x, y = 0, z = 0 }
+		end
+	end
+
+	local function flying(fromX: number, speed: number): (number) -> Abilities.Vector
+		return function(seconds)
+			return { x = fromX - speed * seconds, y = 0, z = 0 }
+		end
+	end
+
+	it("strikes everyone in the radius at the blast, each once", function()
+		local at = sweep({ inside = still(RADIUS - 1), outside = still(RADIUS + 5) })
+		expect(at.inside).toBe(0)
+		expect(at.outside).toBeNil()
+	end)
+
+	it("strikes whoever flies into the ring while it lives", function()
+		-- 40 studs out, flying in at 100: inside the radius after 0.15 s, before the wave fades.
+		local at = sweep({ late = flying(RADIUS + 15, 100) })
+		expect(at.late ~= nil and at.late > 0).toBe(true)
+	end)
+
+	it("misses whoever reaches the spot after the wave", function()
+		local at = sweep({ tooLate = flying(RADIUS + 60, 100) })
+		expect(at.tooLate).toBeNil()
+	end)
+
+	it("never strikes the same target twice", function()
+		local struck: { [string]: boolean } = {}
+		local targets = { { id = "a", position = { x = 1, y = 0, z = 0 } } }
+		expect(Abilities.waveStep(ORIGIN, targets, 5, struck)).toEqual({ "a" })
+		expect(Abilities.waveStep(ORIGIN, targets, 5, struck)).toEqual({})
 	end)
 end)
 

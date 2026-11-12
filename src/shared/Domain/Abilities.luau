@@ -165,6 +165,25 @@ function Abilities.bestInCone<T>(
 	return best
 end
 
+-- One step of a blast wave of `radius` round `center` (decision 103): the ids of `targets` inside
+-- it that it has not struck yet, which are now marked in `struck`. Swept every frame while the
+-- wave lives, it strikes each target once.
+function Abilities.waveStep<T>(
+	center: Vector,
+	targets: { { id: T, position: Vector } },
+	radius: number,
+	struck: { [T]: boolean }
+): { T }
+	local hit = {}
+	for _, target in targets do
+		if not struck[target.id] and length(subtract(target.position, center)) <= radius then
+			struck[target.id] = true
+			table.insert(hit, target.id)
+		end
+	end
+	return hit
+end
+
 -- Everyone within `radius` of `center`: ids of `targets`.
 function Abilities.withinRadius<T>(center: Vector, targets: { { id: T, position: Vector } }, radius: number): { T }
 	local hit = {}

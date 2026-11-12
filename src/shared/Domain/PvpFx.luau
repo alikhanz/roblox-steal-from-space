@@ -68,6 +68,10 @@ function PvpFx.bombCharge(elapsed: number, fuse: number, charge: Charge): (numbe
 	return angle, scale, isLit
 end
 
+local function waveSize(elapsed: number, radius: number, wave: Wave): number
+	return wave.startRadius + (radius - wave.startRadius) * easeOut(elapsed / wave.growSeconds)
+end
+
 -- The ring wave `elapsed` seconds after a blast of `radius`: its radius and transparency, or nil
 -- once it has faded.
 function PvpFx.wave(elapsed: number, radius: number, wave: Wave): (number?, number)
@@ -75,9 +79,18 @@ function PvpFx.wave(elapsed: number, radius: number, wave: Wave): (number?, numb
 	if elapsed >= grown + wave.fadeSeconds then
 		return nil, 1
 	end
-	local size = wave.startRadius + (radius - wave.startRadius) * easeOut(elapsed / wave.growSeconds)
 	local transparency = if elapsed <= grown then 0 else (elapsed - grown) / wave.fadeSeconds
-	return size, transparency
+	return waveSize(elapsed, radius, wave), transparency
+end
+
+-- How far the ring wave strikes `elapsed` seconds after a blast of `radius` (decision 103): its
+-- radius while it grows and holds, as drawn, or nil once it starts to fade and strikes no more.
+-- The server sweeps it (PvpService), so whoever flies into the ring is hit as it touches them.
+function PvpFx.waveReach(elapsed: number, radius: number, wave: Wave): number?
+	if elapsed > wave.growSeconds + wave.holdSeconds then
+		return nil
+	end
+	return waveSize(math.max(elapsed, 0), radius, wave)
 end
 
 -- A flash `elapsed` seconds into its `seconds`: its size swelling from `from` to `to` and its

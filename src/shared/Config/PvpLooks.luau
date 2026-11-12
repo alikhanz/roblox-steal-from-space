@@ -4,6 +4,7 @@
 -- ReplicatedStorage.PvpKit (assets/blender/pvp/pvp_kit.py); without the kit, greybox of the same
 -- shapes. Pure data: the motion's shapes are Domain/PvpFx.
 
+local PvpConfig = require("./PvpConfig")
 local PvpFx = require("../Domain/PvpFx")
 
 export type Harpoon = {
@@ -46,7 +47,7 @@ export type Bomb = {
 	read trail: { read lifetime: number, read width: number },
 	-- The flash at the centre: a ball's radius from, to, seconds.
 	read flash: { read from: number, read to: number, read seconds: number },
-	-- The ring wave out to the blast's radius (PvpFx.wave), and its thickness, studs.
+	-- The ring wave out to the blast's radius (PvpFx.wave; PvpConfig.BOMB_WAVE), and its thickness, studs.
 	read wave: PvpFx.Wave,
 	read waveThickness: number,
 }
@@ -86,7 +87,8 @@ local BOMB: Bomb = {
 	}),
 	trail = table.freeze({ lifetime = 0.25, width = 1.4 }),
 	flash = table.freeze({ from = 1.5, to = 5, seconds = 0.25 }),
-	wave = table.freeze({ startRadius = 2, growSeconds = 0.3, holdSeconds = 0.12, fadeSeconds = 0.3 }),
+	-- The wave strikes as drawn (decision 103): its timing is the mechanics' own.
+	wave = PvpConfig.BOMB_WAVE,
 	waveThickness = 0.5,
 }
 

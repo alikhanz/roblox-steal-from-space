@@ -85,6 +85,19 @@ describe("PvpFx.wave", function()
 	end)
 end)
 
+describe("PvpFx.waveReach", function()
+	it("strikes as far as the ring is drawn while it grows and holds", function()
+		for _, elapsed in { 0, 0.1, 0.2, 0.3, 0.35, 0.4 } do
+			expect(PvpFx.waveReach(elapsed, 25, WAVE)).toBe((PvpFx.wave(elapsed, 25, WAVE)))
+		end
+	end)
+
+	it("strikes no more once the ring fades", function()
+		expect(PvpFx.waveReach(0.41, 25, WAVE)).toBeNil()
+		expect(PvpFx.wave(0.41, 25, WAVE) ~= nil).toBe(true)
+	end)
+end)
+
 describe("PvpFx.burst", function()
 	it("swells and fades over its time", function()
 		local first, clear = PvpFx.burst(0, 0.2, 1, 3)

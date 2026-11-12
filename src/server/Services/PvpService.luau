@@ -30,6 +30,7 @@ local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local Pvp = require(ReplicatedStorage.Shared.Domain.Pvp)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local PvpEffects = require(script.Parent.Parent.World.PvpEffects)
+local PvpFx = require(ReplicatedStorage.Shared.Domain.PvpFx)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Vitals = require(ReplicatedStorage.Shared.Character.Vitals)
@@ -420,28 +421,47 @@ function PvpService.new(dependencies: Dependencies): PvpService
 
 	-- The bomb goes off: everyone around it is thrown outward and their eggs come loose; the
 	-- thrower is spared, and so is anyone the rules protect.
+	-- At the blast everyone in its radius is struck; then, while the ring wave grows and holds
+	-- (PvpConfig.BOMB_WAVE, drawn the same on every client), so is whoever flies into the ring.
+	-- Each target once; the bomb's outcome is counted when the wave is over.
 	local function explode(player: Player, character: Model, center: Vector3)
 		if character.Parent == nil then
 			return
 		end
 		local attacker = sideOf(player, character)
-		local targets = targetsFor(player)
-		local candidates: { { id: number, position: Abilities.Vector } } = {}
-		for index, target in targets do
-			table.insert(candidates, { id = index, position = contactPoint(target, center) })
-		end
+		local struck: { [Model]: boolean } = {}
 		local hit, dropped = false, false
-		for _, index in Abilities.withinRadius(toVector(center), candidates, PvpConfig.BOMB.radiusStuds) do
-			local target = targets[index]
-			if target.refusal(attacker) then
-				continue
+		local function sweep(radius: number)
+			local targets: { [Model]: Target } = {}
+			local candidates: { { id: Model, position: Abilities.Vector } } = {}
+			for _, target in targetsFor(player) do
+				targets[target.model] = target
+				table.insert(candidates, { id = target.model, position = contactPoint(target, center) })
 			end
-			local away = target.root.Position - center
-			local push = if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis
-			hit = true
-			dropped = target.onHit(push, player) or dropped
+			for _, model in Abilities.waveStep(toVector(center), candidates, radius, struck) do
+				local target = targets[model]
+				if target.refusal(attacker) then
+					continue
+				end
+				local away = target.root.Position - center
+				local push = if away.Magnitude > 1e-3 then away.Unit else Vector3.yAxis
+				hit = true
+				dropped = target.onHit(push, player) or dropped
+			end
 		end
-		resolved(player, "Bomb", hit, dropped)
+		sweep(PvpConfig.BOMB.radiusStuds)
+		local elapsed = 0
+		local connection: RBXScriptConnection
+		connection = RunService.Heartbeat:Connect(function(deltaTime)
+			elapsed += deltaTime
+			local reach = PvpFx.waveReach(elapsed, PvpConfig.BOMB.radiusStuds, PvpConfig.BOMB_WAVE)
+			if reach and character.Parent ~= nil then
+				sweep(reach)
+				return
+			end
+			connection:Disconnect()
+			resolved(player, "Bomb", hit, dropped)
+		end)
 	end
 
 	-- The steering for a bomb homing on `target` (Domain/Homing), the target's velocity read from
