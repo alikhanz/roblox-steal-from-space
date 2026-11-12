@@ -15,10 +15,11 @@ return table.freeze({
 	MINUTES = table.freeze(MINUTES),
 	-- The least a gift pays in coins, for a player with no income yet.
 	MIN_REWARD_COINS = BigNum.fromNumber(200),
-	-- The last day's egg: useful, not the best there is. It comes from the farthest guardian the
-	-- player has delivered from (the first one for a newbie).
+	-- The last day's egg: useful, not the best there is (epic since the hatch ladder, decision 113:
+	-- an egg mostly hatches into its own tier). It comes from the farthest guardian the player has
+	-- delivered from (the first one for a newbie).
 	EGG_DAY = #MINUTES,
-	EGG_RARITY = "Rare" :: EggConfig.RarityId,
+	EGG_RARITY = "Epic" :: EggConfig.RarityId,
 	EGG_SIZE = "Medium" :: EggConfig.SizeId,
 	-- Online players get the new day's gift within this many seconds of UTC midnight.
 	DAY_CHECK_SECONDS = 5,
