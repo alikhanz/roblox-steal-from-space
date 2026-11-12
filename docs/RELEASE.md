@@ -14,13 +14,13 @@
 
 ## 1. Разработка
 
-- Работа — на ветке `<тип>/<кратко>`. Её показывают в Studio, в Dev-плейсе, через свой `rojo serve` (порт 34872). Studio занимают по очереди, замком `C:\Code\Roblox\studio.lock` (`CLAUDE.md`, «Studio: что важно знать»).
+- Работа — на ветке `<тип>/<кратко>`. Её показывают в Studio, в Dev-плейсе, через общую копию `studio-sync` с постоянным `rojo serve` на 34872 (сессия переключает её на свой коммит). Studio занимают по очереди, замком `C:\Code\Roblox\studio.lock` (`CLAUDE.md`, «Studio: что важно знать»).
 - После «да» пользователя — `lune run check` и fast-forward в `master`. Пуш — по слову пользователя.
 - В `master` копится то, что пользователь видел в Studio, но не на телефоне.
 
 ## 2. Dev-игра: проверка на устройствах
 
-1. Открыть Dev-плейс в Studio. `rojo serve` из `master` (основная копия), **Connect**.
+1. Открыть Dev-плейс в Studio. Копию `studio-sync` переключить на `master` (`git -C .claude/worktrees/studio-sync checkout --detach --force master`); её `rojo serve` уже подключён.
 2. Проверить в Edit через MCP, что код дошёл до Studio.
 3. **File → Publish** (Alt+P).
    - Ctrl+S и MCP `save_place` только **сохраняют** плейс. Живые серверы Dev-игры работают на опубликованной версии.
@@ -33,7 +33,7 @@
 1. Метка версии на этот коммит: `git tag v<major>.<minor>.<patch>` и пуш метки. Prod всегда равен последней метке.
 2. **Все новые ассеты, загруженные с аккаунта пользователя, расшарить на Prod-игру:** сетки (наборы, пришельцы, стражи), картинки (иконки, превью), звуки, анимации. Право `Use` для `Universe 10775754016`, через asset permissions API или Creator Hub, не больше 50 ассетов за запрос. Prod принадлежит сообществу, поэтому без права ассеты пользователя в нём не грузятся: в консоли разработчика `MeshContentProvider failed to process … could not fetch`, нет джетпака и иконок (так было в `v1.0.2`, 2026-11-11). Проще всего выдать право на все свои ассеты типов Mesh, Image, Audio, Animation (список — `itemconfiguration.roblox.com/v1/creations/get-assets`). Список звуков — `docs/design/SOUND.md`.
 3. Новые наборы, вставляемые руками (папки в `ServerStorage` и `ReplicatedStorage`, см. `CLAUDE.md`), вставить и в Prod-плейс.
-4. Открыть Prod-плейс в Studio. `rojo serve` с метки, **Connect**. Проверить в Edit:
+4. Открыть Prod-плейс в Studio. `studio-sync` — на метку, **Connect** в окне Prod-плейса. Проверить в Edit:
    - ручные настройки: `AuthorityMode = Server`, `StreamingMinRadius = 2048`, `StreamingTargetRadius = 4096`, `TextChatService.ChatVersion = TextChatService`, `LightingStyle = Realistic`;
    - все наборы на месте;
    - в Output при старте Play нет `[AlienModel]`, `[GuardianModel]`, `[SerpentVisual]`, `[PvpKit]` о расхождении или нехватке;
