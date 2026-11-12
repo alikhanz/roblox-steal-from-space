@@ -59,9 +59,9 @@ local ICONS: { [Name]: string } = {
 	Sun = "rbxassetid://73916084106533",
 	Serpent = "rbxassetid://72834121037956",
 	-- How a guardian stands against the player (GuardianLooks.CHALLENGES; "Down" for a weak one).
-	Check = "",
-	Alert = "",
-	Skull = "",
+	Check = "rbxassetid://131003663821854",
+	Alert = "rbxassetid://78877671143346",
+	Skull = "rbxassetid://77777329109557",
 }
 
 return table.freeze({
