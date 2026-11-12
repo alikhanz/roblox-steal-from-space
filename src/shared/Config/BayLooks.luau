@@ -70,6 +70,11 @@ return table.freeze({
 	SIGN_POSITION = Vector3.new(0, 0, -(RADIUS - 21)),
 	SIGN_BOARD_SIZE = Vector3.new(28, 6, 0.6),
 	SIGN_POST_HEIGHT = 4,
+	-- The glowing lines along the board's top and bottom: this tall, and standing this far out of
+	-- the board on every side. No face may lie in the board's own: two faces in one plane flicker
+	-- as the camera moves (the user saw the glow twitch, 2026-11-12).
+	SIGN_EDGE_HEIGHT = 0.24,
+	SIGN_EDGE_OVERHANG = 0.05,
 	SIGN_POST_SIZE = Vector3.new(0.6, 0, 0.6),
 	SIGN_COLOR = Color3.fromRGB(44, 50, 72),
 

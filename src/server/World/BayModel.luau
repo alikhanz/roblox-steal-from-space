@@ -641,7 +641,8 @@ function BayModel.dressStand(bay: Instance, level: number)
 end
 
 -- The owner's sign: a board on two posts at the entrance. The name hangs over it (the client's
--- label on the board).
+-- label on the board). Nothing of it collides: players walk and fly through it (the user,
+-- 2026-11-12).
 local function buildSign(origin: CFrame, parent: Instance)
 	local base = origin * CFrame.new(BayLooks.SIGN_POSITION)
 	local board = BayLooks.SIGN_BOARD_SIZE
@@ -653,15 +654,19 @@ local function buildSign(origin: CFrame, parent: Instance)
 	sign.CFrame = base * CFrame.new(0, postHeight + board.Y / 2, 0)
 	sign.Material = Enum.Material.Metal
 	sign.Color = BayLooks.SIGN_COLOR
+	sign.CanCollide = false
 	scenery(sign)
 	sign.Parent = parent
 
-	-- A glowing frame line along the board's top and bottom.
+	-- A glowing frame line along the board's top and bottom, standing a little out of the board on
+	-- every side, so none of its faces lies in one of the board's.
+	local edgeHeight = BayLooks.SIGN_EDGE_HEIGHT
+	local overhang = BayLooks.SIGN_EDGE_OVERHANG
 	for _, side in { 1, -1 } do
 		local edge = Instance.new("Part")
 		edge.Name = "SignEdge"
-		edge.Size = Vector3.new(board.X, 0.2, board.Z + 0.1)
-		edge.CFrame = sign.CFrame * CFrame.new(0, side * (board.Y / 2 - 0.1), 0)
+		edge.Size = Vector3.new(board.X + overhang * 2, edgeHeight, board.Z + overhang * 2)
+		edge.CFrame = sign.CFrame * CFrame.new(0, side * (board.Y / 2 + overhang - edgeHeight / 2), 0)
 		edge.Material = Enum.Material.Neon
 		edge.Color = BayLooks.EDGE_COLOR
 		edge.CanCollide = false
@@ -676,6 +681,7 @@ local function buildSign(origin: CFrame, parent: Instance)
 		post.CFrame = base * CFrame.new(side * (board.X / 2 - 1), postHeight / 2, 0)
 		post.Material = Enum.Material.Metal
 		post.Color = BayLooks.SIGN_COLOR
+		post.CanCollide = false
 		scenery(post)
 		post.Parent = parent
 	end
