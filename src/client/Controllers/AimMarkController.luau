@@ -1,5 +1,5 @@
 --!strict
--- The target mark (brief docs/design/screens/pvp-abilities.md, "Прицел и доводка"; decision 103):
+-- The target mark (brief docs/design/screens/pvp-abilities.md, "Прицел и доводка"; decision 106):
 -- four corners round whom the aim assist would send the local player's harpoon (its colour) or,
 -- while the harpoon cools down or has nobody, their gravity bomb (its colour). On a phone the
 -- assist pulls towards a target the player may not pick out among guardians and rocks; the mark

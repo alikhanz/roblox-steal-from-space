@@ -6,7 +6,7 @@
 -- or the drift worked out when it is not here), then lets go and reels in. A miss hangs at the
 -- end of the reach, the cable sagging, and reels in empty. The server decided everything before
 -- this starts (PvpService); this only shows it.
--- The hook flies out and reels in relative to the shooter (decision 103): it covers the way from
+-- The hook flies out and reels in relative to the shooter (decision 106): it covers the way from
 -- the muzzle to its goal in a set time wherever the shooter flies meanwhile, and a miss's end of
 -- the reach moves with the shooter, so at full flight speed it still goes ahead, not behind.
 

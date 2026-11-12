@@ -1,5 +1,5 @@
 --!strict
--- How a thrown projectile moves (the gravity bomb, decision 103): it leaves with its thrower's
+-- How a thrown projectile moves (the gravity bomb, decision 106): it leaves with its thrower's
 -- velocity, steers for its target with a limited push, and meets whoever it passes close to.
 -- Pure: works only with the vectors it is given (no Vector3 global, so tests run it in Lune).
 

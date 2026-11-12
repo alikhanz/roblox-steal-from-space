@@ -4,7 +4,7 @@
 -- round it and a Trail behind; the orbits spin and the light blinks faster towards the end of the
 -- fuse, and close in on the core over its last moments (Domain/PvpFx.bombCharge). It flies as on
 -- the server (World/BombFlight): from the throw with the thrower's velocity, homing on the same
--- target (decision 103), and is put where the server says it went off. The blast: a flash at the centre and a flat ring wave out to the blast's radius
+-- target (decision 106), and is put where the server says it went off. The blast: a flash at the centre and a flat ring wave out to the blast's radius
 -- (PvpFx.wave), so what it reached is plain to see.
 
 local GuiService = game:GetService("GuiService")

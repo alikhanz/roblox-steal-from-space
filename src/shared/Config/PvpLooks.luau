@@ -87,7 +87,7 @@ local BOMB: Bomb = {
 	}),
 	trail = table.freeze({ lifetime = 0.25, width = 1.4 }),
 	flash = table.freeze({ from = 1.5, to = 5, seconds = 0.25 }),
-	-- The wave strikes as drawn (decision 103): its timing is the mechanics' own.
+	-- The wave strikes as drawn (decision 106): its timing is the mechanics' own.
 	wave = PvpConfig.BOMB_WAVE,
 	waveThickness = 0.5,
 }

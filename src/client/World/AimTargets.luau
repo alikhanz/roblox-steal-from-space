@@ -1,6 +1,6 @@
 --!strict
 -- What the local player's harpoon and gravity bomb would go for right now: the same pick the
--- server makes (PvpService, decision 103: Abilities.bestInCone along the camera's aim, among the
+-- server makes (PvpService, decision 106: Abilities.bestInCone along the camera's aim, among the
 -- targets the rules let them attack), on what this client sees. For the crosshair's lock.
 -- Targets: other players' characters, test dummies (PvpConfig.DUMMY_TAG) and the star serpent's
 -- head. The rules are checked as far as a client knows them: the spawn grace is left out.

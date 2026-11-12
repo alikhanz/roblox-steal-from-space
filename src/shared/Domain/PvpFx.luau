@@ -83,7 +83,7 @@ function PvpFx.wave(elapsed: number, radius: number, wave: Wave): (number?, numb
 	return waveSize(elapsed, radius, wave), transparency
 end
 
--- How far the ring wave strikes `elapsed` seconds after a blast of `radius` (decision 103): its
+-- How far the ring wave strikes `elapsed` seconds after a blast of `radius` (decision 106): its
 -- radius while it grows and holds, as drawn, or nil once it starts to fade and strikes no more.
 -- The server sweeps it (PvpService), so whoever flies into the ring is hit as it touches them.
 function PvpFx.waveReach(elapsed: number, radius: number, wave: Wave): number?

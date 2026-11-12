@@ -26,7 +26,7 @@ local STRIKE: Abilities.Strike = {
 	cooldownSeconds = 1.5,
 }
 
--- Aim assist (decision 103): of the egg carriers within the range and the cone, the one nearest
+-- Aim assist (decision 106): of the egg carriers within the range and the cone, the one nearest
 -- the crosshair is hit (Abilities.bestInCone). The cone is wide enough for a thumb on a phone and
 -- for what a client sees lagging behind the server at flight speeds.
 local HARPOON: Abilities.Harpoon = {
@@ -39,7 +39,7 @@ local HARPOON: Abilities.Harpoon = {
 
 -- The bomb leaves with the thrower's velocity plus `throwSpeed` along the aim, so it flies ahead
 -- at any flight speed, sped up if need be to close on a faster target at `throwSpeed`, and homes
--- on the target nearest the crosshair (decision 103). It steers
+-- on the target nearest the crosshair (decision 106). It steers
 -- far more weakly than a player turns (FlightConfig.TUNING.response): whoever flies straight is
 -- caught, a sharp turn dodges it.
 local BOMB: Abilities.Bomb = {
@@ -55,7 +55,7 @@ local BOMB: Abilities.Bomb = {
 	steerAcceleration = 180,
 }
 
--- The blast's ring wave (decision 103): it grows from `startRadius` to BOMB.radiusStuds, holds,
+-- The blast's ring wave (decision 106): it grows from `startRadius` to BOMB.radiusStuds, holds,
 -- then fades. While it grows and holds it strikes whoever it reaches (PvpFx.waveReach), as every
 -- client draws it (PvpLooks.BOMB.wave is this): someone flying into the ring is hit as it touches
 -- them. At the blast itself everyone in the whole radius is hit, as before.

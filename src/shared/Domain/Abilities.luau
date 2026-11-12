@@ -132,7 +132,7 @@ function Abilities.nearestInCone<T>(
 	return best
 end
 
--- The aim assist's pick (decision 103): of `targets` inside the cone, the one the aim is best on.
+-- The aim assist's pick (decision 106): of `targets` inside the cone, the one the aim is best on.
 -- Each is scored by its angle off `facing` as a share of `halfAngle` plus its distance as a share
 -- of `reach`, and the lowest score wins: the target nearest the crosshair, unless another one
 -- almost as near the crosshair is much closer. Targets are {id, position}; nil when none is in.
@@ -165,7 +165,7 @@ function Abilities.bestInCone<T>(
 	return best
 end
 
--- One step of a blast wave of `radius` round `center` (decision 103): the ids of `targets` inside
+-- One step of a blast wave of `radius` round `center` (decision 106): the ids of `targets` inside
 -- it that it has not struck yet, which are now marked in `struck`. Swept every frame while the
 -- wave lives, it strikes each target once.
 function Abilities.waveStep<T>(

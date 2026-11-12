@@ -5,9 +5,9 @@
 --   Strike: a lunge along the aim, run by the simulation; whoever the attacker touches on the
 --     way takes a guardian's hit, right at the touch.
 --   Harpoon: the egg carrier nearest the crosshair in the aim assist's cone loses the egg toward
---     the shooter (decision 103).
+--     the shooter (decision 106).
 --   Bomb: leaves with the thrower's velocity, homes on the target nearest the crosshair until it
---     reaches someone, then throws everyone around it (decision 103).
+--     reaches someone, then throws everyone around it (decision 106).
 -- No shield (decision 060): the only defence is speed.
 
 local Players = game:GetService("Players")
