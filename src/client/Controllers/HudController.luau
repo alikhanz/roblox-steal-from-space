@@ -252,6 +252,12 @@ function HudController.new(dependencies: Dependencies): HudController
 			spec.seconds = function()
 				return dependencies.abilities.left(kind)
 			end
+			if kind == "Harpoon" then
+				-- Nobody to hit (no egg carrier in the lock): grey, still pressable (decision 106).
+				spec.dimmed = function()
+					return not harpoonLocked()
+				end
+			end
 			if kind == "Strike" then
 				-- Hands full: an egg carrier cannot strike (the simulation refuses it too).
 				spec.enabled = function()

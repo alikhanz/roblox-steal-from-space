@@ -87,6 +87,51 @@ describe("Abilities.bestInCone", function()
 	end)
 end)
 
+describe("Abilities.isInLaggedCone", function()
+	local REACH = 90
+	local HALF_ANGLE = math.rad(18)
+
+	it("is the plain cone without slack", function()
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 5, y = 0, z = -40 }, REACH, HALF_ANGLE, 0)).toBe(true)
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 20, y = 0, z = -40 }, REACH, HALF_ANGLE, 0)).toBe(false)
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 0, y = 0, z = -95 }, REACH, HALF_ANGLE, 0)).toBe(false)
+	end)
+
+	it("lets a lock stand when the server sees the target a lag's flight aside", function()
+		-- Crossing at 150 studs/s, seen 0.2 s late: 30 studs aside at 40 studs, well out of 18°.
+		local seenByServer = { x = 30, y = 0, z = -40 }
+		local slack = Abilities.lockSlack(0, 150, 0.3, 6, 40)
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, seenByServer, REACH, HALF_ANGLE, 0)).toBe(false)
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, seenByServer, REACH, HALF_ANGLE, slack)).toBe(true)
+	end)
+
+	it("lets a lock stand a little past the reach and just behind", function()
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 0, y = 0, z = -100 }, REACH, HALF_ANGLE, 20)).toBe(true)
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 0, y = 0, z = 10 }, REACH, HALF_ANGLE, 20)).toBe(true)
+	end)
+
+	it("refuses a lock on someone far off the aim or behind", function()
+		local slack = 40
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 80, y = 0, z = -20 }, REACH, HALF_ANGLE, slack)).toBe(
+			false
+		)
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 0, y = 0, z = 60 }, REACH, HALF_ANGLE, slack)).toBe(
+			false
+		)
+		expect(Abilities.isInLaggedCone(ORIGIN, FORWARD, { x = 0, y = 0, z = -140 }, REACH, HALF_ANGLE, slack)).toBe(
+			false
+		)
+	end)
+end)
+
+describe("Abilities.lockSlack", function()
+	it("grows with both speeds and stops at the cap", function()
+		expect(Abilities.lockSlack(0, 0, 0.3, 6, 40)).toBe(6)
+		expect(Abilities.lockSlack(50, 30, 0.25, 6, 40)).toBe(26)
+		expect(Abilities.lockSlack(250, 250, 0.3, 6, 40)).toBe(40)
+	end)
+end)
+
 describe("Abilities.waveStep", function()
 	local WAVE = PvpConfig.BOMB_WAVE
 	local RADIUS = PvpConfig.BOMB.radiusStuds

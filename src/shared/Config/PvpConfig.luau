@@ -27,14 +27,20 @@ local STRIKE: Abilities.Strike = {
 }
 
 -- Aim assist (decision 106): of the egg carriers within the range and the cone, the one nearest
--- the crosshair is hit (Abilities.bestInCone). The cone is wide enough for a thumb on a phone and
--- for what a client sees lagging behind the server at flight speeds.
+-- the crosshair is hit (Abilities.bestInCone). The cone is wide enough for a thumb on a phone.
+-- The client's lock (the corners on the target) is what the shot goes for: the server hits it
+-- if its own view is no farther off than the shooter and the target fly over `lockLagSeconds`
+-- (a phone's ping plus Roblox's interpolation), plus `lockBaseStuds`, never more than
+-- `lockMaxStuds` (Abilities.isInLaggedCone).
 local HARPOON: Abilities.Harpoon = {
-	rangeStuds = 70,
+	rangeStuds = 90,
 	halfAngleRadians = math.rad(18),
 	cooldownSeconds = 20,
 	-- A shot that finds nobody costs less.
 	missCooldownSeconds = 5,
+	lockLagSeconds = 0.3,
+	lockBaseStuds = 6,
+	lockMaxStuds = 40,
 }
 
 -- The bomb leaves with the thrower's velocity plus `throwSpeed` along the aim, so it flies ahead

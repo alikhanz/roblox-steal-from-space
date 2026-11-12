@@ -88,6 +88,8 @@ export type PvpService = {
 	start: () -> (),
 	-- Registers a creature attacks can land on. It is forgotten when its model goes.
 	addCreature: (creature: Creature) -> (),
+	-- Whom the player's harpoon lock is on, as their client says (NetService); nil: nobody.
+	setHarpoonLock: (player: Player, part: BasePart?) -> (),
 	-- How many times each ability was used and how many of those landed, by ability name.
 	getUsage: () -> { [string]: { used: number, hit: number } },
 	-- Fires after an ability resolved: the player, the ability, whether it hit, whether an egg dropped.
@@ -123,6 +125,8 @@ type PlayerState = {
 	spawnedAt: number,
 	-- The strike's lunge in progress: whether it already touched someone (one hit per lunge).
 	lunge: { touched: boolean }?,
+	-- The root part the client's harpoon lock is on (HarpoonLock), nil: none.
+	lock: BasePart?,
 }
 
 -- The abilities started by a press here; the strike starts in the simulation instead.
@@ -388,9 +392,53 @@ function PvpService.new(dependencies: Dependencies): PvpService
 				Abilities.bestInCone
 			)
 		end
-		local target = find(function(candidate)
-			return candidate.isCarrying() and candidate.refusal(attacker) == nil
-		end)
+		local HARPOON = PvpConfig.HARPOON
+		-- The client's lock first (decision 106): it is what the player saw the corners on. The
+		-- server's own view is behind or ahead of the client's by the lag, so it may stand within
+		-- a slack that grows with both speeds.
+		local function locked(): Target?
+			local part = state.lock
+			if not part then
+				return nil
+			end
+			for _, candidate in targets do
+				if candidate.root ~= part then
+					continue
+				end
+				if not candidate.isCarrying() or candidate.refusal(attacker) then
+					return nil
+				end
+				local slack = Abilities.lockSlack(
+					root.AssemblyLinearVelocity.Magnitude,
+					candidate.root.AssemblyLinearVelocity.Magnitude,
+					HARPOON.lockLagSeconds,
+					HARPOON.lockBaseStuds,
+					HARPOON.lockMaxStuds
+				)
+				local stands = Abilities.isInLaggedCone(
+					toVector(root.Position),
+					toVector(direction),
+					contactPoint(candidate, root.Position),
+					HARPOON.rangeStuds,
+					HARPOON.halfAngleRadians,
+					slack
+				)
+				if LOG then
+					local distance = (candidate.root.Position - root.Position).Magnitude
+					print(
+						`[PvpService] {player.Name} harpoon lock: {math.round(distance)} studs, slack {math.round(slack)}, {if stands
+							then "honoured"
+							else "refused"}`
+					)
+				end
+				return if stands then candidate else nil
+			end
+			return nil
+		end
+		local target = locked()
+			or find(function(candidate)
+				return candidate.isCarrying() and candidate.refusal(attacker) == nil
+			end)
 		if not target then
 			-- Only carriers the rules protect were in the cone: say why, and the harpoon stays.
 			local protected = find(function(candidate)
@@ -608,6 +656,15 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		end)
 	end
 
+	-- Whom the client's harpoon lock is on (NetService, HarpoonLock); only a part, checked at the
+	-- shot.
+	local function setHarpoonLock(player: Player, part: BasePart?)
+		local state = states[player]
+		if state then
+			state.lock = part
+		end
+	end
+
 	local function addCreature(creature: Creature)
 		local target: Target = {
 			model = creature.model,
@@ -641,6 +698,7 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		name = "PvpService",
 		start = start,
 		addCreature = addCreature,
+		setHarpoonLock = setHarpoonLock,
 		getUsage = function()
 			return usage
 		end,

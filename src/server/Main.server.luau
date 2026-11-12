@@ -163,6 +163,7 @@ local netService = NetService.new({
 	harpoonShot = pvpService.harpoonShot,
 	bombThrown = pvpService.bombThrown,
 	bombExploded = pvpService.bombExploded,
+	setHarpoonLock = pvpService.setHarpoonLock,
 	quests = questService,
 	loginGift = loginGiftService,
 	index = indexService,

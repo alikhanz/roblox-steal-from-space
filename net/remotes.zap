@@ -572,6 +572,19 @@ event RerollQuest = {
 	data: u8,
 }
 
+-- Whom the client's harpoon lock is on right now (World/AimTargets: the egg carrier nearest the
+-- crosshair), sent when it changes; nil: nobody. The server hits that one on the next shot if it
+-- is near enough to its own view of the aim, allowing for what the client sees lagging behind
+-- (PvpService, decision 106).
+event HarpoonLock = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: struct {
+		target: Instance.BasePart?,
+	},
+}
+
 -- The client is about to show Roblox's purchase prompt: where it was offered (analytics) and, for
 -- "Egg ready now", the egg it is for. The purchase itself is granted only by its receipt.
 event PurchasePrompted = {

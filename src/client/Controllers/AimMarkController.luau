@@ -4,6 +4,8 @@
 -- while the harpoon cools down or has nobody, their gravity bomb (its colour). On a phone the
 -- assist pulls towards a target the player may not pick out among guardians and rocks; the mark
 -- shows which. One mark at a time, a BillboardGui on the target's root part, drawn over all.
+-- It also tells the server whom the harpoon lock is on (HarpoonLock, as it changes): the shot goes
+-- for that one, as the player saw it (PvpService).
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -14,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 local AbilityState = require(script.Parent.Parent.State.AbilityState)
 local AimTargets = require(script.Parent.Parent.World.AimTargets)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Theme = require(script.Parent.Parent.UI.Theme)
 
 local SIZE = 56
@@ -105,15 +108,26 @@ function AimMarkController.new(dependencies: Dependencies): AimMarkController
 			}):Play()
 		end
 
+		local sentLock: BasePart? = nil
+		local function sendLock(target: BasePart?)
+			if target ~= sentLock then
+				sentLock = target
+				Remotes.HarpoonLock.Fire({ target = target })
+			end
+		end
+
 		RunService.RenderStepped:Connect(function()
 			local character = player.Character
 			-- PvP is out in space only (not under a dome, flying or not).
 			if not character or character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true then
+				sendLock(nil)
 				show(nil, Theme.NEON.FLIGHT.Harpoon)
 				return
 			end
 			local abilities = dependencies.abilities
-			local harpoon = if abilities.isCooling("Harpoon") then nil else AimTargets.harpoon(player)
+			local locked = AimTargets.harpoon(player)
+			sendLock(locked)
+			local harpoon = if abilities.isCooling("Harpoon") then nil else locked
 			if harpoon then
 				show(harpoon, Theme.NEON.FLIGHT.Harpoon)
 				return

@@ -76,6 +76,8 @@ export type ButtonSpec = {
 	seconds: (() -> number)?,
 	-- Works only while this says so; otherwise grey.
 	enabled: (() -> boolean)?,
+	-- Looks grey while this says so but still works (the harpoon with nobody to hit).
+	dimmed: (() -> boolean)?,
 	-- A switch that is on (slow mode).
 	active: (() -> boolean)?,
 	-- Shown only while this says so (the grab button: only next to an egg); always otherwise. It
@@ -126,6 +128,10 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 	local function isEnabled(): boolean
 		return if spec.enabled then spec.enabled() else true
 	end
+	-- Drawn as working: enabled and not dimmed.
+	local function looksEnabled(): boolean
+		return isEnabled() and not (spec.dimmed and spec.dimmed())
+	end
 	-- Silent: an ability has its own sound and effect.
 	local press = Press.new({ enabled = isEnabled, shrinks = true, silent = true })
 	local function isActive(): boolean
@@ -155,16 +161,17 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 	-- Growing in on appearing and the pulse, multiplied into the press scale.
 	local motion = source(1)
 	local function isLit(): boolean
-		return isActive() and isEnabled()
+		return isActive() and looksEnabled()
 	end
 	Vide.effect(function()
 		local enabled = isEnabled()
+		local looks = looksEnabled()
 		local lit = isLit()
 		local color = colorNow()
 		fill.BackgroundColor3 = color
-		fill.BackgroundTransparency = if enabled then 0 else DISABLED_TRANSPARENCY
-		outline.Color = if lit then Layout.iconColor(color) elseif enabled then Layout.lineColor(color) else NEON.MUTED
-		outline.Transparency = if enabled then 0 else DISABLED_TRANSPARENCY
+		fill.BackgroundTransparency = if looks then 0 else DISABLED_TRANSPARENCY
+		outline.Color = if lit then Layout.iconColor(color) elseif looks then Layout.lineColor(color) else NEON.MUTED
+		outline.Transparency = if looks then 0 else DISABLED_TRANSPARENCY
 		gradient.Transparency = if lit
 			then NumberSequence.new(LIT_FILL_TOP, LIT_FILL_BOTTOM)
 			else NumberSequence.new(NEON.FILL_TOP, NEON.FILL_BOTTOM)
@@ -246,7 +253,7 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 				ImageTransparency = function()
 					return if isLit() or (spec.pulse and spec.pulse()) then LIT_GLOW_TRANSPARENCY else GLOW_TRANSPARENCY
 				end,
-				Visible = isEnabled,
+				Visible = looksEnabled,
 			}),
 			-- The ring of progress: a light sector round the button, over a solid base that hides
 			-- its middle under the see-through glass.
@@ -280,7 +287,7 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 				ImageColor3 = function()
 					return if isLit()
 						then NEON.GLASS
-						elseif isEnabled() then Layout.iconColor(colorNow())
+						elseif looksEnabled() then Layout.iconColor(colorNow())
 						else NEON.MUTED
 				end,
 			}),

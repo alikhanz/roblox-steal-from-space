@@ -55,6 +55,8 @@ export type Dependencies = {
 	harpoonShot: Signal.Signal<PvpService.Shot>,
 	bombThrown: Signal.Signal<PvpService.Throw>,
 	bombExploded: Signal.Signal<PvpService.Blast>,
+	-- Whom a client's harpoon lock is on (PvpService.setHarpoonLock).
+	setHarpoonLock: (player: Player, part: BasePart?) -> (),
 	quests: QuestService.QuestService,
 	loginGift: LoginGiftService.LoginGiftService,
 	index: IndexService.IndexService,
@@ -223,6 +225,10 @@ function NetService.new(dependencies: Dependencies): NetService
 		dependencies.harpoonShot.connect(Remotes.HarpoonShot.FireAll)
 		dependencies.bombThrown.connect(Remotes.BombThrown.FireAll)
 		dependencies.bombExploded.connect(Remotes.BombExploded.FireAll)
+		-- Not a command: no rate limit, no notice; the lock is only checked at the next shot.
+		Remotes.HarpoonLock.SetCallback(function(player, value)
+			dependencies.setHarpoonLock(player, value.target)
+		end)
 		economy.trainerUpgraded.connect(sendUpgrades)
 		economy.jetpackUpgraded.connect(sendUpgrades)
 		dependencies.coinsChanged.connect(function(player, coins)

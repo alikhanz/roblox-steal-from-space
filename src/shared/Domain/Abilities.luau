@@ -31,6 +31,11 @@ export type Harpoon = {
 	read halfAngleRadians: number,
 	read cooldownSeconds: number,
 	read missCooldownSeconds: number,
+	-- The client's lock is honoured if the server sees its target this far off, at most
+	-- (Abilities.lockSlack): the lag allowed for, bodies, and a cap against cheating.
+	read lockLagSeconds: number,
+	read lockBaseStuds: number,
+	read lockMaxStuds: number,
 }
 
 export type Bomb = {
@@ -163,6 +168,47 @@ function Abilities.bestInCone<T>(
 		end
 	end
 	return best
+end
+
+-- Whether a client's harpoon lock may stand (decision 106): the server sees the locked target at
+-- `target`, while the client saw it, and itself, up to `slack` studs elsewhere (both fly on during
+-- the client's lag). The target must be within `reach + slack` of `origin` and inside the cone of
+-- `halfAngle` along `facing`, widened sideways by `slack`; not behind by more than `slack`.
+function Abilities.isInLaggedCone(
+	origin: Vector,
+	facing: Vector,
+	target: Vector,
+	reach: number,
+	halfAngle: number,
+	slack: number
+): boolean
+	local offset = subtract(target, origin)
+	local distance = length(offset)
+	if distance > reach + slack then
+		return false
+	end
+	local facingLength = length(facing)
+	if facingLength < 1e-6 then
+		return distance <= slack
+	end
+	local along = dot(offset, facing) / facingLength
+	if along < -slack then
+		return false
+	end
+	local sideways = math.sqrt(math.max(distance * distance - along * along, 0))
+	return sideways <= math.max(along, 0) * math.tan(halfAngle) + slack
+end
+
+-- How far a client's view may be off at these speeds (decision 106): what the shooter and the
+-- target cover over `lagSeconds`, plus `baseStuds` for bodies, at most `maxStuds`.
+function Abilities.lockSlack(
+	shooterSpeed: number,
+	targetSpeed: number,
+	lagSeconds: number,
+	baseStuds: number,
+	maxStuds: number
+): number
+	return math.min((shooterSpeed + targetSpeed) * lagSeconds + baseStuds, maxStuds)
 end
 
 -- One step of a blast wave of `radius` round `center` (decision 106): the ids of `targets` inside
