@@ -3,7 +3,8 @@
 -- Short messages stacked at the top of the screen (docs/design/screens/toasts-and-signs.md): a
 -- pill of dark glass outlined in the toast's colour, with a round badge in front that says
 -- what kind of news it is (good, refused, an egg, an alien, speed, coins, a gift). The text is
--- white; amounts carry their marks (UI/IconText).
+-- white; amounts carry their marks (UI/IconText). A toast may have a second, smaller line with
+-- the numbers behind the news (an alien's income under its hatch).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -32,6 +33,9 @@ local BADGE_GAP = 8
 local ALIEN_SHARE = 1.25
 -- The text wraps past this width, points.
 local MAX_TEXT_WIDTH = 380
+-- The detail line under the text: smaller, quieter.
+local DETAIL_TEXT_SIZE = NEON.TEXT_BODY
+local LINE_GAP = 1
 -- Denser than the HUD's glass: a toast must read over anything.
 local GLASS_TRANSPARENCY = 0.25
 
@@ -44,6 +48,10 @@ export type Toast = {
 	-- News about one alien (a hatch, a crossbreed): its picture is the badge, on its tier's colour
 	-- (docs/design/screens/alien-icons.md).
 	alienId: string?,
+	-- A second, smaller line: what the news means in numbers ("●85/s · to a spot").
+	detail: string?,
+	-- Toasts of one group replace each other (State/ToastState).
+	group: string?,
 }
 
 -- Each kind's colour and badge: an icon, or a glyph for the plain good and bad.
@@ -58,6 +66,17 @@ local KINDS: { [Kind]: { color: Color3, icon: Icons.Name?, glyph: string? } } = 
 	-- Flight hints (the double jump, decision 096): the flight buttons' cyan.
 	Jetpack = { color = NEON.FLIGHT.Vertical, icon = "Jetpack" },
 }
+
+export type Options = {
+	-- A second, smaller line under the text; it may carry marks (●, ⚡), and stays on one line.
+	detail: string?,
+	-- News of one run (hatches in a row): a toast of the same group replaces the one on screen,
+	-- in its place, instead of stacking under it.
+	group: string?,
+}
+
+-- Shows a toast (State/ToastState.push).
+export type Push = (text: string, kind: Kind, alienId: string?, options: Options?) -> ()
 
 export type Props = {
 	toasts: () -> { Toast },
@@ -167,16 +186,45 @@ local function ToastView(toast: () -> Toast, index: number): Frame
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 		Badge(toast),
-		IconText({
-			name = "Text",
-			layoutOrder = 2,
-			text = function()
-				return toast().text
-			end,
-			textSize = NEON.TEXT_HINT,
-			color = NEON.TEXT,
-			outline = "Neon",
-			wrapWidth = MAX_TEXT_WIDTH,
+		create("Frame")({
+			Name = "Lines",
+			LayoutOrder = 2,
+			AutomaticSize = Enum.AutomaticSize.XY,
+			BackgroundTransparency = 1,
+			create("UIListLayout")({
+				FillDirection = Enum.FillDirection.Vertical,
+				Padding = UDim.new(0, LINE_GAP),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+			IconText({
+				name = "Text",
+				layoutOrder = 1,
+				text = function()
+					return toast().text
+				end,
+				textSize = NEON.TEXT_HINT,
+				color = NEON.TEXT,
+				outline = "Neon",
+				wrapWidth = MAX_TEXT_WIDTH,
+			}),
+			create("Frame")({
+				Name = "Detail",
+				LayoutOrder = 2,
+				AutomaticSize = Enum.AutomaticSize.XY,
+				BackgroundTransparency = 1,
+				Visible = function()
+					return toast().detail ~= nil
+				end,
+				IconText({
+					name = "Text",
+					text = function()
+						return toast().detail or ""
+					end,
+					textSize = DETAIL_TEXT_SIZE,
+					color = NEON.MUTED,
+					outline = "Neon",
+				}),
+			}),
 		}),
 	}) :: Frame
 end

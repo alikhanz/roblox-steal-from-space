@@ -15,7 +15,7 @@ local Toasts = require(script.Parent.Parent.UI.Toasts)
 local DELAY_SECONDS = 4
 
 export type Dependencies = {
-	toast: (text: string, kind: Toasts.Kind, alienId: string?) -> (),
+	toast: Toasts.Push,
 	-- The tutorial is over (TutorialController.isDone).
 	tutorialDone: () -> boolean,
 }

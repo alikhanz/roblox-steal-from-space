@@ -412,13 +412,19 @@ local Strings = {
 		ru = "Инвентарь полный: продай или скрести кого-нибудь, тогда сможешь подбирать",
 		en = "Inventory full: sell or crossbreed someone, then you can pick them up",
 	},
+	-- Hatches in a row, one toast: how many, and the best earner of them.
 	["alien.hatchedMany.toast"] = {
 		ru = {
-			one = "Вылупился {count} пришелец!",
-			few = "Вылупилось {count} пришельца!",
-			many = "Вылупилось {count} пришельцев!",
+			one = "+{count} пришелец! Лучший: {name}",
+			few = "+{count} пришельца! Лучший: {name}",
+			many = "+{count} пришельцев! Лучший: {name}",
 		},
-		en = { one = "{count} alien hatched!", other = "{count} aliens hatched!" },
+		en = { one = "+{count} alien! Best: {name}", other = "+{count} aliens! Best: {name}" },
+	},
+	-- The second line of a hatch or crossbreed toast: the alien's income and where it went.
+	["alien.hatchedIncome.hint"] = {
+		ru = "●{income}/с · {place}",
+		en = "●{income}/s · {place}",
 	},
 	["bay.autoPlace.button"] = {
 		ru = "Лучших на места",
@@ -473,12 +479,12 @@ local Strings = {
 		en = "Off the spot",
 	},
 	["alien.hatched.toast"] = {
-		ru = "Вылупился {name} → {place}",
-		en = "Hatched: {name} → {place}",
+		ru = "Вылупился {name}",
+		en = "Hatched: {name}",
 	},
 	["alien.crossbred.toast"] = {
-		ru = "Скрестили! {name} → {place}",
-		en = "Crossbred! {name} → {place}",
+		ru = "Скрестили! {name}",
+		en = "Crossbred! {name}",
 	},
 	["place.spot.hint"] = {
 		ru = "на место",

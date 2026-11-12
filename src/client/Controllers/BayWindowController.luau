@@ -38,6 +38,8 @@ local source = Vide.source
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 -- Egg countdowns are whole seconds: once a second is enough.
 local COUNTDOWN_INTERVAL = 1
+-- The toasts of hatches in a row replace each other (State/ToastState).
+local HATCH_TOAST_GROUP = "Hatch"
 
 local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	NoProfile = "notice.noProfile.toast",
@@ -694,29 +696,61 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		assert(playerGui, "[BayWindowController] PlayerGui did not appear")
 		mountUi(playerGui)
 
-		local function announce(key: Text.Key, alienId: string, location: ProfileState.Location)
-			local args = { name = Names.alien(locale, alienId) or "?", place = placeText(location) }
-			toast(text(key, args), "Alien", alienId)
+		local function incomeOf(alienId: string): BigNum.BigNum
+			local alien = AlienConfig.ALIENS[alienId]
+			return if alien then alien.income else BigNum.ZERO
 		end
-		-- Hatches arrive one event each; several at once become one toast.
+		-- The second line of an alien's toast: what it earns and where it went.
+		local function incomeLine(alienId: string, location: ProfileState.Location): string
+			return text(
+				"alien.hatchedIncome.hint",
+				{ income = BigNum.format(incomeOf(alienId)), place = placeText(location) }
+			)
+		end
+		local function nameOf(alienId: string): string
+			return Names.alien(locale, alienId) or "?"
+		end
+		-- Hatches in a row are one toast (docs/design/screens/toasts-and-signs.md): while it is on
+		-- screen, each hatch adds to its count and the best earner so far is the one it names. On
+		-- a phone a toast per egg covered the screen (playtest, 2026-11-12).
+		local hatchRun = { count = 0, alienId = "", location = "Pod" :: ProfileState.Location }
 		local pendingHatches: { { alienId: string, location: ProfileState.Location } } = {}
+		local function announceHatches()
+			local batch = pendingHatches
+			pendingHatches = {}
+			if not dependencies.toasts.isShown(HATCH_TOAST_GROUP) then
+				hatchRun.count = 0
+			end
+			for _, hatch in batch do
+				if hatchRun.count == 0 or BigNum.lessThan(incomeOf(hatchRun.alienId), incomeOf(hatch.alienId)) then
+					hatchRun.alienId = hatch.alienId
+					hatchRun.location = hatch.location
+				end
+				hatchRun.count += 1
+			end
+			local name = nameOf(hatchRun.alienId)
+			local line = if hatchRun.count == 1
+				then text("alien.hatched.toast", { name = name })
+				else text("alien.hatchedMany.toast", { count = hatchRun.count, name = name })
+			toast(line, "Alien", hatchRun.alienId, {
+				detail = incomeLine(hatchRun.alienId, hatchRun.location),
+				group = HATCH_TOAST_GROUP,
+			})
+		end
+		-- Hatches arrive one event each; the ones of a frame are announced together, once.
 		profile.hatched.connect(function(alienId, location)
 			table.insert(pendingHatches, { alienId = alienId, location = location })
-			if #pendingHatches > 1 then
-				return
+			if #pendingHatches == 1 then
+				task.defer(announceHatches)
 			end
-			task.defer(function()
-				local batch = pendingHatches
-				pendingHatches = {}
-				if #batch == 1 then
-					announce("alien.hatched.toast", batch[1].alienId, batch[1].location)
-				else
-					toast(text("alien.hatchedMany.toast", { count = #batch }), "Alien")
-				end
-			end)
 		end)
 		profile.crossbred.connect(function(alienId, location)
-			announce("alien.crossbred.toast", alienId, location)
+			toast(
+				text("alien.crossbred.toast", { name = nameOf(alienId) }),
+				"Alien",
+				alienId,
+				{ detail = incomeLine(alienId, location) }
+			)
 		end)
 		profile.notice.connect(function(notice)
 			local key: Text.Key = (NOTICE_KEYS :: any)[notice] or "notice.unknownAlien.toast"
