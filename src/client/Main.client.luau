@@ -168,9 +168,16 @@ Lifecycle.run({
 	}),
 	storeController,
 	CoinBoardController.new(),
-	QuestController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
+	QuestController.new({
+		profile = profileState,
+		speed = speedState,
+		toasts = toastState,
+		windows = windowState,
+		menu = menuState,
+	}),
 	LoginGiftController.new({
 		profile = profileState,
+		speed = speedState,
 		toasts = toastState,
 		welcomeOpen = bayWindowController.welcomeOpen,
 		windows = windowState,

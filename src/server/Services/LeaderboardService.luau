@@ -1,6 +1,7 @@
 --!strict
 -- The coin board: coins earned all time (PlayerData.coinsEarned) in the player list of this
--- server, and the top of all servers on the board at the station. Scores go to a shared ranked
+-- server (and on the player, for the owner's reward windows), and the top of all servers on the
+-- board at the station. Scores go to a shared ranked
 -- store; a failed write or read only delays the board (CONVENTIONS: leaderboards are derived
 -- data). In Studio, where an unpublished place has no data stores, the board falls back to a
 -- store in memory with the players of this playtest.
@@ -192,6 +193,8 @@ function LeaderboardService.new(dependencies: Dependencies): LeaderboardService
 				state.earned = data.coinsEarned
 				state.score = Leaderboard.score(data.coinsEarned)
 				state.stat.Value = BigNum.format(data.coinsEarned)
+				player:SetAttribute(LeaderboardConfig.EARNED_MANTISSA_ATTRIBUTE, data.coinsEarned.mantissa)
+				player:SetAttribute(LeaderboardConfig.EARNED_EXPONENT_ATTRIBUTE, data.coinsEarned.exponent)
 				changed = true
 			end
 		end

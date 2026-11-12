@@ -19,6 +19,7 @@ local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Pace = require(script.Parent.Parent.State.Pace)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
+local SpeedState = require(script.Parent.Parent.State.SpeedState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
@@ -41,6 +42,8 @@ local PULSE_SPEED = 4
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
+	-- The speed stat: a gift is capped by it (decision 114).
+	speed: SpeedState.SpeedState,
 	toasts: ToastState.ToastState,
 	-- The welcome-back screen is up; the gift waits for it.
 	welcomeOpen: () -> boolean,
@@ -80,7 +83,8 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		local look = (EggLooks.RARITIES :: any)[LoginGiftConfig.EGG_RARITY]
 		local result: { LoginGiftWindow.Tile } = {}
 		for day, minutes in LoginGiftConfig.MINUTES do
-			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true)
+			local cap = { share = LoginGiftConfig.MAX_SHARE_OF_EARNED, speed = dependencies.speed.speed }
+			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true, cap)
 			-- Taken: days before today, and today once its gift is in.
 			local state: LoginGiftWindow.TileState = if day < gift.day or (day == gift.day and not gift.available)
 				then "Taken"

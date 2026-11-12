@@ -45,10 +45,12 @@ end
 
 return table.freeze({
 	REWARD_MINUTES = table.freeze(REWARD_MINUTES),
-	-- A full set: all three kinds of one guardian in all five tiers, in one variant.
-	SET_REWARD_MINUTES = 30,
-	-- The least a reward pays, for a player with no income yet.
-	MIN_REWARD_COINS = BigNum.fromNumber(100),
+	-- A full set: all three kinds of one guardian in all five tiers, in one variant (decision 114:
+	-- 15, was 30; with the doubled income it pays as much as before).
+	SET_REWARD_MINUTES = 15,
+	-- The least a reward pays, for a player with no income yet (decision 114: 25, was 100; the
+	-- first finds of a newbie paid more than all they had earned).
+	MIN_REWARD_COINS = BigNum.fromNumber(25),
 	SETS = table.freeze(SETS),
 	SETS_BY_ID = table.freeze(SETS_BY_ID),
 })

@@ -28,4 +28,8 @@ return table.freeze({
 
 	-- Player list column. One name for every language, so it is the coin sign the HUD uses.
 	PLAYER_LIST_STAT = "●",
+	-- On the player, refreshed with the list: coins earned all time as a BigNum's parts. The
+	-- owner's quest and gift windows cap a reward by it (PlayReward.Limit, decision 114).
+	EARNED_MANTISSA_ATTRIBUTE = "CoinsEarnedMantissa",
+	EARNED_EXPONENT_ATTRIBUTE = "CoinsEarnedExponent",
 })

@@ -28,6 +28,9 @@ return table.freeze({
 	COUNT = 3,
 	-- The least a quest pays in coins, for a player with no income yet.
 	MIN_REWARD_COINS = BigNum.fromNumber(200),
+	-- A quest pays at most this share of the speed points trained and of the coins earned so far
+	-- (PlayReward.Limit, decision 114): the first session's quests no longer skip guardians.
+	MAX_SHARE_OF_EARNED = 0.15,
 	-- Online players get the new day's quests within this many seconds of UTC midnight.
 	DAY_CHECK_SECONDS = 5,
 })

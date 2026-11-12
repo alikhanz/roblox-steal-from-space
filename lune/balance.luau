@@ -90,6 +90,9 @@ local DAY_SECONDS = 24 * 60 * 60
 local SNAPSHOT_DAYS = { 1, 7, 30, ASSUMPTIONS.days }
 -- The first session's marks, seconds: how fast a newbie's income and coins get going.
 local EARLY_MARKS = { 15 * 60, 30 * 60, 60 * 60, 2 * 60 * 60 }
+-- When the model asks what a reward would pay (without taking it), seconds: a quarter of an hour and an hour in, the next
+-- day's login, a week in and late in the game.
+local PROBE_MARKS = { 15 * 60, 60 * 60, DAY_SECONDS, 7 * DAY_SECONDS, (ASSUMPTIONS.days - 1) * DAY_SECONDS }
 
 local DEFAULTS: PlayerData.Defaults = {
 	startingSpeed = SpeedConfig.STARTING_SPEED,
@@ -163,12 +166,24 @@ type Early = {
 	earned: number,
 }
 
+-- What the day's quests (claimed one after another) and the last login gift would pay at a mark,
+-- in minutes of the player's own trainer rate (speed) and income (coins): `capped` as the game
+-- pays (decision 114), `free` by the bare minutes.
+type Worth = { speed: number, coins: number }
+type Probe = {
+	questsCapped: Worth,
+	questsFree: Worth,
+	giftCapped: Worth,
+	giftFree: Worth,
+}
+
 type Run = {
 	firstBeat: { [number]: number },
 	-- When each incubator slot was bought: slot number -> time.
 	slotBought: { [number]: number },
 	snapshots: { [number]: Snapshot },
 	early: { [number]: Early },
+	probes: { [number]: Probe },
 }
 
 local function simulate(profile: Profile, seed: number): Run
@@ -182,7 +197,7 @@ local function simulate(profile: Profile, seed: number): Run
 	local incomeRate = 0
 	local bestPost = 0
 	local nextTheftAt = 0
-	local run: Run = { firstBeat = {}, slotBought = {}, snapshots = {}, early = {} }
+	local run: Run = { firstBeat = {}, slotBought = {}, snapshots = {}, early = {}, probes = {} }
 	local passEffects = Purchases.passEffects(profile.passes, MonetizationConfig.PASS_TUNING)
 
 	local function speed(): number
@@ -210,13 +225,69 @@ local function simulate(profile: Profile, seed: number): Run
 		end
 	end
 
-	-- A reward worth `minutes` of play (Domain/PlayReward, as the game pays it): coins at the
-	-- income, and speed points at the trainer rate when `withSpeed`.
-	local function payPlay(minutes: number, minimumCoins: BigNum.BigNum, withSpeed: boolean)
+	-- What a reward worth `minutes` of play pays a player with `trainedNow` points and `earnedNow`
+	-- coins earned (Domain/PlayReward, as the game pays it): coins at the income, and speed points
+	-- at the trainer rate when `withSpeed`, at most `share` of what they have when given.
+	local function worth(
+		minutes: number,
+		minimumCoins: BigNum.BigNum,
+		withSpeed: boolean,
+		share: number?,
+		trainedNow: number,
+		earnedNow: number
+	): (number, number)
 		local rate = if withSpeed then Upgrades.trainerRate(trainerLevel, UpgradeConfig.TUNING) else BigNum.ZERO
-		local paidCoins, paidTrained = PlayReward.worth(minutes, BigNum.fromNumber(incomeRate), rate, minimumCoins)
-		earn(toNumber(paidCoins))
-		trained += toNumber(paidTrained)
+		local limit: PlayReward.Limit? = if share
+			then { share = share, trained = BigNum.fromNumber(trainedNow), coinsEarned = BigNum.fromNumber(earnedNow) }
+			else nil
+		local paidCoins, paidTrained =
+			PlayReward.worth(minutes, BigNum.fromNumber(incomeRate), rate, minimumCoins, limit)
+		return toNumber(paidCoins), toNumber(paidTrained)
+	end
+	local function payPlay(minutes: number, minimumCoins: BigNum.BigNum, withSpeed: boolean, share: number?)
+		local paidCoins, paidTrained = worth(minutes, minimumCoins, withSpeed, share, trained, earned)
+		earn(paidCoins)
+		trained += paidTrained
+	end
+	local QUEST_MINUTES_EACH = QUEST_MINUTES_A_DAY / QuestConfig.COUNT
+	-- The day's quests, claimed one after another: each sees what the one before paid.
+	local function payQuests()
+		for _ = 1, QuestConfig.COUNT do
+			payPlay(QUEST_MINUTES_EACH, QuestConfig.MIN_REWARD_COINS, true, QuestConfig.MAX_SHARE_OF_EARNED)
+		end
+	end
+	-- What the quests and the last day's gift would pay now, in minutes of the player's own pace.
+	local function probe(): Probe
+		local ratePerMinute = trainRate() * 60
+		local incomePerMinute = incomeRate * 60
+		local function inMinutes(paidCoins: number, paidTrained: number): Worth
+			return {
+				speed = if ratePerMinute > 0 then paidTrained / ratePerMinute else 0,
+				coins = if incomePerMinute > 0 then paidCoins / incomePerMinute else 0,
+			}
+		end
+		local function quests(share: number?): Worth
+			local trainedNow, earnedNow, totalCoins, totalTrained = trained, earned, 0, 0
+			for _ = 1, QuestConfig.COUNT do
+				local paidCoins, paidTrained =
+					worth(QUEST_MINUTES_EACH, QuestConfig.MIN_REWARD_COINS, true, share, trainedNow, earnedNow)
+				trainedNow += paidTrained
+				earnedNow += paidCoins
+				totalCoins += paidCoins
+				totalTrained += paidTrained
+			end
+			return inMinutes(totalCoins, totalTrained)
+		end
+		local giftMinutes = LoginGiftConfig.MINUTES[LoginGiftConfig.LENGTH]
+		local function gift(share: number?): Worth
+			return inMinutes(worth(giftMinutes, LoginGiftConfig.MIN_REWARD_COINS, true, share, trained, earned))
+		end
+		return {
+			questsCapped = quests(QuestConfig.MAX_SHARE_OF_EARNED),
+			questsFree = quests(nil),
+			giftCapped = gift(LoginGiftConfig.MAX_SHARE_OF_EARNED),
+			giftFree = gift(nil),
+		}
 	end
 
 	-- Defined below: hatches the ready eggs, done whenever the player is at the bay.
@@ -403,14 +474,19 @@ local function simulate(profile: Profile, seed: number): Run
 			-- The login gift, taken first thing each day: the streak never breaks here.
 			if profile.daily and inDay == 0 then
 				local giftDay = (now // DAY_SECONDS) % LoginGiftConfig.LENGTH + 1
-				payPlay(LoginGiftConfig.MINUTES[giftDay], LoginGiftConfig.MIN_REWARD_COINS, true)
+				payPlay(
+					LoginGiftConfig.MINUTES[giftDay],
+					LoginGiftConfig.MIN_REWARD_COINS,
+					true,
+					LoginGiftConfig.MAX_SHARE_OF_EARNED
+				)
 				if giftDay == LoginGiftConfig.EGG_DAY then
 					incubate(LoginGiftConfig.EGG_RARITY, LoginGiftConfig.EGG_SIZE, math.max(bestPost, 1), now)
 				end
 			end
 			-- The day's quests, claimed at the end of the session with the same formula as the game.
 			if profile.daily and inDay == sessionSeconds - dt then
-				payPlay(QUEST_MINUTES_A_DAY, QuestConfig.MIN_REWARD_COINS, true)
+				payQuests()
 			end
 			if now >= nextTheftAt then
 				local target = bestPost
@@ -433,6 +509,9 @@ local function simulate(profile: Profile, seed: number): Run
 			if away < passEffects.offlineIncomeCapSeconds then
 				earn(incomeRate * dt)
 			end
+		end
+		if table.find(PROBE_MARKS, now) then
+			run.probes[now] = probe()
 		end
 		buy(now)
 		now += dt
@@ -578,6 +657,40 @@ for _, mark in EARLY_MARKS do
 		end
 		print(line)
 	end
+end
+
+print("")
+print(
+	`Rewards in minutes of the player's own pace (free + daily, average): the day's {QuestConfig.COUNT} quests `
+		.. `({string.format("%.0f", QUEST_MINUTES_A_DAY)} min) and the last login gift `
+		.. `({LoginGiftConfig.MINUTES[LoginGiftConfig.LENGTH]} min), ⚡ / coins, capped (as paid) and by the bare minutes`
+)
+for _, mark in PROBE_MARKS do
+	local runs = runsByProfile["free + daily"]
+	local function average(pick: (probe: Probe) -> number): string
+		local total = 0
+		for _, run in runs do
+			total += pick(run.probes[mark])
+		end
+		return string.format("%.1f", total / #runs)
+	end
+	print(`  {pad(formatTime(mark), 6)} quests {average(function(p)
+		return p.questsCapped.speed
+	end)} / {average(function(p)
+		return p.questsCapped.coins
+	end)} (bare {average(function(p)
+		return p.questsFree.speed
+	end)} / {average(function(p)
+		return p.questsFree.coins
+	end)})   gift {average(function(p)
+		return p.giftCapped.speed
+	end)} / {average(function(p)
+		return p.giftCapped.coins
+	end)} (bare {average(function(p)
+		return p.giftFree.speed
+	end)} / {average(function(p)
+		return p.giftFree.coins
+	end)})`)
 end
 
 print("")

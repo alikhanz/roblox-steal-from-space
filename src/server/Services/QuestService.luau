@@ -187,7 +187,12 @@ function QuestService.new(dependencies: Dependencies): QuestService
 			-- A quest from a pool entry since removed still closes, with the least reward.
 			local minutes = if definition then definition.rewardMinutes else 0
 			local pace = { income = income, trainerLevel = current.trainerLevel, jetpackLevel = current.jetpackLevel }
-			paid = PlayReward.of(minutes, pace, QuestConfig.MIN_REWARD_COINS, true, UpgradeConfig.TUNING)
+			local limit = {
+				share = QuestConfig.MAX_SHARE_OF_EARNED,
+				trained = current.trained,
+				coinsEarned = current.coinsEarned,
+			}
+			paid = PlayReward.of(minutes, pace, QuestConfig.MIN_REWARD_COINS, true, UpgradeConfig.TUNING, limit)
 			PlayReward.pay(current, paid :: PlayReward.Paid)
 		end)
 		if notice or not paid then

@@ -106,7 +106,13 @@ function LoginGiftService.new(dependencies: Dependencies): LoginGiftService
 			end
 			local minutes = LoginGiftConfig.MINUTES[day] or 0
 			local pace = { income = income, trainerLevel = data.trainerLevel, jetpackLevel = data.jetpackLevel }
-			local paid = PlayReward.of(minutes, pace, LoginGiftConfig.MIN_REWARD_COINS, true, UpgradeConfig.TUNING)
+			local limit = {
+				share = LoginGiftConfig.MAX_SHARE_OF_EARNED,
+				trained = data.trained,
+				coinsEarned = data.coinsEarned,
+			}
+			local paid =
+				PlayReward.of(minutes, pace, LoginGiftConfig.MIN_REWARD_COINS, true, UpgradeConfig.TUNING, limit)
 			PlayReward.pay(data, paid)
 			local egg = false
 			if day == LoginGiftConfig.EGG_DAY then

@@ -18,6 +18,7 @@ local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
 local QuestWindow = require(script.Parent.Parent.UI.QuestWindow)
 local Quests = require(ReplicatedStorage.Shared.Domain.Quests)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
+local SpeedState = require(script.Parent.Parent.State.SpeedState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
@@ -54,6 +55,8 @@ local TASK_KEYS: { [ProfileState.QuestKind]: Text.Key } = {
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
+	-- The speed stat: a reward is capped by it (decision 114).
+	speed: SpeedState.SpeedState,
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
 	menu: MenuState.MenuState,
@@ -116,7 +119,8 @@ function QuestController.new(dependencies: Dependencies): QuestController
 	local function rewardTexts(quest: ProfileState.Quest): (string, string)
 		local definition = Quests.definition(QuestConfig.DEFINITIONS, quest.kind)
 		local minutes = if definition then definition.rewardMinutes else 0
-		local coins, speed = Pace.reward(profile, minutes, QuestConfig.MIN_REWARD_COINS, true)
+		local cap = { share = QuestConfig.MAX_SHARE_OF_EARNED, speed = dependencies.speed.speed }
+		local coins, speed = Pace.reward(profile, minutes, QuestConfig.MIN_REWARD_COINS, true, cap)
 		return BigNum.format(coins), BigNum.format(speed)
 	end
 

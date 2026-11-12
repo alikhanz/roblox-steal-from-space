@@ -2,9 +2,11 @@
 -- The client's copy of its own profile, as Vide sources the UI reads. Filled only by the
 -- server (a snapshot, then the section that changed); nothing here writes back.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local Vide = require(ReplicatedStorage.Packages.Vide)
@@ -38,6 +40,9 @@ export type ProfileState = {
 	name: string,
 	start: () -> (),
 	coins: Vide.Source<BigNum.BigNum>,
+	-- Coins earned all time, as the server publishes it on the player (LeaderboardConfig): a
+	-- second behind at most.
+	coinsEarned: Vide.Source<BigNum.BigNum>,
 	bay: Vide.Source<Bay>,
 	upgrades: Vide.Source<Upgrades>,
 	quests: Vide.Source<Quests>,
@@ -72,6 +77,7 @@ end
 
 function ProfileState.new(): ProfileState
 	local coins = source(BigNum.ZERO)
+	local coinsEarned = source(BigNum.ZERO)
 	local bay = source(emptyBay())
 	local upgrades = source({ trainerLevel = 0, jetpackLevel = 0 } :: Upgrades)
 	local quests = source({ day = 0, rerolled = false, list = {} } :: Quests)
@@ -97,7 +103,20 @@ function ProfileState.new(): ProfileState
 		end
 	end
 
+	local function readEarned()
+		local player = Players.LocalPlayer
+		local value = BigNum.fromSaved({
+			mantissa = player:GetAttribute(LeaderboardConfig.EARNED_MANTISSA_ATTRIBUTE),
+			exponent = player:GetAttribute(LeaderboardConfig.EARNED_EXPONENT_ATTRIBUTE),
+		})
+		coinsEarned(value or BigNum.ZERO)
+	end
+
 	local function start()
+		-- Mantissa and exponent arrive separately; reading both on either change is harmless.
+		Players.LocalPlayer:GetAttributeChangedSignal(LeaderboardConfig.EARNED_MANTISSA_ATTRIBUTE):Connect(readEarned)
+		Players.LocalPlayer:GetAttributeChangedSignal(LeaderboardConfig.EARNED_EXPONENT_ATTRIBUTE):Connect(readEarned)
+		readEarned()
 		Remotes.ProfileSnapshot.SetCallback(function(snapshot)
 			readCoins(snapshot.coins)
 			bay(snapshot.bay)
@@ -176,6 +195,7 @@ function ProfileState.new(): ProfileState
 		name = "ProfileState",
 		start = start,
 		coins = coins,
+		coinsEarned = coinsEarned,
 		bay = bay,
 		upgrades = upgrades,
 		quests = quests,
