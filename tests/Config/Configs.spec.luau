@@ -400,6 +400,9 @@ describe("OxygenConfig", function()
 		expect(shares.fair < shares.strong).toBe(true)
 		expect(shares.strong < shares.tooStrong).toBe(true)
 		expect(shares.tooStrong < 1).toBe(true)
+		-- What one skull catch leaves never survives a second: re-grabbing the knocked-out egg
+		-- under such a guardian ends in suffocation (the user: no carrying eggs far past you).
+		expect(1 - shares.tooStrong < shares.tooStrong).toBe(true)
 	end)
 
 	it("a starting player loses most of the tank to the far guardians, little to the first", function()
