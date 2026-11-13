@@ -161,7 +161,10 @@ local LAVA_SHELL = "L89,31,13,0,0,Meteor"
 
 local function isLowpolyPack(model: Instance): boolean
 	for _, part in model:GetDescendants() do
-		if part.ClassName == "MeshPart" and string.match(part.Name, "^kit|") then
+		if
+			part.ClassName == "MeshPart"
+			and (string.match(part.Name, "^kit|") or string.match(part.Name, "^%a%w*|anchor|"))
+		then
 			return true
 		end
 	end
@@ -203,8 +206,13 @@ end
 
 local function unpackLowpoly(pack: Instance): { Instance }
 	local turn = ((pack :: any).WorldPivotData :: any).Rotation
-	type Kind =
-		{ body: Instance, meta1: string?, meta2: string?, anchors: { { slot: string, scale: number, at: any } } }
+	type Kind = {
+		body: Instance,
+		meta1: string?,
+		meta2: string?,
+		anchors: { { slot: string, scale: number, at: any } },
+		hinges: { { name: string, at: any } },
+	}
 	local kinds: { [string]: Kind } = {}
 	local kindOrder: { string } = {}
 	local pieces: { [string]: { model: Instance, origin: any, dust: { { side: string, order: number, at: any } } } } =
@@ -246,17 +254,20 @@ local function unpackLowpoly(pack: Instance): { Instance }
 		if not kind then
 			local body = Instance.new("Model")
 			body.Name = kindId
-			kind = { body = body, meta1 = nil, meta2 = nil, anchors = {} } :: Kind
+			kind = { body = body, meta1 = nil, meta2 = nil, anchors = {}, hinges = {} } :: Kind
 			kinds[kindId] = kind
 			table.insert(kindOrder, kindId)
 		end
 		local slot, scale = string.match(rest, "^anchor|(%a+)|([%d%.]+)$")
+		local hinge = string.match(rest, "^hinge|(%w+)$")
 		if string.match(rest, "^meta1|") then
 			kind.meta1 = rest
 		elseif string.match(rest, "^meta2|") then
 			kind.meta2 = rest
 		elseif slot then
 			table.insert(kind.anchors, { slot = slot, scale = tonumber(scale) :: number, at = position })
+		elseif hinge then
+			table.insert(kind.hinges, { name = hinge, at = position })
 		else
 			takePart(part, rest, kindId)
 			part.Parent = kind.body
@@ -285,6 +296,13 @@ local function unpackLowpoly(pack: Instance): { Instance }
 			point.Name = `anchor{anchor.slot}`
 			point.CFrame = (holder :: any).CFrame:ToObjectSpace(CFrame.new(anchor.at))
 			point:SetAttribute("Scale", anchor.scale)
+			point.Parent = holder
+		end
+		-- The points moving parts turn on (World/RigMotion reads `hinge<Name>` attachments).
+		for _, hinge in kind.hinges do
+			local point: any = Instance.new("Attachment")
+			point.Name = hinge.name
+			point.CFrame = (holder :: any).CFrame:ToObjectSpace(CFrame.new(hinge.at))
 			point.Parent = holder
 		end
 		ModelPack.centrePivot(kind.body, turn)
@@ -344,7 +362,10 @@ local function unpackLowpoly(pack: Instance): { Instance }
 		model.WorldPivotData = CFrame.new(entry.origin) * turn
 		entry.model.Parent = kit
 	end
-	table.insert(found, kit)
+	-- A pack without the kit (the kit goes up once, with the first pack) leaves the kit as it is.
+	if #pieceOrder > 0 then
+		table.insert(found, kit)
+	end
 	return found
 end
 
