@@ -7,7 +7,7 @@
 --     towards the tail, every third with stars on its flanks, and a constellation line of Beams
 --     from star to star down its back;
 --   * the tail's thruster after the last segment, a jet of Beams out of it;
---   * the star egg in the cradle on its neck while the egg is inside; its eyes gold while it
+--   * the star egg in the cradle on its neck while the egg is inside, turning; its eyes gold while it
 --     carries the egg, red once it guards it (SerpentLooks.MODEL).
 -- Every piece is anchored, touches nothing and is moved once a frame (one BulkMoveTo). The model
 -- never crosses the network. Without the kit in the place there is no look: the caller draws
@@ -51,7 +51,8 @@ export type Visual = {
 	head: { Placed },
 	eyes: { MeshPart },
 	egg: { Placed },
-	eggGlow: Placed?,
+	-- The egg's shell: the whole egg turns about its centre.
+	eggBody: Placed?,
 	segments: { Segment },
 	tail: { Placed },
 	-- Every part, in the order `frames` is filled each frame.
@@ -205,7 +206,7 @@ function SerpentVisual.build(parent: Instance, segments: number): Visual?
 		head = {},
 		eyes = {},
 		egg = {},
-		eggGlow = nil,
+		eggBody = nil,
 		segments = {},
 		tail = {},
 		parts = {},
@@ -222,8 +223,8 @@ function SerpentVisual.build(parent: Instance, segments: number): Visual?
 	for _, name in EGG_PIECES do
 		local placed = copy(head[name], model, colourOf(name))
 		table.insert(visual.egg, placed)
-		if name == "EggGlow" then
-			visual.eggGlow = placed
+		if name == "EggBody" then
+			visual.eggBody = placed
 		end
 	end
 
@@ -309,13 +310,14 @@ function SerpentVisual.place(visual: Visual, head: CFrame, neck: Vector3, points
 	for _, placed in visual.head do
 		put(head, placed)
 	end
+	-- The egg turns whole, its light with its shell, about the shell's centre (its stars sit on
+	-- the shell).
+	local body = visual.eggBody
+	local spin = if body
+		then head * body.offset * CFrame.Angles(0, clock * MODEL.EGG_SPIN, 0) * body.offset:Inverse()
+		else head
 	for _, placed in visual.egg do
-		if placed == visual.eggGlow then
-			n += 1
-			frames[n] = head * placed.offset * CFrame.Angles(0, clock * MODEL.EGG_SPIN, 0)
-		else
-			put(head, placed)
-		end
+		put(spin, placed)
 	end
 	local previous = neck
 	local function frameAt(point: Vector3): CFrame

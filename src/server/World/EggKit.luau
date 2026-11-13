@@ -1,17 +1,18 @@
 --!strict
--- The egg's kit of meshes (decision 088): for each kind of egg (the five rarities, and each of them
--- as a meteor egg, `Meteor<Rarity>`) its capsule's plastic body `Body<Kind>` with the colours
--- baked in, and what glows on it `Glow<Kind>` (none for Common); the legendary's gold cap with its
--- crown `CapGold`. From Blender (assets/blender/eggs/egg_kit.py), in ServerStorage.EggKit of the
--- place (World/MeshKit). The pieces sit where a medium egg wears them; the kit's `Centre` speck
--- marks the egg's centre, so the kit itself holds where each piece goes. Without the kit in the
--- place eggs stand in greybox.
+-- The egg's kit of meshes (decision 122): the gem egg's shapes, one mesh each, shared by every egg
+-- and painted by the game (World/EggModel): `GemShell`, `GemGirdle`, `GemTip`, `GemFins`,
+-- `GemOrbit`, `GemCrown`, `MeteorCracks`, `MeteorFlame`, `StarTop`, `StarDots` (who wears what:
+-- Domain/EggPieces). From Blender (assets/blender/lowpoly/export_eggs_lowpoly.py), in
+-- ServerStorage.EggKit of the place (World/MeshKit). The pieces sit where a medium egg wears them;
+-- the kit's `Centre` speck marks the egg's centre, so the kit itself holds where each piece goes.
+-- Without the kit in the place eggs stand in greybox.
 --
--- Into the place: Open Cloud asset 124416766785269 (egg-kit.glb) inserted into ServerStorage, its
--- MeshParts moved into a Folder `EggKit` without moving them; CollisionFidelity Box by hand in
--- Properties (MCP can't set it; an egg's pieces touch nothing, so hull data would only weigh).
--- Save the place. Studio downloads fresh meshes slowly: right after an insert, eggs may stand
--- half-drawn for half a minute.
+-- Into the place: the Open Cloud asset of egg-kit-lowpoly.glb inserted into ServerStorage, its
+-- MeshParts moved into the Folder `EggKit` so that its `Centre` lies on the folder's `Centre`
+-- (then its own `Centre` dropped); CollisionFidelity Box (an egg's pieces touch nothing, so hull
+-- data would only weigh). Save the place. The capsule egg's pieces (`Body*`, `Glow*`, `CapGold`,
+-- decision 088) stay in the folder until every place runs this code, then go. Studio downloads
+-- fresh meshes slowly: right after an insert, eggs may stand half-drawn for half a minute.
 
 local MeshKit = require(script.Parent.MeshKit)
 
@@ -49,9 +50,10 @@ function EggKit.piece(id: string): Piece?
 	return { part = part, offset = centre.CFrame:ToObjectSpace(source.CFrame) }
 end
 
--- Whether the place has the kit (its centre mark): with it, an egg is built from the kit.
+-- Whether the place has the kit (its centre mark and the gem's shell): with it, an egg is built
+-- from the kit. A place with only the capsule egg's kit shows greybox eggs.
 function EggKit.present(): boolean
-	return MeshKit.source(FOLDER, "Centre") ~= nil
+	return MeshKit.source(FOLDER, "Centre") ~= nil and MeshKit.source(FOLDER, "GemShell") ~= nil
 end
 
 return table.freeze(EggKit)

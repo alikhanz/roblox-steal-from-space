@@ -2,18 +2,17 @@
 -- How eggs look. Kept apart from EggConfig so the numbers there load in Lune (the balance
 -- calculator and tests), where Roblox datatypes do not exist.
 --
--- An egg is a ceramic capsule (decision 088) from the egg kit (World/EggKit): its plastic body
--- with the colours baked in and what each rarity wears are in the meshes
--- (assets/blender/eggs/egg_kit.py): common is plain matte grey; uncommon a pearl capsule with a
--- coloured cap and a lit seam; rare adds a lit window and foot ring; epic glowing stripes on the
--- cap, an antenna and an orbit; legendary a gold crowned cap, two orbits and a halo. A meteor egg
--- wears the same on a scorched capsule, glowing lava. Here: what the game paints on them.
+-- An egg is a cut gem (decision 122) from the egg kit (World/EggKit): a faceted shell in its
+-- rarity's colour with a girdle of light, and what its rarity and kind add (Domain/EggPieces): a
+-- tip, fins, an orbit, a gold crown; a meteor egg is scorched, with lava cracks and a flame; the
+-- star egg is night blue with a gold star and specks. The kit's shapes carry no colour: here is
+-- what the game paints on them (GEM).
 
 local EggConfig = require("./EggConfig")
 
 export type RarityLook = {
-	-- The rarity's colour wherever it is shown: the trail, sparks, the interface, and what glows
-	-- on the egg (its Neon piece). The caps baked in the kit match these.
+	-- The rarity's colour wherever it is shown: the trail, sparks, the interface, and on the egg
+	-- its shell and its light (Domain/EggPieces: Shell, Line).
 	read color: Color3,
 	-- A light round the egg: 0 for none. Lights are dear on phones and the Neon already shows the
 	-- rarity: only the rarest eggs carry a faint one, so they are spotted from afar.
@@ -73,8 +72,8 @@ return table.freeze({
 	-- stays, so length = lifetime x speed.
 	CARRIED_TRAIL = table.freeze({ width = 2.4, lifetime = 1.2, brightness = 3, startTransparency = 0 }),
 	LOOSE_TRAIL = table.freeze({ width = 1.4, lifetime = 0.6, brightness = 2, startTransparency = 0.1 }),
-	-- A meteor egg burns: a scorched capsule (baked in the kit) with lava in its seam, window and
-	-- cracks, flames around it scaled by its size. No antenna, ring or halo, whatever its rarity.
+	-- A meteor egg burns: a scorched shell with lava in its girdle and cracks, a flame for a tip,
+	-- flames around it scaled by its size.
 	METEOR = table.freeze({
 		lava = Color3.fromRGB(255, 120, 30),
 		fireColor = Color3.fromRGB(255, 120, 30),
@@ -82,13 +81,29 @@ return table.freeze({
 		fireSize = 4,
 		fireHeat = 6,
 	}),
-	-- The capsule's body: plastic, white, so the baked colours show as they are. Its Neon piece is
-	-- thin (seam, window, tip, rings), so it glows without burning the egg white under Bloom
+	-- The plastic pieces (shell, fins, crown, a common egg's girdle). The Neon pieces are thin
+	-- (girdle, tip, orbit, cracks, star), so they glow without burning the egg white under Bloom
 	-- (docs/design/BLENDER_ROBLOX.md, section 2).
 	SHELL_MATERIAL = Enum.Material.SmoothPlastic,
-	-- The legendary cap: polished gold, as the pets' (AlienDress); bright and saturated, or dark
+	-- The legendary crown: polished gold, as the pets' (AlienDress); bright and saturated, or dark
 	-- space turns it olive.
 	GOLD = Color3.fromRGB(255, 190, 45),
+	-- How each paint of the gem egg (Domain/EggPieces) is coloured, on top of the rarity's colour.
+	GEM = table.freeze({
+		-- A meteor egg's shell: its rarity's colour scorched this far towards char.
+		char = Color3.fromRGB(52, 40, 38),
+		charMix = 0.72,
+		-- Fins: the rarity's colour this far towards dark.
+		dark = Color3.fromRGB(40, 42, 56),
+		finMix = 0.35,
+		-- A common egg's girdle is plain plastic, its colour this far towards white (no light).
+		commonLineWhiten = 0.4,
+		-- The meteor's flame.
+		flame = Color3.fromRGB(255, 170, 60),
+		-- The star egg: night-blue shell, gold light.
+		starShell = Color3.fromRGB(34, 36, 96),
+		starGold = Color3.fromRGB(255, 214, 110),
+	}),
 	-- Nest beacons (EggBeaconController).
 	BEACON = table.freeze({
 		-- How far off a column shows, studs: only the eggs around you, not the whole map (user,

@@ -1,13 +1,13 @@
 --!strict
--- Builds a space egg (decision 088): a ceramic capsule from the egg kit, wearing more the rarer it
--- is (a lit seam, a lit window, an antenna and a ring in orbit, a gold cap and a halo; World/EggKit
--- holds the shapes with their colours baked in), scaled by its size. The rarest eggs carry a faint
--- light, meteor eggs are scorched with lava in their seams and burn, lucky ones (the star egg)
--- sparkle. Without the kit in the place the egg is the greybox: a stretched ball.
+-- Builds a space egg (decision 122): a cut gem from the egg kit, wearing more the rarer it is (a
+-- girdle of light, a tip, fins, an orbit, a gold crown; a meteor egg scorched with lava cracks and
+-- a flame, the star egg night blue with a gold star: Domain/EggPieces), each piece one shared mesh
+-- painted here (EggLooks.GEM), scaled by its size. The rarest eggs carry a faint light, meteor eggs
+-- burn, lucky ones (the star egg) sparkle. Without the kit in the place the egg is the greybox: a
+-- stretched ball.
 --
 -- The egg is one part that callers place by its CFrame and size: with the kit an invisible box the
--- egg's size, the capsule welded to it (one plastic body, one Neon piece, a gold cap: one part per
--- material, for phones). Its look vector is where the window faces.
+-- egg's size, the gem's pieces welded to it. Its look vector is where the star egg's star faces.
 
 local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,10 +15,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
+local EggKind = require(ReplicatedStorage.Shared.Domain.EggKind)
 local EggKit = require(script.Parent.EggKit)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
+local EggPieces = require(ReplicatedStorage.Shared.Domain.EggPieces)
 
 local EggModel = {}
+
+local GEM = EggLooks.GEM
 
 local GLOW_RANGE = 14
 local GLOW_BRIGHTNESS = 2
@@ -66,21 +70,43 @@ local function wear(egg: BasePart, id: string, scale: number, color: Color3, mat
 	return part
 end
 
-local function capsule(egg: BasePart, rarity: EggConfig.RarityId, scale: number, meteor: boolean)
-	-- A meteor egg wears its rarity's outfit on a scorched capsule, glowing lava.
-	local kind = if meteor then `Meteor{rarity}` else rarity
-	-- White: the body's colours are baked in its vertices.
-	wear(egg, `Body{kind}`, scale, Color3.new(1, 1, 1), EggLooks.SHELL_MATERIAL)
-	local glow = if meteor then EggLooks.METEOR.lava else EggLooks.RARITIES[rarity].color
-	if kind ~= "Common" then
-		wear(egg, `Glow{kind}`, scale, glow, Enum.Material.Neon)
+-- The colour and material of a piece painted `paint` on an egg of `rarity` and `kind`.
+local function paintOf(paint: EggPieces.Paint, rarity: EggConfig.RarityId, kind: EggKind.Kind): (Color3, Enum.Material)
+	local colour = EggLooks.RARITIES[rarity].color
+	local plastic = EggLooks.SHELL_MATERIAL
+	if paint == "Shell" then
+		if kind == "Meteor" then
+			return colour:Lerp(GEM.char, GEM.charMix), plastic
+		elseif kind == "Star" then
+			return GEM.starShell, plastic
+		end
+		return colour, plastic
+	elseif paint == "Line" then
+		-- A common egg has no light: its girdle is pale plastic.
+		if rarity == "Common" then
+			return colour:Lerp(Color3.new(1, 1, 1), GEM.commonLineWhiten), plastic
+		end
+		return colour, Enum.Material.Neon
+	elseif paint == "Fins" then
+		return colour:Lerp(GEM.dark, GEM.finMix), plastic
+	elseif paint == "Gold" then
+		return EggLooks.GOLD, plastic
+	elseif paint == "Lava" then
+		return EggLooks.METEOR.lava, Enum.Material.Neon
+	elseif paint == "Flame" then
+		return GEM.flame, Enum.Material.Neon
 	end
-	if rarity == "Legendary" then
-		local cap = wear(egg, "CapGold", scale, EggLooks.GOLD, EggLooks.SHELL_MATERIAL)
+	return GEM.starGold, Enum.Material.Neon
+end
+
+local function gem(egg: BasePart, rarity: EggConfig.RarityId, scale: number, kind: EggKind.Kind)
+	for _, piece in EggPieces.of(rarity, kind) do
+		local colour, material = paintOf(piece.paint, rarity, kind)
+		local part = wear(egg, piece.id, scale, colour, material)
 		-- Polished gold, as the pets' (AlienDress): the metal variant, if the place has it.
 		local variant = AlienLooks.MODELS.METAL_VARIANT
-		if cap and MaterialService:FindFirstChild(variant) then
-			cap.MaterialVariant = variant
+		if part and piece.paint == "Gold" and MaterialService:FindFirstChild(variant) then
+			part.MaterialVariant = variant
 		end
 	end
 end
@@ -91,15 +117,17 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, opti
 	local glow = look.glow * (if options and options.glowScale then options.glowScale else 1)
 	local variant = if options and options.variant then options.variant else "Normal"
 	local meteor = variant == "Meteor"
+	local luck = if options then options.luck else nil
+	local kind = EggKind.of(variant, luck ~= nil and luck > 0)
 
 	local egg = Instance.new("Part")
 	egg.Name = "Egg"
 	egg.Size = EggLooks.EGG_SIZE * scale
 	setUp(egg)
 	if EggKit.present() then
-		-- The capsule shows the egg; this box only holds it, the light and the tags.
+		-- The gem shows the egg; this box only holds it, the light and the tags.
 		egg.Transparency = 1
-		capsule(egg, rarity, scale, meteor)
+		gem(egg, rarity, scale, kind)
 	else
 		egg.Color = if meteor then EggLooks.METEOR.lava else look.color
 		egg.Material = EggLooks.SHELL_MATERIAL
@@ -127,8 +155,7 @@ function EggModel.build(rarity: EggConfig.RarityId, size: EggConfig.SizeId, opti
 		fire.Parent = egg
 	end
 
-	local luck = if options then options.luck else nil
-	if luck and luck > 0 then
+	if kind == "Star" then
 		local sparkles = Instance.new("Sparkles")
 		sparkles.SparkleColor = EggLooks.LUCKY_SPARKLE_COLOR
 		sparkles.Parent = egg
