@@ -221,29 +221,31 @@ def angel():
     return [("feathers", "wing", feathers), ("shafts", "wingEdge", shafts)]
 
 
-def fairy():
-    """The first wings, from the user's reference (robo.py, decision 074): a fairy's outline, veins
-    from the root into each lobe and cells nested inside the edge, as flat glowing strips over a
-    faint membrane (robo.py drew them as tubes, ten times the triangles)."""
+def _fairy_outline():
+    """The fairy wing's key points as they are (robo.WING_OUTLINE, root first): the faceted outline."""
     import robo
 
-    outline = robo._smoothed(robo.WING_OUTLINE, True, 1)
+    return list(robo.WING_OUTLINE)
+
+
+def fairy():
+    """The fairy wings as the first low-poly version drew them (lowpoly_kit's faceted `wing` and
+    `wing_edge`, commit 3aff207): the user's reference outline (robo.py, decision 074) cut from its
+    key points, a faceted membrane fanning from the root and a glowing band along the edge. The
+    user wants this one, not the pre-low-poly look with veins and cells (2026-11-13)."""
+    import lowpoly_kit
+
+    outline = _fairy_outline()
 
     def membrane(bm):
-        _slab(bm, outline, 0.012, 0.0, (0.3, 0.1))
+        lowpoly_kit._prism(bm, outline, 0.015, 0.05)
         _finish(bm)
 
-    def lines(bm):
-        loop = outline + [outline[0]]
-        _strip(bm, loop, 0.03, 0.02, 0.0)
-        for vein in robo.WING_VEINS:
-            _strip(bm, robo._smoothed(vein, False, 1), 0.018, 0.018, 0.4)
-        for factor in robo.WING_CELLS:
-            cell = robo._scaled_towards(outline, factor, (0.0, 0.0))
-            _strip(bm, cell + [cell[0]], 0.012, 0.016, 0.0)
+    def edge(bm):
+        lowpoly_kit._frame(bm, outline, 0.9, 0.022)
         _finish(bm)
 
-    return [("membrane", "wing", membrane), ("lines", "wingEdge", lines)]
+    return [("membrane", "wing", membrane), ("lines", "wingEdge", edge)]
 
 
 def fairy_dust():
@@ -253,7 +255,7 @@ def fairy_dust():
     missed the edge (user, 2026-11-13)."""
     import robo
 
-    outline = robo._smoothed(robo.WING_OUTLINE, True, 1)
+    outline = _fairy_outline()
     trace = robo._from_trace(robo.WING_DUST_TRACE)
 
     def nearest(point):

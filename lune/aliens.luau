@@ -363,6 +363,10 @@ local function unpackLowpoly(pack: Instance): { Instance }
 		end
 		local model: any = entry.model
 		model.WorldPivotData = CFrame.new(entry.origin) * turn
+		-- Kept as written: a model that still "needs pivot migration" has Studio move its pivot to a
+		-- part's centre on insertion, and a wing then hung from its middle, not its root (both
+		-- halves crossed over the body and beat there; user, 2026-11-13).
+		model.NeedsPivotMigration = false
 		entry.model.Parent = kit
 	end
 	-- A pack without the kit (the kit goes up once, with the first pack) leaves the kit as it is.
