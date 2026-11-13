@@ -51,10 +51,11 @@ local ICONS: { [Name]: string } = {
 	Bolt = "rbxassetid://137331283536006",
 	Coin = "rbxassetid://122240898300854",
 	Oxygen = "rbxassetid://97784935625653",
-	Egg = "rbxassetid://117551467296815",
+	-- The gem egg (decision 122).
+	Egg = "rbxassetid://132217396231959",
 	-- Special eggs, each with its own icon (UI/EggIcon).
-	MeteorEgg = "rbxassetid://107413558717896",
-	StarEgg = "rbxassetid://132884270210434",
+	MeteorEgg = "rbxassetid://102387763423854",
+	StarEgg = "rbxassetid://93934375408916",
 	Robux = "rbxassetid://127663785262718",
 	Shield = "rbxassetid://89953779523463",
 	Meteor = "rbxassetid://92726378354461",
