@@ -37,6 +37,9 @@ class Context:
     def __init__(self, pet, colours, tier, meteor, style):
         self.pet, self.colours, self.tier, self.meteor, self.style = pet, colours, tier, meteor, style
         self.face = kit.FACE[style]
+        # Points moving parts turn on (`hinge<Name>`, World/RigMotion): exported as markers that become
+        # attachments on the body.
+        self.hinges = []
         self.limb = 1.25 if style == "toy" else 1.0
 
     def paint(self, key):
@@ -96,6 +99,20 @@ class Context:
             "white": ("N", WHITE, 0, 0, "EyeShine"),
             "core": ("N", c["core"], 0, 0, "Core"),
             "jelly": ("S", c["core"], 0, 0.02, "Jelly"),
+            "hover": ("N", c["glow"], 0, 0, "Hover"),
+            "pipe": ("S", (0.45, 0.42, 0.4), 0, 0.35, "Pipe"),
+            "fire": ("N", (1.0, 0.45, 0.1), 0, 0, "Exhaust"),
+            "steel": ("S", (0.75, 0.85, 0.95), 0, 0.35, "Plow"),
+            "auroraGreen": ("N", (0.3, 1.0, 0.6), 0, 0, "Aurora"),
+            "auroraBlue": ("N", (0.5, 0.6, 1.0), 0, 0, "Aurora"),
+            "auroraViolet": ("N", (0.8, 0.4, 1.0), 0, 0, "Aurora"),
+            "frill": ("G", c["trim"], 0.5, 0, "Frill"),
+            "jaw": ("S", (0.85, 0.85, 0.9), 0, 0.35, "Jaw"),
+            "brood": ("G", c["core"], 0.4, 0, "Brood"),
+            "rock": ("S", (0.35, 0.33, 0.38), 0, 0.02, "Rock"),
+            "brass": ("S", (0.85, 0.62, 0.3), 0, 0.35, "Brass"),
+            "lens": ("N", (0.6, 0.85, 1.0), 0, 0, "Lens"),
+            "buzz": ("G", (0.8, 0.9, 1.0), 0.75, 0, "Wing"),
             "dome": ("G", tuple(0.75 + 0.25 * v for v in c["core"]), 0.78, 0, "Dome"),
             "visor": ("S", VISOR, 0, 0.1, "Visor"),
             "engine": ("S", ENGINE, 0, 0.05, "Engine"),
@@ -133,6 +150,9 @@ class Context:
         letter, colour, transparency, reflectance, source = table[key]
         rgb = ",".join(str(round(srgb(v) * 255)) for v in colour[:3])
         return f"{letter}{rgb},{transparency:g},{reflectance:g},{source}"
+
+    def hinge(self, name, point):
+        self.hinges.append((name, tuple(point)))
 
     def put(self, mesh, location, scale, key, rotation=(0, 0, 0), role="body"):
         obj = self.pet.put(mesh, location, scale, self.paint(key), rotation, role)
@@ -239,6 +259,7 @@ def crab(ctx, p):
         name = "L" if side < 0 else "R"
         for index, y in enumerate(spots):
             ctx.put(leg, (side * 0.86 * w, y, 0.72), 1.0, "shell", (0, 0, 0 if side > 0 else math.pi), "leg" + name + "ABCD"[index])
+            ctx.hinge("hingeLeg" + name + "ABCD"[index], (side * 0.86 * w, y, 0.72))
         size = left if side < 0 else right
         if size <= 0:
             continue
@@ -249,6 +270,7 @@ def crab(ctx, p):
         ctx.put("ball", tuple(claw), (0.36 * size, 0.4 * size, 0.32 * size), "shell")
         ctx.put("block", tuple(claw + Vector((0, -0.43 * size, 0.13 * size))), (0.12 * size, 0.24 * size, 0.08 * size), "trim", (D(-15), 0, 0), "jawTop" + name)
         ctx.put("block", tuple(claw + Vector((0, -0.39 * size, -0.15 * size))), (0.1 * size, 0.2 * size, 0.07 * size), "shell", (D(15), 0, 0), "jawBot" + name)
+        ctx.hinge("hingeJaw" + name, claw + Vector((0, -0.22 * size, 0)))
         ctx.put("seam", tuple(claw), (0.31 * size,) * 3, "glow", (D(90), 0, 0))
     if ctx.style == "sharp":
         # A row of spikes down the plate: the silhouette's accent.
@@ -281,9 +303,11 @@ def whale(ctx, p):
     for side in (-1, 1):
         name = "L" if side < 0 else "R"
         ctx.put("block", (side * 0.95 * s, -0.05, cz - 0.4 * s), (0.32 * s * fins, 0.18 * s, 0.06 * ctx.limb), "shell", (0, D(side * 25), 0), "flipper" + name)
+        ctx.hinge("hingeFlipper" + name, (side * (0.95 - 0.3 * fins) * s, -0.05, cz - 0.4 * s))
         root = Vector(on_hull(info, (side * 0.35 * s, 1.45 * s, cz + 0.55 * s)))
         out = (root - Vector(hull[0])).normalized()
         ctx.put("block", tuple(root + out * 0.12 * s), (0.3 * s * fins, 0.14 * s, 0.06 * ctx.limb), "trim", (D(30), D(side * 20), 0), "flukes")
+    ctx.hinge("hingeFlukes", (0, root.y, root.z))
     ctx.put("ball", (0, 0.35 * s, cz + 0.62 * s), (0.4 * s, 0.45 * s, 0.13 * s), "core", role="core")
     ctx.put("can", (0, 1.35 * s, cz + 0.1 * s), (0.22 * s, 0.22 * s, 0.13 * s), "engine", (D(90), 0, 0))
     ctx.put("ball", (0, 1.47 * s, cz + 0.1 * s), (0.16 * s, 0.05, 0.16 * s), "glow")
@@ -294,7 +318,106 @@ def whale(ctx, p):
     return {"hull": hull, "top": (0, 0.15 * s, cz + 0.85 * s), "center": hull[0], "radius": 1.2 * s, "width": 1.5 * s, "size": s}
 
 
-FAMILIES = {"slime": slime, "crab": crab, "whale": whale}
+def worm(ctx, p):
+    """A worm rearing up: segments (each a role, segA at the head, so the game runs a wave down it),
+    a big head with a visor and two feelers."""
+    count = p.get("segments", 4)
+    rs = p.get("r", 1.0)
+    close = min(1.0, rs * 0.95)
+    previous = None
+    for index in range(count):
+        px = 0.2 + (0.24 * index + 0.06 * math.sin(index * 1.3)) * close
+        py = 0.15 + 0.3 * index * close
+        pz = max(0.24, 0.58 - 0.11 * index)
+        r = max(0.16, 0.4 - 0.045 * index) * rs
+        role = "seg" + "ABCDEFGH"[index]
+        ctx.put("ball", (px, py, pz), (r, r, r * 1.05), "shell", (0, 0, index * 0.7), role)
+        ctx.put("dot", (px, py - r * 0.6, pz + r * 0.2), (r * 0.42, r * 0.28, r * 0.42), "core", role=role)
+        if previous:
+            mid = Vector(((previous[0] + px) / 2, (previous[1] + py) / 2, (previous[2] + pz) / 2))
+            direction = Vector((px - previous[0], py - previous[1], pz - previous[2]))
+            ctx.put("seam", tuple(mid), (r * 0.78,) * 3, "glow", tuple(direction.to_track_quat("Z", "Y").to_euler()), role)
+        previous = (px, py, pz)
+    head_r = 0.58 * min(rs, 1.25)
+    head_z = 0.5 + head_r
+    ctx.put("ball_hi", (0, -0.1, head_z), (head_r, head_r * 0.95, head_r * 0.95), "shell")
+    ctx.hinge("hingeHead", (0, -0.1, head_z))
+    ctx.put("block", (0, 0.02, head_z + head_r * 0.8), (0.3, 0.22, 0.08), "trim")
+    face(ctx, (0, -0.1 - head_r * 0.9, head_z + 0.03), 0.36 * head_r / 0.58, 0.13, -5)
+    for side in (-1, 1):
+        ctx.put("can", (side * 0.2, -0.05, head_z + head_r + 0.02), (0.022, 0.022, 0.18), "engine", (0, D(side * 15), 0))
+        ctx.put("dot", (side * 0.25, -0.05, head_z + head_r + 0.2), (0.06,) * 3, "glow")
+    hull = ((0, -0.1, head_z), (head_r, head_r * 0.95, head_r * 0.95))
+    return {"hull": hull, "top": (0, -0.1, head_z + head_r), "center": (0.3, 0.3, 0.75), "radius": 0.95 * max(rs, 1.0),
+            "width": 1.35 * max(rs, 1.0), "head": hull[0], "head_r": head_r}
+
+
+def ray(ctx, p):
+    """A drone-manta over a hover glow: inner and outer fins (roles finL, finOuterL…, each on its
+    hinge, so the game beats them as a wave) and a tail of beads (tailA…F)."""
+    span = p.get("span", 1.0)
+    droop = p.get("droop", 12)
+    lift = 0.45
+    ctx.put("ball_hi", (0, 0.05, 0.8 + lift), (0.62, 0.75, 0.32), "shell")
+    for side in (-1, 1):
+        name = "L" if side < 0 else "R"
+        turn = (0, D(side * -droop * 0.4), D(side * -14))
+        ctx.put("ball", (side * 0.85 * span, 0.2, 0.82 + lift), (0.75 * span, 0.55, 0.1), "shell", turn, "fin" + name)
+        up = Euler(turn).to_matrix() @ Vector((0, 0, 1))
+        ctx.put("seam", tuple(Vector((side * 0.85 * span, 0.2, 0.82 + lift)) + up * 0.08), (0.45 * span, 0.45 * span, 0.45 * span), "glow", turn, "fin" + name)
+        outer = (0, D(side * -droop * 2.2), D(side * -28))
+        ctx.put("ball", (side * 1.55 * span, 0.42, 1.0 + lift), (0.45 * span, 0.32, 0.07), "shell", outer, "finOuter" + name)
+        ctx.put("block", (side * 1.85 * span, 0.56, 1.12 + lift - droop * 0.004), (0.16, 0.1, 0.035), "trim", (0, D(side * -droop * 2.6), D(side * -32)), "finOuter" + name)
+        ctx.hinge("hingeFin" + name, (side * 0.45, 0.2, 0.82 + lift))
+        ctx.hinge("hingeFinOuter" + name, (side * 1.2 * span, 0.35, 0.95 + lift))
+    ctx.put("ball", (0, 0.15, 1.0 + lift), (0.32, 0.4, 0.14), "core", role="core")
+    face(ctx, (0, -0.7, 0.86 + lift), 0.32, 0.1, -12)
+    if p.get("tail", True):
+        for step in range(6):
+            ctx.put("ball", (0, 0.85 + step * 0.11, 0.78 + lift - step * 0.025), (0.1 - step * 0.008,) * 3, "shell" if step < 5 else "glow",
+                    role="tail" + "ABCDEF"[step])
+    ctx.put("can", (0, 0.8, 0.92 + lift), (0.12, 0.12, 0.1), "engine", (D(90), 0, 0))
+    ctx.put("ball", (0, 0.91, 0.92 + lift), (0.1, 0.04, 0.1), "glow")
+    ctx.put("can", (0, 0.1, 0.12), (0.7 * span, 0.55, 0.012), "hover")
+    hull = ((0, 0.05, 0.8 + lift), (0.62, 0.75, 0.32))
+    return {"hull": hull, "top": (0, 0.05, 1.12 + lift), "center": (0, 0.1, 0.85 + lift), "radius": 1.2 * span, "width": 1.75 * span,
+            "span": span, "lift": lift, "shoulders": False}
+
+
+def _drone(ctx, at, size, role, buzz):
+    x, y, z = at
+    ctx.put("ball", (x, y, z), (0.55 * size, 0.5 * size, 0.5 * size), "shell", role=role)
+    ctx.put("block", (x, y + 0.1 * size, z + 0.38 * size), (0.22 * size, 0.18 * size, 0.06 * size), "trim", role=role)
+    eye = ctx.face["eye"]
+    ctx.put("ball", (x, y - 0.46 * size, z + 0.03 * size), (0.33 * size, 0.06, 0.15 * size * min(eye, 1.2)), "visor", role=role)
+    for side in (-1, 1):
+        ctx.put("ball", (x + side * 0.12 * size, y - 0.5 * size, z + 0.04 * size), (0.06 * size * eye, 0.03, 0.08 * size * eye), "eyes",
+                role=role)
+        name = buzz + ("L" if side < 0 else "R")
+        ctx.put("ball", (x + side * 0.55 * size, y + 0.15 * size, z + 0.35 * size), (0.4 * size, 0.2 * size, 0.03 * size), "buzz",
+                (0, D(side * -20), 0), name)
+        ctx.hinge("hinge" + name[0].upper() + name[1:], (x + side * 0.2 * size, y + 0.15 * size, z + 0.35 * size))
+    ctx.put("dot", (x, y, z - 0.5 * size), (0.15 * size, 0.15 * size, 0.06 * size), "glow", role=role)
+
+
+def swarm(ctx, p):
+    """A lead drone and its little ones (each a role, drone1…, so the game flies them round it)."""
+    main = p.get("main", 1.25)
+    lead_z = 0.2 + 0.65 * main
+    _drone(ctx, (0, 0, lead_z), main, "body", "buzz")
+    import robo
+
+    drones = []
+    for index, (dx, dy, dz, size) in enumerate(robo.SWARM_SPOTS[:p.get("count", 2)]):
+        at = (dx * (0.6 + 0.35 * main), dy, dz * (0.55 + 0.35 * main))
+        _drone(ctx, at, size, f"drone{index + 1}", f"drone{index + 1}Buzz")
+        drones.append((Vector(at), size))
+    hull = ((0, 0, lead_z), (0.55 * main, 0.5 * main, 0.5 * main))
+    return {"hull": hull, "top": (0, 0, lead_z + 0.5 * main), "center": (0, 0, lead_z), "radius": 0.8 * main, "width": 1.0 * main,
+            "engine_z": -0.05 * main, "lead": hull[0], "lead_size": main, "drones": drones, "shoulders": False}
+
+
+FAMILIES = {"slime": slime, "crab": crab, "whale": whale, "worm": worm, "ray": ray, "swarm": swarm}
 
 
 # --- Signatures (one shared set of meshes a post) --------------------------------------------------------
@@ -445,8 +568,201 @@ def bubbles(ctx, info):
     """Acid bubbles: particles in game, nothing to model."""
 
 
+def _lead(info):
+    """The body a part sits on: a swarm's lead drone, a worm's head, or the whole pet."""
+    if "lead" in info:
+        return Vector(info["lead"]), info["lead_size"]
+    if "head" in info:
+        return Vector(info["head"]), info["head_r"] / 0.58
+    return Vector(info["center"]), info["radius"] / 0.8
+
+
+def pincers(ctx, info):
+    """Two little claws held up in front, snapping like a crab's (jawTopL… on hinges)."""
+    (lx, ly, lz), size = _lead(info)
+    if "head" in info:
+        r = info["head_r"]
+        bases = [Vector(on_hull(info, (lx + side * r * 0.6, ly - r * 0.6, lz - r * 0.9))) for side in (-1, 1)]
+    else:
+        bases = [Vector(on_hull(info, (lx + side * 0.55 * size, ly - 0.6 * size, lz - 0.25))) for side in (-1, 1)]
+    for side, base in zip((-1, 1), bases):
+        name = "L" if side < 0 else "R"
+        ctx.put("ball", tuple(base), (0.16, 0.2, 0.14), "trim")
+        ctx.put("block", tuple(base + Vector((side * 0.05, -0.2, 0.08))), (0.06, 0.13, 0.04), "trim", (D(-20), 0, 0), "jawTop" + name)
+        ctx.put("block", tuple(base + Vector((0, -0.18, -0.07))), (0.05, 0.11, 0.035), "trim", (D(20), 0, 0), "jawBot" + name)
+        ctx.hinge("hingeJaw" + name, base + Vector((0, -0.08, 0)))
+
+
+def exhausts(ctx, info):
+    """A tank's exhaust pipes with glowing tips, and rivets over the brow."""
+    (cx, cy, cz), (a, b, c) = info["hull"]
+    for side in (-1, 1):
+        fx, fy, fz = on_hull(info, (cx + side * 0.22, cy + b * 0.6, cz + c * 0.35))
+        ctx.put("can", (fx, fy, fz + 0.35), (0.09, 0.09, 0.35), "pipe", (D(-15), 0, 0))
+        ctx.put("dot", (fx, fy + 0.08, fz + 0.72), (0.07, 0.07, 0.03), "fire")
+    for dx in (-0.6, -0.36, -0.12, 0.12, 0.36, 0.6):
+        ctx.put("dot", on_hull(info, (cx + dx * a, cy - b * 0.68, cz + 0.5 * c)), (0.045, 0.03, 0.045), "pipe")
+
+
+def icicles(ctx, info):
+    """Icicles hanging from the belly."""
+    (cx, cy, cz), (a, b, c) = info["hull"]
+    for index in range(5):
+        base = on_hull(info, (cx - a * 0.5 + index * a * 0.25, cy - 0.1, cz - c), -0.02)
+        ctx.put("cone", base, (0.06, 0.06, 0.22 + 0.05 * (index % 2)), "ice", (D(180), 0, 0))
+
+
+def plow(ctx, info):
+    """An icebreaker's steel wedge on the nose."""
+    (cx, cy, cz), (a, b, c) = info["hull"]
+    r = info["radius"]
+    for side in (-1, 1):
+        ctx.put("block", (cx + side * 0.35 * r, cy - b * 1.05, cz - 0.15), (0.45 * r, 0.06, 0.28), "steel", (0, 0, D(side * 35)))
+    ctx.put("cone", (cx, cy - b * 1.2, cz - 0.15), (0.12, 0.12, 0.3), "steel", (D(90), 0, 0))
+
+
+def aurora(ctx, info):
+    """Northern lights rippling over the pet: three ribbons of faceted panels."""
+    cx, cy, cz = info["center"]
+    r = info["radius"]
+    for band, key in enumerate(("auroraGreen", "auroraBlue", "auroraViolet")):
+        for step in range(7):
+            t = step / 6 - 0.5
+            ctx.put("block", (cx + t * 2.2 * r, cy + 0.3 + band * 0.18, cz + r + 0.4 + band * 0.12 + 0.12 * math.sin(step * 1.3 + band)),
+                    (0.17 * r, 0.015, 0.16), key, (0, D(15 * math.sin(step + band)), 0))
+
+
+def ice_fringe(ctx, info):
+    """Icicles along the trailing edges (a ray's fins, or round the body)."""
+    cx, cy, cz = info["center"]
+    span = info.get("span", 0.55)
+    for side in (-1, 1):
+        for index in range(4):
+            reach = 0.5 + index * 0.38
+            role = (("fin" if index < 2 else "finOuter") + ("L" if side < 0 else "R")) if "span" in info else "body"
+            ctx.put("cone", (cx + side * reach * span, cy + 0.6 + index * 0.06, cz - 0.02 + index * 0.08), (0.05, 0.05, 0.2), "ice", (D(160), 0, 0), role)
+
+
+def frill(ctx, info):
+    """A fan collar round the head: seven petals."""
+    if "head" in info:
+        h, r = Vector(info["head"]), info["head_r"]
+    else:
+        h, r = Vector(info["center"]), info["radius"] * 0.7
+    for index in range(7):
+        angle = D(-70 + index * 23)
+        out = Vector((math.sin(angle), 0.35, math.cos(angle))).normalized()
+        root = Vector(on_hull(info, tuple(h + Vector((0, 0.25, 0)) + out * r)))
+        ctx.put("ball", tuple(root + out * 0.22), (0.14, 0.04, 0.32), "frill", tuple(out.to_track_quat("Z", "Y").to_euler()))
+
+
+def babies(ctx, info):
+    """A mother worm's frill and two little worms beside her."""
+    frill(ctx, info)
+    hx, hy, hz = info.get("head", info["center"])
+    for side in (-1, 1):
+        bx = hx + side * 1.15
+        for step in range(3):
+            s = 0.17 - 0.03 * step
+            ctx.put("ball", (bx + side * step * 0.05, -0.2 + step * 0.17, hz - 0.95 + (0.2 if step == 0 else 0.12 - 0.04 * step)), (s, s, s), "shell")
+        face(ctx, (bx, -0.37, hz - 0.72), 0.12, 0.05)
+
+
+def mandibles(ctx, info):
+    """Curved jaws in front (mandL, mandR on hinges); every little drone has its own."""
+    (lx, ly, lz), size = _lead(info)
+    for side in (-1, 1):
+        name = "L" if side < 0 else "R"
+        root = Vector((lx + side * 0.22 * size, ly - 0.42 * size, lz - 0.2 * size))
+        direction = Vector((-side * 0.6, -1, -0.3)).normalized()
+        ctx.put("cone", tuple(root), (0.07 * size, 0.07 * size, 0.42 * size), "jaw", tuple(direction.to_track_quat("Z", "Y").to_euler()), "mand" + name)
+        ctx.hinge("hingeMand" + name, root)
+    for index, (location, s) in enumerate(info.get("drones", [])):
+        for side in (-1, 1):
+            name = f"drone{index + 1}Mand" + ("L" if side < 0 else "R")
+            root = Vector((location.x + side * 0.1 * s, location.y - 0.4 * s, location.z - 0.15 * s))
+            direction = Vector((-side * 0.6, -1, -0.3)).normalized()
+            ctx.put("cone", tuple(root), (0.04 * s, 0.04 * s, 0.22 * s), "jaw", tuple(direction.to_track_quat("Z", "Y").to_euler()), name)
+            ctx.hinge("hinge" + name[0].upper() + name[1:], root)
+
+
+def crest(ctx, info):
+    """A crest of spines down the back of the head."""
+    (lx, ly, lz), size = _lead(info)
+    y = info["top"][1]
+    for index in range(5):
+        angle = D(-40 + index * 20)
+        px, py = lx + math.sin(angle) * 0.3 * size, y + 0.35 * size
+        direction = Vector((math.sin(angle) * 0.6, 0.3, 1)).normalized()
+        ctx.put("cone", (px, py, top_height(info, px, py) - 0.04), (0.07, 0.07, 0.35 + 0.15 * (index == 2)), "trim",
+                tuple(direction.to_track_quat("Z", "Y").to_euler()))
+
+
+def queen(ctx, info):
+    """A queen's jaws, crest and glowing brood pods under her."""
+    mandibles(ctx, info)
+    crest(ctx, info)
+    (lx, ly, lz), size = _lead(info)
+    for dx, dy in ((-0.35, 0.1), (0.0, 0.25), (0.35, 0.1)):
+        ctx.put("ball", on_hull(info, (lx + dx * size, ly + dy, lz - 0.75 * size), 0.06), (0.14, 0.14, 0.18), "brood")
+
+
+def guard(ctx, info):
+    mandibles(ctx, info)
+    crest(ctx, info)
+
+
+def minions(ctx, info):
+    """Three tiny drones buzzing round the pet (drone1…, flown round it like a swarm's)."""
+    cx, cy, cz = info["center"]
+    r = info["radius"] + 0.35
+    for index in range(3):
+        angle = index / 3 * math.tau + 0.9
+        at = (cx + math.cos(angle) * r, cy + math.sin(angle) * r * 0.5 - 0.2, cz + 0.4 + 0.3 * index)
+        _drone(ctx, at, 0.3, f"drone{index + 1}", f"drone{index + 1}Buzz")
+
+
+def star_dots(ctx, info):
+    """Star dots over the fins or the back."""
+    cx, cy, cz = info["center"]
+    span = info.get("span", info["radius"] * 0.5)
+    for side in (-1, 1):
+        for reach, dy in ((0.5, 0.0), (0.9, 0.25), (1.3, 0.1), (1.65, 0.4), (1.1, 0.5)):
+            role = (("fin" if reach < 1.2 else "finOuter") + ("L" if side < 0 else "R")) if "span" in info else "body"
+            ctx.put("dot", (cx + side * reach * span, cy + 0.15 + dy - 0.5, cz + 0.17 + reach * 0.12), (0.04,) * 3, "dot", role=role)
+
+
+def gravity(ctx, info):
+    """Rocks held in orbit and a glowing anti-gravity ring beneath."""
+    cx, cy, cz = info["center"]
+    r = info["radius"]
+    for index in range(4):
+        angle = index / 4 * math.tau + 0.4
+        ctx.put("ball", (cx + math.cos(angle) * (r + 0.2), cy + math.sin(angle) * 0.9, cz + 0.75 + 0.15 * math.sin(index * 2)), (0.16, 0.13, 0.12),
+                "rock", (index, index * 0.5, 0), "orbit")
+    base = info["top"][2] - (info["top"][2] - cz) * 2 - 0.05
+    ctx.put("seam", (cx, cy, max(base, cz - 1.2, 0.05)), (r + 0.25,) * 3, "glow")
+
+
+def telescope(ctx, info):
+    """A stargazer's brass telescope on its back, pointed at the sky."""
+    x, y = info["top"][0] + 0.3, info["top"][1] + 0.4
+    turn = Euler((D(-35), D(25), 0))
+    axis = turn.to_matrix() @ Vector((0, 0, 1))
+    foot = Vector((x, y, top_height(info, x, y) - 0.03))
+    ctx.put("can", tuple(foot + axis * 0.35), (0.09, 0.09, 0.35), "brass", tuple(turn))
+    ctx.put("ball", tuple(foot + axis * 0.72), (0.1,) * 3, "lens")
+
+
+def none(ctx, info):
+    """Particles in game (bubbles, flakes, a spout): nothing to model."""
+
+
 SIGNATURES = {"siren": siren, "rotor": rotor, "galaxy": galaxy, "circlet": circlet, "snowcap": snowcap, "ice_crown": ice_crown, "stars": stars,
-              "flames": flames, "lightning": lightning, "smoke": smoke, "void_core": void_core, "bubbles": bubbles}
+              "flames": flames, "lightning": lightning, "smoke": smoke, "void_core": void_core, "bubbles": bubbles,
+              "pincers": pincers, "exhausts": exhausts, "icicles": icicles, "plow": plow, "aurora": aurora, "ice_fringe": ice_fringe,
+              "frill": frill, "babies": babies, "mandibles": mandibles, "crest": crest, "queen": queen, "guard": guard,
+              "minions": minions, "star_dots": star_dots, "gravity": gravity, "telescope": telescope, "flakes": none, "spout": none}
 
 
 # --- The tier outfit (one set of meshes for all kinds) ------------------------------------------------

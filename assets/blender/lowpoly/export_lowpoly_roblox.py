@@ -7,12 +7,13 @@
 #   <kind>|meta1|<zone>|<family>|<signature>          the kind's data (tiny marker);
 #   <kind>|meta2|<glow>|<core>|<shell>                its colours;
 #   <kind>|anchor|<Slot>|<scale>                       where an outfit slot sits on the body;
+#   <kind>|hinge|<hinge name>                          a point a moving part turns on (hingeLegLA…);
 #   kit|<piece>|<role>_<n>|<paint code>                a part of an outfit piece;
 #   kit|<piece>|origin                                 the piece's origin (it goes on a slot's point);
 #   kit|<piece>|dust<L|R><n>                           a fairy wing's dust point.
 #
 # Run headless from the repo root:
-#   blender --background --factory-startup --python assets/blender/lowpoly/export_lowpoly_roblox.py -- <out.glb> [family]
+#   blender --background --factory-startup --python assets/blender/lowpoly/export_lowpoly_roblox.py -- <out.glb> [family,family… | all] [kit]
 
 import os
 import sys
@@ -32,7 +33,10 @@ from mathutils import Vector  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = ARGS[0] if ARGS else "out/lowpoly/pack-lowpoly-slime.glb"
-FAMILY = ARGS[1] if len(ARGS) > 1 else "slime"
+# Families to pack (comma separated, or "all"), and whether to pack the outfit kit too ("kit"): the
+# kit goes up once, with the first pack, so its meshes are one set for the whole game.
+FAMILIES = ARGS[1].split(",") if len(ARGS) > 1 else ["slime"]
+WITH_KIT = len(ARGS) > 2 and ARGS[2] == "kit"
 STYLE = "faceted"
 SPACING = 8.0
 KIT_ROW = 30.0
@@ -40,9 +44,10 @@ KIT_ROW = 30.0
 LAVA_TILE = 1.5
 # Shell sources the game repaints by tier (gold) and variant (lava): they need UVs for the lava.
 SHELLS = ("Shell", "Candy", "Crystal")
-# Parts kept one by one (the game reads them one by one): each eye blinks, the dome sets the jelly's
-# floor, a flame or jet stand-in plays particles from its own place.
-KEEP_SOURCES = {"EyeLight", "Dome", "Flame", "Jet"}
+# Parts kept one by one (the game reads them one by one): the dome sets the jelly's floor, a flame or
+# jet stand-in plays particles from its own place. A role's eyes join into one part: they blink
+# together (World/RigMotion), and a swarm's drones had two eye parts each.
+KEEP_SOURCES = {"Dome", "Flame", "Jet"}
 
 
 def source_of(code):
@@ -129,7 +134,7 @@ def rgb255(colour):
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     library = kit.Library(STYLE)
-    kinds = [k for k in robo_kinds.KINDS if k[2] == FAMILY]
+    kinds = [k for k in robo_kinds.KINDS if "all" in FAMILIES or k[2] in FAMILIES]
     finished = []
     for index, kind in enumerate(kinds):
         kind_id = kind[0]
@@ -149,12 +154,17 @@ def main():
         nodes.append(marker(f"{kind_id}|meta2|{rgb255(colours['glow'])}|{rgb255(colours['core'])}|{rgb255(colours['shell'])}", (x, 0, -1)))
         for slot, (point, scale) in points.items():
             nodes.append(marker(f"{kind_id}|anchor|{slot}|{scale:.3f}", (point[0] + x, point[1], point[2])))
+        for name, point in pet.ctx.hinges:
+            nodes.append(marker(f"{kind_id}|hinge|{name}", (point[0] + x, point[1], point[2])))
         for obj in nodes:
             if len(obj.name) > 62:
                 raise ValueError(f"name too long for Blender: {obj.name}")
         finished += nodes
         print(f"BODY {kind_id}: {len(parts)} parts, {sum(len(p.data.polygons) for p in parts)} faces")
     # The kit: one of each piece in a row behind the bodies.
+    if not WITH_KIT:
+        finish(finished)
+        return
     collection = bpy.data.collections.new("Kit")
     bpy.context.scene.collection.children.link(collection)
     holder = kit.Pet(library, collection)
@@ -171,6 +181,10 @@ def main():
         for marker_name, point in dust:
             finished.append(marker(f"kit|{name}|{marker_name}", tuple(origin + Vector(point))))
         print(f"PIECE {name}: {len(parts)} parts, {sum(len(p.data.polygons) for p in parts)} faces")
+    finish(finished)
+
+
+def finish(finished):
     for obj in bpy.context.scene.objects:
         obj.select_set(obj in finished)
     os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
