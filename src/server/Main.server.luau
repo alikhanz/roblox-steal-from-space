@@ -175,6 +175,7 @@ local netService = NetService.new({
 	markActive = activityService.touch,
 	bench = benchService.run,
 	benchGuardians = benchService.showGuardians,
+	benchGallery = benchService.gallery,
 	setControlsHidden = controlsService.setHidden,
 })
 trainingDependencies.getData = profile.getData

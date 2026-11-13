@@ -12,12 +12,18 @@ local ServerStorage = game:GetService("ServerStorage")
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
+local AlienOutfit = require(ReplicatedStorage.Shared.Domain.AlienOutfit)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local OutfitDress = require(script.Parent.OutfitDress)
 
 local AlienModel = {}
 
 local MODELS = AlienLooks.MODELS
 local FOLDER_NAME = "Aliens"
+-- The low-poly pets' outfit kit in that folder (decision 118, lune/aliens.luau).
+local OUTFIT_NAME = "_Outfit"
+-- On a low-poly pet's model (a body the game dresses from the kit).
+local OUTFIT_ATTRIBUTE = "Outfit"
 -- The fingerprint lune/aliens.luau gives each kind's folder; AlienModels.json lists the repo's.
 local HASH_ATTRIBUTE = "ModelHash"
 -- On a built alien: its pivot's height above the frame it stands on, studs.
@@ -82,17 +88,21 @@ local function measure(model: Model): (number, number, number)
 	return low.Y, math.max(span.X, span.Z), span.Y
 end
 
-local function templateOf(alien: AlienConfig.Alien): Template?
+-- A low-poly pet (decision 118) is its kind's body dressed in `picks` (Domain/AlienOutfit): one
+-- template per set of pieces. Other pets come whole from Blender and ignore `picks`.
+local function templateOf(alien: AlienConfig.Alien, picks: AlienOutfit.Picks): Template?
 	local name = petName(alien)
-	local cached = templates[name]
-	if cached ~= nil then
-		return cached or nil
-	end
 	local folder = ServerStorage:FindFirstChild(FOLDER_NAME)
 	local kind = folder and folder:FindFirstChild(alien.kind)
 	local source = kind and kind:FindFirstChild(name)
+	local dressed = source ~= nil and source:GetAttribute(OUTFIT_ATTRIBUTE) == true
+	local key = if dressed then `{name}|{AlienOutfit.key(picks)}` else name
+	local cached = templates[key]
+	if cached ~= nil then
+		return cached or nil
+	end
 	if not (source and source:IsA("Model")) then
-		templates[name] = false
+		templates[key] = false
 		if not missingWarned[alien.kind] then
 			missingWarned[alien.kind] = true
 			warn(`[AlienModel] No model for {name} in ServerStorage.{FOLDER_NAME}; the greybox stands in`)
@@ -100,12 +110,25 @@ local function templateOf(alien: AlienConfig.Alien): Template?
 		return nil
 	end
 	local model = source:Clone()
+	local kit = if dressed and folder then folder:FindFirstChild(OUTFIT_NAME) else nil
+	if kit then
+		local tier = AlienConfig.TIER_POSITIONS[alien.tier] - 1
+		OutfitDress.dress(model, kit, picks :: any, tier, alien.variant == "Meteor")
+	elseif dressed and not missingWarned[OUTFIT_NAME] then
+		missingWarned[OUTFIT_NAME] = true
+		warn(`[AlienModel] No ServerStorage.{FOLDER_NAME}.{OUTFIT_NAME}: low-poly pets stand without their outfit`)
+	end
 	AlienDress.prepare(model)
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local bottom, width, height = measure(model)
 	local template = { model = model, bottom = bottom, width = width, height = height }
-	templates[name] = template
+	templates[key] = template
 	return template
+end
+
+-- The outfit a place makes room for: the first pieces of the tier's pools (wings for an epic).
+local function roomPicks(alien: AlienConfig.Alien): AlienOutfit.Picks
+	return AlienOutfit.first(AlienConfig.TIER_POSITIONS[alien.tier])
 end
 
 -- The pet's scale against its Blender model for an alien of `scale` (alien.scale, or the floor's
@@ -160,7 +183,7 @@ end
 function AlienModel.widthOf(alienId: AlienConfig.AlienId, scaleOverride: number?): number
 	local alien = assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
 	local scale = scaleOverride or alien.scale
-	local template = templateOf(alien)
+	local template = templateOf(alien, roomPicks(alien))
 	if not template then
 		return AlienLooks.widthOf(scale)
 	end
@@ -172,7 +195,7 @@ end
 function AlienModel.heightOf(alienId: AlienConfig.AlienId, scaleOverride: number?): number
 	local alien = assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
 	local scale = scaleOverride or alien.scale
-	local template = templateOf(alien)
+	local template = templateOf(alien, roomPicks(alien))
 	if not template then
 		return AlienLooks.widthOf(scale)
 	end
@@ -181,12 +204,18 @@ end
 
 -- `cframe` is where the alien stands: its lowest point at the frame's origin, facing the frame's
 -- look direction. `scaleOverride` replaces its own size (aliens with no place stand small on the
--- island's floor).
-function AlienModel.build(alienId: AlienConfig.AlienId, uid: number, cframe: CFrame, scaleOverride: number?): Model
+-- island's floor). `outfit` is what a low-poly pet wears (its record's, decision 121); nil: nothing.
+function AlienModel.build(
+	alienId: AlienConfig.AlienId,
+	uid: number,
+	cframe: CFrame,
+	scaleOverride: number?,
+	outfit: AlienOutfit.Picks?
+): Model
 	local alien = assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
 	-- Bigger with every guardian and tier (decision 068).
 	local scale = scaleOverride or alien.scale
-	local template = templateOf(alien)
+	local template = templateOf(alien, outfit or {})
 	local model: Model
 	if template then
 		model = template.model:Clone()
@@ -236,6 +265,12 @@ function AlienModel.checkPlace(manifest: { [string]: string })
 		elseif expected and kind:GetAttribute(HASH_ATTRIBUTE) ~= expected then
 			table.insert(stale, kindId)
 		end
+	end
+	local kit = folder and folder:FindFirstChild(OUTFIT_NAME)
+	if manifest[OUTFIT_NAME] and not kit then
+		table.insert(missing, OUTFIT_NAME)
+	elseif kit and manifest[OUTFIT_NAME] and kit:GetAttribute(HASH_ATTRIBUTE) ~= manifest[OUTFIT_NAME] then
+		table.insert(stale, OUTFIT_NAME)
 	end
 	if #missing + #stale == 0 then
 		return

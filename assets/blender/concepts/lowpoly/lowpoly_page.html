@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Низкополигональные питомцы</title>
+<style>
+:root {
+  --bg: #f4f5f9; --panel: #ffffff; --ink: #161a26; --muted: #5b6275; --line: #dde0ea;
+  --accent: #6a4cff; --good: #13834f; --cell: #070b18;
+  --t0: #8b90a0; --t3: #9a4dff; --t4: #c88a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0e18; --panel: #121726; --ink: #e8ebf5; --muted: #98a0b8; --line: #252c42;
+    --accent: #9d8bff; --good: #4fd18f; --cell: #070b18;
+    --t0: #b4b9c8; --t3: #c08bff; --t4: #ffc23d;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0e18; --panel: #121726; --ink: #e8ebf5; --muted: #98a0b8; --line: #252c42;
+  --accent: #9d8bff; --good: #4fd18f; --cell: #070b18;
+  --t0: #b4b9c8; --t3: #c08bff; --t4: #ffc23d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+.page { max-width: 1240px; margin: 0 auto; padding: 28px 16px 64px; }
+.sheet { max-width: 1280px; padding: 18px; }
+h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 21px; margin: 36px 0 12px; }
+h2 small { color: var(--muted); font-weight: 400; font-size: 15px; }
+h3 { font-size: 17px; margin: 22px 0 8px; }
+p, li { color: var(--ink); max-width: 72ch; }
+.lead { color: var(--muted); font-size: 16px; margin: 0 0 20px; }
+.wrap { overflow-x: auto; }
+table { border-collapse: collapse; }
+.summary { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-variant-numeric: tabular-nums; }
+.summary th, .summary td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
+.summary tr > th:first-child { text-align: left; white-space: nowrap; }
+.summary tr:first-child th { font-size: 13px; color: var(--muted); font-weight: 600; text-align: right; }
+.summary small { color: var(--muted); font-weight: 400; }
+.summary tr.faceted { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.grid { width: 100%; table-layout: fixed; }
+.grid th { font-size: 14px; color: var(--muted); padding: 4px 6px 8px; text-align: center; }
+.grid th.tier { width: 92px; text-align: right; padding-right: 10px; font-size: 14px; }
+.t1 { color: #2fb35a !important; } .t2 { color: #3b82f6 !important; } .t0 { color: var(--t0) !important; } .t3 { color: var(--t3) !important; } .t4 { color: var(--t4) !important; }
+.grid td { padding: 5px; vertical-align: top; }
+.cell { position: relative; background: var(--cell); border-radius: 8px; overflow: hidden; }
+.near { display: block; width: 100%; height: auto; }
+.far { display: flex; gap: 8px; align-items: flex-end; padding: 0 8px 8px; }
+.far img { display: block; border: 1px solid #2a3350; border-radius: 3px; }
+.far .x1 { width: 36px; height: 36px; }
+.far .x3 { width: 108px; height: 108px; image-rendering: pixelated; }
+.stats { font-size: 13px; color: var(--muted); padding: 6px 2px 0; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); font-size: 15px; }
+.ratio { color: var(--good); font-weight: 600; margin-left: 4px; }
+.note { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin: 14px 0; }
+.pick { border-color: var(--accent); }
+ul { padding-left: 20px; }
+code { font-size: 13px; }
+@media (max-width: 720px) {
+  .grid th.tier { width: 60px; font-size: 12px; }
+  .far .x3 { display: none; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+<h1>Низкополигональные питомцы — концепт</h1>
+<p class="lead">Те же виды, цвета и наряд ступеней, но геометрия собрана из малого общего набора мешей: тело вида одно на все 10 вариантов, наряд (антенна, ранец, крылья, корона, звезда) — один на все 72 вида. Одна камера на ступень во всех столбцах. Под кадром — он же размером с питомца на экране телефона издали (36 px) и он же, увеличенный в 3 раза.</p>
+
+{{SUMMARY}}
+
+{{SECTIONS}}
+
+<section id="pick">
+<h2>Рекомендация: А · Гранёный, с глазами от «Игрушки»</h2>
+<div class="note pick">
+<p><b>Почему он.</b> Мало треугольников здесь — сам стиль: грани видно, и они выглядят как огранка, а не как урезанная модель. Золото легендарного и стеклянный купол слизня на гранях играют бликами. По весу он между «Острым» и «Игрушкой»: {{FACETED_RANGE}} треугольников на питомца против {{TODAY_RANGE}} сегодня.</p>
+<p><b>Почему не другие.</b> «Игрушка» ближе всего к сегодняшним, но гладкие шары с малым числом сегментов как раз и выглядят «урезанными», а весит она в 2–3 раза больше гранёного. «Острый» самый лёгкий, но коробки и шестигранники съедают милоту: питомец читается роботом-игрушкой из кубиков, а не зверьком. У «Игрушки» стоит взять крупные глаза с бликом — издали лицо читается лучше всего.</p>
+<p><b>Ступени</b> различаются так же, как сейчас: антенна → ранец → крылья → золото с короной. Новое — золотая звезда-медаль за спиной легендарного (сейчас там спрятанные лучи-заглушки и частицы): видна издали и стоит 64 треугольника.</p>
+</div>
+<h3>Что это даёт (оценка)</h3>
+<ul>
+<li><b>Уникальных мешей:</b> {{TODAY_MESHES}} → около {{FACETED_MESHES}} (тело вида 5–8 мешей × 72 + общий набор около 50). Если не сливать детали тела, а ставить их из общего набора фигур — около 50 мешей на всю игру, но на 5–14 частей больше на питомца.</li>
+<li><b>Треугольников на питомца:</b> в среднем {{TODAY_AVG}} → {{FACETED_AVG}} (в {{FACETED_X}} раз меньше).</li>
+<li><b>Память мешей на полном сервере</b> (240 разных питомцев): ~{{TODAY_MEM}} МБ → ~{{FACETED_MEM}} МБ. Из 850 МБ телефона это самая крупная часть, которую можно убрать моделями.</li>
+<li><b>Загрузка при входе:</b> вместо сотен мешей с каждого острова — несколько сотен на всю игру, после первого раза из кэша.</li>
+<li><b>Отрисовка:</b> одинаковые меши Roblox рисует пачкой (instancing), так что вызовов отрисовки должно стать заметно меньше — это надо проверить замером на скамье.</li>
+</ul>
+<h3>Работа на все 72 вида</h3>
+<ol>
+<li><b>Скрипт Blender</b> по образцу концепта: ещё три семейства (червь, скат, рой) и подписи 24 стражей из общих фигур; проверка деталей (<code>check_robo_parts</code>) и рендеры спереди, сбоку, сзади. Детали, которые игра двигает (ноги, клешни, плавники, крылья, сегменты, хвост), остаются отдельными частями со своими ролями — движения не меняются.</li>
+<li><b>Модель — тело вида, наряд — кодом.</b> 720 моделей превращаются в 72 тела; ступень и наряд надевает <code>AlienDress</code> из общего набора по точкам крепления (как уже надевает частицы). Петли (<code>hinge…</code>) — атрибуты/точки, а не меши-маркеры.</li>
+<li><b>Экспорт и распаковка:</b> одна GLB-библиотека наряда и 72 тела вместо 72 пачек; <code>lune run aliens</code> переписывается под тело + набор; цвет — у части (<code>Color</code>), без запечённых цветов вершин.</li>
+<li><b>Загрузка:</b> Open Cloud, вставка в Dev и Prod (<code>ServerStorage.Aliens</code> + набор наряда), право <code>Use</code> для Prod на новые ассеты (<code>docs/ASSETS.md</code>).</li>
+<li><b>Проверка:</b> скамья из 30 питомцев — замер кадров, отрисовки и памяти до/после, просмотр на телефоне.</li>
+</ol>
+<p>По объёму это 3–5 сессий; сохранения игроков не меняются (вид и ступень те же).</p>
+</section>
+
+{{DRESS}}
+
+<section id="notes">
+<h2>Как читать</h2>
+<ul>
+<li><b>Сегодня</b> — модель как её получает игра (экспорт с <code>DETAIL 0.8</code>, части слиты по роли и цвету); числа — замер всех 720 питомцев в Blender, части и меши — из <code>assets/aliens/*.rbxm</code>. Спрятанные в игре заглушки (лучи, пламя, кольцо) в кадре скрыты, но в числах есть: их сетки скачиваются.</li>
+<li><b>Части</b> у низкополигональных — если статичные детали одного цвета слить в меш вида (их 5–8 на вид); без слияния частей больше на 5–14, а уникальных мешей на все 720 — около 50.</li>
+<li><b>Мешей</b> в клетке — сколько разных сеток у этого питомца; все они общие с другими ступенями вида или со всеми видами.</li>
+<li>Частиц, свечения, рун и движений нет ни в одном столбце — их рисует игра и они не меняются.</li>
+<li>Память — грубая оценка: 40 байт на треугольник уникальной сетки (вершины, нормали, цвета, индексы), на полном сервере — 8 островов по 30 разных питомцев. Меши питомцев в кадре — замер скамьи из 30 питомцев в игре.</li>
+</ul>
+</section>
+</main>
+</body>
+</html>

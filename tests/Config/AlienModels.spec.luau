@@ -101,6 +101,18 @@ describe("Alien models", function()
 				expect((pet :: any):GetAttribute("Zone")).toBeTruthy()
 			end
 		end
+		-- The low-poly pets' outfit kit (decision 118) is a file of its own, listed like a kind.
+		if manifest._Outfit then
+			local roots = roblox.deserializeModel(fs.readFile(`{MODELS_DIR}/_Outfit.rbxm`))
+			expect(roots[1]:GetAttribute("ModelHash")).toBe(manifest._Outfit)
+			files._Outfit = true
+			-- Each piece keeps its pivot where it goes (a wing's root): Studio moves a pivot that still
+			-- "needs migration" to a part's centre on insertion, and the wings then beat from their
+			-- middle, crossed over the body (user, 2026-11-13).
+			for _, piece in roots[1]:GetChildren() do
+				expect((piece :: any).NeedsPivotMigration).toBe(false)
+			end
+		end
 		for kindId in manifest do
 			expect(files[kindId]).toBe(true)
 		end

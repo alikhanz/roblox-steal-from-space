@@ -16,6 +16,10 @@
 -- the player, all chasing, to look the models over. Both are display guardians: still bodies with
 -- no brain, which every client dresses as it does real ones; one display a player at a time. They
 -- live on the server only, until taken away or the player leaves.
+--
+-- The pet gallery (decision 118): the bench filled with one family's aliens, a page at a time
+-- (Domain/PetGallery), so the creator can look every low-poly model and outfit over on a phone in
+-- the Dev game; each press the next page, "/bench clear" takes it away like the bench.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -30,6 +34,7 @@ local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local GuardianModel = require(script.Parent.Parent.World.GuardianModel)
+local PetGallery = require(ReplicatedStorage.Shared.Domain.PetGallery)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -66,6 +71,9 @@ export type BenchService = {
 	-- Sets the guardian bench or the gallery round the player, or takes it away (Off); nothing for
 	-- a player not allowed.
 	showGuardians: (player: Player, display: GuardianDisplay) -> (),
+	-- Fills the island with the pet gallery's next page (Domain/PetGallery), in place of any
+	-- bench; "/bench clear" (`run(player, false)`) takes it away. Nothing for a player not allowed.
+	gallery: (player: Player) -> (),
 }
 
 export type GuardianDisplay = "Off" | "Bench" | "Gallery"
@@ -101,6 +109,20 @@ local function allowed(player: Player): boolean
 end
 
 function BenchService.new(dependencies: Dependencies): BenchService
+	local random = Random.new()
+	-- Outfits of the bench's and the gallery's aliens, drawn as a hatched alien's.
+	local function nextInteger(min: number, max: number): number
+		return random:NextInteger(min, max)
+	end
+	-- The gallery page each player has on the bench (an index into `galleryPages`).
+	local galleryPages = PetGallery.pages(BayConfig.MAX_PODS)
+	local galleryPage: { [Player]: number } = {}
+
+	local function setGalleryPage(player: Player, page: number?)
+		galleryPage[player] = page
+		player:SetAttribute(DevConfig.GALLERY_ATTRIBUTE, if page then PetGallery.label(galleryPages[page]) else nil)
+	end
+
 	local function run(player: Player, wanted: boolean)
 		if not allowed(player) or not dependencies.getData(player) then
 			return
@@ -108,12 +130,30 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		local changed = false
 		dependencies.update(player, function(data)
 			changed = if wanted
-				then Bench.fill(data, benchAliens(BayConfig.MAX_PODS), BayConfig.MAX_PODS)
+				then Bench.fill(data, benchAliens(BayConfig.MAX_PODS), BayConfig.MAX_PODS, nextInteger)
 				else Bench.clear(data)
 		end)
+		if not wanted then
+			setGalleryPage(player, nil)
+		end
 		if changed then
 			dependencies.refresh(player)
 		end
+	end
+
+	-- Puts the gallery's next page on the bench, in place of whatever bench stood.
+	local function gallery(player: Player)
+		if not allowed(player) or not dependencies.getData(player) then
+			return
+		end
+		local page = PetGallery.next(galleryPage[player] or 0, #galleryPages)
+		local filled = false
+		dependencies.update(player, function(data)
+			Bench.clear(data)
+			filled = Bench.fill(data, galleryPages[page].aliens, BayConfig.MAX_PODS, nextInteger)
+		end)
+		setGalleryPage(player, if filled then page else nil)
+		dependencies.refresh(player)
 	end
 
 	-- The guardian bench of each player who set it.
@@ -153,10 +193,10 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		if not (root and root:IsA("BasePart")) then
 			return
 		end
-		local gallery = display == "Gallery"
-		local posts = if gallery then GuardianConfig.POSTS else benchPosts()
-		local ring = if gallery then GALLERY_RING else BENCH_GUARDIAN_RING
-		local states = if gallery then GALLERY_STATES else BENCH_GUARDIAN_STATES
+		local isGallery = display == "Gallery"
+		local posts = if isGallery then GuardianConfig.POSTS else benchPosts()
+		local ring = if isGallery then GALLERY_RING else BENCH_GUARDIAN_RING
+		local states = if isGallery then GALLERY_STATES else BENCH_GUARDIAN_STATES
 		local folder = Instance.new("Folder")
 		folder.Name = `BenchGuardians{player.UserId}`
 		local centre = root.Position + Vector3.yAxis * BENCH_GUARDIAN_RISE
@@ -188,7 +228,10 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		for _, player in Players:GetPlayers() do
 			mark(player)
 		end
-		Players.PlayerRemoving:Connect(clearGuardians)
+		Players.PlayerRemoving:Connect(function(player)
+			clearGuardians(player)
+			galleryPage[player] = nil
+		end)
 	end
 
 	return {
@@ -196,6 +239,7 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		start = start,
 		run = run,
 		showGuardians = showGuardians,
+		gallery = gallery,
 	}
 end
 

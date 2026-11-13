@@ -159,6 +159,10 @@ function BayService.new(dependencies: Dependencies): BayService
 	local slotOwners: { [number]: Player } = {}
 	local folder: Folder? = nil
 	local random = Random.new()
+	-- A new alien's outfit is drawn with it (Bay.newAlien).
+	local function nextInteger(min: number, max: number): number
+		return random:NextInteger(min, max)
+	end
 	local hatched = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
 	local assigned = Signal.new() :: Signal.Signal<Player, Model>
 	local changed = Signal.new() :: Signal.Signal<Player>
@@ -214,7 +218,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		if shown then
 			shown.model:Destroy()
 		end
-		local model = AlienModel.build(alien.id, alien.uid, cframe, scale)
+		local model = AlienModel.build(alien.id, alien.uid, cframe, scale, alien.outfit)
 		CollectionService:AddTag(model, BayConfig.ALIEN_TAG)
 		model.Parent = parent
 		bay.aliens[alien.uid] = { model = model, id = alien.id, scale = scaleKey, stand = cframe }
@@ -705,7 +709,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
 		local location: Bay.Location? = nil
 		local added = dependencies.update(player, function(data)
-			location = Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
+			location = Bay.addHatched(data, Bay.newAlien(data, alienId, nextInteger))
 		end)
 		if added then
 			refresh(player)
@@ -745,7 +749,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		local kind = Loot.pick(grade.kindEntries, random:NextNumber())
 		local tier: AlienConfig.TierId = Loot.pick(odds, random:NextNumber())
 		local alienId = variant[kind][tier]
-		return alienId, Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
+		return alienId, Bay.addHatched(data, Bay.newAlien(data, alienId, nextInteger))
 	end
 
 	-- The owner hatches a ready egg (its prompt): the alien goes where it fits, and the first

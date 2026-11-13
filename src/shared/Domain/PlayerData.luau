@@ -5,6 +5,7 @@
 -- and `validate`, and cover the migration with a test on old saved data.
 
 local AlienIndex = require("./AlienIndex")
+local AlienOutfit = require("./AlienOutfit")
 local BigNum = require("./BigNum")
 local LoginGift = require("./LoginGift")
 local Migrations = require("./Migrations")
@@ -17,6 +18,9 @@ local Tutorial = require("./Tutorial")
 export type AlienRecord = {
 	uid: number,
 	id: string,
+	-- What it wears (decision 121): drawn once when it came to be, saved by the pieces' ids
+	-- (AlienOutfit). nil only for an id the game doesn't know.
+	outfit: AlienOutfit.Picks?,
 }
 
 -- An egg hatching in the incubator; hatches once server time passes `hatchAt`.
@@ -130,11 +134,14 @@ export type Defaults = {
 }
 
 export type LoadFailure = "NewerVersion" | "Corrupted"
+-- What loading needs from outside the data: the server's randomness (outfits drawn by the v22
+-- migration and for pieces taken out of the game).
+export type LoadContext = { nextInteger: AlienOutfit.NextInteger }
 export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: LoadFailure, detail: string }
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 21
+PlayerData.SCHEMA_VERSION = 22
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -310,6 +317,24 @@ PlayerData.MIGRATIONS = {
 		end
 		data.inventory = nil
 	end,
+	-- v22: an alien saves its outfit (decision 121). Every alien from before (all of them hatched
+	-- on the old models, none wearing one) draws a random one from its tier's pools, once: the
+	-- profile is saved at v22 and this step never runs on it again.
+	[21] = function(data: { [string]: any }, context: LoadContext)
+		local function dress(record: any)
+			if type(record) == "table" and record.outfit == nil and type(record.id) == "string" then
+				record.outfit = AlienOutfit.forAlien(record.id, context.nextInteger)
+			end
+		end
+		for _, pod in if type(data.pods) == "table" then data.pods else {} do
+			if type(pod) == "table" then
+				dress(pod.alien)
+			end
+		end
+		for _, record in if type(data.floor) == "table" then data.floor else {} do
+			dress(record)
+		end
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -376,6 +401,17 @@ local function validateAlien(record: any, seen: Uids): string?
 	end
 	if type(record.id) ~= "string" or record.id == "" then
 		return "alien id is invalid"
+	end
+	local outfit = record.outfit
+	if outfit ~= nil then
+		if type(outfit) ~= "table" then
+			return "alien outfit is invalid"
+		end
+		for slot, piece in outfit do
+			if not table.find(AlienOutfit.SLOTS, slot) or type(piece) ~= "string" then
+				return "alien outfit is invalid"
+			end
+		end
 	end
 	return validateUid(record, seen)
 end
@@ -644,15 +680,31 @@ local function validate(data: { [string]: any }): string?
 	return validatePurchases(data)
 end
 
+-- Every alien the profile holds (in its pods and on its shelf).
+local function aliensOf(data: PlayerData): { AlienRecord }
+	local list: { AlienRecord } = {}
+	for _, pod in data.pods do
+		if pod.alien then
+			table.insert(list, pod.alien)
+		end
+	end
+	for _, record in data.floor do
+		table.insert(list, record)
+	end
+	return list
+end
+
 -- Loads saved data without touching it: all work happens on a copy, which is returned on success.
--- On failure the caller must not write the profile, so the stored data stays as it was.
-function PlayerData.load(saved: unknown, defaults: Defaults): LoadOutcome
+-- On failure the caller must not write the profile, so the stored data stays as it was. `context`
+-- brings the server's randomness; without it, a fixed sequence (tests, tools).
+function PlayerData.load(saved: unknown, defaults: Defaults, context: LoadContext?): LoadOutcome
+	local loadContext: LoadContext = context or { nextInteger = AlienOutfit.sequence(1) }
 	if type(saved) ~= "table" then
 		return { ok = false, reason = "Corrupted", detail = `saved data is a {type(saved)}` }
 	end
 	local copy = Tables.deepCopy(saved) :: { [string]: any }
 
-	local status, detail = Migrations.run(copy, PlayerData.MIGRATIONS, PlayerData.SCHEMA_VERSION)
+	local status, detail = Migrations.run(copy, PlayerData.MIGRATIONS, PlayerData.SCHEMA_VERSION, loadContext)
 	if status == "NewerVersion" then
 		return { ok = false, reason = "NewerVersion", detail = detail or "" }
 	elseif status ~= "Ok" then
@@ -663,6 +715,15 @@ function PlayerData.load(saved: unknown, defaults: Defaults): LoadOutcome
 	local problem = validate(copy)
 	if problem then
 		return { ok = false, reason = "Corrupted", detail = problem }
+	end
+	-- Outfits fit to wear: a piece taken out of the game is drawn anew, an alien without one (none
+	-- after v22, but cheap to make sure) draws one.
+	for _, record in aliensOf(copy :: any) do
+		if record.outfit then
+			AlienOutfit.repair(record.outfit, record.id, loadContext.nextInteger)
+		else
+			record.outfit = AlienOutfit.forAlien(record.id, loadContext.nextInteger)
+		end
 	end
 	return { ok = true, data = copy :: any }
 end

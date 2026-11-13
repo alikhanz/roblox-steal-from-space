@@ -1,5 +1,6 @@
 --!strict
 
+local AlienOutfit = require("../../src/shared/Domain/AlienOutfit")
 local Bench = require("../../src/shared/Domain/Bench")
 local BigNum = require("../../src/shared/Domain/BigNum")
 local PlayerData = require("../../src/shared/Domain/PlayerData")
@@ -24,7 +25,7 @@ describe("Bench.fill", function()
 	it("adds places up to the most and fills the empty ones, keeping the player's own", function()
 		local data = fresh()
 		data.pods[2].alien = { uid = 1, id = "Own" }
-		expect(Bench.fill(data, ALIENS, MAX_PODS)).toBe(true)
+		expect(Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))).toBe(true)
 		expect(#data.pods).toBe(MAX_PODS)
 		expect((data.pods[2].alien :: PlayerData.AlienRecord).id).toBe("Own")
 		expect((data.pods[1].alien :: PlayerData.AlienRecord).id).toBe("A")
@@ -36,8 +37,8 @@ describe("Bench.fill", function()
 
 	it("does nothing while a bench stands", function()
 		local data = fresh()
-		expect(Bench.fill(data, ALIENS, MAX_PODS)).toBe(true)
-		expect(Bench.fill(data, ALIENS, MAX_PODS)).toBe(false)
+		expect(Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))).toBe(true)
+		expect(Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))).toBe(false)
 		expect(#(data.bench :: PlayerData.BenchRecord).uids).toBe(MAX_PODS)
 	end)
 
@@ -46,7 +47,7 @@ describe("Bench.fill", function()
 		for index = 1, MAX_PODS do
 			data.pods[index] = { alien = { uid = index, id = "Own" } }
 		end
-		expect(Bench.fill(data, ALIENS, MAX_PODS)).toBe(false)
+		expect(Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))).toBe(false)
 		expect(data.bench).toBeNil()
 		expect(#data.pods).toBe(MAX_PODS)
 	end)
@@ -56,7 +57,7 @@ describe("Bench.clear", function()
 	it("takes its aliens and places away and leaves the player's own", function()
 		local data = fresh()
 		data.pods[2].alien = { uid = 1, id = "Own" }
-		Bench.fill(data, ALIENS, MAX_PODS)
+		Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))
 		expect(Bench.clear(data)).toBe(true)
 		expect(#data.pods).toBe(3)
 		expect(data.pods[1].alien).toBeNil()
@@ -66,7 +67,7 @@ describe("Bench.clear", function()
 
 	it("finds its aliens moved to the shelf", function()
 		local data = fresh()
-		Bench.fill(data, ALIENS, MAX_PODS)
+		Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))
 		local moved = data.pods[1].alien :: PlayerData.AlienRecord
 		data.pods[1].alien = nil
 		table.insert(data.floor, moved)
@@ -77,7 +78,7 @@ describe("Bench.clear", function()
 
 	it("keeps an added place that holds the player's own alien", function()
 		local data = fresh()
-		Bench.fill(data, ALIENS, MAX_PODS)
+		Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))
 		data.pods[MAX_PODS].alien = { uid = 9, id = "Own" }
 		Bench.clear(data)
 		expect(#data.pods).toBe(MAX_PODS)
@@ -85,5 +86,19 @@ describe("Bench.clear", function()
 
 	it("does nothing with no bench", function()
 		expect(Bench.clear(fresh())).toBe(false)
+	end)
+end)
+
+describe("Bench.fill outfits", function()
+	it("dresses each alien it adds as a hatched one", function()
+		local AlienConfig = require("../../src/shared/Config/AlienConfig")
+		local data = fresh()
+		local legendary = AlienConfig.GRADES[1].aliens.Legendary
+		expect(Bench.fill(data, { legendary, legendary }, MAX_PODS, AlienOutfit.sequence(3))).toBe(true)
+		for _, pod in data.pods do
+			if pod.alien then
+				expect(((pod.alien :: PlayerData.AlienRecord).outfit :: AlienOutfit.Picks).head).toBe("crown")
+			end
+		end
 	end)
 end)

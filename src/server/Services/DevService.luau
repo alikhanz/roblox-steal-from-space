@@ -28,6 +28,7 @@
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
 --   game.ServerStorage.DevCommands.SetCoachDone:Invoke(0)
 --   game.ServerStorage.DevCommands.FillShelf:Invoke(24)
+--   game.ServerStorage.DevCommands.BenchFamily:Invoke("slime")
 --   game.ServerStorage.DevCommands.SetJetpack:Invoke(5)
 --   game.ServerStorage.DevCommands.ResetCommunityGift:Invoke()
 
@@ -42,6 +43,7 @@ local ActivityConfig = require(ReplicatedStorage.Shared.Config.ActivityConfig)
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
+local Bench = require(ReplicatedStorage.Shared.Domain.Bench)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CarryService = require(script.Parent.CarryService)
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
@@ -51,6 +53,7 @@ local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
+local PetGallery = require(ReplicatedStorage.Shared.Domain.PetGallery)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
@@ -150,6 +153,11 @@ local function aimOf(player: Player, root: BasePart): Vector3
 end
 
 function DevService.new(dependencies: Dependencies): DevService
+	local random = Random.new()
+	-- Outfits of the aliens the commands add (Bay.newAlien).
+	local function nextInteger(min: number, max: number): number
+		return random:NextInteger(min, max)
+	end
 	local infiniteOxygen = DevConfig.STUDIO_INFINITE_OXYGEN
 	-- The last fake receipt SimulatePurchase sent, for ReplayLastReceipt.
 	local lastReceipt: { [string]: any }? = nil
@@ -604,12 +612,40 @@ function DevService.new(dependencies: Dependencies): DevService
 			local added = 0
 			dependencies.update(player, function(current)
 				while #current.floor < target do
-					table.insert(current.floor, { uid = Bay.newUid(current), id = alienId })
+					table.insert(current.floor, Bay.newAlien(current, alienId, nextInteger))
 					added += 1
 				end
 			end)
 			dependencies.refresh(player)
 			return `added {added}; the shelf holds {#data.floor}`
+		end,
+		-- The pet bench (decision 082) with every place of the first player's island filled by a page
+		-- of one family's aliens (Domain/PetGallery, the "/gallery pets" button's pages; `part` from
+		-- 1): to measure a family's models alone, before and after a change (decision 118). Cleared
+		-- by "/bench clear".
+		BenchFamily = function(family: string, part: number?): string
+			local player = firstPlayerRoot()
+			if not player or not dependencies.getData(player) then
+				return "no player or profile"
+			end
+			local aliens: { string }? = nil
+			for _, page in PetGallery.pages(BayConfig.MAX_PODS) do
+				if page.family == family and page.part == (part or 1) then
+					aliens = page.aliens
+				end
+			end
+			if not aliens then
+				return `no page {part or 1} of family {family}`
+			end
+			local chosen: { string } = aliens
+			local filled = false
+			dependencies.update(player, function(data)
+				filled = Bench.fill(data, chosen, BayConfig.MAX_PODS, nextInteger)
+			end)
+			dependencies.refresh(player)
+			return if filled
+				then `bench of {#chosen} {family} aliens`
+				else "a bench stands already (/bench clear first)"
 		end,
 		-- The first player's community gift is not taken again, and the check at join and at the end
 		-- of the tutorial is skipped this playtest: the invitation shows even to a member (the

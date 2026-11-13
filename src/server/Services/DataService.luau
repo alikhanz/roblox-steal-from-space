@@ -60,6 +60,11 @@ local function isInGame(player: Player): boolean
 end
 
 function DataService.new(): DataService
+	local random = Random.new()
+	-- Outfits drawn at load: the v22 migration, pieces taken out of the game (PlayerData.load).
+	local function nextInteger(min: number, max: number): number
+		return random:NextInteger(min, max)
+	end
 	local activated = Signal.new() :: Signal.Signal<Player>
 	local manager: SessionManager.SessionManager? = nil
 
@@ -105,7 +110,7 @@ function DataService.new(): DataService
 				keyFor = keyFor,
 			}),
 			loadData = function(saved)
-				return PlayerData.load(saved, DEFAULTS)
+				return PlayerData.load(saved, DEFAULTS, { nextInteger = nextInteger })
 			end,
 			clock = os.clock,
 			sleep = function(seconds)

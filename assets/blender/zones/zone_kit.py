@@ -27,8 +27,15 @@ OUT_DIR = os.path.abspath(ARGS[0] if ARGS else "out/zone_kit")
 
 # Every rock is modelled this big (radius, studs); the game sizes each copy itself.
 RADIUS = 5.0
-# Ico sphere subdivisions of a rock: 1280 triangles, enough for lumps and craters at a distance.
-ROCK_DETAIL = 4
+# The faceted low-poly style (decision 119, docs/design/LOWPOLY.md): the same shapes as before
+# (the same noise, craters and seeds), cut coarse and flat-shaded. Ico sphere subdivisions: a field
+# rock 2 (80 triangles; 816 copies on the map), a nest rock 3 (320; it stands close, under the egg),
+# a pebble 1 (20). They were 4 (1280) for every rock (asset-count, 2026-11-13).
+ROCK_DETAIL = 2
+NEST_DETAIL = 3
+PEBBLE_DETAIL = 1
+# The nest's rim and cradle: a ring of this many sides, this many round its tube (was 72 x 10).
+RING_SIDES, RING_TUBE = 16, 4
 
 
 # --- Shapes --------------------------------------------------------------------------------------
@@ -72,7 +79,7 @@ def new_object(name, mesh):
     return obj
 
 
-def rock(name, seed, lumps=0.28, craters=5, holes=0, flat_top=False, faceted=False):
+def rock(name, seed, lumps=0.28, craters=5, holes=0, flat_top=False, faceted=False, detail=None):
     """An asteroid: an ico sphere pushed in and out by noise, with crater bowls. `holes` adds small
     deep pits (pumice); `flat_top` cuts the top off flat (a nest rock: the pad stands there);
     `faceted` keeps few big flat faces (an ice chunk). Shading goes into the vertex colours."""
@@ -89,7 +96,7 @@ def rock(name, seed, lumps=0.28, craters=5, holes=0, flat_top=False, faceted=Fal
         inside = list({v for v in hull["geom_interior"] + hull["geom_unused"] if isinstance(v, bmesh.types.BMVert)})
         bmesh.ops.delete(bm, geom=inside, context="VERTS")
     else:
-        bmesh.ops.create_icosphere(bm, subdivisions=ROCK_DETAIL, radius=1.0)
+        bmesh.ops.create_icosphere(bm, subdivisions=detail or ROCK_DETAIL, radius=1.0)
     pits = crater_centres(rng, craters) + [(c, s * 0.3) for c, s in crater_centres(rng, holes)]
     # Not quite round: stretched a little along a random axis.
     stretch = Vector((rng.uniform(0.85, 1.15), rng.uniform(0.85, 1.1), rng.uniform(0.8, 1.05)))
@@ -114,7 +121,8 @@ def rock(name, seed, lumps=0.28, craters=5, holes=0, flat_top=False, faceted=Fal
     bm.to_mesh(mesh)
     bm.free()
     for poly in mesh.polygons:
-        poly.use_smooth = not faceted
+        # Flat: the facets are the style.
+        poly.use_smooth = False
     obj = new_object(name, mesh)
     obj.scale = (RADIUS, RADIUS, RADIUS)
     shade_rock(obj, shades, faceted)
@@ -161,7 +169,7 @@ def pebbles(name, seed):
     rng = random.Random(seed)
     parts = []
     for i in range(7):
-        part = rock(f"{name}_{i}", seed * 100 + i, lumps=0.34, craters=2)
+        part = rock(f"{name}_{i}", seed * 100 + i, lumps=0.34, craters=2, detail=PEBBLE_DETAIL)
         size = rng.uniform(0.2, 0.42)
         part.scale = (RADIUS * size,) * 3
         part.location = (rng.uniform(-0.6, 0.6) * RADIUS, rng.uniform(-0.45, 0.45) * RADIUS, rng.uniform(-0.4, 0.4) * RADIUS)
@@ -212,14 +220,14 @@ def crystals(name, seed, count):
     return obj
 
 
-def ring(name, minor=0.035, segments=72):
+def ring(name, minor=0.035, segments=RING_SIDES):
     """A thin ring, radius 1 x RADIUS, lying flat (the nest's rim and cradle, gravity rings)."""
-    bpy.ops.mesh.primitive_torus_add(major_radius=RADIUS, minor_radius=RADIUS * minor, major_segments=segments, minor_segments=10)
+    bpy.ops.mesh.primitive_torus_add(major_radius=RADIUS, minor_radius=RADIUS * minor, major_segments=segments, minor_segments=RING_TUBE)
     obj = bpy.context.active_object
     obj.name = name
     obj.data.name = name
     for poly in obj.data.polygons:
-        poly.use_smooth = True
+        poly.use_smooth = False
     white(obj)
     return obj
 
@@ -247,8 +255,8 @@ def build():
         rock("Smooth1", 21, lumps=0.14, craters=2),
         rock("Smooth2", 22, lumps=0.18, craters=3),
         rock("Holey", 31, lumps=0.3, craters=3, holes=26),
-        rock("NestRock1", 41, lumps=0.2, craters=4, flat_top=True),
-        rock("NestRock2", 42, lumps=0.26, craters=3, flat_top=True),
+        rock("NestRock1", 41, lumps=0.2, craters=4, flat_top=True, detail=NEST_DETAIL),
+        rock("NestRock2", 42, lumps=0.26, craters=3, flat_top=True, detail=NEST_DETAIL),
         pebbles("Pebbles1", 51),
         pebbles("Pebbles2", 52),
         rock("IceChunk1", 61, faceted=True),

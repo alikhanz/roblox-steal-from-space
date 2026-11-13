@@ -3,6 +3,7 @@
 -- 092) and eggs in the incubator. Pure functions over the saved data that change it in place;
 -- they are meant to run inside one DataService update each.
 
+local AlienOutfit = require("./AlienOutfit")
 local BigNum = require("./BigNum")
 local PlayerData = require("./PlayerData")
 
@@ -19,6 +20,13 @@ function Bay.newUid(data: Data): number
 	local uid = data.nextUid
 	data.nextUid += 1
 	return uid
+end
+
+-- A new alien record for `alienId`: a fresh uid and its outfit, drawn once now from its tier's
+-- pools (decision 121). Every place an alien comes to be (hatching, crossbreeding, gifts, the bench)
+-- makes it here.
+function Bay.newAlien(data: Data, alienId: string, nextInteger: AlienOutfit.NextInteger): Alien
+	return { uid = Bay.newUid(data), id = alienId, outfit = AlienOutfit.forAlien(alienId, nextInteger) }
 end
 
 local function indexOf(list: { Alien }, uid: number): number?

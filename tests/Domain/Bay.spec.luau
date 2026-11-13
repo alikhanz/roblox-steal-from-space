@@ -418,3 +418,33 @@ describe("Bay.capsulesFor", function()
 		expect(capsules[5]).toBe(2)
 	end)
 end)
+
+describe("Bay.newAlien", function()
+	it("gives a new uid and an outfit drawn from the alien's tier's pools", function()
+		local AlienConfig = require("../../src/shared/Config/AlienConfig")
+		local AlienOutfit = require("../../src/shared/Domain/AlienOutfit")
+		local data = fresh()
+		local nextInteger = AlienOutfit.sequence(4)
+		local seen: { [number]: boolean } = {}
+		for _, tier in AlienConfig.TIER_ORDER do
+			local id = AlienConfig.GRADES[1].aliens[tier]
+			local record = Bay.newAlien(data, id, nextInteger)
+			expect(seen[record.uid]).toBeNil()
+			seen[record.uid] = true
+			expect(record.id).toBe(id)
+			local outfit = record.outfit :: AlienOutfit.Picks
+			expect(outfit).toBeTruthy()
+			for _, slot in AlienOutfit.SLOTS do
+				local piece = (outfit :: any)[slot]
+				if piece then
+					expect(AlienOutfit.isPiece(slot, piece)).toBe(true)
+				end
+			end
+			if tier == "Legendary" then
+				expect(outfit.head).toBe("crown")
+			elseif tier == "Common" then
+				expect(outfit.back).toBeNil()
+			end
+		end
+	end)
+end)

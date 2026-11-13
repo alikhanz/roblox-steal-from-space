@@ -81,6 +81,10 @@ end
 
 function EconomyService.new(dependencies: Dependencies): EconomyService
 	local random = Random.new()
+	-- A crossbred alien's outfit is drawn with it (Bay.newAlien).
+	local function nextInteger(min: number, max: number): number
+		return random:NextInteger(min, max)
+	end
 	local crossbred = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
 	local trainerUpgraded = Signal.new() :: Signal.Signal<Player>
 	local jetpackUpgraded = Signal.new() :: Signal.Signal<Player>
@@ -180,7 +184,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			local kind = Crossbreed.resultKind(kinds, random:NextNumber())
 			resultId = AlienConfig.GRADES[first.grade].variants[first.variant][kind][tier]
 			-- Three went, one comes: there is always room for it.
-			resultLocation = Bay.addHatched(data, { uid = Bay.newUid(data), id = resultId :: string })
+			resultLocation = Bay.addHatched(data, Bay.newAlien(data, resultId :: string, nextInteger))
 		end)
 		if not notice and resultId and resultLocation then
 			crossbred.fire(player, resultId, resultLocation)

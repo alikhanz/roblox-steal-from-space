@@ -5,7 +5,7 @@
 -- is grey in its vertex colours; whoever takes a copy gives it its size, turn, material and colour.
 -- Without the kit in the place the world stands in greybox: `piece` returns nil.
 --
--- Into the place (decision 085): Open Cloud asset 137199388945832 (zone-kit.glb) inserted into
+-- Into the place (decision 085): Open Cloud asset 103312508143569 (zone-kit.glb, faceted, decision 119) into
 -- ServerStorage, its MeshParts moved into a Folder `ZoneKit`; the rocks get CollisionFidelity Hull
 -- (Studio only: a game server can't set it), the crystals and the ring Box. Save the place.
 
