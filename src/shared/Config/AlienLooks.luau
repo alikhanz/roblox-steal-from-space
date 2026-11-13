@@ -169,10 +169,11 @@ local MOTION = table.freeze({
 		radianceTransparency = 0.92,
 		heartTransparency = 0.9,
 		-- The radiance and the medal of rays are sized by the body alone (no wings, no outfit), this
-		-- many times its half-width: the share of the whole pet they had before the low-poly pets.
-		-- Sized by the whole pet, the low-poly wings' wide span blew them up into a white blot behind
-		-- a bench of legendaries (user, 2026-11-13).
-		bodyRadius = 1.1,
+		-- many times its half-width: the share of the body they had before the low-poly pets (the old
+		-- legendary slime's radiance was 1.13 times its body's width, mostly hidden behind it). Sized
+		-- by the whole pet, the same glow stood round a body half as wide and the wings' span pushed
+		-- it further: a white blot behind a bench of legendaries (user, 2026-11-13).
+		bodyRadius = 0.95,
 	}),
 	-- A wing's glowing lines (AlienDress.colorWings) this see-through: a little dimmer than plain
 	-- Neon; the faint membrane between them stays at `membrane` (user, 2026-11-13).
