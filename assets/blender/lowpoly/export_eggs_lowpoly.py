@@ -82,10 +82,13 @@ def main():
                               export_texcoords=False, export_normals=True, export_materials="NONE")
     print("Wrote", path, len(objects), "nodes", os.path.getsize(path), "bytes")
     print("Shapes:", ", ".join(f"{name} {count}" for name, count in triangles.items()))
+    tops = {obj.name: max(v.co.z for v in obj.data.vertices) for obj in objects}
     for finish in ("Normal", "Meteor", "Star"):
         for rarity in TIERS:
             pieces = worn(rarity, finish)
             print(f"  {finish:6} {rarity:9} {sum(triangles[p] for p in pieces):4} triangles in {len(pieces)} parts")
+        # EggLooks.reachOf keeps these: how high an egg of each kind reaches over its centre.
+        print(f"  {finish} reaches {max(tops[p] for p in worn('Legendary', finish) + worn('Uncommon', finish)):.2f}")
 
 
 if __name__ == "__main__":

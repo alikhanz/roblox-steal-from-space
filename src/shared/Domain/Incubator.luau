@@ -24,10 +24,17 @@ end
 
 -- How far above the centre of an egg `eggHeight` tall, hovering in an open capsule, its chip
 -- hangs: `overPod` over the petals' tips, so the chips of the ring stand in one even row; an egg
--- taller than the petals (with the room it wears) puts its chip `overEgg` over its own top.
-function Incubator.chipAbove(eggHeight: number, shape: Shape, overPod: number, overEgg: number): number
+-- reaching higher than that (`eggReach` above its centre, with what it wears on top) puts its
+-- chip `overEgg` over its own top.
+function Incubator.chipAbove(
+	eggHeight: number,
+	eggReach: number,
+	shape: Shape,
+	overPod: number,
+	overEgg: number
+): number
 	local overTips = shape.POD_HEIGHT + overPod - shape.EGG_FLOOR - eggHeight / 2
-	return math.max(overTips, eggHeight / 2 + overEgg)
+	return math.max(overTips, eggReach + overEgg)
 end
 
 return table.freeze(Incubator)

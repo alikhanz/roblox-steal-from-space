@@ -50,7 +50,7 @@ describe("Incubator.chipAbove", function()
 			local height = MEDIUM_EGG_HEIGHT * size.scale
 			if IncubatorShape.EGG_FLOOR + height + 0.5 < IncubatorShape.POD_HEIGHT then
 				local centre = IncubatorShape.EGG_FLOOR + height / 2
-				local chip = centre + Incubator.chipAbove(height, IncubatorShape, 0.6, 0.5)
+				local chip = centre + Incubator.chipAbove(height, height / 2, IncubatorShape, 0.6, 0.5)
 				expect(close(chip, IncubatorShape.POD_HEIGHT + 0.6)).toBe(true)
 			end
 		end
@@ -58,7 +58,12 @@ describe("Incubator.chipAbove", function()
 
 	it("hangs a taller egg's chip over the egg itself", function()
 		local height = 4
-		expect(close(Incubator.chipAbove(height, IncubatorShape, 0.6, 0.5), height / 2 + 0.5)).toBe(true)
+		expect(close(Incubator.chipAbove(height, height / 2, IncubatorShape, 0.6, 0.5), height / 2 + 0.5)).toBe(true)
+	end)
+
+	it("hangs the chip over what an egg wears on top, not its box", function()
+		local height = 3
+		expect(close(Incubator.chipAbove(height, 2.6, IncubatorShape, 0.6, 0.5), 3.1)).toBe(true)
 	end)
 end)
 

@@ -9,6 +9,7 @@
 -- what the game paints on them (GEM).
 
 local EggConfig = require("./EggConfig")
+local EggKind = require("../Domain/EggKind")
 
 export type RarityLook = {
 	-- The rarity's colour wherever it is shown: the trail, sparks, the interface, and on the egg
@@ -62,10 +63,22 @@ local function liftOf(size: EggConfig.SizeId): number
 	return EGG_SIZE.Y / 2 * (EggConfig.SIZES[size].scale - 1)
 end
 
+-- How far above its centre a medium gem egg reaches with what it wears on top, studs
+-- (the kit's export prints them: assets/blender/lowpoly/export_eggs_lowpoly.py): the tip, the
+-- meteor's flame, the star egg's star. Its box (EGG_SIZE) ends at 1.05.
+local REACH: { [EggKind.Kind]: number } = { Normal = 1.37, Meteor = 1.55, Star = 1.73 }
+
+-- How far above its centre an egg of `kind` `height` studs tall reaches: what hangs over an egg
+-- (its chip) stands above this, not above its box.
+local function reachOf(kind: EggKind.Kind, height: number): number
+	return REACH[kind] * height / EGG_SIZE.Y
+end
+
 return table.freeze({
 	RARITIES = table.freeze(RARITIES),
 	EGG_SIZE = EGG_SIZE,
 	liftOf = liftOf,
+	reachOf = reachOf,
 
 	-- The glowing ribbon behind an egg on the move, in the egg's color. It always faces the
 	-- camera, so it is seen from behind too. Width is studs across; lifetime is how long a piece

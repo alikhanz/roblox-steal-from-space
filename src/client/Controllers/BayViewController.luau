@@ -23,6 +23,7 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggIcon = require(script.Parent.Parent.UI.EggIcon)
+local EggKind = require(ReplicatedStorage.Shared.Domain.EggKind)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local Incubator = require(ReplicatedStorage.Shared.Domain.Incubator)
 local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
@@ -152,6 +153,15 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 	-- Mounts a label once the part is there; the server builds models part by part.
 	-- Signs with buttons mount here: a BillboardGui takes clicks only from inside PlayerGui.
 	local playerGui: Instance? = nil
+
+	-- How far above its centre an egg part reaches, with its tip, flame or star (EggModel marks
+	-- its variant and luck).
+	local function eggReach(part: BasePart): number
+		local variant = part:GetAttribute(EggConfig.EGG_VARIANT_ATTRIBUTE)
+		local isLucky = part:GetAttribute(EggConfig.EGG_LUCKY_ATTRIBUTE) == true
+		local kind = EggKind.of(if type(variant) == "string" then variant else nil, isLucky)
+		return EggLooks.reachOf(kind, part.Size.Y)
+	end
 
 	-- An egg's rarity colour for its chip (EggLooks), the egg's colour when unknown.
 	local function eggColor(part: BasePart): Color3
@@ -573,6 +583,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				end,
 				studsAbove = Incubator.chipAbove(
 					part.Size.Y,
+					eggReach(part),
 					IncubatorShape,
 					BayLooks.EGG_CHIP_OVER_POD,
 					BayLooks.EGG_CHIP_OVER_EGG
@@ -591,7 +602,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				iconColor = eggColor(part),
 				text = Text.get(locale, "egg.waiting.hint"),
 				color = Theme.NEON.MUTED,
-				studsAbove = part.Size.Y / 2 + EGG_STUDS_ABOVE_TOP,
+				studsAbove = eggReach(part) + EGG_STUDS_ABOVE_TOP,
 				maxDistance = CONTENTS_MAX_DISTANCE,
 			}),
 				nil
