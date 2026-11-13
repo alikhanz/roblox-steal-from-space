@@ -306,6 +306,10 @@ function AlienViewController.new(dependencies: Dependencies): AlienViewControlle
 		end
 	end
 
+	-- Where the camera was at the last check, and when.
+	local lastEye = Vector3.zero
+	local lastCheck = 0
+
 	local function check()
 		local camera = workspace.CurrentCamera
 		if not camera then
@@ -313,9 +317,11 @@ function AlienViewController.new(dependencies: Dependencies): AlienViewControlle
 		end
 		local eye = camera.CFrame.Position
 		local now = os.clock()
+		local ahead = PetView.ahead(eye, lastEye, now - lastCheck, VIEW.LEAD_SECONDS, VIEW.LEAD_MAX_SPEED)
+		lastEye, lastCheck = eye, now
 		local fromCentres: { number } = {}
 		for island, centre in CENTRES do
-			fromCentres[island] = (eye - centre).Magnitude
+			fromCentres[island] = math.min((eye - centre).Magnitude, (ahead - centre).Magnitude)
 		end
 		local was = levels
 		levels = PetView.levels(fromCentres, was, VIEW)

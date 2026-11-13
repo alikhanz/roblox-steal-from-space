@@ -227,6 +227,11 @@ local VIEW = table.freeze({
 	HOLD_ISLANDS = 2,
 	-- How often the distances are checked, seconds.
 	CHECK_SECONDS = 0.25,
+	-- The distances are taken from where the camera will be this much later too (PetView.ahead):
+	-- at 250 studs/s the pets turned whole only 13 studs before the dome, at 48 85 studs (Studio,
+	-- 2026-11-14). A camera faster than LEAD_MAX_SPEED (a respawn, a jump of the view) jumped.
+	LEAD_SECONDS = 0.75,
+	LEAD_MAX_SPEED = 600,
 	-- Pets built a frame at most, the nearest first: an island of thirty comes in under a second.
 	BUILDS_PER_FRAME = 2,
 	-- Plain pets made whole a frame at most (their effects only): an island of thirty in 5 frames.

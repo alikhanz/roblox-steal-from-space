@@ -54,6 +54,21 @@ function PetView.levels(distances: { number }, was: { [number]: Level }, reach: 
 	return levels
 end
 
+-- Where the camera will be `lead` seconds on, moving from `last` to `eye` in `seconds` (no faster
+-- than `maxSpeed` studs a second: a jump, as a respawn, is not a flight). An island's pets are
+-- shown by the nearer of the two, so a fast flight finds them whole on arrival.
+function PetView.ahead(eye: Vector3, last: Vector3, seconds: number, lead: number, maxSpeed: number): Vector3
+	if seconds <= 0 then
+		return eye
+	end
+	local velocity = (eye - last) / seconds
+	local speed = velocity.Magnitude
+	if speed > maxSpeed then
+		return eye
+	end
+	return eye + velocity * lead
+end
+
 -- The island (its index in `centres`) a pet standing at `position` belongs to: the nearest centre.
 function PetView.nearest(position: Vector3, centres: { Vector3 }): number
 	local best, bestDistance = 1, math.huge

@@ -67,6 +67,21 @@ describe("PetView.levels", function()
 	end)
 end)
 
+describe("PetView.ahead", function()
+	it("leads the camera along its flight", function()
+		local ahead = PetView.ahead(Vector3.new(10, 0, 0), Vector3.new(0, 0, 0), 0.25, 0.75, 600)
+		expect(ahead.X).toBe(40)
+		expect(ahead.Y).toBe(0)
+	end)
+
+	it("stays put for a camera standing still, a jump or no time", function()
+		local eye = Vector3.new(5, 0, 5)
+		expect(PetView.ahead(eye, eye, 0.25, 0.75, 600)).toBe(eye)
+		expect(PetView.ahead(eye, Vector3.new(1000, 0, 0), 0.25, 0.75, 600)).toBe(eye)
+		expect(PetView.ahead(eye, Vector3.zero, 0, 0.75, 600)).toBe(eye)
+	end)
+end)
+
 describe("PetView.nearest", function()
 	it("gives the island whose centre is nearest", function()
 		local centres = { Vector3.new(100, 0, 0), Vector3.new(0, 0, 100), Vector3.new(-100, 0, 0) }
