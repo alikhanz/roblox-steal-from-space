@@ -262,6 +262,12 @@ class Library:
             self.meshes[name] = self._new(name, self._builder(name))
         return self.meshes[name]
 
+    def custom(self, name, fill):
+        """A piece drawn by its own function (`fill` builds it into a bmesh), shared like the rest."""
+        if name not in self.meshes:
+            self.meshes[name] = self._new(name, fill)
+        return self.meshes[name]
+
     def _shape(self, name):
         return SHAPES[self.style][name]
 

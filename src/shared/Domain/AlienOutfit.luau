@@ -22,11 +22,11 @@ export type Slot = "head" | "aura" | "back"
 local HEAD: { string | false } = { "horns", "crest", "feelers" }
 local AURA_LOW: { string | false } = { "halo", "shards" }
 local AURA: { string | false } = { "halo", "shards", "rings" }
-local WINGS: { string | false } = { "fairy", "feather", "mech", "crystal" }
+local WINGS: { string | false } = { "butterfly", "angel", "dragon", "crystal", "sail" }
 local POOLS: { { [Slot]: { string | false } } } = {
 	{ head = { "horns", "crest", "feelers", false } },
 	{ head = HEAD, aura = AURA_LOW },
-	{ head = HEAD, aura = AURA, back = { "jetpack", "featherSmall" } },
+	{ head = HEAD, aura = AURA, back = { "jetpack", "angelSmall", "butterflySmall" } },
 	{ head = HEAD, aura = AURA, back = WINGS },
 	{ head = { "crown" }, aura = { "halo", "shards", "rings", "star" }, back = WINGS },
 }

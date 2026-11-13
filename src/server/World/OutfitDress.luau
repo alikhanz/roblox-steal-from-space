@@ -11,14 +11,26 @@ local GOLD_BODY = "S255,190,45,0,0.35,Gold"
 local GOLD = "255,200,70"
 local FIRE = "255,173,80"
 -- The paint sources whose colour is the tier's (the kit is exported in tier 2's blue).
-local TIER_SOURCES = { TierBody = true, TierGlow = true, TierGlass = true, EnergyWing = true, Jet = true }
+local TIER_SOURCES = {
+	TierBody = true,
+	TierGlow = true,
+	TierGlass = true,
+	TierDeep = true,
+	TierLight = true,
+	EnergyWing = true,
+	Jet = true,
+}
+-- The tier's darker and lighter tones (a wing's bones and its top feathers), from its colour.
+local DEEP, LIGHT = 0.45, 0.5
 -- Back pieces: the kit's piece, and its size against the wing span of its slot.
 local WINGS: { [string]: { piece: string, size: number } } = {
-	fairy = { piece = "wingFairy", size = 1 },
-	feather = { piece = "wingFeather", size = 1 },
-	featherSmall = { piece = "wingFeather", size = 0.55 },
-	mech = { piece = "wingMech", size = 1 },
+	butterfly = { piece = "wingButterfly", size = 1 },
+	angel = { piece = "wingAngel", size = 1 },
+	dragon = { piece = "wingDragon", size = 1 },
 	crystal = { piece = "wingCrystal", size = 1 },
+	sail = { piece = "wingSail", size = 1 },
+	angelSmall = { piece = "wingAngel", size = 0.6 },
+	butterflySmall = { piece = "wingButterfly", size = 0.6 },
 }
 -- An epic's wings a little smaller than a legendary's (robo.py).
 local EPIC_WINGS = 0.85
@@ -49,6 +61,15 @@ local function repaint(code: string, tier: number, meteor: boolean, tierColor: s
 		return GOLD_BODY
 	end
 	local colour = if meteor then FIRE elseif tier == 4 then GOLD else tierColor
+	if source == "TierDeep" or source == "TierLight" then
+		local r, g, b = string.match(colour, "(%d+),(%d+),(%d+)")
+		local parts = {}
+		for _, value in { tonumber(r) or 0, tonumber(g) or 0, tonumber(b) or 0 } do
+			local tone = if source == "TierDeep" then value * DEEP else value + (255 - value) * LIGHT
+			table.insert(parts, tostring(math.round(tone)))
+		end
+		colour = table.concat(parts, ",")
+	end
 	return `{letter}{colour},{transparency},{reflectance},{source}`
 end
 

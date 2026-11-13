@@ -15,6 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import lowpoly_pets as pets  # noqa: E402
+import lowpoly_wings as wingkit  # noqa: E402
 from mathutils import Euler, Matrix, Vector  # noqa: E402
 
 D = math.radians
@@ -25,11 +26,11 @@ D = math.radians
 HEAD = ["horns", "crest", "feelers"]
 AURA_LOW = ["halo", "shards"]
 AURA = ["halo", "shards", "rings"]
-WINGS = ["fairy", "feather", "mech", "crystal"]
+WINGS = ["butterfly", "angel", "dragon", "crystal", "sail"]
 POOLS = {
     0: {"head": HEAD + [None]},
     1: {"head": HEAD, "aura": AURA_LOW},
-    2: {"head": HEAD, "aura": AURA, "back": ["jetpack", "featherSmall"]},
+    2: {"head": HEAD, "aura": AURA, "back": ["jetpack", "angelSmall", "butterflySmall"]},
     3: {"head": HEAD, "aura": AURA, "back": WINGS},
     4: {"head": ["crown"], "aura": AURA + ["star"], "back": WINGS},
 }
@@ -127,27 +128,33 @@ def _wing_pair(ctx, info, size, put_side):
         put_side(hinge, span, tuple(turn.to_euler()), "wingL" if side < 0 else "wingR")
 
 
+# Back pieces: wings of a kind (lowpoly_wings.py), a smaller pair on a rare, or a jetpack.
+WING_TYPES = list(wingkit.WINGS)
+SMALL_WINGS = {"angelSmall": "angel", "butterflySmall": "butterfly"}
+SMALL = 0.6
+
+
+def wing_parts(ctx, kind):
+    """The kind's wing parts as meshes of the library: [(mesh, paint key)]."""
+    library = ctx.pet.library
+    return [(library.custom(f"wing_{kind}_{part}", fill), key) for part, key, fill in wingkit.WINGS[kind]()]
+
+
 def back(ctx, info, piece):
-    size = 0.85 if ctx.tier == 3 else 1.0
     if piece == "jetpack":
         pets.jetpack(ctx, info)
-    elif piece == "fairy":
-        pets.wings(ctx, info, size)
-    elif piece in ("feather", "featherSmall"):
-        mesh = _mesh(ctx, "feather")
-        scale = 0.55 if piece == "featherSmall" else size
-        _wing_pair(ctx, info, scale, lambda at, span, rot, role: ctx.put(mesh, at, span * 0.75, "tierBody", rot, role))
-    elif piece == "mech":
-        frame, panel = _mesh(ctx, "mech_frame"), _mesh(ctx, "mech_panel")
+        return
+    kind = SMALL_WINGS.get(piece, piece)
+    if kind not in wingkit.WINGS:
+        return
+    size = SMALL if piece in SMALL_WINGS else (0.85 if ctx.tier == 3 else 1.0)
+    parts = wing_parts(ctx, kind)
 
-        def put(at, span, rot, role):
-            ctx.put(frame, at, span * 0.8, "engine", rot, role)
-            ctx.put(panel, at, span * 0.8, "wing", rot, role)
+    def put(at, span, rotation, role):
+        for mesh, key in parts:
+            ctx.put(mesh, at, span, key, rotation, role)
 
-        _wing_pair(ctx, info, size, put)
-    elif piece == "crystal":
-        mesh = _mesh(ctx, "crystal_wing")
-        _wing_pair(ctx, info, size, lambda at, span, rot, role: ctx.put(mesh, at, span * 0.9, "wing", rot, role))
+    _wing_pair(ctx, info, size, put)
 
 
 def aura(ctx, info, piece):
@@ -193,8 +200,8 @@ def dresser(picks):
 
 
 LABELS = {"horns": "рожки", "crest": "гребень", "feelers": "усики", None: "—", "halo": "нимб", "shards": "осколки", "rings": "кольца",
-          "star": "звезда", "jetpack": "ранец", "featherSmall": "крылышки", "fairy": "стрекоза", "feather": "перья", "mech": "механика",
-          "crystal": "кристаллы", "crown": "корона"}
+          "star": "звезда", "jetpack": "ранец", "angelSmall": "пёрышки", "butterflySmall": "бабочка-малютка", "butterfly": "бабочка",
+          "angel": "ангел", "dragon": "дракон", "crystal": "кристаллы", "sail": "солнечный парус", "crown": "корона"}
 
 
 # --- For the game: where each slot sits on a kind, and the pieces as a kit ------------------------------
@@ -240,14 +247,8 @@ def kit(ctx):
         s = "L" if side < 0 else "R"
         rotation = tuple(_turn(side).to_euler())
         role = "wing" + s
-        dust = []
-        for index, (x, y) in enumerate(robo_wing_dust()):
-            dust.append((f"dust{s}{index + 1}", tuple(_turn(side) @ Vector((x, 0.0, y)))))
-        pieces["wingFairy" + s] = ([("wing", (0, 0, 0), 1.0, "wing", rotation, role), ("wing_edge", (0, 0, 0), 1.0, "wingEdge", rotation, role)], dust)
-        pieces["wingFeather" + s] = ([(_mesh(ctx, "feather"), (0, 0, 0), 0.75, "tierBody", rotation, role)], [])
-        pieces["wingMech" + s] = ([(_mesh(ctx, "mech_frame"), (0, 0, 0), 0.8, "engine", rotation, role),
-                                    (_mesh(ctx, "mech_panel"), (0, 0, 0), 0.8, "wing", rotation, role)], [])
-        pieces["wingCrystal" + s] = ([(_mesh(ctx, "crystal_wing"), (0, 0, 0), 0.9, "tierGlass", rotation, role)], [])
+        for kind in wingkit.WINGS:
+            pieces["wing" + kind[0].upper() + kind[1:] + s] = ([(mesh, (0, 0, 0), 1.0, key, rotation, role) for mesh, key in wing_parts(ctx, kind)], [])
     tank = ctx.pet.library.compose("tank", [
         ("can", (0, 0, 0), (0.11, 0.11, 0.21), (0, 0, 0)),
         ("ball", (0, 0, 0.21), (0.11, 0.11, 0.07), (0, 0, 0)),
