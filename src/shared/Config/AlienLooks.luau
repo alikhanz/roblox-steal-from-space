@@ -209,7 +209,12 @@ local MOTION = table.freeze({
 -- ring; user, 2026-11-14: the empty places of the neighbours read as black circles). An island
 -- left with neither is hidden, not taken apart: back within HOLD_SECONDS, its pets show at once.
 -- At most HOLD_ISLANDS islands are held so, the longest hidden going first (user, 2026-11-13).
-local PAST_DOME = 60
+-- 100 studs out: from there to the dome is 2 s at the starting flight speed (48 studs/s), 0.4 s at
+-- 250; a neighbour shown plain is made whole in about 0.3 s (a check, then WHOLE_PER_FRAME). At
+-- 60 the user found the pets came in only on arrival (2026-11-14). Leaving at REACH + MARGIN is
+-- still short of a neighbour's centre (StationSize: 305 studs apart), so from the middle of one's
+-- island the neighbours stand plain.
+local PAST_DOME = 100
 -- Two neighbouring islands' centres apart on the ring (StationSize).
 local NEIGHBOUR_SPACING = 2 * StationSize.ISLAND_DOME_RADIUS + StationSize.ISLAND_GAP
 local VIEW = table.freeze({
@@ -224,6 +229,8 @@ local VIEW = table.freeze({
 	CHECK_SECONDS = 0.25,
 	-- Pets built a frame at most, the nearest first: an island of thirty comes in under a second.
 	BUILDS_PER_FRAME = 2,
+	-- Plain pets made whole a frame at most (their effects only): an island of thirty in 5 frames.
+	WHOLE_PER_FRAME = 6,
 	-- The folder in ReplicatedStorage the server copies the kinds' models the clients need into,
 	-- from ServerStorage.Aliens (World/AlienModel): only those of the pets on the server.
 	FOLDER = "AlienModels",

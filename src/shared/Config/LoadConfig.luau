@@ -18,9 +18,12 @@ return table.freeze({
 		-- The star serpent, a guardian near the camera: they are in front of the player right now.
 		SERPENT = 5,
 		GUARDIAN = 5,
-		-- Pets on the player's own island, then everyone else's.
-		OWN_PETS = 3,
-		PETS = 2,
+		-- The kinds' models of the pets on the player's own island, then of other islands shown
+		-- whole, then of the islands shown plain (AlienViewController, decision 123): the pets near
+		-- the player come in first, the neighbours' after them.
+		OWN_PETS = 4,
+		PETS = 3,
+		PLAIN_PETS = 2,
 		-- The alien icon sheets: windows open later.
 		ICONS = 1,
 	}),

@@ -51,6 +51,20 @@ function PetTemplate.petName(alien: AlienConfig.Alien): string
 	return `{alien.kind}-{if alien.variant == "Meteor" then "m" else ""}{tier}`
 end
 
+-- The names of the models in the cache's set `alien`'s pet is built from: its own, and the outfit
+-- kit for a body that wears one. Nil while the set has no model of it.
+function PetTemplate.sources(cache: Cache, alien: AlienConfig.Alien): { string }?
+	local name = PetTemplate.petName(alien)
+	local source = cache.find(name)
+	if not (source and source:IsA("Model")) then
+		return nil
+	end
+	if source:GetAttribute(OUTFIT_ATTRIBUTE) == true then
+		return { name, PetTemplate.OUTFIT_NAME }
+	end
+	return { name }
+end
+
 -- The lowest point, the widest span across and the height of the pet's visible parts, in its
 -- pivot's frame.
 local function measure(model: Model): (number, number, number)

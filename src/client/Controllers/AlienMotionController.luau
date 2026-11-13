@@ -24,17 +24,14 @@
 -- what each part does is worked out once, as the pet arrives (RigMotion.read), and the parts never
 -- seen (hinge markers, Blender's hidden flames and rays) are not moved at all.
 
-local CollectionService = game:GetService("CollectionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
-local AssetQueue = require(script.Parent.Parent.Loading.AssetQueue)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
-local LoadConfig = require(ReplicatedStorage.Shared.Config.LoadConfig)
 local PetMotion = require(ReplicatedStorage.Shared.Domain.PetMotion)
 local RigMotion = require(script.Parent.Parent.World.RigMotion)
 
@@ -45,18 +42,6 @@ local LOOK_LIMIT = math.rad(MOTION.LOOK_LIMIT_DEGREES)
 local LABEL_PART = "Body"
 -- The dressing's effects carrier: only a dressed pet has it.
 local EFFECTS_PART = "Fx"
-
--- Whether a pet's box stands in the local player's own bay (its tagged bay model's owner).
-local function isOwnPet(stand: Instance): boolean
-	local at = stand.Parent
-	while at and at ~= workspace do
-		if CollectionService:HasTag(at, BayConfig.TAG) then
-			return at:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE) == Players.LocalPlayer.UserId
-		end
-		at = at.Parent
-	end
-	return false
-end
 
 export type AlienMotionController = {
 	name: string,
@@ -348,16 +333,6 @@ function AlienMotionController.new(): AlienMotionController
 					pet.glide = { from = pet.base, to = pivot, start = os.clock() }
 				end
 			end)
-			-- Many new meshes at once: ask for them all, or some stay unloaded (half a pet missing).
-			-- After the player's jetpack, the player's own pets first (AssetQueue).
-			local meshes: { AssetQueue.Asset } = {}
-			for _, part in RigMotion.parts(pet.rig) do
-				if part:IsA("MeshPart") then
-					table.insert(meshes, part)
-				end
-			end
-			local priority = if isOwnPet(stand) then LoadConfig.PRIORITY.OWN_PETS else LoadConfig.PRIORITY.PETS
-			AssetQueue.later(`pet {stand.Name}`, priority, meshes)
 		end)
 	end
 

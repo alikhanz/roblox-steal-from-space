@@ -12,8 +12,17 @@
 -- not taken apart, and comes back at once if the camera returns within a minute; a few islands at
 -- most are held so, the longest hidden going first. A phone was sent every pet on the map, about a
 -- hundred objects each with its effects (2026-11-13).
+--
+-- In what order (decision 102, Loading/AssetQueue): a pet is built only once the models it is
+-- built from are in, and they are asked for an island at a time, one preload each: the player's
+-- own island first, then other islands shown whole, then the plain ones (LoadConfig.PRIORITY). So
+-- at the join the own island comes in whole, then its neighbours plain; a neighbour's meshes are
+-- in before the player flies over, and making its pets whole there is only their effects. One
+-- preload a pet, queued one after another, had an island's meshes in only seconds after the
+-- player arrived (user, 2026-11-14).
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -68,6 +77,18 @@ local function sharedModel(name: string): Instance?
 	return folder and folder:FindFirstChild(name)
 end
 
+-- Whether a pet's box stands in the local player's own bay (its tagged bay model's owner).
+local function isOwnPet(stand: Instance): boolean
+	local at = stand.Parent
+	while at and at ~= workspace do
+		if CollectionService:HasTag(at, BayConfig.TAG) then
+			return at:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE) == Players.LocalPlayer.UserId
+		end
+		at = at.Parent
+	end
+	return false
+end
+
 function AlienViewController.new(dependencies: Dependencies): AlienViewController
 	local motion = dependencies.motion
 	local templates = PetTemplate.cache(sharedModel, false)
@@ -79,6 +100,11 @@ function AlienViewController.new(dependencies: Dependencies): AlienViewControlle
 	-- Boxes on shown islands whose pet is missing or not shown as its island is, the nearest first
 	-- (renewed at every check).
 	local queue: { Entry } = {}
+	-- The shared models asked for (AssetQueue), and those whose assets are in, by name.
+	local asked: { [string]: boolean } = {}
+	local loaded: { [string]: boolean } = {}
+	-- The meteor pets' lava skin goes with the first models asked for.
+	local skinsAsked = false
 
 	local function isPlain(entry: Entry): boolean
 		return entry.stand:GetAttribute(BayConfig.ALIEN_PLAIN_ATTRIBUTE) == true
@@ -160,16 +186,6 @@ function AlienViewController.new(dependencies: Dependencies): AlienViewControlle
 		follow(entry, look)
 		if level == "Whole" then
 			makeWhole(entry, look)
-		else
-			-- Its meshes asked for, as a moving one's are (AlienMotionController): two islands of them
-			-- come at once.
-			local meshes: { AssetQueue.Asset } = {}
-			for _, part in look:GetDescendants() do
-				if part:IsA("MeshPart") then
-					table.insert(meshes, part)
-				end
-			end
-			AssetQueue.later(`pet {stand.Name}`, LoadConfig.PRIORITY.PETS, meshes)
 		end
 		return true
 	end
@@ -206,12 +222,88 @@ function AlienViewController.new(dependencies: Dependencies): AlienViewControlle
 		end
 	end
 
+	-- The names of the shared models `entry`'s pet is built from, nil while they have not come.
+	local function sourcesOf(entry: Entry): { string }?
+		local alienId = entry.stand:GetAttribute(BayConfig.ALIEN_ID_ATTRIBUTE)
+		local alien = if type(alienId) == "string" then AlienConfig.ALIENS[alienId] else nil
+		if not alien then
+			entry.broken = true
+			warn(`[AlienViewController] {entry.stand:GetFullName()} names no pet this build can make; not shown`)
+			return nil
+		end
+		return PetTemplate.sources(templates, alien)
+	end
+
+	local function isLoaded(entry: Entry): boolean
+		local names = sourcesOf(entry)
+		if not names then
+			return false
+		end
+		for _, name in names do
+			if not loaded[name] then
+				return false
+			end
+		end
+		return true
+	end
+
 	local function needsWork(entry: Entry): boolean
 		if entry.broken or entries[entry.stand] ~= entry then
 			return false
 		end
 		local level = wanted(entry)
-		return level ~= nil and entry.level ~= level
+		if level == nil or entry.level == level then
+			return false
+		end
+		-- A plain pet made whole is only its effects; anything built needs its models in.
+		return (entry.look ~= nil and level == "Whole") or isLoaded(entry)
+	end
+
+	-- Asks for the models of the pets to be shown that have not been asked for yet: one preload
+	-- for each priority (LoadConfig.PRIORITY), the own island's first.
+	local function askForModels()
+		local byPriority: { [number]: { string } } = {}
+		for _, entry in entries do
+			local level = levels[entry.island]
+			if entry.broken or not level then
+				continue
+			end
+			local names = sourcesOf(entry)
+			if not names then
+				continue
+			end
+			local priority = if level == "Plain"
+				then LoadConfig.PRIORITY.PLAIN_PETS
+				elseif isOwnPet(entry.stand) then LoadConfig.PRIORITY.OWN_PETS
+				else LoadConfig.PRIORITY.PETS
+			for _, name in names do
+				if not asked[name] then
+					asked[name] = true
+					local list = byPriority[priority] or {}
+					byPriority[priority] = list
+					table.insert(list, name)
+				end
+			end
+		end
+		for priority, names in byPriority do
+			local assets: { AssetQueue.Asset } = {}
+			for _, name in names do
+				local model = sharedModel(name)
+				if model then
+					table.insert(assets, model)
+				end
+			end
+			local skins = ReplicatedStorage:FindFirstChild(AlienLooks.MODELS.SKINS_FOLDER)
+			if not skinsAsked and skins then
+				skinsAsked = true
+				table.insert(assets, skins)
+			end
+			AssetQueue.later(`pet models ({#names})`, priority, assets, function()
+				for _, name in names do
+					loaded[name] = true
+				end
+			end)
+		end
 	end
 
 	local function check()
@@ -242,6 +334,7 @@ function AlienViewController.new(dependencies: Dependencies): AlienViewControlle
 			heldSince[island] = nil
 			dropIsland(island)
 		end
+		askForModels()
 		local waiting: { Entry } = {}
 		local distances: { [Entry]: number } = {}
 		for _, entry in entries do
@@ -258,12 +351,17 @@ function AlienViewController.new(dependencies: Dependencies): AlienViewControlle
 
 	-- Brings the nearest waiting pets to how they should be shown, a few a frame.
 	local function buildSome()
-		local built = 0
-		while built < VIEW.BUILDS_PER_FRAME and #queue > 0 do
+		local built, madeWhole = 0, 0
+		while built < VIEW.BUILDS_PER_FRAME and madeWhole < VIEW.WHOLE_PER_FRAME and #queue > 0 do
 			local entry = table.remove(queue, 1) :: Entry
 			if needsWork(entry) then
+				local upgrade = entry.look ~= nil and wanted(entry) == "Whole"
 				if bring(entry) then
-					built += 1
+					if upgrade then
+						madeWhole += 1
+					else
+						built += 1
+					end
 				end
 			end
 		end
