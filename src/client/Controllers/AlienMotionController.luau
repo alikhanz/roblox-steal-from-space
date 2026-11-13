@@ -1,14 +1,16 @@
 --!strict
 -- The pets' living motion (plan docs/plans/ALIEN_MODELS.md, step 3), as the pet gallery prototype
 -- had it (docs/design/prototypes/pet-look/gallery_client.luau, approved by the user). The server
--- places a prepared pet (World/AlienModel, tag BayConfig.ALIEN_TAG); here its effects are made
--- (AlienDress.adornLocally) and every pet near the camera moves, all of them in one BulkMoveTo a
--- frame. One standing small on the floor (BayConfig.ALIEN_PLAIN_ATTRIBUTE) is left as it is.
+-- stands each pet's box (World/AlienModel, tag BayConfig.ALIEN_TAG); AlienViewController builds the
+-- pets near the camera in their boxes (decision 123) and hands them here (`track`), and every one
+-- of them moves, all in one BulkMoveTo a frame. One standing small on the floor
+-- (BayConfig.ALIEN_PLAIN_ATTRIBUTE) is not handed here: it stands as it is.
 --
 -- Detail by distance (plan step 4, PetMotion.detail, AlienLooks.MOTION): near pets are drawn and
 -- moved in full; in the middle distance only their main particle layers stay, without the light,
--- moving every other frame; far ones (other islands too) stand still with no particles, light or
--- pictures. A phone warmed up at once with thirty pets in full.
+-- moving every other frame; far ones stand still with no particles, light or pictures. A phone
+-- warmed up at once with thirty pets in full. A pet hidden for a while (its island far off, kept
+-- to show again at once) is out of the world and skipped.
 --
 -- When the bay's layout moves a pet to another place (BayConfig.ALIEN_PIVOT_ATTRIBUTE), it glides
 -- there with its place (PlaceGlideController) rather than jump.
@@ -28,7 +30,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local AssetQueue = require(script.Parent.Parent.Loading.AssetQueue)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
@@ -39,14 +40,15 @@ local RigMotion = require(script.Parent.Parent.World.RigMotion)
 
 local MOTION = AlienLooks.MOTION
 local LOOK_LIMIT = math.rad(MOTION.LOOK_LIMIT_DEGREES)
--- The part the bay's label hangs on (AlienDress): it stays put, so the label does not bob.
+-- The part the bay's label hangs on (the pet's box, World/AlienModel; the pet's own copy of it,
+-- AlienDress's, is not moved): it stays put, so the label does not bob.
 local LABEL_PART = "Body"
--- The dressing's effects carrier: only a dressed pet has it (the greybox blob does not move).
+-- The dressing's effects carrier: only a dressed pet has it.
 local EFFECTS_PART = "Fx"
 
--- Whether a pet stands in the local player's own bay (its tagged bay model's owner).
-local function isOwnPet(pet: Instance): boolean
-	local at = pet.Parent
+-- Whether a pet's box stands in the local player's own bay (its tagged bay model's owner).
+local function isOwnPet(stand: Instance): boolean
+	local at = stand.Parent
 	while at and at ~= workspace do
 		if CollectionService:HasTag(at, BayConfig.TAG) then
 			return at:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE) == Players.LocalPlayer.UserId
@@ -59,6 +61,11 @@ end
 export type AlienMotionController = {
 	name: string,
 	start: () -> (),
+	-- Moves `look`, a pet built in its box `stand` (both in the world), from now on: its effects
+	-- are on it already (AlienDress.adornLocally). A fresh one pops onto its place first.
+	track: (look: Model, stand: Model) -> (),
+	-- Stops moving `look` (taken apart).
+	untrack: (look: Model) -> (),
 }
 
 -- The pet on its way to where the bay's layout moved it (BayLooks.LAYOUT_GLIDE_SECONDS).
@@ -76,6 +83,7 @@ type Picture = {
 }
 
 type Pet = {
+	look: Model,
 	base: CFrame,
 	glide: Glide?,
 	-- The part the bay's label hangs on, and where it sits in the pet's space: it never moves,
@@ -101,30 +109,20 @@ type Pet = {
 
 local AlienMotionController = {}
 
--- Whether `model` is a real pet model (its parts carry their paint), not the greybox blob.
-local function isPainted(model: Model): boolean
-	for _, part in model:GetChildren() do
-		if part:IsA("MeshPart") and part:GetAttribute("Paint") ~= nil then
-			return true
-		end
-	end
-	return false
-end
-
 local function between(random: Random, range: { number }): number
 	return random:NextNumber(range[1], range[2])
 end
 
--- Reads a dressed pet once: its moving parts (RigMotion) and what else it shows (its label part,
--- light, pictures and effect layers).
-local function petOf(model: Model): Pet?
+-- Reads a dressed pet once: its moving parts (RigMotion) and what else it shows (its box's label
+-- part, its light, pictures and effect layers).
+local function petOf(model: Model, stand: Model): Pet?
 	if not model:FindFirstChild(EFFECTS_PART) then
 		return nil
 	end
-	-- Where the server stood it (its parts are read relative to that, at rest as they arrive).
-	local pivot = model:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
+	-- Where the server stood it (its parts are read relative to that, at rest as they are built).
+	local pivot = stand:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
 	local base = if typeof(pivot) == "CFrame" then pivot else model:GetPivot()
-	local uid = model:GetAttribute(BayConfig.ALIEN_UID_ATTRIBUTE)
+	local uid = stand:GetAttribute(BayConfig.ALIEN_UID_ATTRIBUTE)
 	local random = Random.new(if type(uid) == "number" then uid else 1)
 	local now = os.clock()
 	local rig = RigMotion.read(model, base, random, {
@@ -133,6 +131,7 @@ local function petOf(model: Model): Pet?
 		now = now,
 	})
 	local pet: Pet = {
+		look = model,
 		base = base,
 		glide = nil,
 		label = nil,
@@ -150,11 +149,13 @@ local function petOf(model: Model): Pet?
 		hopAt = now + random:NextNumber(2, 8),
 		hopStart = nil,
 	}
+	local label = stand:FindFirstChild(LABEL_PART)
+	if label and label:IsA("BasePart") then
+		pet.label = label
+		pet.labelOffset = base:ToObjectSpace(label.CFrame)
+	end
 	for _, item in model:GetDescendants() do
-		if item:IsA("BasePart") and item.Name == LABEL_PART and item.Parent == model then
-			pet.label = item
-			pet.labelOffset = base:ToObjectSpace(item.CFrame)
-		elseif item:IsA("PointLight") then
+		if item:IsA("PointLight") then
 			pet.light, pet.brightness = item, item.Brightness
 		elseif item:IsA("ImageLabel") and (item:GetAttribute("Spin") or item:GetAttribute("Sway")) then
 			table.insert(pet.pictures, {
@@ -283,9 +284,10 @@ end
 
 -- A fresh alien (just hatched, crossbred or moved onto a place) pops onto its place: it grows from
 -- a share of its size, a little past full and back, its feet on the pad all the while. Yields for
--- the pop; its effects and motion begin after it.
-local function popIn(model: Model)
-	local shownAt = model:GetAttribute(BayConfig.ALIEN_SHOWN_AT_ATTRIBUTE)
+-- the pop; its motion begins after it. Only one built as the server stood its box pops: built
+-- later (the player came near), it just stands there.
+local function popIn(model: Model, stand: Model)
+	local shownAt = stand:GetAttribute(BayConfig.ALIEN_SHOWN_AT_ATTRIBUTE)
 	local pop = BayLooks.ALIEN_POP
 	if
 		type(shownAt) ~= "number"
@@ -294,7 +296,7 @@ local function popIn(model: Model)
 	then
 		return
 	end
-	local lift = tonumber(model:GetAttribute(BayConfig.ALIEN_LIFT_ATTRIBUTE)) or 0
+	local lift = tonumber(stand:GetAttribute(BayConfig.ALIEN_LIFT_ATTRIBUTE)) or 0
 	local full = model:GetScale()
 	local start = os.clock()
 	while model:IsDescendantOf(workspace) do
@@ -302,10 +304,10 @@ local function popIn(model: Model)
 		local k = pop.from + (1 - pop.from) * backOut(u)
 		-- Where it stands now: the layout may move its place while it pops (several aliens come
 		-- at once), and it must land there, not where it appeared.
-		local pivot = model:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
-		local stand = (if typeof(pivot) == "CFrame" then pivot else model:GetPivot()) * CFrame.new(0, -lift, 0)
+		local pivot = stand:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
+		local floor = (if typeof(pivot) == "CFrame" then pivot else model:GetPivot()) * CFrame.new(0, -lift, 0)
 		model:ScaleTo(full * k)
-		model:PivotTo(stand * CFrame.new(0, lift * k, 0))
+		model:PivotTo(floor * CFrame.new(0, lift * k, 0))
 		if u >= 1 then
 			break
 		end
@@ -317,47 +319,31 @@ function AlienMotionController.new(): AlienMotionController
 	local pets: { [Model]: Pet } = {}
 	local moves: { [Model]: RBXScriptConnection } = {}
 
-	local function forget(instance: Instance)
-		if instance:IsA("Model") then
-			pets[instance] = nil
-			local connection = moves[instance]
-			if connection then
-				connection:Disconnect()
-				moves[instance] = nil
-			end
+	local function untrack(look: Model)
+		pets[look] = nil
+		local connection = moves[look]
+		if connection then
+			connection:Disconnect()
+			moves[look] = nil
 		end
 	end
 
-	-- A pet arrives whole (streamed atomically, World/AlienModel): read it on the next step, once
-	-- its parts are in.
-	local function watch(instance: Instance)
-		task.defer(function()
-			if not (instance:IsA("Model") and instance:IsDescendantOf(workspace)) then
+	local function track(look: Model, stand: Model)
+		task.spawn(function()
+			popIn(look, stand)
+			if not look:IsDescendantOf(workspace) or pets[look] then
 				return
 			end
-			-- One standing small on the floor is only its model: no effects, no motion.
-			if instance:GetAttribute(BayConfig.ALIEN_PLAIN_ATTRIBUTE) == true then
-				return
-			end
-			popIn(instance)
-			if not instance:IsDescendantOf(workspace) or pets[instance] then
-				return
-			end
-			-- The server sends it painted; its effects are made here (AlienDress). The greybox
-			-- blob has no painted parts and none.
-			if instance:FindFirstChild(LABEL_PART) and isPainted(instance) then
-				AlienDress.adornLocally(instance)
-			end
-			local pet = petOf(instance)
+			local pet = petOf(look, stand)
 			if not pet then
 				return
 			end
-			pets[instance] = pet
+			pets[look] = pet
 			-- The bay's layout moved it to another place: it glides there from where it stands, and
-			-- the motion goes round its new pivot (the server's move of its parts is overridden
-			-- every frame on the way).
-			moves[instance] = instance:GetAttributeChangedSignal(BayConfig.ALIEN_PIVOT_ATTRIBUTE):Connect(function()
-				local pivot = instance:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
+			-- the motion goes round its new pivot (the server's move of its box is overridden every
+			-- frame on the way).
+			moves[look] = stand:GetAttributeChangedSignal(BayConfig.ALIEN_PIVOT_ATTRIBUTE):Connect(function()
+				local pivot = stand:GetAttribute(BayConfig.ALIEN_PIVOT_ATTRIBUTE)
 				if typeof(pivot) == "CFrame" then
 					pet.glide = { from = pet.base, to = pivot, start = os.clock() }
 				end
@@ -370,8 +356,8 @@ function AlienMotionController.new(): AlienMotionController
 					table.insert(meshes, part)
 				end
 			end
-			local priority = if isOwnPet(instance) then LoadConfig.PRIORITY.OWN_PETS else LoadConfig.PRIORITY.PETS
-			AssetQueue.later(`pet {instance.Name}`, priority, meshes)
+			local priority = if isOwnPet(stand) then LoadConfig.PRIORITY.OWN_PETS else LoadConfig.PRIORITY.PETS
+			AssetQueue.later(`pet {stand.Name}`, priority, meshes)
 		end)
 	end
 
@@ -393,6 +379,10 @@ function AlienMotionController.new(): AlienMotionController
 		local frames: { CFrame } = {}
 		frame += 1
 		for _, pet in pets do
+			-- Hidden for a while (AlienViewController): out of the world until it shows again.
+			if not pet.look.Parent then
+				continue
+			end
 			local gliding = glide(pet, t, parts, frames)
 			local distance = (pet.base.Position - eye).Magnitude
 			local radius = pet.rig.radius
@@ -416,17 +406,14 @@ function AlienMotionController.new(): AlienMotionController
 	end
 
 	local function start()
-		for _, instance in CollectionService:GetTagged(BayConfig.ALIEN_TAG) do
-			watch(instance)
-		end
-		CollectionService:GetInstanceAddedSignal(BayConfig.ALIEN_TAG):Connect(watch)
-		CollectionService:GetInstanceRemovedSignal(BayConfig.ALIEN_TAG):Connect(forget)
 		RunService.RenderStepped:Connect(step)
 	end
 
 	return {
 		name = "AlienMotionController",
 		start = start,
+		track = track,
+		untrack = untrack,
 	}
 end
 

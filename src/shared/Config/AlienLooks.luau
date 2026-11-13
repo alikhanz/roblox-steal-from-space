@@ -3,6 +3,7 @@
 -- Kept apart from AlienConfig so the numbers there load in Lune.
 
 local AlienConfig = require("./AlienConfig")
+local StationSize = require("./StationSize")
 
 export type TierLook = {
 	read color: Color3,
@@ -199,6 +200,33 @@ local MOTION = table.freeze({
 	LOOK_LIMIT_DEGREES = 70,
 })
 
+-- Which pets a client builds (decision 123, AlienViewController, Domain/PetView). The server stands
+-- only an invisible box for each pet; a client builds an island's pets while its camera is within
+-- REACH studs of the island's centre (PAST_DOME studs outside its dome: from the middle of one's own
+-- island the neighbours stand empty) and keeps them until it is MARGIN farther. Then they are
+-- hidden, not taken apart: back within HOLD_SECONDS, they show at once. At most HOLD_ISLANDS
+-- islands are held so, the longest hidden going first (user, 2026-11-13).
+local PAST_DOME = 60
+local VIEW = table.freeze({
+	REACH = StationSize.ISLAND_DOME_RADIUS + PAST_DOME,
+	MARGIN = 60,
+	HOLD_SECONDS = 60,
+	HOLD_ISLANDS = 2,
+	-- How often the distances are checked, seconds.
+	CHECK_SECONDS = 0.25,
+	-- Pets built a frame at most, the nearest first: an island of thirty comes in under a second.
+	BUILDS_PER_FRAME = 2,
+	-- The folder in ReplicatedStorage the server copies the kinds' models the clients need into,
+	-- from ServerStorage.Aliens (World/AlienModel): only those of the pets on the server.
+	FOLDER = "AlienModels",
+	-- On a pet's box: true when the clients build the pet (a kind with no model in the place stands
+	-- as the server's greybox blob), the size it stands at (alien.scale or the shelf's) and the
+	-- outfit it wears (AlienOutfit.key).
+	LOOK_ATTRIBUTE = "Look",
+	SCALE_ATTRIBUTE = "PetScale",
+	OUTFIT_ATTRIBUTE = "Outfit",
+})
+
 return table.freeze({
 	TIERS = table.freeze(TIERS),
 	BODY_SIZE = BODY_SIZE,
@@ -206,6 +234,7 @@ return table.freeze({
 	MODELS = MODELS,
 	FX = FX,
 	MOTION = MOTION,
+	VIEW = VIEW,
 	-- Marks a part of a low-poly pet's outfit (OutfitDress): worn, not the body.
 	OUTFIT_PART_ATTRIBUTE = "OutfitPart",
 	EYE_SIZE = Vector3.new(0.35, 0.5, 0.2),
