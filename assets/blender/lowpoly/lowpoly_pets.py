@@ -95,6 +95,7 @@ class Context:
             "eyes": ("N", c["eyes"], 0, 0, "EyeLight"),
             "white": ("N", WHITE, 0, 0, "EyeShine"),
             "core": ("N", c["core"], 0, 0, "Core"),
+            "jelly": ("S", c["core"], 0, 0.02, "Jelly"),
             "dome": ("G", tuple(0.75 + 0.25 * v for v in c["core"]), 0.78, 0, "Dome"),
             "visor": ("S", VISOR, 0, 0.1, "Visor"),
             "engine": ("S", ENGINE, 0, 0.05, "Engine"),
@@ -187,9 +188,10 @@ def slime(ctx, p):
     ctx.put("can", (0, 0, 0.25), (0.75 * w, 0.75 * w, 0.2), "shell")
     ctx.put("seam", (0, 0, 0.46), (0.74 * w, 0.74 * w, 0.74 * w), "glow")
     dome_z = 0.1 + 0.9 * h
-    # The jelly: two blobs of the core's colour (in game the core glows; the dome sets its floor).
-    ctx.put("ball", (0, 0, dome_z - 0.25), (0.58 * w, 0.58 * w, 0.48 * h), "core", role="core")
-    ctx.put("ball", (0, 0.02, dome_z + 0.22 * h), (0.36 * w, 0.36 * w, 0.32 * h), "core", role="core")
+    # The jelly: two blobs in the core's colour, solid (big Neon blobs burn to white under Bloom;
+    # Studio, 2026-11-13). The dome over them sets the jelly's floor.
+    ctx.put("ball", (0, 0, dome_z - 0.25), (0.58 * w, 0.58 * w, 0.48 * h), "jelly")
+    ctx.put("ball", (0, 0.02, dome_z + 0.22 * h), (0.36 * w, 0.36 * w, 0.32 * h), "jelly")
     ctx.put("ball_hi", (0, 0, dome_z), (0.78 * w, 0.78 * w, 0.9 * h), "dome", role="dome")
     face(ctx, (0, -0.74 * w, dome_z), 0.42 * min(w, 1.15), 0.18)
     for side in (-1, 1):

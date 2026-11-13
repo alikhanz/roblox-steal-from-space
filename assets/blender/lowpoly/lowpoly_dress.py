@@ -213,7 +213,7 @@ def anchors(info):
         "Halo": ((x, y, pets.top_height(info, x, y) + 0.45), 1.0),
         "Aura": ((cx, cy, cz + 0.1), r * 1.15),
         "Rings": ((cx, cy, cz - 0.55 * c), r * 1.05),
-        "Star": ((cx, cy + b * 0.95, cz + 0.25), r * 1.6),
+        "Star": ((cx, cy + b * 0.95, cz + 0.1), r * 1.1),
         "Orbit": ((cx, cy, cz + 0.45), r),
     }
     for side in (-1, 1):
