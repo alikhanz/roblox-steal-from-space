@@ -30,9 +30,16 @@ import lowpoly_kit as kit  # noqa: E402
 import lowpoly_pets as pets  # noqa: E402
 import robo  # noqa: E402
 import robo_kinds  # noqa: E402
+from export_robo_roblox import bake_colour, boost  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+# How a role's plain parts join (--merge=...): "class" (default) bakes the colours of a role's plain
+# plastic parts into their vertices and joins them into one part (metal into another), as the
+# guardians' export does; "paint" keeps one part per role and paint (the look until 2026-11-13).
+MERGE = next((a.split("=", 1)[1] for a in ARGS if a.startswith("--merge=")), "class")
+assert MERGE in ("class", "paint"), f"unknown merge mode {MERGE}"
+ARGS = [a for a in ARGS if not a.startswith("--merge=")]
 OUT = ARGS[0] if ARGS else "out/lowpoly/pack-lowpoly-slime.glb"
 # Families to pack (comma separated, or "all"), and whether to pack the outfit kit too ("kit"): the
 # kit goes up once, with the first pack, so its meshes are one set for the whole game.
@@ -86,24 +93,69 @@ def z_span(obj):
     return min(c.z for c in corners), max(c.z for c in corners)
 
 
+# Sources the game paints by name or repaints (AlienDress: STAND_INS, CRYSTALS, GOLDS, AURAS,
+# RIBBONS; the shells by tier; the jelly that squashes): never baked, they keep their own part.
+OWN_PAINT = {
+    "Flame", "FlameCore", "Tongue", "Ray", "RayShort", "Jet", "Dome", "Jelly", "Galaxy",
+    "Shard", "IceSpike", "Icicle", "Fringe", "Spout", "Bubble", "Brood",
+    "Gold", "GoldArmour", "Crown", "Circlet", "Badge", "Hover", "Smoke", "Aurora",
+} | set(SHELLS)
+BAKED = "Baked"
+
+
+def bake_class(code):
+    """The baked class a part joins (plastic or metal), and the colour the game would give it (sRGB
+    0..1, AlienDress.paint's boosts); None for a part that keeps its own paint."""
+    letter, rest = code[0], code[1:].split(",")
+    if MERGE != "class" or letter != "S" or source_of(code) in OWN_PAINT or source_of(code).startswith("Tier"):
+        return None
+    rgb = tuple(int(v) / 255 for v in rest[:3])
+    reflectance = float(rest[4])
+    if reflectance >= 0.3:
+        return "metal", boost(rgb, 1.15, 1.05)
+    return "plastic", boost(rgb, 1.25, 1.12)
+
+
+def area(obj):
+    scale = obj.matrix_world.to_scale()
+    return sum(polygon.area for polygon in obj.data.polygons) * max(abs(scale.x), abs(scale.y), abs(scale.z)) ** 2
+
+
 def join(objects, prefix, floor=None):
     """Objects of one role and paint become one mesh (each object's own copy of its shared mesh first,
-    so the library is left alone). Returns the joined objects, named <prefix>|<role>_<n>|<code>."""
+    so the library is left alone); with MERGE "class", a role's plain plastic parts (and its metal
+    ones) join into one, their colours baked into the vertices. Returns the joined objects, named
+    <prefix>|<role>_<n>|<code>."""
     groups = {}
     for obj in objects:
         role = obj["role"] if obj["role"] not in ("eye", "dome") else "body"
         code = obj["paint"]
+        baked = bake_class(code)
         key = (role, code)
         if source_of(code) in KEEP_SOURCES or role == "flame":
             key = (role, code, obj.name)
-        elif floor is not None:
-            low, high = z_span(obj)
-            key = (role, code, "above" if low > floor else "below" if high < floor else obj.name)
+        else:
+            side = ""
+            if floor is not None:
+                low, high = z_span(obj)
+                side = "above" if low > floor else "below" if high < floor else ("across" if baked else obj.name)
+            key = (role, BAKED + baked[0], side) if baked else (role, code, side)
         groups.setdefault(key, []).append(obj)
     joined = []
     for index, (key, group) in enumerate(sorted(groups.items(), key=lambda item: str(item[0]))):
+        code = key[1]
         for obj in group:
             obj.data = obj.data.copy()
+        if code.startswith(BAKED):
+            # The group's paint: white (the colours are in the vertices) at the reflectance most of
+            # its surface had.
+            shine = {}
+            for obj in group:
+                baked = bake_class(obj["paint"])
+                bake_colour(obj, baked[1])
+                reflectance = obj["paint"][1:].split(",")[4]
+                shine[reflectance] = shine.get(reflectance, 0.0) + area(obj)
+            code = f"S255,255,255,0,{max(shine, key=shine.get)},{BAKED}"
         bpy.ops.object.select_all(action="DESELECT")
         for obj in group:
             obj.select_set(True)
@@ -112,7 +164,9 @@ def join(objects, prefix, floor=None):
         if len(group) > 1:
             bpy.ops.object.join()
         obj = bpy.context.view_layer.objects.active
-        role, code = key[0], key[1]
+        role = key[0]
+        if code.endswith(BAKED):
+            obj.data.color_attributes.active_color = obj.data.color_attributes["Col"]
         obj.name = obj.data.name = f"{prefix}|{role}_{index + 1}|{code}"
         if source_of(code) in SHELLS:
             box_uvs(obj)
@@ -195,7 +249,11 @@ def finish(finished):
     os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
     options = dict(filepath=OUT, export_format="GLB", use_selection=True, export_apply=True, export_yup=True,
                    export_texcoords=True, export_materials="NONE")
-    bpy.ops.export_scene.gltf(**options)
+    # The baked parts' colours ride in their vertices (glTF COLOR_0); the rest have none.
+    try:
+        bpy.ops.export_scene.gltf(**options, export_vertex_color="ACTIVE")
+    except TypeError:
+        bpy.ops.export_scene.gltf(**options, export_colors=True)
     meshes = [obj for obj in finished if obj.type == "MESH" and "|meta" not in obj.name and "|anchor|" not in obj.name and not obj.name.endswith("|origin") and "|dust" not in obj.name]
     print("PACKED", OUT, len(finished), "nodes,", len(meshes), "meshes,", os.path.getsize(OUT), "bytes")
 

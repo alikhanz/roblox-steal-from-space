@@ -69,6 +69,16 @@ local ADDED_NAMES = { Fx = true, Body = true, Halo = true, Tip = true, Tail = tr
 -- Particles fade in and out instead of popping: the soft look.
 local SOFT = { { 0, 1 }, { 0.15, 0 }, { 0.75, 0.15 }, { 1, 1 } }
 
+-- Where a hidden stand-in stood (a candle's flame, a jetpack's flame): the bottom and top of its box,
+-- in the world, and its colour.
+type Spot = { base: Vector3, tip: Vector3, colour: Color3 }
+
+-- The colour of a paint code (`N255,170,60,0,0,Jet` → 255, 170, 60); white for anything else.
+local function colourOf(code: unknown): Color3
+	local r, g, b = string.match(if type(code) == "string" then code else "", "^%a(%d+),(%d+),(%d+),")
+	return if r then Color3.fromRGB(tonumber(r) or 255, tonumber(g) or 255, tonumber(b) or 255) else Color3.new(1, 1, 1)
+end
+
 type Paint = {
 	-- S solid, G glass, L lava, anything else glows (Neon).
 	kind: string,
@@ -407,17 +417,14 @@ type JetLayer = {
 	emission: number,
 }
 
-local function jets(fx: BasePart, jetParts: { MeshPart }, paints: { [string]: Paint })
-	for index, part in jetParts do
-		-- The cone stands almost upright, its base half its length above its middle.
-		local length = math.max(part.Size.X, part.Size.Y, part.Size.Z)
-		local nozzle = attachment(
-			fx,
-			"Jet" .. index,
-			fx.CFrame:PointToObjectSpace(part.Position + Vector3.new(0, length * 0.45, 0))
-		)
+local function jets(fx: BasePart, spots: { Spot })
+	for index, spot in spots do
+		-- The cone stands almost upright: its nozzle just under the top of its box.
+		local length = spot.tip.Y - spot.base.Y
+		local nozzle =
+			attachment(fx, "Jet" .. index, fx.CFrame:PointToObjectSpace(spot.base + Vector3.new(0, length * 0.95, 0)))
 		nozzle.CFrame *= CFrame.Angles(-0.29, 0, 0) -- Bottom leans to +Z, the pet's back
-		local colour = paints[part.Name].colour
+		local colour = spot.colour
 		-- Two beams down from the nozzle, facing the camera, the fire scrolling along them: the
 		-- flame in its colour and a white core over it.
 		local flameColour = colours({ { 0, WHITE }, { 0.25, boost(colour, 1, 1.2) }, { 1, colour } })
@@ -586,16 +593,16 @@ end
 -- from just above the dome (Roblox draws no particles behind Glass, so inside the dome they would
 -- vanish), a body of fire and a pale core, not too additive (on a bright background additive fire
 -- disappears).
-local function candleFlames(fx: BasePart, top: Attachment, flameParts: { MeshPart })
+local function candleFlames(fx: BasePart, top: Attachment, flames: { Spot })
 	local base, low, height = Vector3.zero, math.huge, 0
-	for _, part in flameParts do
-		base += part.Position
-		low = math.min(low, part.Position.Y - part.Size.Y / 2)
-		height = math.max(height, part.Size.Y)
+	for _, spot in flames do
+		base += (spot.base + spot.tip) / 2
+		low = math.min(low, spot.base.Y)
+		height = math.max(height, spot.tip.Y - spot.base.Y)
 	end
 	local flameAt = top
-	if #flameParts > 0 then
-		base /= #flameParts
+	if #flames > 0 then
+		base /= #flames
 		flameAt = Instance.new("Attachment")
 		flameAt.Name = "FlameBase"
 		flameAt.Parent = fx
@@ -642,11 +649,11 @@ local function signatures(
 	back: Attachment,
 	signature: string,
 	core: Color3,
-	flameParts: { MeshPart }
+	flames: { Spot }
 )
 	for sig in string.gmatch(signature, "[^%+]+") do
 		if sig == "flames" then
-			candleFlames(fx, top, flameParts)
+			candleFlames(fx, top, flames)
 		elseif sig == "lightning" then
 			-- Crackling: many quick bolts round the body, big ones now and then, sparks flying.
 			emitter(fx, "Bolts", {
@@ -1026,24 +1033,52 @@ end
 
 -- The parts the effects need, as prepare left them: the wings, Blender's flame tongues and the
 -- jetpack flames.
-local function partsOf(pet: Model, paints: { [string]: Paint }): ({ MeshPart }, { MeshPart }, { MeshPart })
-	local wingParts, flameParts, jetParts = {}, {}, {}
+local function partsOf(pet: Model, paints: { [string]: Paint }): ({ MeshPart }, { Spot }, { Spot })
+	local wingParts, flames, jetSpots = {}, {}, {}
+	-- The export's points (lune/lib/ModelPack.standInsToPoints): `Flame`/`Jet` at the bottom of the
+	-- stand-in's box, `<…>Tip` at its top, paired by `Pair`.
+	local tips: { [string]: Vector3 } = {}
+	local bases: { Attachment } = {}
 	for _, instance in pet:GetDescendants() do
+		if instance:IsA("Attachment") then
+			if instance.Name == "FlameTip" or instance.Name == "JetTip" then
+				tips[`{instance.Name}{instance:GetAttribute("Pair")}`] = instance.WorldPosition
+			elseif instance.Name == "Flame" or instance.Name == "Jet" then
+				table.insert(bases, instance)
+			end
+			continue
+		end
 		if not instance:IsA("MeshPart") then
 			continue
 		end
 		local role = instance:GetAttribute("Role")
+		local code = paints[instance.Name]
+		local half = Vector3.new(0, instance.Size.Y / 2, 0)
 		if role == "wingL" or role == "wingR" then
 			table.insert(wingParts, instance)
 		elseif role == "flame" then
-			table.insert(flameParts, instance)
+			-- An older model's hidden flame tongue.
+			table.insert(flames, { base = instance.Position - half, tip = instance.Position + half, colour = WHITE })
 		end
-		local code = paints[instance.Name]
 		if code and code.source == "Jet" then
-			table.insert(jetParts, instance)
+			-- An older model's hidden jet cone, its length the longest side of its box.
+			local length = math.max(instance.Size.X, instance.Size.Y, instance.Size.Z)
+			local along = Vector3.new(0, length / 2, 0)
+			table.insert(
+				jetSpots,
+				{ base = instance.Position - along, tip = instance.Position + along, colour = code.colour }
+			)
 		end
 	end
-	return wingParts, flameParts, jetParts
+	for _, base in bases do
+		local tip = tips[`{base.Name}Tip{base:GetAttribute("Pair")}`]
+		if tip then
+			local colour = colourOf(base:GetAttribute("Paint"))
+			local spot = { base = base.WorldPosition, tip = tip, colour = colour }
+			table.insert(if base.Name == "Jet" then jetSpots else flames, spot)
+		end
+	end
+	return wingParts, flames, jetSpots
 end
 
 -- Each part's paint, from its Paint code.
@@ -1212,13 +1247,13 @@ function AlienDress.adorn(pet: Model)
 	local signature = tostring(pet:GetAttribute("Signature") or "")
 	local tier, meteor, core, tierColor, accent = looksOf(pet)
 	local paints = paintsOf(pet)
-	local wingParts, flameParts, jetParts = partsOf(pet, paints)
+	local wingParts, flames, jetSpots = partsOf(pet, paints)
 
 	local cf, size = pet:GetBoundingBox()
 	local radius = math.max(size.X, size.Z) / 2
 	local fx, top, back = carrier(pet, cf, size)
 
-	jets(fx, jetParts, paints)
+	jets(fx, jetSpots)
 
 	-- Light low under the body: it lights the floor round the pet (a bright light on the body burns
 	-- its colours to white under Bloom). Its range is set again for the pet's size (adornLocally).
@@ -1231,7 +1266,7 @@ function AlienDress.adorn(pet: Model)
 	light.Parent = attachment(fx, "LightLow", Vector3.new(0, -fx.Size.Y * 0.6, 0))
 
 	aura(fx, top, radius, tier, meteor, zone, core, tierColor)
-	signatures(fx, top, back, signature, core, flameParts)
+	signatures(fx, top, back, signature, core, flames)
 	if meteor then
 		meteorFire(pet, fx, cf, size, radius, tier)
 	end
@@ -1258,11 +1293,11 @@ end
 -- light, comets or rune: 132 guardians stand on the map.
 function AlienDress.adornSignature(model: Model, core: Color3)
 	local paints = paintsOf(model)
-	local _, flameParts, jetParts = partsOf(model, paints)
+	local _, flames, jetSpots = partsOf(model, paints)
 	local cf, size = model:GetBoundingBox()
 	local fx, top, back = carrier(model, cf, size)
-	jets(fx, jetParts, paints)
-	signatures(fx, top, back, tostring(model:GetAttribute("Signature") or ""), core, flameParts)
+	jets(fx, jetSpots)
+	signatures(fx, top, back, tostring(model:GetAttribute("Signature") or ""), core, flames)
 end
 
 -- Adorns `model`, a prepared pet the server placed at its own size, on this client only. The

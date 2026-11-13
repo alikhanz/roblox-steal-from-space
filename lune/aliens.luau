@@ -308,6 +308,8 @@ local function unpackLowpoly(pack: Instance): { Instance }
 			point.CFrame = (holder :: any).CFrame:ToObjectSpace(CFrame.new(hinge.at))
 			point.Parent = holder
 		end
+		-- Hidden flame stand-ins become points on the same part (AlienDress lights them).
+		ModelPack.standInsToPoints(kind.body, holder)
 		ModelPack.centrePivot(kind.body, turn)
 		local folder = Instance.new("Folder")
 		folder.Name = kindId
@@ -351,7 +353,8 @@ local function unpackLowpoly(pack: Instance): { Instance }
 		for _, dust in entry.dust do
 			for _, part in entry.model:GetChildren() do
 				if
-					ModelPack.roleOf(part.Name) == `wing{dust.side}` and string.match(ModelPack.sourceOf(part), "Wing$")
+					ModelPack.roleOf(part.Name) == `wing{dust.side}`
+					and string.match(ModelPack.sourceOf(part), "Wing$")
 				then
 					local point: any = Instance.new("Attachment")
 					point.Name = "Dust"
@@ -361,6 +364,8 @@ local function unpackLowpoly(pack: Instance): { Instance }
 				end
 			end
 		end
+		-- A jetpack's hidden flame cones become points on its tank (AlienDress lights them).
+		ModelPack.standInsToPoints(entry.model)
 		local model: any = entry.model
 		model.WorldPivotData = CFrame.new(entry.origin) * turn
 		-- Kept as written: a model that still "needs pivot migration" has Studio move its pivot to a

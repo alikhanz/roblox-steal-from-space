@@ -131,6 +131,62 @@ function ModelPack.markersToPoints(model: Instance)
 	end
 end
 
+-- Blender's hidden stand-ins (a candle's flame tongues: role `flame`; a jetpack's flame cone: source
+-- `Jet`; the old pets' rays and tongues) are light the game draws itself: only where they stood and
+-- how tall they were matters. Each becomes two points on `holder` (a part that never moves): `<Kind>`
+-- at the bottom of its box and `<Kind>Tip` at the top, paired by the `Pair` attribute, the base
+-- carrying the stand-in's paint code. Points scale with the model, so the height stays right at any
+-- size. A stand-in was a mesh to download and a part to send for nothing seen (92 in the pets,
+-- 2026-11-13). AlienDress reads the points (`standIns`).
+local STAND_IN_SOURCES =
+	{ Flame = "Flame", FlameCore = "Flame", Tongue = "Flame", Ray = "Ray", RayShort = "Ray", Jet = "Jet" }
+
+function ModelPack.standInsToPoints(model: Instance, holder: Instance?)
+	local stands: { any } = {}
+	local fallback: any = holder
+	for _, part in model:GetDescendants() do
+		if part.ClassName ~= "MeshPart" then
+			continue
+		end
+		local role = ModelPack.roleOf(part.Name)
+		local source = ModelPack.sourceOf(part)
+		if role == "flame" or STAND_IN_SOURCES[source] then
+			table.insert(stands, part)
+		elseif not fallback and role == "body" then
+			fallback = part
+		end
+	end
+	if #stands == 0 then
+		return
+	end
+	assert(fallback, `{model.Name}: stand-ins but no body part to hold their points`)
+	table.sort(stands, function(a: any, b: any): boolean
+		return a.Name < b.Name
+	end)
+	for index, part in stands do
+		local source = ModelPack.sourceOf(part)
+		local kind = if ModelPack.roleOf(part.Name) == "flame" then "Flame" else STAND_IN_SOURCES[source]
+		local cframe = (part :: any).CFrame
+		local size = (part :: any).Size
+		-- A jet's cone may lie along any axis of its box; a flame stands upright.
+		local height = if kind == "Jet" then math.max(size.X, size.Y, size.Z) else size.Y
+		local centre = cframe.Position
+		for _, tip in { false, true } do
+			local point: any = Instance.new("Attachment")
+			point.Name = if tip then kind .. "Tip" else kind
+			point.CFrame = (fallback :: any).CFrame:ToObjectSpace(
+				CFrame.new(centre + Vector3.new(0, (if tip then 0.5 else -0.5) * height, 0))
+			)
+			point:SetAttribute("Pair", index)
+			if not tip then
+				point:SetAttribute("Paint", part:GetAttribute("Paint"))
+			end
+			point.Parent = fallback
+		end
+		part:Destroy()
+	end
+end
+
 -- Fingerprints `folder` (alone, without its old fingerprint), stores the fingerprint on it and
 -- returns it with the folder's bytes.
 function ModelPack.fingerprint(folder: Instance): (string, string)

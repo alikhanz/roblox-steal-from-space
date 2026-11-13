@@ -81,6 +81,7 @@ local function unpack(pack: Instance): { Instance }
 	for _, post in order do
 		local model = models[post]
 		ModelPack.markersToPoints(model)
+		ModelPack.standInsToPoints(model)
 		ModelPack.centrePivot(model, turn)
 		table.insert(found, model)
 	end

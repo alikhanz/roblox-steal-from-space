@@ -128,6 +128,14 @@ def keeps_apart(role, material):
 # The colour baked is the one the game gives the paint (AlienDress.paint, kept in step by hand):
 # plastic and metal a touch richer, gold its own bright gold.
 BAKED = "Baked"
+# How baked parts of one role join (the guardians' export sets it; MERGE_MODES):
+#   "split" - one part per role, material class and reflectance; a part across a slime's jelly floor
+#             stays alone (the look the pets and guardians shipped with);
+#   "paint" - the same, but the parts across the floor join one another (step A: the look stays);
+#   "class" - one part per role and material class (plastic, Neon, glass): reflectances join, the
+#             group takes the reflectance most of its surface had (step B: some shine is lost).
+MERGE = "split"
+MERGE_MODES = ("split", "paint", "class")
 # Materials AlienDress.paint treats by name (crystals, auras, the aurora's ribbons, the nebula): they
 # keep their own paint.
 SPECIAL_SOURCES = KEEP_SOURCES | {
@@ -206,8 +214,11 @@ def join_by_role():
     lava_uvs()
     meshes = [obj for obj in bpy.context.view_layer.objects if obj.type == "MESH" and obj.data.materials and obj.data.materials[0]]
     floor = jelly_floor(meshes)
+    assert MERGE in MERGE_MODES, f"unknown merge mode {MERGE}"
     groups = {}
     bakes = {}
+    # Surface area by reflectance, per baked group ("class" mode picks the most common).
+    shine = {}
     for obj in meshes:
         role = roles.get(obj.name, obj.get("role", "body"))
         material = obj.data.materials[0]
@@ -218,13 +229,23 @@ def join_by_role():
             bake = baked(role, paint)
             if bake:
                 look_class, rgb = bake
-                look = "b:" + ",".join(f"{value:g}" for value in look_class[1:]) + look_class[0]
+                if MERGE == "class":
+                    look = "b:" + f"{look_class[1]:g}" + look_class[0]
+                else:
+                    look = "b:" + ",".join(f"{value:g}" for value in look_class[1:]) + look_class[0]
                 bake_colour(obj, rgb)
             else:
                 look = "p:" + paint_code(paint)
             if floor is not None:
                 low, high = z_span(obj)
-                look += "|above" if low > floor else "|below" if high < floor else "|" + obj.name
+                across = "|" + obj.name if MERGE == "split" else "|across"
+                look += "|above" if low > floor else "|below" if high < floor else across
+            if bake:
+                area = sum(polygon.area for polygon in obj.data.polygons) * max(obj.scale) ** 2
+                key = (role, look)
+                shine.setdefault(key, {})
+                reflectance = look_class[2]
+                shine[key][reflectance] = shine[key].get(reflectance, 0.0) + area
         groups.setdefault((role, look), []).append(obj)
     parts = {}
     for index, ((role, look), objects) in enumerate(sorted(groups.items())):
@@ -232,6 +253,9 @@ def join_by_role():
         material = first.name
         if look.startswith("b:"):
             bakes[f"{role}_{index}"] = {**paint_of(first), "color": [1.0, 1.0, 1.0], "source": BAKED}
+            areas = shine.get((role, look))
+            if MERGE == "class" and areas and bakes[f"{role}_{index}"]["material"] == "SmoothPlastic":
+                bakes[f"{role}_{index}"]["reflectance"] = max(areas, key=areas.get)
         # Copies of one look share the first one's material, so the joined mesh is one primitive.
         for obj in objects[1:]:
             own = obj.data.materials[0]
