@@ -28,7 +28,7 @@ local WINGS: { [string]: { piece: string, size: number } } = {
 	angel = { piece = "wingAngel", size = 1 },
 	dragon = { piece = "wingDragon", size = 1 },
 	crystal = { piece = "wingCrystal", size = 1 },
-	sail = { piece = "wingSail", size = 1 },
+	fairy = { piece = "wingFairy", size = 1 },
 	angelSmall = { piece = "wingAngel", size = 0.6 },
 	butterflySmall = { piece = "wingButterfly", size = 0.6 },
 }

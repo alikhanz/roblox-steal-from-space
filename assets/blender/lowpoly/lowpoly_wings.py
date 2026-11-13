@@ -126,6 +126,11 @@ def _box(bm, centre, size, angle=0.0):
     bmesh.ops.transform(bm, matrix=Matrix.Translation(Vector(centre)) @ rotation, verts=result["verts"])
 
 
+def _both(first, second):
+    """Two fills as one (parts of one paint join into one mesh anyway)."""
+    return lambda bm: (first(bm), second(bm))
+
+
 def _finish(bm):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     for face in bm.faces:
@@ -166,7 +171,7 @@ def butterfly():
         _gem(bm, (0.86, 0.9), 0.05, 0.045)
         _finish(bm)
 
-    return [("wings", "tierBody", wings), ("frame", "tierDeep", frame), ("spots", "tier", spots)]
+    return [("wings", "wing", wings), ("frame", "wingEdge", _both(frame, spots))]
 
 
 def _feather(bm, root, angle, length, width):
@@ -191,30 +196,61 @@ def angel():
             a, b, s = bone[1], bone[2], (t - 0.5) / 0.5
         return (a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s)
 
-    def primaries(bm):
-        for i in range(6):
-            t = 0.55 + i * 0.09
-            _feather(bm, along(min(t, 1.0)), -60 + i * 14, 0.62 + 0.1 * i, 0.16)
+    # (root along the bone, angle, length, width): primaries at the tip, secondaries under the arm,
+    # short coverts over both.
+    rows = [(min(0.55 + i * 0.09, 1.0), -60 + i * 14, 0.62 + 0.1 * i, 0.16) for i in range(6)]
+    rows += [(0.12 + i * 0.1, -98 + i * 6, 0.5 + 0.04 * i, 0.17) for i in range(5)]
+    coverts = [(0.08 + i * 0.15, -75 + i * 10, 0.3, 0.16) for i in range(6)]
+
+    def feathers(bm):
+        for t, angle, length, width in rows + coverts:
+            _feather(bm, along(t), angle, length, width)
         _finish(bm)
 
-    def secondaries(bm):
-        for i in range(5):
-            _feather(bm, along(0.12 + i * 0.1), -98 + i * 6, 0.5 + 0.04 * i, 0.17)
-        _finish(bm)
-
-    def coverts(bm):
-        for i in range(6):
-            _feather(bm, along(0.08 + i * 0.15), -75 + i * 10, 0.3, 0.16)
-        _strip(bm, bone, 0.09, DEPTH * 2.2, 0.2)
-        _finish(bm)
-
-    def gems(bm):
+    def shafts(bm):
+        # A glowing shaft down each long feather and the bone, raised over the facets.
+        _strip(bm, bone, 0.07, 0.05, 0.2)
+        for t, angle, length, _ in rows:
+            root = Vector(along(t))
+            d = Vector((math.cos(D(angle)), math.sin(D(angle))))
+            _strip(bm, [tuple(root), tuple(root + d * length * 0.5), tuple(root + d * length * 0.92)], 0.022, 0.046, 0.6)
         for t in (0.3, 0.62, 0.95):
-            _gem(bm, along(t), 0.05, DEPTH * 3)
+            _gem(bm, along(t), 0.05, 0.05)
         _finish(bm)
 
-    return [("primaries", "tierDeep", primaries), ("secondaries", "tierBody", secondaries), ("coverts", "tierLight", coverts),
-            ("gems", "tier", gems)]
+    return [("feathers", "wing", feathers), ("shafts", "wingEdge", shafts)]
+
+
+def fairy():
+    """The first wings, from the user's reference (robo.py, decision 074): a fairy's outline, veins
+    from the root into each lobe and cells nested inside the edge, as flat glowing strips over a
+    faint membrane (robo.py drew them as tubes, ten times the triangles)."""
+    import robo
+
+    outline = robo._smoothed(robo.WING_OUTLINE, True, 1)
+
+    def membrane(bm):
+        _slab(bm, outline, 0.012, 0.0, (0.3, 0.1))
+        _finish(bm)
+
+    def lines(bm):
+        loop = outline + [outline[0]]
+        _strip(bm, loop, 0.03, 0.02, 0.0)
+        for vein in robo.WING_VEINS:
+            _strip(bm, robo._smoothed(vein, False, 1), 0.018, 0.018, 0.4)
+        for factor in robo.WING_CELLS:
+            cell = robo._scaled_towards(outline, factor, (0.0, 0.0))
+            _strip(bm, cell + [cell[0]], 0.012, 0.016, 0.0)
+        _finish(bm)
+
+    return [("membrane", "wing", membrane), ("lines", "wingEdge", lines)]
+
+
+def fairy_dust():
+    """Where fairy dust flies off the fairy wing's edge as it beats (robo.WING_DUST_TRACE)."""
+    import robo
+
+    return robo._from_trace(robo.WING_DUST_TRACE)
 
 
 def dragon():
@@ -222,10 +258,10 @@ def dragon():
     tips = [(1.05, 0.86), (1.08, 0.38), (0.92, -0.02), (0.62, -0.3)]
 
     def bones(bm):
-        _strip(bm, [(0.0, 0.05), (0.2, 0.38), wrist], 0.1, DEPTH * 2.4, 0.3)
+        _strip(bm, [(0.0, 0.05), (0.2, 0.38), wrist], 0.1, 0.052, 0.3)
         for tip in tips:
             mid = ((wrist[0] + tip[0]) / 2 + 0.03, (wrist[1] + tip[1]) / 2 + 0.03)
-            _strip(bm, [wrist, mid, tip], 0.06, DEPTH * 2, 0.7)
+            _strip(bm, [wrist, mid, tip], 0.06, 0.05, 0.7)
         _finish(bm)
 
     def membrane(bm):
@@ -247,7 +283,7 @@ def dragon():
             _gem(bm, (x, z), 0.035, DEPTH * 2.5, 4)
         _finish(bm)
 
-    return [("membrane", "tierBody", membrane), ("bones", "tierDeep", bones), ("claws", "tier", claws)]
+    return [("membrane", "wing", membrane), ("bones", "wingEdge", _both(bones, claws))]
 
 
 def crystal():
@@ -267,40 +303,37 @@ def crystal():
         _gem(bm, (0.02, 0.02), 0.12, DEPTH * 3)
         _finish(bm)
 
-    return [("shell", "tierGlass", shell), ("cores", "tier", cores), ("foot", "tierDeep", foot)]
+    return [("shell", "wing", shell), ("cores", "wingEdge", _both(cores, foot))]
 
 
-def sail():
-    def boom(bm):
-        _strip(bm, [(0.0, 0.08), (0.5, 0.5), (1.02, 0.92)], 0.05, DEPTH * 2.5, 0.2)
-        for t in (0.35, 0.68):
-            x, z = 0.02 + t, 0.1 + t * 0.82
-            _strip(bm, [(x, z), (x + 0.3, z - 0.42)], 0.03, DEPTH * 2, 0.0)
-        _finish(bm)
-
-    panels_at = [((0.42, 0.3), (0.26, 0.4), -38), ((0.75, 0.58), (0.26, 0.42), -38), ((1.02, 0.8), (0.18, 0.28), -38)]
-
-    def panels(bm):
-        for (x, z), (w, h), angle in panels_at:
-            _box(bm, (x, 0, z), (w, DEPTH * 1.6, h), angle)
-        _finish(bm)
-
-    def grid(bm):
-        for (x, z), (w, h), angle in panels_at:
-            a = D(-angle)
-            # The panel's frame: a band round it, and a bar across.
-            corners = []
-            for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
-                px, pz = sx * w / 2, sz * h / 2
-                corners.append((x + px * math.cos(a) + pz * math.sin(a), z - px * math.sin(a) + pz * math.cos(a)))
-            _band(bm, corners, 0.025, DEPTH * 2.1)
-            left = ((corners[0][0] + corners[3][0]) / 2, (corners[0][1] + corners[3][1]) / 2)
-            right = ((corners[1][0] + corners[2][0]) / 2, (corners[1][1] + corners[2][1]) / 2)
-            _strip(bm, [left, right], 0.02, DEPTH * 2.1, 0.0)
-        _gem(bm, (1.06, 0.96), 0.06, DEPTH * 3)
-        _finish(bm)
-
-    return [("boom", "engine", boom), ("panels", "panel", panels), ("grid", "tier", grid)]
+# The order is the pools' (Domain/AlienOutfit): add new kinds at the end.
+WINGS = {"butterfly": butterfly, "angel": angel, "dragon": dragon, "crystal": crystal, "fairy": fairy}
 
 
-WINGS = {"butterfly": butterfly, "angel": angel, "dragon": dragon, "crystal": crystal, "sail": sail}
+def _angel_tips():
+    bone = [(0.0, 0.05), (0.38, 0.5), (0.78, 0.82)]
+    tips = []
+    for i in range(6):
+        t = min(0.55 + i * 0.09, 1.0)
+        a, b, s = (bone[0], bone[1], t / 0.5) if t < 0.5 else (bone[1], bone[2], (t - 0.5) / 0.5)
+        root = (a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s)
+        angle, length = D(-60 + i * 14), 0.62 + 0.1 * i
+        tips.append((root[0] + math.cos(angle) * length, root[1] + math.sin(angle) * length))
+    return list(reversed(tips))
+
+
+def dust(kind):
+    """Points along a wing's outer edge, from its tip down: the game strings a glowing stroke through
+    them that trails the wing as it beats (AlienDress, `wings`; the user likes it, 2026-11-13)."""
+    if kind == "fairy":
+        return fairy_dust()
+    if kind == "butterfly":
+        return [(1.0, 1.06), (0.96, 0.84), (0.9, 0.62), (0.86, 0.42), (0.72, -0.32), (0.66, -0.52), (0.6, -0.92)]
+    if kind == "angel":
+        return _angel_tips()
+    if kind == "dragon":
+        return [(1.05, 0.86), (1.08, 0.38), (0.92, -0.02), (0.62, -0.3)]
+    if kind == "crystal":
+        shards = [(62, 1.12), (42, 0.95), (20, 0.62)]
+        return [(0.04 + math.cos(D(a)) * length, 0.04 + math.sin(D(a)) * length) for a, length in shards]
+    return []

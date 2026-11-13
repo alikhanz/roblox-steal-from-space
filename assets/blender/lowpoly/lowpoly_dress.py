@@ -26,7 +26,7 @@ D = math.radians
 HEAD = ["horns", "crest", "feelers"]
 AURA_LOW = ["halo", "shards"]
 AURA = ["halo", "shards", "rings"]
-WINGS = ["butterfly", "angel", "dragon", "crystal", "sail"]
+WINGS = ["butterfly", "angel", "dragon", "crystal", "fairy"]
 POOLS = {
     0: {"head": HEAD + [None]},
     1: {"head": HEAD, "aura": AURA_LOW},
@@ -201,7 +201,7 @@ def dresser(picks):
 
 LABELS = {"horns": "рожки", "crest": "гребень", "feelers": "усики", None: "—", "halo": "нимб", "shards": "осколки", "rings": "кольца",
           "star": "звезда", "jetpack": "ранец", "angelSmall": "пёрышки", "butterflySmall": "бабочка-малютка", "butterfly": "бабочка",
-          "angel": "ангел", "dragon": "дракон", "crystal": "кристаллы", "sail": "солнечный парус", "crown": "корона"}
+          "angel": "ангел", "dragon": "дракон", "crystal": "кристаллы", "fairy": "фея", "crown": "корона"}
 
 
 # --- For the game: where each slot sits on a kind, and the pieces as a kit ------------------------------
@@ -248,7 +248,8 @@ def kit(ctx):
         rotation = tuple(_turn(side).to_euler())
         role = "wing" + s
         for kind in wingkit.WINGS:
-            pieces["wing" + kind[0].upper() + kind[1:] + s] = ([(mesh, (0, 0, 0), 1.0, key, rotation, role) for mesh, key in wing_parts(ctx, kind)], [])
+            dust = [(f"dust{s}{index + 1}", tuple(_turn(side) @ Vector((x, 0.0, y)))) for index, (x, y) in enumerate(wingkit.dust(kind))]
+            pieces["wing" + kind[0].upper() + kind[1:] + s] = ([(mesh, (0, 0, 0), 1.0, key, rotation, role) for mesh, key in wing_parts(ctx, kind)], dust)
     tank = ctx.pet.library.compose("tank", [
         ("can", (0, 0, 0), (0.11, 0.11, 0.21), (0, 0, 0)),
         ("ball", (0, 0, 0.21), (0.11, 0.11, 0.07), (0, 0, 0)),
