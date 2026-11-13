@@ -328,7 +328,9 @@ def dust(kind):
     if kind == "fairy":
         return fairy_dust()
     if kind == "butterfly":
-        return [(1.0, 1.06), (0.96, 0.84), (0.9, 0.62), (0.86, 0.42), (0.72, -0.32), (0.66, -0.52), (0.6, -0.92)]
+        # The forewing's own outline from the leading edge round the apex and down the outer edge: a
+        # stroke from one wing to the other cut across the gap, off the contour (user, 2026-11-13).
+        return BUTTERFLY_FORE[3:9]
     if kind == "angel":
         return _angel_tips()
     if kind == "dragon":
