@@ -19,6 +19,54 @@ describe("PetView.shows", function()
 	end)
 end)
 
+describe("PetView.levels", function()
+	local REACH = { REACH = 200, MARGIN = 60, NEIGHBOURS = 2, NEIGHBOUR_REACH = 600 }
+
+	it("shows the near island whole and the next two nearest plain", function()
+		expect(PetView.levels({ 50, 300, 560, 700, 300, 560 }, {}, REACH)).toEqual({
+			[1] = "Whole",
+			[2] = "Plain",
+			[5] = "Plain",
+		})
+	end)
+
+	it("shows two islands plain with none near", function()
+		expect(PetView.levels({ 400, 400, 400, 400 }, {}, REACH)).toEqual({ [1] = "Plain", [2] = "Plain" })
+		expect(PetView.levels({ 500, 420, 450, 410 }, {}, REACH)).toEqual({ [2] = "Plain", [4] = "Plain" })
+	end)
+
+	it("shows nothing far out in space", function()
+		expect(PetView.levels({ 900, 1200, 650 }, {}, REACH)).toEqual({})
+	end)
+
+	it("keeps a plain island until another is a margin nearer", function()
+		local was: { [number]: PetView.Level } = { [1] = "Plain", [2] = "Plain" }
+		expect(PetView.levels({ 400, 420, 380 }, was, REACH)).toEqual({ [1] = "Plain", [2] = "Plain" })
+		expect(PetView.levels({ 400, 450, 380 }, was, REACH)).toEqual({ [1] = "Plain", [3] = "Plain" })
+	end)
+
+	it("keeps a plain island until past the neighbours' reach by the margin", function()
+		expect(PetView.levels({ 640 }, { [1] = "Plain" }, REACH)).toEqual({ [1] = "Plain" })
+		expect(PetView.levels({ 640 }, {}, REACH)).toEqual({})
+		expect(PetView.levels({ 661 }, { [1] = "Plain" }, REACH)).toEqual({})
+	end)
+
+	it("keeps a whole island whole until past the margin, then plain", function()
+		expect(PetView.levels({ 250 }, { [1] = "Whole" }, REACH)).toEqual({ [1] = "Whole" })
+		expect(PetView.levels({ 250 }, { [1] = "Plain" }, REACH)).toEqual({ [1] = "Plain" })
+		expect(PetView.levels({ 270 }, { [1] = "Whole" }, REACH)).toEqual({ [1] = "Plain" })
+	end)
+
+	it("shows every near island whole, however many", function()
+		expect(PetView.levels({ 150, 180, 190, 300 }, {}, REACH)).toEqual({
+			[1] = "Whole",
+			[2] = "Whole",
+			[3] = "Whole",
+			[4] = "Plain",
+		})
+	end)
+end)
+
 describe("PetView.nearest", function()
 	it("gives the island whose centre is nearest", function()
 		local centres = { Vector3.new(100, 0, 0), Vector3.new(0, 0, 100), Vector3.new(-100, 0, 0) }

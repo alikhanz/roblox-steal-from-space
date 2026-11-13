@@ -200,16 +200,24 @@ local MOTION = table.freeze({
 	LOOK_LIMIT_DEGREES = 70,
 })
 
--- Which pets a client builds (decision 123, AlienViewController, Domain/PetView). The server stands
--- only an invisible box for each pet; a client builds an island's pets while its camera is within
--- REACH studs of the island's centre (PAST_DOME studs outside its dome: from the middle of one's own
--- island the neighbours stand empty) and keeps them until it is MARGIN farther. Then they are
--- hidden, not taken apart: back within HOLD_SECONDS, they show at once. At most HOLD_ISLANDS
--- islands are held so, the longest hidden going first (user, 2026-11-13).
+-- Which pets a client builds, and how (decision 123, AlienViewController, Domain/PetView). The
+-- server stands only an invisible box for each pet; a client builds an island's pets whole (moving,
+-- with their effects) while its camera is within REACH studs of the island's centre (PAST_DOME
+-- studs outside its dome) and keeps them so until it is MARGIN farther. The NEIGHBOURS islands
+-- nearest the camera after those, within NEIGHBOUR_REACH, show their pets plain: body and outfit
+-- standing still, no particles, light or effects (from one's own island, its two neighbours on the
+-- ring; user, 2026-11-14: the empty places of the neighbours read as black circles). An island
+-- left with neither is hidden, not taken apart: back within HOLD_SECONDS, its pets show at once.
+-- At most HOLD_ISLANDS islands are held so, the longest hidden going first (user, 2026-11-13).
 local PAST_DOME = 60
+-- Two neighbouring islands' centres apart on the ring (StationSize).
+local NEIGHBOUR_SPACING = 2 * StationSize.ISLAND_DOME_RADIUS + StationSize.ISLAND_GAP
 local VIEW = table.freeze({
 	REACH = StationSize.ISLAND_DOME_RADIUS + PAST_DOME,
 	MARGIN = 60,
+	NEIGHBOURS = 2,
+	-- From anywhere on one's island both its neighbours are within it; far out in space, none.
+	NEIGHBOUR_REACH = 2 * NEIGHBOUR_SPACING,
 	HOLD_SECONDS = 60,
 	HOLD_ISLANDS = 2,
 	-- How often the distances are checked, seconds.

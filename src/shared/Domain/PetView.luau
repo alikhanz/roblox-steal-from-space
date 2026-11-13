@@ -1,8 +1,9 @@
 --!strict
--- Which islands' pets a client builds (decision 123). The server stands only a box for each pet
--- (World/AlienModel); a client builds the pets of an island while its camera is near the island,
--- and when it flies off keeps them hidden a while, so coming back shows them at once. Pure Luau:
--- AlienViewController feeds it the distances and the clock.
+-- Which islands' pets a client builds, and how (decision 123). The server stands only a box for
+-- each pet (World/AlienModel); a client builds the pets of an island whole while its camera is near
+-- the island, plain on the next few islands, and when an island is left with neither keeps its pets
+-- hidden a while, so coming back shows them at once. Pure Luau: AlienViewController feeds it the
+-- distances and the clock.
 
 local PetView = {}
 
@@ -10,6 +11,47 @@ local PetView = {}
 -- within `reach` and go only past `reach + margin`, so the edge does not flicker.
 function PetView.shows(distance: number, shown: boolean, reach: number, margin: number): boolean
 	return distance <= reach + (if shown then margin else 0)
+end
+
+-- How an island's pets are shown: whole (moving, with their effects) or plain (standing still,
+-- body and outfit only). Not shown: no level.
+export type Level = "Whole" | "Plain"
+
+-- The distances and counts `levels` decides by (AlienLooks.VIEW).
+export type Reach = {
+	read REACH: number,
+	read MARGIN: number,
+	read NEIGHBOURS: number,
+	read NEIGHBOUR_REACH: number,
+}
+
+-- How each island's pets are shown with the camera `distances[island]` studs from its centre, when
+-- `was` is how they are shown now. Whole within reach (PetView.shows). Of the rest within the
+-- neighbours' reach, the `NEIGHBOURS` nearest are plain; one shown already stays so until another
+-- is `MARGIN` nearer than it, and past the reach by `MARGIN`, so the choice does not flicker.
+function PetView.levels(distances: { number }, was: { [number]: Level }, reach: Reach): { [number]: Level }
+	local levels: { [number]: Level } = {}
+	local others: { number } = {}
+	local ranks: { [number]: number } = {}
+	for island, distance in distances do
+		local shown = was[island] ~= nil
+		if PetView.shows(distance, was[island] == "Whole", reach.REACH, reach.MARGIN) then
+			levels[island] = "Whole"
+		elseif PetView.shows(distance, shown, reach.NEIGHBOUR_REACH, reach.MARGIN) then
+			table.insert(others, island)
+			ranks[island] = distance - (if shown then reach.MARGIN else 0)
+		end
+	end
+	table.sort(others, function(a, b)
+		if ranks[a] ~= ranks[b] then
+			return ranks[a] < ranks[b]
+		end
+		return a < b
+	end)
+	for index = 1, math.min(reach.NEIGHBOURS, #others) do
+		levels[others[index]] = "Plain"
+	end
+	return levels
 end
 
 -- The island (its index in `centres`) a pet standing at `position` belongs to: the nearest centre.
