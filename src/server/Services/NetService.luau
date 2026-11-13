@@ -80,6 +80,8 @@ export type Dependencies = {
 	-- The guardian bench or gallery: set it round the player or take it away (Off;
 	-- BenchService.showGuardians).
 	benchGuardians: (player: Player, display: "Off" | "Bench" | "Gallery") -> (),
+	-- The pet gallery: the bench with the next page of one family (BenchService.gallery).
+	benchGallery: (player: Player) -> (),
 	-- "Don't show again" in the controls window (ControlsService.setHidden).
 	setControlsHidden: (player: Player, hidden: boolean) -> (),
 }
@@ -348,6 +350,10 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.BenchGuardians.SetCallback(guarded(function(player, display: "Off" | "Bench" | "Gallery")
 			dependencies.benchGuardians(player, display)
+			return nil
+		end))
+		Remotes.BenchGallery.SetCallback(guarded(function(player)
+			dependencies.benchGallery(player)
 			return nil
 		end))
 		Remotes.Bench.SetCallback(guarded(function(player, fill: boolean)

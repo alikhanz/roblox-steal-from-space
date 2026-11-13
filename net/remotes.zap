@@ -654,3 +654,11 @@ event BenchGuardians = {
 	call: SingleSync,
 	data: GuardianDisplay,
 }
+
+-- The pet gallery (BenchService.gallery, Domain/PetGallery): the bench filled with the next page
+-- of one family's aliens. The server ignores anyone not allowed; "/bench clear" takes it away.
+event BenchGallery = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}

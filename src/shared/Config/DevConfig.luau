@@ -17,4 +17,7 @@ return table.freeze({
 	-- creator. The player attribute that shows the client its buttons.
 	BENCH_GAME_IDS = table.freeze({ 10774871729 }),
 	BENCH_ATTRIBUTE = "BenchAllowed",
+	-- The pet gallery's page on the bench ("crab 1/2", Domain/PetGallery.label), shown on its
+	-- button; absent while no gallery stands.
+	GALLERY_ATTRIBUTE = "BenchGallery",
 })
