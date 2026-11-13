@@ -41,7 +41,7 @@
 | crystal | a fan of hexagonal crystals with glowing cores | every crystal leans out (≤ 80°) |
 | fairy | the user's reference outline (`robo.WING_OUTLINE`) with a glowing edge band | **the first low-poly version** (commit 3aff207): the outline's key points with a faceted membrane fanning from the root (`lowpoly_kit._prism`) and `_frame` for the edge. Not the pre-low-poly veins and cells. Its beat is the same as every wing's. |
 
-- **Kit order is the pools' order.** Add a kind only at the end of `WINGS`: the roll (`Domain/AlienOutfit`) picks by index.
+- **A wing kind's id is saved with every alien that wears it** (`outfit.back`, decision 121). Never rename or reuse an id. A new kind is a new id. A kind taken out of the game is drawn anew at load (`AlienOutfit.repair`). The order in the pools is free: it only changes what new aliens draw.
 - **Rejected, don't bring back:** opaque wings (user: they covered everything); the solar sail.
 
 ## 4. Attaching

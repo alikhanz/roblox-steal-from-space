@@ -109,6 +109,11 @@ local function allowed(player: Player): boolean
 end
 
 function BenchService.new(dependencies: Dependencies): BenchService
+	local random = Random.new()
+	-- Outfits of the bench's and the gallery's aliens, drawn as a hatched alien's.
+	local function nextInteger(min: number, max: number): number
+		return random:NextInteger(min, max)
+	end
 	-- The gallery page each player has on the bench (an index into `galleryPages`).
 	local galleryPages = PetGallery.pages(BayConfig.MAX_PODS)
 	local galleryPage: { [Player]: number } = {}
@@ -125,7 +130,7 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		local changed = false
 		dependencies.update(player, function(data)
 			changed = if wanted
-				then Bench.fill(data, benchAliens(BayConfig.MAX_PODS), BayConfig.MAX_PODS)
+				then Bench.fill(data, benchAliens(BayConfig.MAX_PODS), BayConfig.MAX_PODS, nextInteger)
 				else Bench.clear(data)
 		end)
 		if not wanted then
@@ -145,7 +150,7 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		local filled = false
 		dependencies.update(player, function(data)
 			Bench.clear(data)
-			filled = Bench.fill(data, galleryPages[page].aliens, BayConfig.MAX_PODS)
+			filled = Bench.fill(data, galleryPages[page].aliens, BayConfig.MAX_PODS, nextInteger)
 		end)
 		setGalleryPage(player, if filled then page else nil)
 		dependencies.refresh(player)

@@ -1,5 +1,5 @@
 --!strict
--- Puts a low-poly pet's rolled outfit on its body (decision 118, Domain/AlienOutfit): each piece is a
+-- Puts a low-poly pet's outfit (its record's, decisions 118, 121; Domain/AlienOutfit) on its body: each piece is a
 -- model of the kit (ServerStorage.Aliens._Outfit, lune/aliens.luau) cloned onto the body's point for
 -- its slot (attachments `anchor<Slot>`, their Scale) and painted in the tier's colours. Its parts join
 -- the pet as if Blender had made them (`<role>_<n>`, a Paint code), so AlienDress paints them and the

@@ -2,6 +2,7 @@
 
 local Crossbreed = require("../../src/shared/Domain/Crossbreed")
 local Loot = require("../../src/shared/Domain/Loot")
+local PlayerData = require("../../src/shared/Domain/PlayerData")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
@@ -109,7 +110,7 @@ describe("Crossbreed.trios", function()
 	local function incomeOf(id: string): number
 		return tonumber(string.match(id, "(%d+)$")) :: number
 	end
-	local function owned(uid: number, id: string)
+	local function owned(uid: number, id: string): PlayerData.AlienRecord
 		return { uid = uid, id = id }
 	end
 

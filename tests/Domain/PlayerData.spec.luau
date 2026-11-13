@@ -1,5 +1,6 @@
 --!strict
 
+local AlienOutfit = require("../../src/shared/Domain/AlienOutfit")
 local BigNum = require("../../src/shared/Domain/BigNum")
 local PlayerData = require("../../src/shared/Domain/PlayerData")
 local Tables = require("../../src/shared/Runtime/Tables")
@@ -76,8 +77,14 @@ describe("PlayerData.load", function()
 
 	it("keeps the bay as saved", function()
 		local saved = savedTemplate()
-		saved.pods = { { alien = alien(1) }, {}, { alien = alien(2, "DebrisBelt2.droneRay.Rare") }, {} }
-		saved.floor = { alien(3), alien(4) }
+		-- Saved at this version, every alien already wears its outfit.
+		local function dressed(record: { [string]: any }): { [string]: any }
+			record.outfit = { head = "crest" }
+			return record
+		end
+		saved.pods =
+			{ { alien = dressed(alien(1)) }, {}, { alien = dressed(alien(2, "DebrisBelt2.droneRay.Rare")) }, {} }
+		saved.floor = { dressed(alien(3)), dressed(alien(4)) }
 		saved.incubator = { { uid = 5, rarity = "Rare", size = "Large", grade = 2, hatchAt = 1000 } }
 		saved.nextUid = 6
 		saved.lastSeenAt = 900
@@ -328,7 +335,9 @@ describe("PlayerData migration v2 -> v3", function()
 			expect(data.trainerLevel).toBe(0)
 			expect(data.jetpackLevel).toBe(0)
 			expect((data :: any).speed).toBeNil()
-			expect(data.pods[1].alien).toEqual(alien(1))
+			local record = data.pods[1].alien :: PlayerData.AlienRecord
+			expect(record.uid).toBe(1)
+			expect(record.id).toBe(alien(1).id)
 		end
 	end)
 end)
@@ -935,5 +944,125 @@ describe("PlayerData migration v20 -> v21", function()
 		local broken = savedTemplate()
 		broken.coachDone = -1
 		expectCorrupted(broken, "coachDone is invalid")
+	end)
+end)
+
+describe("PlayerData migration v21 -> v22", function()
+	local LEGENDARY = "DebrisBelt1.slimeWarden.Legendary"
+
+	-- A profile from before outfits: two aliens in places, two on the shelf, one bench alien.
+	local function v21(): { [string]: any }
+		local old = savedTemplate()
+		old.schemaVersion = 21
+		old.pods[1].alien = alien(1, LEGENDARY)
+		old.pods[2].alien = alien(2)
+		old.floor = { alien(3), alien(4, LEGENDARY) }
+		old.bench = { pods = 3, uids = { 2 } }
+		old.nextUid = 5
+		return old
+	end
+
+	local function outfits(data: PlayerData.PlayerData): { [number]: AlienOutfit.Picks? }
+		local found: { [number]: AlienOutfit.Picks? } = {}
+		for _, pod in data.pods do
+			if pod.alien then
+				found[pod.alien.uid] = pod.alien.outfit
+			end
+		end
+		for _, record in data.floor do
+			found[record.uid] = record.outfit
+		end
+		return found
+	end
+
+	it("gives every alien, in places, on the shelf and on the bench, an outfit of its tier", function()
+		local outcome = PlayerData.load(v21(), DEFAULTS, { nextInteger = AlienOutfit.sequence(9) })
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(22)
+			local found = outfits(outcome.data)
+			for uid = 1, 4 do
+				expect(found[uid]).toBeTruthy()
+			end
+			-- A legendary's head piece is always the crown; a common's back is always empty.
+			expect((found[1] :: AlienOutfit.Picks).head).toBe("crown")
+			expect((found[4] :: AlienOutfit.Picks).head).toBe("crown")
+			expect((found[3] :: AlienOutfit.Picks).back).toBe(nil)
+		end
+	end)
+
+	it("draws with the randomness it is given", function()
+		local outcome = PlayerData.load(v21(), DEFAULTS, {
+			nextInteger = function(_min: number, max: number): number
+				return max
+			end,
+		})
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			-- The last of each pool: a legendary's aura is the star, its back the fairy wings.
+			local legendary = outfits(outcome.data)[1] :: AlienOutfit.Picks
+			expect(legendary.aura).toBe("star")
+			expect(legendary.back).toBe("fairy")
+		end
+	end)
+
+	it("runs once: the saved outfit stays on every later load", function()
+		local first = PlayerData.load(v21(), DEFAULTS, { nextInteger = AlienOutfit.sequence(9) })
+		expect(first.ok).toBe(true)
+		if first.ok then
+			local saved = Tables.deepCopy(first.data) :: any
+			local before = outfits(first.data)
+			-- Any other randomness: nothing is drawn again.
+			for seed = 1, 5 do
+				local again =
+					PlayerData.load(Tables.deepCopy(saved), DEFAULTS, { nextInteger = AlienOutfit.sequence(seed) })
+				expect(again.ok).toBe(true)
+				if again.ok then
+					local after = outfits(again.data)
+					for uid = 1, 4 do
+						expect(AlienOutfit.key(after[uid] :: AlienOutfit.Picks)).toBe(
+							AlienOutfit.key(before[uid] :: AlienOutfit.Picks)
+						)
+					end
+				end
+			end
+		end
+	end)
+
+	it("keeps an outfit whatever the pools now offer, and redraws a piece taken out of the game", function()
+		local saved = savedTemplate()
+		saved.pods[1].alien = { uid = 1, id = LEGENDARY, outfit = { head = "horns", aura = "gone", back = "fairy" } }
+		saved.nextUid = 2
+		local outcome = PlayerData.load(saved, DEFAULTS, { nextInteger = AlienOutfit.sequence(2) })
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			local outfit = (outcome.data.pods[1].alien :: PlayerData.AlienRecord).outfit :: AlienOutfit.Picks
+			expect(outfit.head).toBe("horns")
+			expect(outfit.back).toBe("fairy")
+			expect(AlienOutfit.isPiece("aura", outfit.aura :: string)).toBe(true)
+		end
+	end)
+
+	it("leaves an alien the game doesn't know without an outfit", function()
+		local old = savedTemplate()
+		old.schemaVersion = 21
+		old.floor = { alien(1, "Gone.alien.Common") }
+		old.nextUid = 2
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.floor[1].outfit).toBeNil()
+		end
+	end)
+
+	it("rejects a broken outfit", function()
+		local broken = savedTemplate()
+		broken.floor = { { uid = 1, id = LEGENDARY, outfit = "crown" } }
+		broken.nextUid = 2
+		expectCorrupted(broken, "alien outfit is invalid")
+		local unknownSlot = savedTemplate()
+		unknownSlot.floor = { { uid = 1, id = LEGENDARY, outfit = { hat = "crown" } } }
+		unknownSlot.nextUid = 2
+		expectCorrupted(unknownSlot, "alien outfit is invalid")
 	end)
 end)

@@ -4,6 +4,7 @@
 -- (PlayerData.bench), so clearing works after a rejoin or on another server, and the player's own
 -- aliens are never touched. Pure functions that change the data in place, for one update each.
 
+local AlienOutfit = require("./AlienOutfit")
 local Bay = require("./Bay")
 local PlayerData = require("./PlayerData")
 
@@ -11,9 +12,10 @@ type Data = PlayerData.PlayerData
 
 local Bench = {}
 
--- Adds places up to `maxPods` and stands `aliens` (in order) on every empty one. False when the
--- bench already stands (clear it first) or there was nothing to fill.
-function Bench.fill(data: Data, aliens: { string }, maxPods: number): boolean
+-- Adds places up to `maxPods` and stands `aliens` (in order) on every empty one, each in an outfit
+-- drawn with `nextInteger` (as a hatched alien's). False when the bench already stands (clear it
+-- first) or there was nothing to fill.
+function Bench.fill(data: Data, aliens: { string }, maxPods: number, nextInteger: AlienOutfit.NextInteger): boolean
 	if data.bench then
 		return false
 	end
@@ -24,9 +26,9 @@ function Bench.fill(data: Data, aliens: { string }, maxPods: number): boolean
 	local next = 1
 	for _, pod in data.pods do
 		if not pod.alien and aliens[next] then
-			local uid = Bay.newUid(data)
-			pod.alien = { uid = uid, id = aliens[next] }
-			table.insert(record.uids, uid)
+			local alien = Bay.newAlien(data, aliens[next], nextInteger)
+			pod.alien = alien
+			table.insert(record.uids, alien.uid)
 			next += 1
 		end
 	end

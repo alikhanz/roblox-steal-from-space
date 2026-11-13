@@ -153,6 +153,11 @@ local function aimOf(player: Player, root: BasePart): Vector3
 end
 
 function DevService.new(dependencies: Dependencies): DevService
+	local random = Random.new()
+	-- Outfits of the aliens the commands add (Bay.newAlien).
+	local function nextInteger(min: number, max: number): number
+		return random:NextInteger(min, max)
+	end
 	local infiniteOxygen = DevConfig.STUDIO_INFINITE_OXYGEN
 	-- The last fake receipt SimulatePurchase sent, for ReplayLastReceipt.
 	local lastReceipt: { [string]: any }? = nil
@@ -607,7 +612,7 @@ function DevService.new(dependencies: Dependencies): DevService
 			local added = 0
 			dependencies.update(player, function(current)
 				while #current.floor < target do
-					table.insert(current.floor, { uid = Bay.newUid(current), id = alienId })
+					table.insert(current.floor, Bay.newAlien(current, alienId, nextInteger))
 					added += 1
 				end
 			end)
@@ -635,7 +640,7 @@ function DevService.new(dependencies: Dependencies): DevService
 			local chosen: { string } = aliens
 			local filled = false
 			dependencies.update(player, function(data)
-				filled = Bench.fill(data, chosen, BayConfig.MAX_PODS)
+				filled = Bench.fill(data, chosen, BayConfig.MAX_PODS, nextInteger)
 			end)
 			dependencies.refresh(player)
 			return if filled

@@ -1,58 +1,89 @@
 --!strict
 
+local AlienConfig = require("../../src/shared/Config/AlienConfig")
 local AlienOutfit = require("../../src/shared/Domain/AlienOutfit")
 local Test = require("../../lune/lib/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
-describe("AlienOutfit.hash", function()
-	it("matches the Blender side (assets/blender/lowpoly/lowpoly_dress.py, fnv1a)", function()
-		expect(AlienOutfit.hash("1")).toBe(1428125071)
-		expect(AlienOutfit.hash("12345:7")).toBe(89114941)
-		expect(AlienOutfit.hash("11826206709:42")).toBe(1030879421)
+-- A legendary alien of the first guardian, and a common one.
+local LEGENDARY = AlienConfig.GRADES[1].aliens.Legendary
+local COMMON = AlienConfig.GRADES[1].aliens.Common
+
+describe("AlienOutfit.sequence", function()
+	it("gives whole numbers in the range, the same for one seed", function()
+		local first, second = AlienOutfit.sequence(7), AlienOutfit.sequence(7)
+		for _ = 1, 200 do
+			local value = first(3, 9)
+			expect(value >= 3 and value <= 9 and value % 1 == 0).toBe(true)
+			expect(second(3, 9)).toBe(value)
+		end
 	end)
 end)
 
-describe("AlienOutfit.roll", function()
-	it("rolls what the Blender side rolls", function()
-		local picks = AlienOutfit.roll(11826206709, 42, 4)
-		expect(picks.head).toBe("feelers")
-		expect(picks.aura).toBe("rings")
-		expect(picks.back).toBe("fairy")
-		local legendary = AlienOutfit.roll(1, 1, 5)
-		expect(legendary.head).toBe("crown")
-		expect(legendary.aura).toBe("star")
-		expect(legendary.back).toBe("butterfly")
-	end)
-
-	it("is the same every time for one owner and uid", function()
-		for tier = 1, AlienOutfit.TIERS do
-			expect(AlienOutfit.key(AlienOutfit.roll(77, 5, tier))).toBe(AlienOutfit.key(AlienOutfit.roll(77, 5, tier)))
-		end
-	end)
-
-	it("gives a common no back and no aura, and wings only from epic", function()
-		for uid = 1, 50 do
-			local common = AlienOutfit.roll(9, uid, 1)
+describe("AlienOutfit.draw", function()
+	it("draws from its tier's pools: nothing on a common's back, a crown on a legendary", function()
+		local nextInteger = AlienOutfit.sequence(3)
+		for _ = 1, 60 do
+			local common = AlienOutfit.draw(1, nextInteger)
 			expect(common.aura).toBe(nil)
 			expect(common.back).toBe(nil)
-			local rare = AlienOutfit.roll(9, uid, 3)
+			local rare = AlienOutfit.draw(3, nextInteger)
 			expect(rare.back == "jetpack" or rare.back == "angelSmall" or rare.back == "butterflySmall").toBe(true)
-			expect(AlienOutfit.roll(9, uid, 5).head).toBe("crown")
+			local legendary = AlienOutfit.draw(5, nextInteger)
+			expect(legendary.head).toBe("crown")
+			expect(legendary.back ~= nil and AlienOutfit.isPiece("back", legendary.back :: string)).toBe(true)
 		end
 	end)
 
 	it("varies from pet to pet", function()
+		local nextInteger = AlienOutfit.sequence(11)
 		local seen: { [string]: boolean } = {}
 		local count = 0
-		for uid = 1, 40 do
-			local key = AlienOutfit.key(AlienOutfit.roll(123456, uid, 4))
+		for _ = 1, 40 do
+			local key = AlienOutfit.key(AlienOutfit.draw(4, nextInteger))
 			if not seen[key] then
 				seen[key] = true
 				count += 1
 			end
 		end
-		-- 45 sets an epic can roll; forty pets show many of them.
+		-- 45 sets an epic can draw; forty pets show many of them.
 		expect(count >= 20).toBe(true)
+	end)
+end)
+
+describe("AlienOutfit.forAlien", function()
+	it("draws by the alien's tier, and nothing for an id the game doesn't know", function()
+		local legendary = AlienOutfit.forAlien(LEGENDARY, AlienOutfit.sequence(1)) :: AlienOutfit.Picks
+		expect(legendary.head).toBe("crown")
+		local common = AlienOutfit.forAlien(COMMON, AlienOutfit.sequence(1)) :: AlienOutfit.Picks
+		expect(common.back).toBe(nil)
+		expect(AlienOutfit.forAlien("NoSuchAlien", AlienOutfit.sequence(1))).toBe(nil)
+	end)
+end)
+
+describe("AlienOutfit.repair", function()
+	it("keeps the pieces the game has, even ones its tier's pools don't offer", function()
+		-- Horns are no legendary's head piece any more (a crown is), but they stay: a pool only
+		-- changes what new aliens draw (decision 121).
+		local outfit: AlienOutfit.Picks = { head = "horns", aura = "star", back = "fairy" }
+		expect(AlienOutfit.repair(outfit, LEGENDARY, AlienOutfit.sequence(1))).toBe(false)
+		expect(outfit.head).toBe("horns")
+		expect(outfit.aura).toBe("star")
+		expect(outfit.back).toBe("fairy")
+	end)
+
+	it("draws a piece taken out of the game anew from its slot's pool", function()
+		local outfit: AlienOutfit.Picks = { head = "crown", aura = "removedAura", back = "fairy" }
+		expect(AlienOutfit.repair(outfit, LEGENDARY, AlienOutfit.sequence(5))).toBe(true)
+		expect(AlienOutfit.isPiece("aura", outfit.aura :: string)).toBe(true)
+		expect(outfit.head).toBe("crown")
+		expect(outfit.back).toBe("fairy")
+	end)
+
+	it("empties a slot its tier has no pool for", function()
+		local outfit: AlienOutfit.Picks = { back = "removedWings" }
+		expect(AlienOutfit.repair(outfit, COMMON, AlienOutfit.sequence(5))).toBe(true)
+		expect(outfit.back).toBe(nil)
 	end)
 end)
 

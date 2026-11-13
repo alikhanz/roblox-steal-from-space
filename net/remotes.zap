@@ -15,9 +15,18 @@ type BigNum = struct {
 	exponent: i32,
 }
 
+-- What an alien wears (decision 121, Domain/AlienOutfit): its pieces' ids; nil only for an id the
+-- game doesn't know.
+type Outfit = struct {
+	head: string.utf8?,
+	aura: string.utf8?,
+	back: string.utf8?,
+}
+
 type Alien = struct {
 	uid: u32,
 	id: string.utf8,
+	outfit: Outfit?,
 }
 
 type Pod = struct {

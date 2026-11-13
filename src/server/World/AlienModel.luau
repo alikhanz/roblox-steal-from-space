@@ -204,18 +204,18 @@ end
 
 -- `cframe` is where the alien stands: its lowest point at the frame's origin, facing the frame's
 -- look direction. `scaleOverride` replaces its own size (aliens with no place stand small on the
--- island's floor). `ownerId` (the owner's UserId) and `uid` roll a low-poly pet's outfit.
+-- island's floor). `outfit` is what a low-poly pet wears (its record's, decision 121); nil: nothing.
 function AlienModel.build(
 	alienId: AlienConfig.AlienId,
 	uid: number,
 	cframe: CFrame,
 	scaleOverride: number?,
-	ownerId: number?
+	outfit: AlienOutfit.Picks?
 ): Model
 	local alien = assert(AlienConfig.ALIENS[alienId], `Unknown alien {alienId}`)
 	-- Bigger with every guardian and tier (decision 068).
 	local scale = scaleOverride or alien.scale
-	local template = templateOf(alien, AlienOutfit.roll(ownerId or 0, uid, AlienConfig.TIER_POSITIONS[alien.tier]))
+	local template = templateOf(alien, outfit or {})
 	local model: Model
 	if template then
 		model = template.model:Clone()

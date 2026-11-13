@@ -3,6 +3,7 @@
 -- and variant, of their tier or, with some luck, one tier up (decision 113). Kinds of a grade mix
 -- freely; the result is the kind of one of the parents.
 
+local AlienOutfit = require("./AlienOutfit")
 local Hatch = require("./Hatch")
 local Loot = require("./Loot")
 
@@ -69,7 +70,7 @@ export type Trio = {
 	uids: { number },
 }
 
-type Owned = { uid: number, id: string }
+type Owned = { uid: number, id: string, outfit: AlienOutfit.Picks? }
 
 -- Every group of `aliens` with at least `required` that go together, best group first (by its
 -- best earner). `parentOf` gives an alien's grade, tier and variant (nil: unknown, left out);
