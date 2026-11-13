@@ -247,10 +247,22 @@ def fairy():
 
 
 def fairy_dust():
-    """Where fairy dust flies off the fairy wing's edge as it beats (robo.WING_DUST_TRACE)."""
+    """Where the fairy wing's stroke runs as it beats: its own outline (the one `fairy` draws) from
+    the forewing's tip down the outer edge (robo.WING_DUST_TRACE's first five points, snapped to
+    the outline). The trace itself sat off this outline and jumped to the hind lobe, so the stroke
+    missed the edge (user, 2026-11-13)."""
     import robo
 
-    return robo._from_trace(robo.WING_DUST_TRACE)
+    outline = robo._smoothed(robo.WING_OUTLINE, True, 1)
+    trace = robo._from_trace(robo.WING_DUST_TRACE)
+
+    def nearest(point):
+        return min(range(len(outline)), key=lambda i: (outline[i][0] - point[0]) ** 2 + (outline[i][1] - point[1]) ** 2)
+
+    start, end = nearest(trace[0]), nearest(trace[4])
+    if start <= end:
+        return outline[start:end + 1]
+    return outline[start:] + outline[:end + 1]
 
 
 def dragon():
