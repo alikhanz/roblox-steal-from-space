@@ -50,6 +50,7 @@ return table.freeze({
 	ISLAND_RADIUS = ISLAND_RADIUS,
 	ISLAND_DOME_RADIUS = ISLAND_DOME_RADIUS,
 	ISLAND_COUNT = ISLAND_COUNT,
+	ISLAND_GAP = ISLAND_GAP,
 	ISLAND_RING_RADIUS = ISLAND_RING_RADIUS,
 	BORDER_RADIUS = BORDER_RADIUS,
 	-- The central spawn: halfway from the platform center to its edge.

@@ -95,3 +95,28 @@ describe("AlienOutfit.first", function()
 		expect(picks.back).toBe("butterfly")
 	end)
 end)
+
+describe("AlienOutfit.fromKey", function()
+	it("gives back the outfit its key names, empty slots too", function()
+		for _, picks: AlienOutfit.Picks in
+			{
+				{ head = "crown", aura = "star", back = "fairy" },
+				{ head = "horns" },
+				{ aura = "halo", back = "jetpack" },
+				{},
+			}
+		do
+			local back = AlienOutfit.fromKey(AlienOutfit.key(picks))
+			expect(back.head).toBe(picks.head)
+			expect(back.aura).toBe(picks.aura)
+			expect(back.back).toBe(picks.back)
+		end
+	end)
+
+	it("reads anything else as no outfit", function()
+		local none = AlienOutfit.fromKey("not a key")
+		expect(none.head).toBe(nil)
+		expect(none.aura).toBe(nil)
+		expect(none.back).toBe(nil)
+	end)
+end)

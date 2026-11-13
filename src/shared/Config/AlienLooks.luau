@@ -3,6 +3,7 @@
 -- Kept apart from AlienConfig so the numbers there load in Lune.
 
 local AlienConfig = require("./AlienConfig")
+local StationSize = require("./StationSize")
 
 export type TierLook = {
 	read color: Color3,
@@ -77,7 +78,7 @@ local MODELS = table.freeze({
 	-- a meteor's molten shell (the crack texture and its glow mask,
 	-- assets/blender/aliens/lava_texture.py). A game server cannot set their texture maps, so
 	-- they are made in default.project.json: MaterialService.<METAL_VARIANT> and
-	-- ServerStorage.<SKINS_FOLDER>.<LAVA_SKIN>.
+	-- ReplicatedStorage.<SKINS_FOLDER>.<LAVA_SKIN> (each client paints the pets near it, decision 123).
 	METAL_VARIANT = "PetMetal",
 	SKINS_FOLDER = "AlienSkins",
 	LAVA_SKIN = "Lava",
@@ -199,6 +200,53 @@ local MOTION = table.freeze({
 	LOOK_LIMIT_DEGREES = 70,
 })
 
+-- Which pets a client builds, and how (decision 123, AlienViewController, Domain/PetView). The
+-- server stands only an invisible box for each pet; a client builds an island's pets whole (moving,
+-- with their effects) while its camera is within REACH studs of the island's centre (PAST_DOME
+-- studs outside its dome) and keeps them so until it is MARGIN farther. The NEIGHBOURS islands
+-- nearest the camera after those, within NEIGHBOUR_REACH, show their pets plain: body and outfit
+-- standing still, no particles, light or effects (from one's own island, its two neighbours on the
+-- ring; user, 2026-11-14: the empty places of the neighbours read as black circles). An island
+-- left with neither is hidden, not taken apart: back within HOLD_SECONDS, its pets show at once.
+-- At most HOLD_ISLANDS islands are held so, the longest hidden going first (user, 2026-11-13).
+-- 100 studs out: from there to the dome is 2 s at the starting flight speed (48 studs/s), 0.4 s at
+-- 250; a neighbour shown plain is made whole in about 0.3 s (a check, then WHOLE_PER_FRAME). At
+-- 60 the user found the pets came in only on arrival (2026-11-14). Leaving at REACH + MARGIN is
+-- still short of a neighbour's centre (StationSize: 305 studs apart), so from the middle of one's
+-- island the neighbours stand plain.
+local PAST_DOME = 100
+-- Two neighbouring islands' centres apart on the ring (StationSize).
+local NEIGHBOUR_SPACING = 2 * StationSize.ISLAND_DOME_RADIUS + StationSize.ISLAND_GAP
+local VIEW = table.freeze({
+	REACH = StationSize.ISLAND_DOME_RADIUS + PAST_DOME,
+	MARGIN = 60,
+	NEIGHBOURS = 2,
+	-- From anywhere on one's island both its neighbours are within it; far out in space, none.
+	NEIGHBOUR_REACH = 2 * NEIGHBOUR_SPACING,
+	HOLD_SECONDS = 60,
+	HOLD_ISLANDS = 2,
+	-- How often the distances are checked, seconds.
+	CHECK_SECONDS = 0.25,
+	-- The distances are taken from where the camera will be this much later too (PetView.ahead):
+	-- at 250 studs/s the pets turned whole only 13 studs before the dome, at 48 85 studs (Studio,
+	-- 2026-11-14). A camera faster than LEAD_MAX_SPEED (a respawn, a jump of the view) jumped.
+	LEAD_SECONDS = 0.75,
+	LEAD_MAX_SPEED = 600,
+	-- Pets built a frame at most, the nearest first: an island of thirty comes in under a second.
+	BUILDS_PER_FRAME = 2,
+	-- Plain pets made whole a frame at most (their effects only): an island of thirty in 5 frames.
+	WHOLE_PER_FRAME = 6,
+	-- The folder in ReplicatedStorage the server copies the kinds' models the clients need into,
+	-- from ServerStorage.Aliens (World/AlienModel): only those of the pets on the server.
+	FOLDER = "AlienModels",
+	-- On a pet's box: true when the clients build the pet (a kind with no model in the place stands
+	-- as the server's greybox blob), the size it stands at (alien.scale or the shelf's) and the
+	-- outfit it wears (AlienOutfit.key).
+	LOOK_ATTRIBUTE = "Look",
+	SCALE_ATTRIBUTE = "PetScale",
+	OUTFIT_ATTRIBUTE = "Outfit",
+})
+
 return table.freeze({
 	TIERS = table.freeze(TIERS),
 	BODY_SIZE = BODY_SIZE,
@@ -206,6 +254,7 @@ return table.freeze({
 	MODELS = MODELS,
 	FX = FX,
 	MOTION = MOTION,
+	VIEW = VIEW,
 	-- Marks a part of a low-poly pet's outfit (OutfitDress): worn, not the body.
 	OUTFIT_PART_ATTRIBUTE = "OutfitPart",
 	EYE_SIZE = Vector3.new(0.35, 0.5, 0.2),

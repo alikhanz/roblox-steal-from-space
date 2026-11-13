@@ -11,7 +11,7 @@
 | Fitting hinges, size and the star to a body | `assets/blender/lowpoly/lowpoly_fit.py` (`fit`, `wing_faults`, `star_faults`) |
 | Export (fits every kind) | `assets/blender/lowpoly/export_lowpoly_roblox.py` |
 | Unpack (kit pivots, dust points) | `lune/aliens.luau` (`unpackLowpoly`) |
-| Putting a pair on a pet, sizes | `src/server/World/OutfitDress.luau` (`WINGS`, `EPIC_WINGS`, the `hingeL`/`hingeR` attachments) |
+| Putting a pair on a pet, sizes | `src/shared/World/OutfitDress.luau` (`WINGS`, `EPIC_WINGS`, the `hingeL`/`hingeR` attachments) |
 | Colour, see-through, beat strokes | `src/shared/World/AlienDress.luau` (`colorWings`, `wings`), `src/shared/Config/AlienLooks.luau` (`WING_LIGHT`, `WING_STROKE`, `LEGENDARY_LIGHT`) |
 | The beat | `src/client/World/RigMotion.luau` (mover `WING`) |
 | Checks | `assets/blender/concepts/lowpoly/lowpoly_wing_check.py`, `lowpoly_fit_preview.py`, `lowpoly_wing_glow.py`; `tests/Config/AlienModels.spec.luau` |

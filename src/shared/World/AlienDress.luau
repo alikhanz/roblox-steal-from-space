@@ -22,7 +22,6 @@
 
 local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 
@@ -91,7 +90,7 @@ type Paint = {
 
 -- Polished metal for the pets' gold and chrome, and the meteor's lava skin: their texture maps
 -- can be set only from Studio, not by a game server, so they come ready from default.project.json
--- (MaterialService.PetMetal, ServerStorage.AlienSkins.Lava). Under Realistic lighting (decision
+-- (MaterialService.PetMetal, ReplicatedStorage.AlienSkins.Lava). Under Realistic lighting (decision
 -- 076) metal catches highlights; plastic with reflectance stays flat. Nil, with a warning once,
 -- where the place lacks them: the part stays plain.
 local warned: { [string]: boolean } = {}
@@ -109,7 +108,7 @@ local function metalName(): string
 end
 
 local function lavaSkin(): SurfaceAppearance?
-	local skins = ready(ServerStorage, MODELS.SKINS_FOLDER)
+	local skins = ready(ReplicatedStorage, MODELS.SKINS_FOLDER)
 	local lava = if skins then ready(skins, MODELS.LAVA_SKIN) else nil
 	return if lava and lava:IsA("SurfaceAppearance") then lava else nil
 end
@@ -297,8 +296,7 @@ end
 local function paint(pet: Model, paints: { [string]: Paint }, core: Color3): ({ MeshPart }, { MeshPart }, { MeshPart })
 	local wingParts, flameParts, jetParts = {}, {}, {}
 	local metal = metalName()
-	-- The lava skin is fetched only for a part that wears it: it lives in ServerStorage, which a
-	-- client painting a guardian (AlienDress.paintModel) cannot see.
+	-- The lava skin is fetched only for a part that wears it.
 	local lava: SurfaceAppearance? = nil
 	local lavaLooked = false
 	for _, instance in pet:GetDescendants() do

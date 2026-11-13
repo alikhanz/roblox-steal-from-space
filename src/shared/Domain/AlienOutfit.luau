@@ -150,6 +150,16 @@ function AlienOutfit.key(picks: Picks): string
 	return `{picks.head or "-"}/{picks.aura or "-"}/{picks.back or "-"}`
 end
 
+-- The outfit a `key` names back: what a pet's box carries to the clients (World/AlienModel).
+-- Anything else is no outfit.
+function AlienOutfit.fromKey(key: string): Picks
+	local head, aura, back = string.match(key, "^([^/]*)/([^/]*)/([^/]*)$")
+	local function piece(text: string?): string?
+		return if text and text ~= "" and text ~= "-" then text else nil
+	end
+	return { head = piece(head), aura = piece(aura), back = piece(back) }
+end
+
 -- Every piece any pool may roll, by slot.
 function AlienOutfit.pieces(slot: Slot): { string }
 	local seen: { [string]: boolean } = {}

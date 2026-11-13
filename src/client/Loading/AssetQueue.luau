@@ -16,6 +16,7 @@ export type Asset = Instance | string
 type Job = {
 	label: string,
 	assets: { Asset },
+	done: (() -> ())?,
 }
 
 local AssetQueue = {}
@@ -53,6 +54,10 @@ local function drain()
 			task.spawn(function()
 				preload(job.label, job.assets)
 				isDone = true
+				local done = job.done
+				if done then
+					done()
+				end
 			end)
 			local started = os.clock()
 			while not isDone and os.clock() - started < LoadConfig.JOB_SECONDS do
@@ -69,12 +74,16 @@ function AssetQueue.now(label: string, assets: { Asset })
 end
 
 -- Asks for `assets` once the player's own jetpack is in, after anything of a higher `priority`
--- (LoadConfig.PRIORITY). Does not yield.
-function AssetQueue.later(label: string, priority: number, assets: { Asset })
+-- (LoadConfig.PRIORITY). Does not yield; `done`, if given, is called once they have resolved
+-- (loaded or failed).
+function AssetQueue.later(label: string, priority: number, assets: { Asset }, done: (() -> ())?)
 	if #assets == 0 then
+		if done then
+			done()
+		end
 		return
 	end
-	LoadOrder.push(queue, priority, { label = label, assets = assets })
+	LoadOrder.push(queue, priority, { label = label, assets = assets, done = done })
 	if isOpen then
 		drain()
 	end

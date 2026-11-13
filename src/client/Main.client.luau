@@ -9,6 +9,7 @@ local AimMarkController = require(script.Parent.Controllers.AimMarkController)
 local AlarmSoundController = require(script.Parent.Controllers.AlarmSoundController)
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienMotionController = require(script.Parent.Controllers.AlienMotionController)
+local AlienViewController = require(script.Parent.Controllers.AlienViewController)
 local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
@@ -95,6 +96,7 @@ local storeController = StoreController.new({
 	menu = menuState,
 })
 local eventController = EventController.new()
+local alienMotionController = AlienMotionController.new()
 local tutorialController = TutorialController.new({
 	speed = speedState.speed,
 	grab = grabState,
@@ -151,7 +153,8 @@ Lifecycle.run({
 	EggPurchaseController.new({ purchases = purchaseState }),
 	GuardianViewController.new({ speed = speedState.speed }),
 	BayViewController.new({ profile = profileState }),
-	AlienMotionController.new(),
+	alienMotionController,
+	AlienViewController.new({ motion = alienMotionController }),
 	PlaceGlideController.new(),
 	FeedbackController.new({ profile = profileState, purchases = purchaseState }),
 	AlarmSoundController.new(),
