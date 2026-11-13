@@ -33,6 +33,7 @@ local TEX = MODELS.TEXTURES
 local MOTION_LOOKS = AlienLooks.MOTION
 local WING_STROKE = MOTION_LOOKS.WING_STROKE
 local LEGENDARY_LIGHT = MOTION_LOOKS.LEGENDARY_LIGHT
+local WING_LIGHT = MOTION_LOOKS.WING_LIGHT
 local GOLD = Color3.fromRGB(255, 200, 70)
 local FIRE = Color3.fromRGB(255, 120, 30)
 local WHITE = Color3.new(1, 1, 1)
@@ -805,10 +806,11 @@ end
 -- Blender renders' sunburst) turning slowly; it showers gold glitter. The glow moves with the pet
 -- (locked to the carrier) and is drawn at its own depth, just behind the body: pushed further back
 -- it shows round the body more, burns brighter and washes out the medal.
-local function legendaryGlow(fx: BasePart, top: Attachment, size: Vector3, radius: number, meteor: boolean)
+-- `at` is where the glow sits (in the carrier's space), `radius` the body's (LEGENDARY_LIGHT.bodyRadius).
+local function legendaryGlow(fx: BasePart, top: Attachment, at: Vector3, radius: number, meteor: boolean)
 	local warm = if meteor then FIRE else GOLD
 	local pale = if meteor then Color3.fromRGB(255, 200, 120) else Color3.fromRGB(255, 240, 180)
-	local glow = attachment(fx, "Radiance", Vector3.new(0, size.Y * 0.1, size.Z * 0.25))
+	local glow = attachment(fx, "Radiance", at)
 	emitter(glow, "Radiance", {
 		Texture = TEX.ember,
 		Color = colours({ { 0, pale }, { 1, warm } }),
@@ -898,12 +900,12 @@ local function colorWings(pet: Model, wingParts: { MeshPart }, paints: { [string
 			if part:GetAttribute("Role") == side then
 				part.Material = Enum.Material.Neon
 				part.Color = boost(accent, 1.2, 1.1)
-				part.Transparency = 0
+				part.Transparency = WING_LIGHT.lineTransparency
 			end
 		end
 		membrane.Material = Enum.Material.SmoothPlastic
 		membrane.Color = boost(accent, 1.2, 1.1)
-		membrane.Transparency = 0.8
+		membrane.Transparency = WING_LIGHT.membrane
 		membrane.CastShadow = false
 	end
 	for _, marker in pet:GetDescendants() do
@@ -1170,6 +1172,40 @@ local function carrier(pet: Model, cf: CFrame, size: Vector3): (BasePart, Attach
 	return fx, top, back
 end
 
+-- The pet's body alone, in the frame `cf`: the centre and size of its seen parts without the wings,
+-- the outfit it wears (OutfitDress) and what orbits it. The legendary's glow is sized by it, not by
+-- the whole pet with the low-poly wings' wide span.
+local function bodyBox(pet: Model, cf: CFrame): (Vector3, Vector3)
+	local low, high = Vector3.one * math.huge, -Vector3.one * math.huge
+	for _, part in pet:GetDescendants() do
+		if
+			not part:IsA("MeshPart")
+			or part.Transparency >= 1
+			or part:GetAttribute(AlienLooks.OUTFIT_PART_ATTRIBUTE)
+		then
+			continue
+		end
+		local role = tostring(part:GetAttribute("Role") or "body")
+		if string.match(role, "^wing") or role == "orbit" or role == "wisp" then
+			continue
+		end
+		local half = part.Size / 2
+		for _, x in { -1, 1 } do
+			for _, y in { -1, 1 } do
+				for _, z in { -1, 1 } do
+					local point = cf:PointToObjectSpace((part.CFrame * Vector3.new(half.X * x, half.Y * y, half.Z * z)))
+					low = low:Min(point)
+					high = high:Max(point)
+				end
+			end
+		end
+	end
+	if low.X > high.X then
+		return Vector3.zero, pet:GetExtentsSize()
+	end
+	return (low + high) / 2, high - low
+end
+
 -- The client's half, on a prepared pet at the dressing scale: every effect.
 function AlienDress.adorn(pet: Model)
 	local zone = tostring(pet:GetAttribute("Zone"))
@@ -1200,7 +1236,11 @@ function AlienDress.adorn(pet: Model)
 		meteorFire(pet, fx, cf, size, radius, tier)
 	end
 	if tier == 4 then
-		legendaryGlow(fx, top, size, radius, meteor)
+		local bodyCentre, bodySize = bodyBox(pet, cf)
+		local at = fx.CFrame:PointToObjectSpace(
+			cf:PointToWorldSpace(bodyCentre + Vector3.new(0, bodySize.Y * 0.1, bodySize.Z * 0.25))
+		)
+		legendaryGlow(fx, top, at, math.max(bodySize.X, bodySize.Z) / 2 * LEGENDARY_LIGHT.bodyRadius, meteor)
 	end
 	wings(wingParts, paints, accent, tier == 4)
 	-- Comets instead of orbit rings (tier 3+), unless a meteor's fireballs fly already.

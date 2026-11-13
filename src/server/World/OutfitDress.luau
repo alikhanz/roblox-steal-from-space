@@ -5,7 +5,13 @@
 -- the pet as if Blender had made them (`<role>_<n>`, a Paint code), so AlienDress paints them and the
 -- client moves them like any pet's: wings flap on their hinge, shards and rings orbit.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
+
 local OutfitDress = {}
+
+local OUTFIT_ATTRIBUTE = AlienLooks.OUTFIT_PART_ATTRIBUTE
 
 local GOLD_BODY = "S255,190,45,0,0.35,Gold"
 local GOLD = "255,200,70"
@@ -119,6 +125,8 @@ function OutfitDress.dress(model: Model, kit: Instance, picks: { [string]: strin
 			if type(code) == "string" then
 				part:SetAttribute("Paint", repaint(code, tier, meteor, tierColor))
 			end
+			-- Worn, not the body: the client sizes the body's own light without it (AlienDress).
+			part:SetAttribute(OUTFIT_ATTRIBUTE, true)
 			part.Parent = model
 			table.insert(parts, part)
 		end

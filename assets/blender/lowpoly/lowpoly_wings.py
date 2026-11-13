@@ -139,15 +139,7 @@ def _finish(bm):
 
 # --- The wings: name -> [(part, paint key, fill)] ---------------------------------------------------
 
-# The membrane is a thin flat sheet (a faint tint, AlienDress.colorWings); the lines over it glow.
-# Thin, as the first wings' were: wide neon bands and veins burnt a legendary's gold wings to a white
-# blot under Bloom, ten times the glowing area of the wings before the low-poly pets (user,
-# 2026-11-13). LINE is an edge's width, VEIN a vein's, LINE_DEPTH how far both stand out of the
-# sheet (just over it, so they show from both sides); widths in wing units (the span is 1).
-DEPTH = 0.006
-LINE = 0.016
-VEIN = 0.009
-LINE_DEPTH = 0.009
+DEPTH = 0.016
 
 # A swallowtail: a broad forewing with a pointed apex and a slightly hollow outer edge, a hindwing
 # with a tail.
@@ -159,23 +151,24 @@ BUTTERFLY_HIND = [(0.0, -0.02), (0.3, -0.02), (0.58, -0.12), (0.72, -0.32), (0.6
 
 def butterfly():
     def wings(bm):
-        _slab(bm, BUTTERFLY_FORE, DEPTH, 0.0, (0.5, 0.5))
-        _slab(bm, BUTTERFLY_HIND, DEPTH, 0.0, (0.36, -0.32))
+        _slab(bm, BUTTERFLY_FORE, DEPTH, 0.02, (0.5, 0.5))
+        _slab(bm, BUTTERFLY_HIND, DEPTH, 0.018, (0.36, -0.32))
         _finish(bm)
 
     def frame(bm):
-        _band(bm, BUTTERFLY_FORE, LINE, LINE_DEPTH)
-        _band(bm, BUTTERFLY_HIND, LINE, LINE_DEPTH)
-        for tip in ((0.66, 0.9), (0.86, 0.5)):
-            _strip(bm, [(0.02, 0.06), (tip[0] * 0.5, tip[1] * 0.5 + 0.03), tip], VEIN, LINE_DEPTH)
-        for tip in ((0.52, -0.58),):
-            _strip(bm, [(0.02, -0.03), (tip[0] * 0.5, tip[1] * 0.5), tip], VEIN, LINE_DEPTH)
+        # Raised over the facets (their apex stands DEPTH + lift out), so the border and veins show.
+        _band(bm, BUTTERFLY_FORE, 0.11, 0.04)
+        _band(bm, BUTTERFLY_HIND, 0.09, 0.036)
+        for tip in ((0.66, 0.9), (0.9, 0.7), (0.8, 0.4)):
+            _strip(bm, [(0.02, 0.06), (tip[0] * 0.5, tip[1] * 0.5 + 0.03), tip], 0.035, 0.038)
+        for tip in ((0.6, -0.55), (0.32, -0.5)):
+            _strip(bm, [(0.02, -0.03), (tip[0] * 0.5, tip[1] * 0.5), tip], 0.03, 0.034)
         _finish(bm)
 
     def spots(bm):
-        _gem(bm, (0.66, 0.66), 0.04, LINE_DEPTH)
-        _gem(bm, (0.44, -0.36), 0.035, LINE_DEPTH)
-        _gem(bm, (0.86, 0.9), 0.025, LINE_DEPTH)
+        _gem(bm, (0.66, 0.66), 0.1, 0.045)
+        _gem(bm, (0.44, -0.36), 0.08, 0.042)
+        _gem(bm, (0.86, 0.9), 0.05, 0.045)
         _finish(bm)
 
     return [("wings", "wing", wings), ("frame", "wingEdge", _both(frame, spots))]
@@ -189,7 +182,7 @@ def _feather(bm, root, angle, length, width):
     outline = [tuple(r + n * width * 0.25), tuple(r + d * length * 0.35 + n * width * 0.5), tuple(r + d * length * 0.8 + n * width * 0.42),
                tuple(r + d * length), tuple(r + d * length * 0.8 - n * width * 0.42), tuple(r + d * length * 0.35 - n * width * 0.5),
                tuple(r - n * width * 0.25)]
-    _slab(bm, outline, DEPTH, 0.0, tuple(r + d * length * 0.5))
+    _slab(bm, outline, DEPTH, 0.025, tuple(r + d * length * 0.5))
 
 
 def angel():
@@ -216,13 +209,13 @@ def angel():
 
     def shafts(bm):
         # A glowing shaft down each long feather and the bone, raised over the facets.
-        _strip(bm, bone, LINE * 1.2, LINE_DEPTH, 0.2)
+        _strip(bm, bone, 0.07, 0.05, 0.2)
         for t, angle, length, _ in rows:
             root = Vector(along(t))
             d = Vector((math.cos(D(angle)), math.sin(D(angle))))
-            _strip(bm, [tuple(root), tuple(root + d * length * 0.5), tuple(root + d * length * 0.92)], VEIN * 0.8, LINE_DEPTH, 0.6)
+            _strip(bm, [tuple(root), tuple(root + d * length * 0.5), tuple(root + d * length * 0.92)], 0.022, 0.046, 0.6)
         for t in (0.3, 0.62, 0.95):
-            _gem(bm, along(t), 0.022, LINE_DEPTH)
+            _gem(bm, along(t), 0.05, 0.05)
         _finish(bm)
 
     return [("feathers", "wing", feathers), ("shafts", "wingEdge", shafts)]
@@ -245,11 +238,11 @@ def fairy():
     outline = _fairy_outline()
 
     def membrane(bm):
-        lowpoly_kit._prism(bm, outline, DEPTH, 0.0)
+        lowpoly_kit._prism(bm, outline, 0.015, 0.05)
         _finish(bm)
 
     def edge(bm):
-        lowpoly_kit._frame(bm, outline, 0.975, LINE_DEPTH)
+        lowpoly_kit._frame(bm, outline, 0.9, 0.022)
         _finish(bm)
 
     return [("membrane", "wing", membrane), ("lines", "wingEdge", edge)]
@@ -279,10 +272,10 @@ def dragon():
     tips = [(1.05, 0.86), (1.08, 0.38), (0.92, -0.02), (0.62, -0.3)]
 
     def bones(bm):
-        _strip(bm, [(0.0, 0.05), (0.2, 0.38), wrist], LINE * 1.5, LINE_DEPTH, 0.3)
+        _strip(bm, [(0.0, 0.05), (0.2, 0.38), wrist], 0.1, 0.052, 0.3)
         for tip in tips:
             mid = ((wrist[0] + tip[0]) / 2 + 0.03, (wrist[1] + tip[1]) / 2 + 0.03)
-            _strip(bm, [wrist, mid, tip], LINE, LINE_DEPTH, 0.7)
+            _strip(bm, [wrist, mid, tip], 0.06, 0.05, 0.7)
         _finish(bm)
 
     def membrane(bm):
@@ -292,7 +285,7 @@ def dragon():
             outline.append(((a[0] + b[0]) / 2 - 0.12, (a[1] + b[1]) / 2 - 0.02))
             outline.append(b)
         outline.append((0.24, -0.18))
-        _slab(bm, outline, DEPTH, 0.0, (0.5, 0.35))
+        _slab(bm, outline, DEPTH, 0.03, (0.5, 0.35))
         _finish(bm)
 
     def claws(bm):
@@ -301,7 +294,7 @@ def dragon():
         _slab(bm, outline, DEPTH * 2, DEPTH * 2, (cx + 0.01, cz + 0.06))
         for tip in tips:
             x, z = tip
-            _gem(bm, (x, z), 0.02, LINE_DEPTH, 4)
+            _gem(bm, (x, z), 0.035, DEPTH * 2.5, 4)
         _finish(bm)
 
     return [("membrane", "wing", membrane), ("bones", "wingEdge", _both(bones, claws))]
@@ -322,11 +315,11 @@ def crystal():
 
     def cores(bm):
         for angle, length, radius in shards:
-            _crystal(bm, (0.06, 0.06), angle, length * 0.72, radius * 0.2)
+            _crystal(bm, (0.06, 0.06), angle, length * 0.72, radius * 0.45)
         _finish(bm)
 
     def foot(bm):
-        _gem(bm, (0.02, 0.02), 0.05, LINE_DEPTH)
+        _gem(bm, (0.02, 0.02), 0.12, DEPTH * 3)
         _finish(bm)
 
     return [("shell", "wing", shell), ("cores", "wingEdge", _both(cores, foot))]

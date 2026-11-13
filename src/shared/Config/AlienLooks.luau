@@ -168,6 +168,17 @@ local MOTION = table.freeze({
 		strokeBrightness = 0.5,
 		radianceTransparency = 0.92,
 		heartTransparency = 0.9,
+		-- The radiance and the medal of rays are sized by the body alone (no wings, no outfit), this
+		-- many times its half-width: the share of the whole pet they had before the low-poly pets.
+		-- Sized by the whole pet, the low-poly wings' wide span blew them up into a white blot behind
+		-- a bench of legendaries (user, 2026-11-13).
+		bodyRadius = 1.1,
+	}),
+	-- A wing's glowing lines (AlienDress.colorWings) this see-through: a little dimmer than plain
+	-- Neon; the faint membrane between them stays at `membrane` (user, 2026-11-13).
+	WING_LIGHT = table.freeze({
+		lineTransparency = 0.25,
+		membrane = 0.8,
 	}),
 	-- A jetpack's flame (AlienDress.jets): two camera-facing beams down from each nozzle, the flame
 	-- in its colour and a white core, `length` and `width` times the hidden Blender cone's length,
@@ -194,6 +205,8 @@ return table.freeze({
 	MODELS = MODELS,
 	FX = FX,
 	MOTION = MOTION,
+	-- Marks a part of a low-poly pet's outfit (OutfitDress): worn, not the body.
+	OUTFIT_PART_ATTRIBUTE = "OutfitPart",
 	EYE_SIZE = Vector3.new(0.35, 0.5, 0.2),
 	EYE_COLOR = Color3.fromRGB(20, 20, 30),
 })
