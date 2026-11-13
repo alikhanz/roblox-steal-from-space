@@ -283,11 +283,14 @@ local function unpackLowpoly(pack: Instance): { Instance }
 		local zone, family, signature = string.match(kind.meta1 or "", "^meta1|(%a+)|(%a+)|([%w_%+]*)$")
 		local glow, core, shell = string.match(kind.meta2 or "", "^meta2|([%d,]+)|([%d,]+)|([%d,]+)$")
 		assert(zone and glow, `{kindId}: no meta markers`)
-		-- The anchors' points sit on a body part that never moves: the shell.
+		-- The points sit on a body part that never moves (role body): the shell where it is one (a
+		-- worm's shell is mostly its moving segments; its head is the body).
 		local holder: Instance? = nil
 		for _, part in kind.body:GetChildren() do
-			if part.ClassName == "MeshPart" and SHELL_SOURCES[ModelPack.sourceOf(part)] then
-				holder = part
+			if part.ClassName == "MeshPart" and ModelPack.roleOf(part.Name) == "body" then
+				if not holder or SHELL_SOURCES[ModelPack.sourceOf(part)] then
+					holder = part
+				end
 			end
 		end
 		assert(holder, `{kindId}: no shell to hold the outfit's points`)

@@ -101,6 +101,12 @@ describe("Alien models", function()
 				expect((pet :: any):GetAttribute("Zone")).toBeTruthy()
 			end
 		end
+		-- The low-poly pets' outfit kit (decision 118) is a file of its own, listed like a kind.
+		if manifest._Outfit then
+			local roots = roblox.deserializeModel(fs.readFile(`{MODELS_DIR}/_Outfit.rbxm`))
+			expect(roots[1]:GetAttribute("ModelHash")).toBe(manifest._Outfit)
+			files._Outfit = true
+		end
 		for kindId in manifest do
 			expect(files[kindId]).toBe(true)
 		end
