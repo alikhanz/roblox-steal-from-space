@@ -2,6 +2,8 @@
 
 Agent-facing knowledge base (English on purpose, decision 078); draft of a future skill. Distilled from shipping 720 pets from Blender scripts into Studio (decisions 072–074, prototype `docs/design/prototypes/pet-look/`). Each rule carries the incident that produced it.
 
+**Pet wings have their own rules: [WINGS.md](WINGS.md)** (attaching, beat, collisions, glow, checks). Read it before making or changing any wing.
+
 ## 1. Axes and signs
 
 Directions in our pipeline (measured in Studio):

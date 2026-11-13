@@ -1,10 +1,9 @@
 # How much of each wing kind glows (decision 118): the surface area of its glowing lines (the
 # `wingEdge` parts, Neon in the game) and of its faint membrane, per wing at scale 1. A legendary
 # wears its pair at about 2.7 times that size (its anchor's Scale), so a pair's glowing area is about
-# 2 * 2.7^2 = 14.6 times the line here in the kit's units; in the game a pair glows about 27 times
-# the line here, in studs^2. Measured in the game on a legendary slime (2026-11-13): the wings before
-# the low-poly pets ~14 studs^2 of lines a pair; the wide bands of the first low-poly butterfly ~73
-# (a white blot under Bloom). Keep every wing kind at or under the old 14 (line here <= ~0.5).
+# 2 * 2.7^2 = 14.6 times the line here. The accepted wings (user, 2026-11-13): butterfly 2.69,
+# angel 2.18, dragon 1.37, crystal 0.54, fairy 0.74 (lines at WING_LIGHT.lineTransparency in the
+# game). A new or changed wing keeps its line at or under the butterfly's (docs/design/WINGS.md).
 #
 # Run headless from the repo root:
 #   blender --background --factory-startup --python assets/blender/concepts/lowpoly/lowpoly_wing_glow.py
