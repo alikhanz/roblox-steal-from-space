@@ -7,7 +7,7 @@
 -- the kit's `Centre` speck marks the egg's centre, so the kit itself holds where each piece goes.
 -- Without the kit in the place eggs stand in greybox.
 --
--- Into the place: the Open Cloud asset of egg-kit-lowpoly.glb inserted into ServerStorage, its
+-- Into the place: Open Cloud asset 122055769584185 (egg-kit-lowpoly.glb) inserted into ServerStorage, its
 -- MeshParts moved into the Folder `EggKit` so that its `Centre` lies on the folder's `Centre`
 -- (then its own `Centre` dropped); CollisionFidelity Box (an egg's pieces touch nothing, so hull
 -- data would only weigh). Save the place. The capsule egg's pieces (`Body*`, `Glow*`, `CapGold`,
