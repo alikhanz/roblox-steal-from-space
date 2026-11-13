@@ -183,3 +183,11 @@ Cross-checked with [roblox-brain](https://github.com/TabooHarmony/roblox-brain) 
 4. **One kind first:** export, upload, Studio, snapshots from all sides. Only then all 72 — a full re-export takes tens of minutes and hits the limits.
 5. Moving parts: check the whole motion (gallery in Play).
 6. `lune run check`, commit.
+
+## 9. Low-poly pets (decision 118)
+
+- **One body per kind, the outfit in code.** `assets/blender/lowpoly/export_lowpoly_roblox.py` packs each kind's body once plus the outfit kit (`kit|<piece>|…`, only with the `kit` argument: the kit goes up once). `lune run aliens` makes ten pets of each body with the same MeshIds (growth by `Size`, gold or lava by paint) and the folder `_Outfit`; `World/OutfitDress` puts the rolled pieces on the body's `anchor<Slot>` points. Hinges are `<kind>|hinge|<name>` markers → attachments.
+- **Points go on a part that never moves** (role `body`): a worm's shell is mostly its moving segments; points on one were reported by `tests/Config/AlienModels.spec.luau`.
+- **Getting a pack out of Studio without a mouse doesn't work:** Studio's `HttpService` may not reach localhost from MCP (not on the Assistant allowlist), and Open Cloud asset download needs a scope we don't have. Save to File by mouse (Explorer → right click → Save / Export → Save to File), then `lune run aliens`, then File → Import Roblox Model of `out/Aliens.rbxm` with the old `Aliens` moved aside.
+- **Edit-mode `require` caches shared modules too:** a gallery built in Edit after a pool change showed the old pools' pieces (cloning `Server.World` was not enough; `Shared.Domain` was cached). Check rolled outfits in Play.
+- **A fresh upload can't always be inserted at once** ("Failed to fetch asset metadata: 404", or "Failed to load package asset: Request Failed"): wait half a minute, then re-upload as a new asset if it still fails.
