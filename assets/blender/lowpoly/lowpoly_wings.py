@@ -300,8 +300,13 @@ def dragon():
     return [("membrane", "wing", membrane), ("bones", "wingEdge", _both(bones, claws))]
 
 
+# The crystal fan: (angle from the side, up; length; radius). Every crystal leans out: one past the
+# vertical (100 degrees, once) leant over the body and crossed the other wing's (user, 2026-11-13).
+CRYSTAL_SHARDS = [(14, 0.62, 0.075), (34, 0.95, 0.085), (52, 1.12, 0.09), (68, 0.85, 0.075), (80, 0.55, 0.06)]
+
+
 def crystal():
-    shards = [(20, 0.62, 0.075), (42, 0.95, 0.085), (62, 1.12, 0.09), (82, 0.8, 0.075), (100, 0.5, 0.06)]
+    shards = CRYSTAL_SHARDS
 
     def shell(bm):
         for angle, length, radius in shards:
@@ -350,6 +355,6 @@ def dust(kind):
     if kind == "dragon":
         return [(1.05, 0.86), (1.08, 0.38), (0.92, -0.02), (0.62, -0.3)]
     if kind == "crystal":
-        shards = [(62, 1.12), (42, 0.95), (20, 0.62)]
-        return [(0.04 + math.cos(D(a)) * length, 0.04 + math.sin(D(a)) * length) for a, length in shards]
+        shards = sorted(CRYSTAL_SHARDS[:3], key=lambda shard: -shard[0])
+        return [(0.04 + math.cos(D(a)) * length, 0.04 + math.sin(D(a)) * length) for a, length, _ in shards]
     return []

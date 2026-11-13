@@ -25,6 +25,7 @@ sys.path.insert(0, HERE)
 
 import bpy  # noqa: E402
 import lowpoly_dress as dress  # noqa: E402
+import lowpoly_fit as fitting  # noqa: E402
 import lowpoly_kit as kit  # noqa: E402
 import lowpoly_pets as pets  # noqa: E402
 import robo  # noqa: E402
@@ -136,12 +137,16 @@ def main():
     library = kit.Library(STYLE)
     kinds = [k for k in robo_kinds.KINDS if "all" in FAMILIES or k[2] in FAMILIES]
     finished = []
+    # The kit's pieces as geometry, to fit the back slots to each body (lowpoly_fit.py).
+    fitter = pets.Context(kit.Pet(library, bpy.context.scene.collection), robo.theme("debris")["colours"], 2, False, STYLE)
+    geometry = fitting.kit_geometry(fitter)
     for index, kind in enumerate(kinds):
         kind_id = kind[0]
         collection = bpy.data.collections.new(kind_id)
         bpy.context.scene.collection.children.link(collection)
         pet = pets.build(kind, 2, STYLE, library, False, collection, body_only=True)
-        points = dress.anchors(pet.info)
+        bpy.context.view_layer.update()
+        points = fitting.fit(pet.info, pet.objects, geometry, lambda note, kind_id=kind_id: print(f"FIT {kind_id}: {note}"))
         x = index * SPACING
         for obj in pet.objects:
             obj.location.x += x
