@@ -78,7 +78,7 @@ local MODELS = table.freeze({
 	-- a meteor's molten shell (the crack texture and its glow mask,
 	-- assets/blender/aliens/lava_texture.py). A game server cannot set their texture maps, so
 	-- they are made in default.project.json: MaterialService.<METAL_VARIANT> and
-	-- ServerStorage.<SKINS_FOLDER>.<LAVA_SKIN>.
+	-- ReplicatedStorage.<SKINS_FOLDER>.<LAVA_SKIN> (each client paints the pets near it, decision 123).
 	METAL_VARIANT = "PetMetal",
 	SKINS_FOLDER = "AlienSkins",
 	LAVA_SKIN = "Lava",

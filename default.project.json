@@ -8,16 +8,6 @@
 			},
 			"Packages": {
 				"$path": "Packages"
-			}
-		},
-		"ServerScriptService": {
-			"Server": {
-				"$path": "src/server"
-			}
-		},
-		"ServerStorage": {
-			"ServerPackages": {
-				"$path": "ServerPackages"
 			},
 			"AlienSkins": {
 				"$className": "Folder",
@@ -34,6 +24,16 @@
 						"EmissiveTint": [1, 0.4706, 0.1373]
 					}
 				}
+			}
+		},
+		"ServerScriptService": {
+			"Server": {
+				"$path": "src/server"
+			}
+		},
+		"ServerStorage": {
+			"ServerPackages": {
+				"$path": "ServerPackages"
 			}
 		},
 		"MaterialService": {
