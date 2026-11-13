@@ -55,6 +55,7 @@ local SerpentLabelController = require(script.Parent.Controllers.SerpentLabelCon
 local ShopController = require(script.Parent.Controllers.ShopController)
 local SpaceSimulation = require(ReplicatedStorage.Shared.Simulation.SpaceSimulation)
 local SpeedState = require(script.Parent.State.SpeedState)
+local StandCameraController = require(script.Parent.Controllers.StandCameraController)
 local StationBorderController = require(script.Parent.Controllers.StationBorderController)
 local StoreController = require(script.Parent.Controllers.StoreController)
 local ToastState = require(script.Parent.State.ToastState)
@@ -204,6 +205,7 @@ Lifecycle.run({
 	TouchJumpController.new(),
 	tutorialController,
 	StationBorderController.new(),
+	StandCameraController.new(),
 	ZoneTintController.new(),
 	eventController,
 	SerpentController.new({ events = eventController }),

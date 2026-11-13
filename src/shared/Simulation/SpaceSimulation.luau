@@ -394,8 +394,14 @@ local function stand(player: Player, rig: Rig, context: Instance, flying: boolea
 		return false
 	end
 
+	-- Held hovering over the platform, as if the jetpack held them up.
+	local target = Stand.holdPoint(
+		frame,
+		pad.x,
+		pad.z,
+		Stand.holdHeight(StandConfig.PLATFORM_HEIGHT, StandConfig.HOVER_HEIGHT, rig.humanoid.HipHeight, rig.root.Size.Y)
+	)
 	local platform = frame * Vector3.new(pad.x, StandConfig.PLATFORM_HEIGHT, pad.z)
-	local target = platform + Vector3.yAxis * (rig.humanoid.HipHeight + rig.root.Size.Y / 2)
 	if rig.velocity.MaxForce == 0 then
 		rig.humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	end

@@ -64,6 +64,20 @@ function Stand.pullVelocity(position: Vector3, target: Vector3, seconds: number,
 	return velocity
 end
 
+-- Where the stand holds a player's root (the simulation pulls it there; the client's camera keeps
+-- its eye there): over the pad's centre at (`padX`, `padZ`) in the island's frame, `height` above
+-- the island's floor.
+function Stand.holdPoint(islandFrame: CFrame, padX: number, padZ: number, height: number): Vector3
+	-- Through the frame's axes, not Vector3.new: no Roblox globals here (Lune tests).
+	return islandFrame.Position + islandFrame.XVector * padX + islandFrame.YVector * height + islandFrame.ZVector * padZ
+end
+
+-- How high above the island's floor the stand holds a root: the platform, the hover over it and
+-- the rig's own standing height (hip height plus half the root).
+function Stand.holdHeight(platformHeight: number, hoverHeight: number, hipHeight: number, rootHeight: number): number
+	return platformHeight + hoverHeight + hipHeight + rootHeight / 2
+end
+
 -- How many times bigger the flame burns at trainer `level`: 1 at level 0, `maxScale` from
 -- `fullLevel` on, logarithmic in between.
 function Stand.flameScale(level: number, maxScale: number, fullLevel: number): number

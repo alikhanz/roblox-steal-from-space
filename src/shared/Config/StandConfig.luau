@@ -16,6 +16,10 @@ return table.freeze({
 	-- The stand's platform: the owner stands on it, this high above the island floor, facing the
 	-- island's center.
 	PLATFORM_HEIGHT = 0.6,
+	-- The stand holds its rider this far over the platform, feet off it, as if the jetpack held
+	-- them up: standing on it in the shaking pose read as twitching on the floor (user,
+	-- 2026-11-13). Within the pad's zone height (BayConfig.TRAINER_PAD.height).
+	HOVER_HEIGHT = 1.2,
 	-- The pull onto the stand: about this long, never faster than this, studs per second.
 	PULL_SECONDS = 0.3,
 	PULL_MAX_SPEED = 30,

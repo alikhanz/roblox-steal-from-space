@@ -95,6 +95,22 @@ describe("Stand.pullVelocity", function()
 	end)
 end)
 
+describe("Stand.holdHeight and Stand.holdPoint", function()
+	it("lifts the root over the platform by the hover and the rig's standing height", function()
+		expect(Stand.holdHeight(0.6, 1.2, 2, 2)).toBeCloseTo(4.8, 1e-6)
+	end)
+
+	it("holds over the pad's centre in the island's own frame", function()
+		local CFrame = (roblox :: any).CFrame :: typeof(CFrame)
+		-- An island turned a quarter round: the pad's +X in its frame is world -Z.
+		local island = CFrame.new(100, 10, 0) * CFrame.Angles(0, math.pi / 2, 0)
+		local point = Stand.holdPoint(island, 17, -55, 4.8)
+		expect(point.X).toBeCloseTo(100 - 55, 1e-4)
+		expect(point.Y).toBeCloseTo(14.8, 1e-4)
+		expect(point.Z).toBeCloseTo(-17, 1e-4)
+	end)
+end)
+
 describe("Stand.flameScale", function()
 	it("grows from 1 to the most, then stays", function()
 		expect(Stand.flameScale(0, 3, 20)).toBeCloseTo(1, 1e-9)
