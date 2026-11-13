@@ -389,9 +389,12 @@ def _drone(ctx, at, size, role, buzz):
     ctx.put("ball", (x, y, z), (0.55 * size, 0.5 * size, 0.5 * size), "shell", role=role)
     ctx.put("block", (x, y + 0.1 * size, z + 0.38 * size), (0.22 * size, 0.18 * size, 0.06 * size), "trim", role=role)
     eye = ctx.face["eye"]
-    ctx.put("ball", (x, y - 0.46 * size, z + 0.03 * size), (0.33 * size, 0.06, 0.15 * size * min(eye, 1.2)), "visor", role=role)
+    visor_y = y - 0.46 * size
+    ctx.put("ball", (x, visor_y, z + 0.03 * size), (0.33 * size, 0.06, 0.15 * size * min(eye, 1.2)), "visor", role=role)
     for side in (-1, 1):
-        ctx.put("ball", (x + side * 0.12 * size, y - 0.5 * size, z + 0.04 * size), (0.06 * size * eye, 0.03, 0.08 * size * eye), "eyes",
+        # Out of the visor by a fixed step, as thick as the visor is at any size: an offset with the
+        # drone's size sank the eyes of the small ones into it (user, 2026-11-13).
+        ctx.put("ball", (x + side * 0.12 * size, visor_y - 0.05, z + 0.04 * size), (0.06 * size * eye, 0.03, 0.08 * size * eye), "eyes",
                 role=role)
         name = buzz + ("L" if side < 0 else "R")
         ctx.put("ball", (x + side * 0.55 * size, y + 0.15 * size, z + 0.35 * size), (0.4 * size, 0.2 * size, 0.03 * size), "buzz",
