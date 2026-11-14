@@ -1,6 +1,7 @@
 --!strict
 -- The guardians' sounds (docs/design/SOUND.md). A guardian that chases the local player
--- (its Target attribute) sounds the alarm: a sharp start, then the siren on a loop that grows
+-- (its Target attribute) sounds the alarm, and so does the star serpent guarding its knocked-out
+-- egg (it chases like a guardian and keeps the same attribute): a sharp start, then the siren on a loop that grows
 -- from quiet to loud and quick as the guardian closes in ("it's coming!": SoundVoices.approachLevel,
 -- by how soon it would reach the player and how near it is), fading out when the chase ends.
 -- A guardian chasing someone else sounds the siren from itself, heard only near (the nearest
@@ -12,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
 local SoundLooks = require(ReplicatedStorage.Shared.Config.SoundLooks)
 local SoundPlayer = require(script.Parent.Parent.Audio.SoundPlayer)
 local SoundVoices = require(ReplicatedStorage.Shared.Domain.SoundVoices)
@@ -19,6 +21,7 @@ local SoundVoices = require(ReplicatedStorage.Shared.Domain.SoundVoices)
 -- The siren's volume and the others' sirens follow the chase this often, seconds (a chase
 -- starting or ending is heard at once: the Target attribute's signal).
 local STEP_SECONDS = 0.1
+local WORLD_WAIT_TIMEOUT = 30
 
 export type AlarmSoundController = {
 	name: string,
@@ -30,6 +33,27 @@ local AlarmSoundController = {}
 local function bodyOf(model: Instance): BasePart?
 	local body = model:FindFirstChild(GuardianConfig.BODY_NAME)
 	return if body and body:IsA("BasePart") then body else nil
+end
+
+-- The star serpent while it is out, and the head it flies by.
+local function serpentOf(): (Instance?, BasePart?)
+	local world = workspace:FindFirstChild("World")
+	local model = world and world:FindFirstChild(SerpentConfig.MODEL_NAME)
+	local head = model and model:FindFirstChild(SerpentConfig.HEAD_NAME)
+	return model, if head and head:IsA("BasePart") then head else nil
+end
+
+-- Everything that may chase a thief: the guardians and the serpent, with the part it moves by.
+local function allChasers(): { { model: Instance, body: BasePart? } }
+	local list = {}
+	for _, model in CollectionService:GetTagged(GuardianConfig.TAG) do
+		table.insert(list, { model = model, body = bodyOf(model) })
+	end
+	local serpent, head = serpentOf()
+	if serpent then
+		table.insert(list, { model = serpent, body = head })
+	end
+	return list
 end
 
 function AlarmSoundController.new(): AlarmSoundController
@@ -125,13 +149,13 @@ function AlarmSoundController.new(): AlarmSoundController
 		local isChased = false
 		local mine: { BasePart } = {}
 		local others: { BasePart } = {}
-		for _, model in CollectionService:GetTagged(GuardianConfig.TAG) do
-			local target = model:GetAttribute(GuardianConfig.TARGET_ATTRIBUTE)
+		for _, chaser in allChasers() do
+			local target = chaser.model:GetAttribute(GuardianConfig.TARGET_ATTRIBUTE)
 			if type(target) ~= "number" then
 				continue
 			end
 			isChased = isChased or target == player.UserId
-			local body = bodyOf(model)
+			local body = chaser.body
 			if body then
 				table.insert(if target == player.UserId then mine else others, body)
 			end
@@ -157,6 +181,24 @@ function AlarmSoundController.new(): AlarmSoundController
 		for _, model in CollectionService:GetTagged(GuardianConfig.TAG) do
 			watchGuardian(model)
 		end
+		-- The serpent's chase starts at once too.
+		local function watchSerpent(model: Instance)
+			if model.Name == SerpentConfig.MODEL_NAME then
+				model:GetAttributeChangedSignal(GuardianConfig.TARGET_ATTRIBUTE):Connect(step)
+			end
+		end
+		task.spawn(function()
+			local world = workspace:WaitForChild("World", WORLD_WAIT_TIMEOUT)
+			if not world then
+				warn("[AlarmSoundController] No workspace.World; the serpent's chase is heard a step late")
+				return
+			end
+			world.ChildAdded:Connect(watchSerpent)
+			local serpent = serpentOf()
+			if serpent then
+				watchSerpent(serpent)
+			end
+		end)
 		local waited = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
 			waited += deltaTime

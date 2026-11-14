@@ -37,6 +37,7 @@ local EventClock = require(ReplicatedStorage.Shared.Domain.EventClock)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventService = require(script.Parent.EventService)
 local GuardianBrain = require(ReplicatedStorage.Shared.Domain.GuardianBrain)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local Knockback = require(script.Parent.Parent.Character.Knockback)
 local Prey = require(script.Parent.Parent.Character.Prey)
 local Pursuit = require(ReplicatedStorage.Shared.Domain.Pursuit)
@@ -377,6 +378,16 @@ function SerpentService.new(dependencies: Dependencies): SerpentService
 		elseif behavior == "Guard" then
 			current.route = nil
 			guard(current, deltaTime)
+		end
+		-- Whom it chases, for the chased player's alarm, as a guardian does (clients'
+		-- AlarmSoundController).
+		local chased = if behavior == "Guard"
+				and current.brain == "Chase"
+				and current.target
+			then current.target.UserId
+			else nil
+		if current.model:GetAttribute(GuardianConfig.TARGET_ATTRIBUTE) ~= chased then
+			current.model:SetAttribute(GuardianConfig.TARGET_ATTRIBUTE, chased)
 		end
 
 		current.sincePin += deltaTime
