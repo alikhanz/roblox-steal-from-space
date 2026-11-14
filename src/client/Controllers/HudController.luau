@@ -100,10 +100,8 @@ export type Dependencies = {
 	-- Shows a short message (grabbed, delivered or dropped egg).
 	toast: Toasts.Push,
 	abilities: AbilityState.AbilityState,
-	-- The player's speed stat, live: the plaque and the goal card's number.
+	-- The player's speed stat, live: the plaque and the speed goal.
 	speed: () -> BigNum.BigNum,
-	-- The same on the slow beat (decision 141): which guardian is the goal, and how far along.
-	goalSpeed: () -> BigNum.BigNum,
 	-- True once the profile arrived; numbers show a dash before that.
 	loaded: () -> boolean,
 	-- The tutorial's line for the bottom stack; empty: none. Its step (dots) and the step's icon.
@@ -397,10 +395,10 @@ function HudController.new(dependencies: Dependencies): HudController
 
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
-			-- The next guardian to grow towards: on the slow beat, once per change (several
-			-- properties read it), not every frame the plaque's number walks.
+			-- The next guardian to grow towards, live with the plaque's number: once per change
+			-- (several properties read it), a few comparisons and logarithms.
 			local goal = Vide.derive(function(): SpeedGoal.Goal?
-				return SpeedGoal.next(dependencies.goalSpeed(), RECOMMENDED)
+				return SpeedGoal.next(speed(), RECOMMENDED)
 			end)
 			-- A guardian comes within reach: cheer. The first reading only notes where the player is.
 			local lastGoal: number? = nil

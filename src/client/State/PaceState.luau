@@ -2,10 +2,10 @@
 -- How fast the local player is going, on one slow beat (decision 141): the pods' income, the speed
 -- stat and what a reward worth some minutes of play pays (Domain/PlayReward, the same formula the
 -- server pays with). They are taken from the profile copy every BEAT_SECONDS and passed on only
--- when they moved, so whatever follows income or ⚡ (the income line, the speed goal, the rewards
--- of quests, the index and the login gift, the guardians' signs, the jetpack shop's gain) is
--- worked out at most that often, not on every change of the bay, the coins earned or ⚡. The
--- coin balance and the ⚡ plaque read the live sources.
+-- when they moved, so whatever follows income or ⚡ (the income line, the rewards of quests, the
+-- index and the login gift, the guardians' signs, the jetpack shop's gain) is worked out at most
+-- that often, not on every change of the bay, the coins earned or ⚡. The coin balance, the ⚡
+-- plaque and the speed goal read the live sources.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
