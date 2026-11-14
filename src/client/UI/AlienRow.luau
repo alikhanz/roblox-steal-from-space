@@ -38,7 +38,8 @@ local DIMMED_TRANSPARENCY = 0.55
 local METEOR_COLOR = Color3.fromHex("#FFA060")
 
 export type Props = {
-	layoutOrder: number,
+	-- Its place in the list; reactive when the list resorts around a kept row.
+	layoutOrder: number | () -> number,
 	name: () -> string,
 	-- "8.5/s".
 	income: () -> string,

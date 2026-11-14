@@ -38,6 +38,7 @@ local Toasts = require(script.Parent.Parent.UI.Toasts)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WelcomeBack = require(script.Parent.Parent.UI.WelcomeBack)
 local WindowState = require(script.Parent.Parent.State.WindowState)
+local WindowView = require(script.Parent.Parent.State.WindowView)
 
 local create = Vide.create
 local source = Vide.source
@@ -130,6 +131,11 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	local readReward = reward :: () -> Reward?
 	-- Bumped every second so egg lines recompute.
 	local clock = source(0)
+	-- What the window reads: the bay, the coins and the clock only while it is open (decision
+	-- 141). The toasts and the menu tile's count read the live bay.
+	local bay = WindowView.of(isOpen, profile.bay)
+	local shownCoins = WindowView.of(isOpen, profile.coins)
+	local ticks = WindowView.of(isOpen, clock)
 	local locale: Text.Locale = "en"
 
 	local function text(key: Text.Key, args: Text.Args?): string
@@ -150,15 +156,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	end
 
 	local function selectedRecords(): { { record: ProfileState.Alien, location: ProfileState.Location } }
-		local bay = profile.bay()
+		local view = bay()
 		local found = {}
 		for _, uid in selection() do
-			for _, pod in bay.pods do
+			for _, pod in view.pods do
 				if pod.alien and pod.alien.uid == uid then
 					table.insert(found, { record = pod.alien, location = "Pod" :: ProfileState.Location })
 				end
 			end
-			for _, alien in bay.floor do
+			for _, alien in view.floor do
 				if alien.uid == uid then
 					table.insert(found, { record = alien, location = "Floor" :: ProfileState.Location })
 				end
@@ -174,7 +180,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 	local function freePods(): number
 		local free = 0
-		for _, pod in profile.bay().pods do
+		for _, pod in bay().pods do
 			if not pod.alien then
 				free += 1
 			end
@@ -241,12 +247,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	end
 
 	local function podPrice(): BigNum.BigNum
-		return Bay.podPrice(
-			#profile.bay().pods,
-			BayConfig.STARTING_PODS,
-			BayConfig.POD_PRICE_BASE,
-			BayConfig.POD_PRICE_GROWTH
-		)
+		return Bay.podPrice(#bay().pods, BayConfig.STARTING_PODS, BayConfig.POD_PRICE_BASE, BayConfig.POD_PRICE_GROWTH)
 	end
 
 	-- What the selected aliens sell for together.
@@ -265,27 +266,28 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return table.concat(uids, ",")
 	end
 
-	-- The shelf's ready trios (Domain/Crossbreed.trios), best first.
-	local function shelfTrios(): { Crossbreed.Trio }
-		return Crossbreed.trios(profile.bay().floor, function(alienId: string): Crossbreed.Parent?
+	-- The ready trios of a shelf (Domain/Crossbreed.trios), best first.
+	local function shelfTrios(floor: { ProfileState.Alien }): { Crossbreed.Trio }
+		return Crossbreed.trios(floor, function(alienId: string): Crossbreed.Parent?
 			return AlienConfig.ALIENS[alienId]
 		end, AlienIncome.numberOf, BayConfig.CROSSBREED_COUNT)
 	end
 
 	local function shelfIsFull(): boolean
-		return #profile.bay().floor >= BayConfig.SHELF_SLOTS
+		return #bay().floor >= BayConfig.SHELF_SLOTS
 	end
 
 	-- Ready eggs in the incubator that cannot hatch: no free place and a full shelf (decision 110).
+	-- The menu tile's count: from the live bay, the window open or not.
 	local function stuckEggs(): number
 		local _ = clock()
-		local bay = profile.bay()
-		if Bay.hasRoom(bay, BayConfig.SHELF_SLOTS) then
+		local live = profile.bay()
+		if Bay.hasRoom(live, BayConfig.SHELF_SLOTS) then
 			return 0
 		end
 		local now = workspace:GetServerTimeNow()
 		local stuck = 0
-		for _, egg in bay.incubator do
+		for _, egg in live.incubator do
 			if egg.hatchAt <= now then
 				stuck += 1
 			end
@@ -295,7 +297,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 	local function slotPrice(): BigNum.BigNum
 		return Bay.slotPrice(
-			profile.bay().incubatorSlots,
+			bay().incubatorSlots,
 			BayConfig.STARTING_INCUBATOR_SLOTS,
 			BayConfig.SLOT_PRICE_BASE,
 			BayConfig.SLOT_PRICE_GROWTH
@@ -304,7 +306,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 	-- The Robux tier of the incubator's next slot.
 	local function slotTier(): number
-		return Purchases.slotTier(profile.bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
+		return Purchases.slotTier(bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
 	end
 
 	local function robux(price: number?): string
@@ -314,14 +316,14 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	-- Drops selections of aliens that are gone (sold, crossbred, hatched into their place).
 	-- An effect, so it must run inside Vide's mount scope.
 	local function pruneSelection()
-		local bay = profile.bay()
+		local view = bay()
 		local known: { [number]: boolean } = {}
-		for _, pod in bay.pods do
+		for _, pod in view.pods do
 			if pod.alien then
 				known[pod.alien.uid] = true
 			end
 		end
-		for _, alien in bay.floor do
+		for _, alien in view.floor do
 			known[alien.uid] = true
 		end
 		local current = Vide.untrack(selection)
@@ -367,8 +369,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	-- to cheer (an egg moving from the queue into a slot is not a new one).
 	local incubatorCount: number? = nil
 	local function watchIncubator()
-		local bay = profile.bay()
-		local count = #bay.incubator + #bay.waiting
+		local live = profile.bay()
+		local count = #live.incubator + #live.waiting
 		local previous = incubatorCount
 		incubatorCount = count
 		if previous ~= nil and count > previous then
@@ -383,43 +385,72 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 	-- What the places bring together.
 	local function podsIncome(): BigNum.BigNum
-		return Bay.incomePerSecond(profile.bay(), AlienIncome.of)
+		return Bay.incomePerSecond(bay(), AlienIncome.of)
 	end
 
-	-- The window's rows for `aliens`, the best earners first.
-	local function rowsOf(aliens: { ProfileState.Alien }): { BayWindow.Row }
-		local sorted = table.clone(aliens)
-		table.sort(sorted, function(a, b)
-			return BigNum.lessThan(AlienIncome.of(b), AlienIncome.of(a))
-		end)
-		local rows: { BayWindow.Row } = {}
-		for _, record in sorted do
-			local alien = AlienConfig.ALIENS[record.id]
-			local _, kindName = Names.alienParts(locale, record.id)
-			local row: BayWindow.Row = {
-				uid = record.uid,
-				alienId = record.id,
-				name = kindName or "?",
-				income = incomeText(AlienIncome.of(record)),
-				bonus = IncomeRoll.text(locale, AlienIncome.percentOf(record)),
-				bonusColor = IncomeRoll.color(AlienIncome.percentOf(record)),
-				color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
-				variant = nil,
-			}
-			if alien and alien.variant ~= "Normal" then
-				row.variant = "Meteor"
-			end
-			table.insert(rows, row)
+	-- An alien's row: its words follow from its kind and its roll alone.
+	local function rowOf(record: ProfileState.Alien): BayWindow.Row
+		local alien = AlienConfig.ALIENS[record.id]
+		local _, kindName = Names.alienParts(locale, record.id)
+		local row: BayWindow.Row = {
+			uid = record.uid,
+			alienId = record.id,
+			name = kindName or "?",
+			income = incomeText(AlienIncome.of(record)),
+			bonus = IncomeRoll.text(locale, AlienIncome.percentOf(record)),
+			bonusColor = IncomeRoll.color(AlienIncome.percentOf(record)),
+			color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
+			variant = nil,
+		}
+		if alien and alien.variant ~= "Normal" then
+			row.variant = "Meteor"
 		end
-		return rows
+		return row
 	end
+
+	-- A list's rows, the best earners first. Each alien keeps its row table while it stays in the
+	-- list, so the window keeps its card (UI/BayWindow) and only adds and drops the cards of
+	-- aliens that came or went.
+	type Kept = { id: string, percent: number, row: BayWindow.Row }
+	local function rowsKeeper(): (aliens: { ProfileState.Alien }) -> { BayWindow.Row }
+		local kept: { [number]: Kept } = {}
+		return function(aliens: { ProfileState.Alien }): { BayWindow.Row }
+			local now: { [number]: Kept } = {}
+			local sorted: { ProfileState.Alien } = table.clone(aliens)
+			for _, record in sorted do
+				local old = kept[record.uid]
+				local percent = AlienIncome.percentOf(record)
+				now[record.uid] = if old
+						and old.id == record.id
+						and old.percent == percent
+					then old
+					else { id = record.id, percent = percent, row = rowOf(record) }
+			end
+			kept = now
+			-- Equal earners by uid: a resort leaves them where they were.
+			table.sort(sorted, function(a: ProfileState.Alien, b: ProfileState.Alien): boolean
+				local incomeA, incomeB = AlienIncome.of(a), AlienIncome.of(b)
+				if BigNum.equals(incomeA, incomeB) then
+					return a.uid < b.uid
+				end
+				return BigNum.lessThan(incomeB, incomeA)
+			end)
+			local rows: { BayWindow.Row } = {}
+			for _, record in sorted do
+				table.insert(rows, now[record.uid].row)
+			end
+			return rows
+		end
+	end
+	local podRowsOf = rowsKeeper()
+	local shelfRowsOf = rowsKeeper()
 
 	-- The incubator's eggs for its slots: colour, timer or "Ready!".
 	local function eggSlots(): { BayWindow.EggSlot }
-		local _ = clock()
+		local _ = ticks()
 		local now = workspace:GetServerTimeNow()
 		local slots: { BayWindow.EggSlot } = {}
-		for _, egg in profile.bay().incubator do
+		for _, egg in bay().incubator do
 			local left = egg.hatchAt - now
 			local look = (EggLooks.RARITIES :: any)[egg.rarity]
 			table.insert(slots, {
@@ -434,7 +465,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 
 	-- Every alien on the shelf is chosen ("select all" then lets go of them).
 	local function allShelfSelected(): boolean
-		local floor = profile.bay().floor
+		local floor = bay().floor
 		if #floor == 0 then
 			return false
 		end
@@ -454,7 +485,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 	end
 
 	local function openWithTrio()
-		local trio = shelfTrios()[1]
+		-- The live shelf: the window may be closed, its view behind.
+		local trio = shelfTrios(profile.bay().floor)[1]
 		openWith(if trio then trio.uids else {})
 	end
 
@@ -480,6 +512,46 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 					Vide.untrack(purchases.refreshPrices)
 				end
 			end)
+			-- The window's lists, once per change of its view (several properties read each).
+			local podRows = Vide.derive(function(): { BayWindow.Row }
+				local aliens = {}
+				for _, pod in bay().pods do
+					if pod.alien then
+						table.insert(aliens, pod.alien)
+					end
+				end
+				return podRowsOf(aliens)
+			end)
+			local shelfRows = Vide.derive(function(): { BayWindow.Row }
+				return shelfRowsOf(bay().floor)
+			end)
+			local trios = Vide.derive(function(): { Crossbreed.Trio }
+				return shelfTrios(bay().floor)
+			end)
+			local trioRows = Vide.derive(function(): { BayWindow.Trio }
+				local rows: { BayWindow.Trio } = {}
+				for _, trio in trios() do
+					local record = nil
+					for _, alien in bay().floor do
+						if alien.uid == trio.uids[#trio.uids] then
+							record = alien
+						end
+					end
+					local alienId = if record then record.id else ""
+					local alien = AlienConfig.ALIENS[alienId]
+					-- Not an if-expression: it would keep only the first of the two names.
+					local tierName = Names.alienParts(locale, alienId)
+					table.insert(rows, {
+						alienId = alienId,
+						-- As aliens are named: "<tier> · <guardian>" (Names.alien).
+						name = `{tierName or "?"} · {Names.guardian(locale, trio.grade) or "?"}`,
+						count = `×{trio.count}`,
+						color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
+					})
+				end
+				return rows
+			end)
+			local eggs = Vide.derive(eggSlots)
 			return create("ScreenGui")({
 				Name = "BayUi",
 				ResetOnSpawn = false,
@@ -490,13 +562,13 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						return isOpen()
 					end,
 					coins = function()
-						return BigNum.format(profile.coins())
+						return BigNum.format(shownCoins())
 					end,
 					texts = {
 						title = text("bay.window.title"),
 						pods = function()
-							local bay = profile.bay()
-							return `{text("bay.places.title")} {#bay.pods - freePods()}/{#bay.pods}`
+							local view = bay()
+							return `{text("bay.places.title")} {#view.pods - freePods()}/{#view.pods}`
 						end,
 						podsIncome = function()
 							return incomeText(podsIncome())
@@ -512,15 +584,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						end,
 						maxPods = text("notice.maxPlaces.toast"),
 						incubator = function()
-							local bay = profile.bay()
+							local view = bay()
 							return text(
 								"bay.incubatorSlots.title",
-								{ count = #bay.incubator, slots = bay.incubatorSlots }
+								{ count = #view.incubator, slots = view.incubatorSlots }
 							)
 						end,
 						incubatorEmpty = text("bay.incubatorEmpty.hint"),
 						waiting = function()
-							local count = #profile.bay().waiting
+							local count = #bay().waiting
 							return if count > 0 then text("bay.incubatorWaiting.hint", { count = count }) else ""
 						end,
 						buySlot = function()
@@ -533,10 +605,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							)
 						end,
 						shelf = function()
-							return text(
-								"bay.shelf.title",
-								{ count = #profile.bay().floor, max = BayConfig.SHELF_SLOTS }
-							)
+							return text("bay.shelf.title", { count = #bay().floor, max = BayConfig.SHELF_SLOTS })
 						end,
 						shelfEmpty = text("bay.shelfEmpty.hint"),
 						shelfFull = text("bay.shelfFull.hint"),
@@ -582,47 +651,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						fromPod = text("bay.fromPlace.button"),
 						crossbreed = text("bay.crossbreed.button"),
 					},
-					pods = function()
-						local aliens = {}
-						for _, pod in profile.bay().pods do
-							if pod.alien then
-								table.insert(aliens, pod.alien)
-							end
-						end
-						return rowsOf(aliens)
-					end,
-					shelf = function()
-						return rowsOf(profile.bay().floor)
-					end,
+					pods = podRows,
+					shelf = shelfRows,
 					shelfIsFull = shelfIsFull,
-					trios = function()
-						local trios: { BayWindow.Trio } = {}
-						for _, trio in shelfTrios() do
-							local record = nil
-							for _, alien in profile.bay().floor do
-								if alien.uid == trio.uids[#trio.uids] then
-									record = alien
-								end
-							end
-							local alienId = if record then record.id else ""
-							local alien = AlienConfig.ALIENS[alienId]
-							-- Not an if-expression: it would keep only the first of the two names.
-							local tierName = Names.alienParts(locale, alienId)
-							table.insert(trios, {
-								alienId = alienId,
-								-- As aliens are named: "<tier> · <guardian>" (Names.alien).
-								name = `{tierName or "?"} · {Names.guardian(locale, trio.grade) or "?"}`,
-								count = `×{trio.count}`,
-								color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
-							})
-						end
-						return trios
-					end,
+					trios = trioRows,
 					triosLit = function()
 						return dependencies.coach.tip() == "Crossbreed"
 					end,
 					onTrio = function(index: number)
-						local trio = shelfTrios()[index]
+						local trio = trios()[index]
 						if trio then
 							clearSelection()
 							Remotes.Crossbreed.Fire(trio.uids)
@@ -635,16 +672,16 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 							return
 						end
 						local list = table.clone(selection())
-						for _, alien in profile.bay().floor do
+						for _, alien in bay().floor do
 							if not table.find(list, alien.uid) then
 								table.insert(list, alien.uid)
 							end
 						end
 						selection(list)
 					end,
-					eggs = eggSlots,
+					eggs = eggs,
 					slots = function()
-						return profile.bay().incubatorSlots
+						return bay().incubatorSlots
 					end,
 					selection = selectionKind,
 					selectedAliens = function()
@@ -668,21 +705,20 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						return entry ~= nil and entry.location == "Pod" and not shelfIsFull()
 					end,
 					canBuyPod = function()
-						return #profile.bay().pods < BayConfig.MAX_PODS
-							and not BigNum.lessThan(profile.coins(), podPrice())
+						return #bay().pods < BayConfig.MAX_PODS and not BigNum.lessThan(shownCoins(), podPrice())
 					end,
 					podsAtMax = function()
-						return #profile.bay().pods >= BayConfig.MAX_PODS
+						return #bay().pods >= BayConfig.MAX_PODS
 					end,
 					slotForSale = function()
-						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+						return bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
 					end,
 					canBuySlot = function()
-						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
-							and not BigNum.lessThan(profile.coins(), slotPrice())
+						return bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+							and not BigNum.lessThan(shownCoins(), slotPrice())
 					end,
 					slotForRobux = function()
-						return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+						return bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
 							and purchases.sells("IncubatorSlot", slotTier())
 					end,
 					onClose = function()
@@ -719,7 +755,7 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 						if not entry then
 							return
 						end
-						for index, pod in profile.bay().pods do
+						for index, pod in bay().pods do
 							if not pod.alien then
 								clearSelection()
 								Remotes.MoveToPod.Fire({ uid = entry.record.uid, pod = index })

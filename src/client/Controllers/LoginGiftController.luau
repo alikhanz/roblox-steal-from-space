@@ -16,16 +16,16 @@ local LoginGiftConfig = require(ReplicatedStorage.Shared.Config.LoginGiftConfig)
 local LoginGiftWindow = require(script.Parent.Parent.UI.LoginGiftWindow)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
-local Pace = require(script.Parent.Parent.State.Pace)
+local PaceState = require(script.Parent.Parent.State.PaceState)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
-local SpeedState = require(script.Parent.Parent.State.SpeedState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
+local WindowView = require(script.Parent.Parent.State.WindowView)
 
 local create = Vide.create
 local source = Vide.source
@@ -39,16 +39,14 @@ local CLOSE_AFTER_CLAIM_SECONDS = 1.6
 -- Today's tile breathes this much, this fast.
 local PULSE_AMPLITUDE = 0.06
 local PULSE_SPEED = 4
--- While the window is up, the days' gifts are priced again this often (income and ⚡ move on).
-local REPRICE_SECONDS = 5
 
 -- A day's gift, formatted.
 type Price = { coins: string, speed: string }
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
-	-- The speed stat: a gift is capped by it (decision 114).
-	speed: SpeedState.SpeedState,
+	-- What rewards pay now, on the slow beat (decision 141); capped by the speed stat (decision 114).
+	pace: PaceState.PaceState,
 	toasts: ToastState.ToastState,
 	-- The welcome-back screen is up; the gift waits for it.
 	welcomeOpen: () -> boolean,
@@ -82,23 +80,31 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		return Names.egg(locale, LoginGiftConfig.EGG_RARITY) or "?"
 	end
 
-	-- What each streak day gives, priced only while the window is up and today's gift waits: on
-	-- opening and every few seconds after, not on every change of the bay, ⚡ or coins earned
-	-- (docs/plans/NET_TRAFFIC.md). The server pays by its own count at the claim anyway.
-	local prices = source({} :: { Price })
-	local function priceDays()
-		local result: { Price } = {}
-		local cap = { share = LoginGiftConfig.MAX_SHARE_OF_EARNED, speed = dependencies.speed.speed }
-		for day, minutes in LoginGiftConfig.MINUTES do
-			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true, cap)
-			result[day] = { coins = BigNum.format(coins), speed = BigNum.format(speed) }
-		end
-		prices(result)
-	end
-
 	local function shown(): boolean
 		return isOpen() and not dependencies.welcomeOpen()
 	end
+
+	-- What each streak day gives, priced only while the window is up and today's gift waits: as
+	-- it comes up, then on the slow beat (decision 141), not on every change of the bay, ⚡ or
+	-- coins earned. A taken gift keeps its last prices for the celebration and is not priced
+	-- again till the next one waits. The server pays by its own count at the claim anyway.
+	local function priceDays(): { Price }
+		local result: { Price } = {}
+		for day, minutes in LoginGiftConfig.MINUTES do
+			local coins, speed = dependencies.pace.reward(
+				minutes,
+				LoginGiftConfig.MIN_REWARD_COINS,
+				true,
+				LoginGiftConfig.MAX_SHARE_OF_EARNED
+			)
+			result[day] = { coins = BigNum.format(coins), speed = BigNum.format(speed) }
+		end
+		return result
+	end
+	local prices = WindowView.of(function(_: boolean?)
+		return shown() and profile.loginGift().available
+	end, priceDays)
+	local shownCoins = WindowView.of(isOpen, profile.coins)
 
 	-- What each streak day gives, as last priced.
 	local function tiles(): { LoginGiftWindow.Tile }
@@ -149,7 +155,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				LoginGiftWindow.create({
 					visible = shown,
 					coins = function()
-						return BigNum.format(profile.coins())
+						return BigNum.format(shownCoins())
 					end,
 					tiles = tiles,
 					title = text("gift.window.title"),
@@ -209,13 +215,6 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		end
 		Vide.root(function()
 			Vide.effect(onGift)
-			-- Priced as the window comes up, and when a gift starts waiting while it is up. A taken
-			-- gift keeps the last prices for the celebration and is not priced again till the next.
-			Vide.effect(function()
-				if shown() and profile.loginGift().available then
-					Vide.untrack(priceDays)
-				end
-			end)
 		end)
 
 		profile.giftRewarded.connect(function(reward)
@@ -232,10 +231,8 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 
 		local elapsed = 0
 		local sinceTick = 0
-		local sincePriced = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
 			if not isOpen() then
-				sincePriced = 0
 				return
 			end
 			elapsed += deltaTime
@@ -244,13 +241,6 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 			if sinceTick >= 1 then
 				sinceTick = 0
 				clock(clock() + 1)
-			end
-			sincePriced += deltaTime
-			if sincePriced >= REPRICE_SECONDS then
-				sincePriced = 0
-				if shown() and profile.loginGift().available then
-					priceDays()
-				end
 			end
 		end)
 	end

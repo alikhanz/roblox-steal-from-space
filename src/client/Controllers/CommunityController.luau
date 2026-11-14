@@ -22,6 +22,7 @@ local ToastState = require(script.Parent.Parent.State.ToastState)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
+local WindowView = require(script.Parent.Parent.State.WindowView)
 
 local create = Vide.create
 local source = Vide.source
@@ -52,6 +53,8 @@ function CommunityController.new(dependencies: Dependencies): CommunityControlle
 	local profile = dependencies.profile
 	local player = Players.LocalPlayer
 	local isOpen = dependencies.windows.slot("Community")
+	-- The window's coins: only while it is open (decision 141).
+	local shownCoins = WindowView.of(isOpen, profile.coins)
 	local communityId = CommunityConfig.communityFor(game.GameId)
 	-- The gift is taken (the server's attribute); nil: no profile yet.
 	local taken = source(nil :: boolean?)
@@ -122,7 +125,7 @@ function CommunityController.new(dependencies: Dependencies): CommunityControlle
 					end,
 					title = text("community.window.title"),
 					coins = function()
-						return BigNum.format(profile.coins())
+						return BigNum.format(shownCoins())
 					end,
 					gift = giftText,
 					hint = text("community.gift.hint"),

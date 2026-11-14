@@ -24,6 +24,7 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 
 local create = Vide.create
 local indexes = Vide.indexes
+local values = Vide.values
 
 local NEON = Theme.NEON
 local COLUMN_GAP = 12
@@ -136,6 +137,8 @@ export type Props = {
 	visible: () -> boolean,
 	coins: () -> string,
 	texts: Texts,
+	-- Sorted rows; an alien's row is the same table for as long as it stays in the list (its
+	-- card is kept by it), and no table twice.
 	pods: () -> { Row },
 	shelf: () -> { Row },
 	-- The shelf has no free niche.
@@ -305,40 +308,43 @@ end
 local function BayWindow(props: Props): Frame
 	local texts = props.texts
 
+	-- A card per row, kept by the row's own table (the controller keeps an alien's row while the
+	-- alien stays in the list): a new, sold or moved alien makes or drops one card, the others
+	-- only move to their new places.
 	local function rows(source: () -> { Row }, idle: boolean): any
-		return indexes(source, function(row: () -> Row, index: number)
+		return values(source, function(row: Row, index: () -> number)
 			return AlienRow({
 				layoutOrder = index,
 				name = function()
-					return row().name
+					return row.name
 				end,
 				income = function()
-					return row().income
+					return row.income
 				end,
 				bonus = function()
-					return row().bonus
+					return row.bonus
 				end,
 				bonusColor = function()
-					return row().bonusColor
+					return row.bonusColor
 				end,
 				tierColor = function()
-					return row().color
+					return row.color
 				end,
 				icon = function()
-					return AlienIcons.iconOf(row().alienId)
+					return AlienIcons.iconOf(row.alienId)
 				end,
 				variant = function()
-					return row().variant
+					return row.variant
 				end,
 				selected = function()
-					return props.isSelected(row().uid)
+					return props.isSelected(row.uid)
 				end,
 				dimmed = function()
 					return false
 				end,
 				idle = idle,
 				onTap = function()
-					props.onToggle(row().uid)
+					props.onToggle(row.uid)
 				end,
 			})
 		end)
