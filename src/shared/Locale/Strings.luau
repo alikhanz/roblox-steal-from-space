@@ -1269,6 +1269,11 @@ local Strings = {
 		ru = "Цель: {name}",
 		en = "Next: {name}",
 	},
+	-- The goal folded under the ⚡ plaque on a phone: the guardian and the speed it needs.
+	["speed.goalShort.hint"] = {
+		ru = "→ {name} · ⚡{target}",
+		en = "→ {name} · ⚡{target}",
+	},
 	["speed.goalReached.toast"] = {
 		ru = "Теперь тебе по силам {name}!",
 		en = "{name} is within reach now!",

@@ -5,6 +5,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local GoalBar = require(script.Parent.GoalBar)
 local Icons = require(script.Parent.Icons)
 local Layout = require(script.Parent.Layout)
 local Theme = require(script.Parent.Theme)
@@ -19,9 +20,6 @@ local BAR_HEIGHT = 11
 local ICON_SIZE = 15
 -- The last row: the stat against the goal on the left, the button on the right.
 local ROW_HEIGHT = 20
--- The bar's fill runs from deep to light gold.
-local FILL_FROM = Color3.fromHex("#E3901F")
-local FILL_TO = Color3.fromHex("#F0D06A")
 
 export type Props = {
 	-- "Next: Ice Worm".
@@ -68,24 +66,7 @@ local function GoalCard(props: Props): Frame
 			Text = props.title,
 			Layout.textStroke(),
 		}),
-		create("Frame")({
-			Name = "Bar",
-			LayoutOrder = 2,
-			Size = UDim2.new(1, 0, 0, BAR_HEIGHT),
-			BackgroundColor3 = NEON.TEXT,
-			BackgroundTransparency = 0.9,
-			create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-			Layout.panelLine(),
-			create("Frame")({
-				Name = "Fill",
-				Size = function()
-					return UDim2.fromScale(math.clamp(props.progress(), 0, 1), 1)
-				end,
-				BackgroundColor3 = Color3.new(1, 1, 1),
-				create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-				create("UIGradient")({ Color = ColorSequence.new(FILL_FROM, FILL_TO) }),
-			}),
-		}),
+		GoalBar({ progress = props.progress, height = BAR_HEIGHT, layoutOrder = 2 }),
 		create("Frame")({
 			Name = "Row",
 			LayoutOrder = 3,

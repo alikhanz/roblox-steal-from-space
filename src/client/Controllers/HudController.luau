@@ -22,6 +22,7 @@ local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
 local GoalCard = require(script.Parent.Parent.UI.GoalCard)
+local GoalStrip = require(script.Parent.Parent.UI.GoalStrip)
 local GrabState = require(script.Parent.Parent.State.GrabState)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
@@ -34,6 +35,7 @@ local Names = require(ReplicatedStorage.Shared.Locale.Names)
 local Oxygen = require(ReplicatedStorage.Shared.Domain.Oxygen)
 local OxygenBar = require(script.Parent.Parent.UI.OxygenBar)
 local OxygenConfig = require(ReplicatedStorage.Shared.Config.OxygenConfig)
+local PlusButton = require(script.Parent.Parent.UI.PlusButton)
 local PvpConfig = require(ReplicatedStorage.Shared.Config.PvpConfig)
 local ResourcePill = require(script.Parent.Parent.UI.ResourcePill)
 local SerpentConfig = require(ReplicatedStorage.Shared.Config.SerpentConfig)
@@ -60,6 +62,9 @@ local WIDEST_NUMBER = "88.8Qad"
 local RESOURCE_ICON_ROOM = 14
 local RESOURCE_GAP = 20
 local MENU_GAP = 7
+-- A touch screen's ⚡ plaque: the gap to its "+", and from it to the goal strip under it.
+local PLUS_GAP = 6
+local STRIP_GAP = 3
 -- The PC row of actions: button diameters, points (the strike, used most, is the biggest).
 local ROW_BUTTON_SIZE = 52
 local ROW_STRIKE_SIZE = 60
@@ -439,15 +444,70 @@ function HudController.new(dependencies: Dependencies): HudController
 							Padding = UDim.new(0, RESOURCE_GAP),
 							SortOrder = Enum.SortOrder.LayoutOrder,
 						}),
-						ResourcePill({
-							name = "Speed",
-							icon = "Bolt",
-							color = Theme.NEON.SPEED,
-							value = function()
-								return if loaded() then BigNum.format(speed()) else NOT_LOADED
-							end,
-							widest = WIDEST_NUMBER,
-							layoutOrder = 1,
+						-- The speed and, on a touch screen, the goal folded under it with a "+"
+						-- for more on the plaque (docs/design/screens/hud-phone.md): the goal card
+						-- and its button stood where the thumb moves the stick.
+						create("Frame")({
+							Name = "SpeedColumn",
+							LayoutOrder = 1,
+							AutomaticSize = Enum.AutomaticSize.XY,
+							BackgroundTransparency = 1,
+							create("UIListLayout")({
+								FillDirection = Enum.FillDirection.Vertical,
+								Padding = UDim.new(0, STRIP_GAP),
+								SortOrder = Enum.SortOrder.LayoutOrder,
+							}),
+							create("Frame")({
+								Name = "SpeedRow",
+								LayoutOrder = 1,
+								AutomaticSize = Enum.AutomaticSize.XY,
+								BackgroundTransparency = 1,
+								create("UIListLayout")({
+									FillDirection = Enum.FillDirection.Horizontal,
+									VerticalAlignment = Enum.VerticalAlignment.Center,
+									Padding = UDim.new(0, PLUS_GAP),
+									SortOrder = Enum.SortOrder.LayoutOrder,
+								}),
+								ResourcePill({
+									name = "Speed",
+									icon = "Bolt",
+									color = Theme.NEON.SPEED,
+									value = function()
+										return if loaded() then BigNum.format(speed()) else NOT_LOADED
+									end,
+									widest = WIDEST_NUMBER,
+									layoutOrder = 1,
+								}),
+								if dependencies.openStore
+									then PlusButton({
+										name = "MoreSpeed",
+										color = Theme.NEON.ACTION.Coins,
+										onClick = dependencies.openStore,
+										visible = isTouch,
+										layoutOrder = 2,
+									})
+									else nil,
+							}),
+							GoalStrip({
+								text = function()
+									local current = goal()
+									local key: any = if current then GuardianConfig.POSTS[current.post].nameKey else nil
+									return if current and key
+										then Text.get(locale, "speed.goalShort.hint", {
+											name = Text.get(locale, key),
+											target = BigNum.format(current.target),
+										})
+										else ""
+								end,
+								progress = function()
+									local current = goal()
+									return if current then current.progress else 1
+								end,
+								visible = function()
+									return isTouch() and loaded() and goal() ~= nil
+								end,
+								layoutOrder = 2,
+							}),
 						}),
 						-- The coins and, under them, what the aliens on spots bring a second.
 						create("Frame")({
@@ -536,8 +596,9 @@ function HudController.new(dependencies: Dependencies): HudController
 							})
 							else nil,
 						layoutOrder = 2,
+						-- On a touch screen the goal is the strip under the ⚡ plaque.
 						visible = function()
-							return loaded() and goal() ~= nil
+							return loaded() and goal() ~= nil and not isTouch()
 						end,
 					}),
 					-- The windows' tiles in a row; a hidden one closes the gap (MenuState).
