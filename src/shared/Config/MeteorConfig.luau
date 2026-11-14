@@ -1,8 +1,7 @@
 --!strict
 -- The meteor shower (EventConfig.EVENTS.Meteor has its clock): meteors fall along a strip from
--- the station outwards, through every zone. Each leaves a crater (a nest of its own) with one
--- meteor egg and a guardian; the crater takes the grade and guardian post of the nearest nest of
--- its zone, the egg its zone's loot. Meteor eggs hatch into meteor aliens
+-- the station outwards. Each leaves a crater (a nest of its own) with one meteor egg and a
+-- guardian of an active player's strength (Domain/MeteorShower.posts), the egg its zone's loot. Meteor eggs hatch into meteor aliens
 -- (AlienConfig.VARIANTS.Meteor). Looks in MeteorLooks and EggLooks.METEOR.
 
 return table.freeze({
@@ -11,8 +10,8 @@ return table.freeze({
 	METEOR_TAG = "Meteor",
 	METEOR_TARGET_ATTRIBUTE = "Target",
 	-- Eggs in one shower: this many per active player on the server (ActivityService: players
-	-- away from the keyboard do not count), within the bounds; shared out among the zones, from
-	-- the station outwards.
+	-- away from the keyboard do not count), within the bounds; shared out among the players, each
+	-- one's at guardians of their strength.
 	EGGS_PER_PLAYER = 2,
 	MIN_EGGS = 4,
 	MAX_EGGS = 16,

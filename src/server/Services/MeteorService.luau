@@ -1,26 +1,33 @@
 --!strict
 -- The meteor shower's gameplay, on its event's clock (EventService): as it is announced, a
--- direction from the station is picked; while it lasts, meteors fall along that strip, through
--- every zone in turn. Each meteor leaves a crater, a nest of its own with one meteor egg and a
--- guardian of the nearest nest's post (NestService.addCrater, GuardianService), so stealing it is
--- the same deal as stealing from that nest. Players see a pin per zone to its craters that still
+-- direction from the station is picked; while it lasts, meteors fall along that strip. Each is
+-- meant for one of the active players, in turn (decision 135): it falls on the ring of a guardian
+-- of their strength (Domain/MeteorShower.posts: the strongest one they get away from, then one
+-- above), and leaves a crater, a nest of its own with one meteor egg and that guardian
+-- (NestService.addCrater, GuardianService), so stealing it is the same deal as stealing from a
+-- nest of that guardian. Players see a pin per zone to its craters that still
 -- hold their eggs, and hear of each new crater (EventService spots). When the shower ends the craters are retired: each
 -- goes as soon as its egg is back in it (at once if nobody took it); an egg on its way to a
 -- station keeps its crater and guardian until it is delivered or comes back.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EventClock = require(ReplicatedStorage.Shared.Domain.EventClock)
 local EventConfig = require(ReplicatedStorage.Shared.Config.EventConfig)
 local EventService = require(script.Parent.EventService)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
 local MeteorConfig = require(ReplicatedStorage.Shared.Config.MeteorConfig)
 local MeteorLooks = require(ReplicatedStorage.Shared.Config.MeteorLooks)
 local MeteorShower = require(ReplicatedStorage.Shared.Domain.MeteorShower)
+local NestLayout = require(ReplicatedStorage.Shared.Domain.NestLayout)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local SpeedGoal = require(ReplicatedStorage.Shared.Domain.SpeedGoal)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local WorldService = require(script.Parent.WorldService)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
@@ -39,10 +46,11 @@ export type Dependencies = {
 	-- Every nest, craters included: a new crater keeps its distance from them.
 	getNestSites: () -> { WorldService.NestSite },
 	buildCrater: (name: string, zone: ZoneConfig.ZoneId, center: Vector3) -> WorldService.NestSite?,
-	addCrater: (site: WorldService.NestSite, variant: AlienConfig.VariantId) -> boolean,
+	addCrater: (site: WorldService.NestSite, variant: AlienConfig.VariantId, grade: number) -> (),
 	retireCrater: (nestId: string) -> (),
-	-- Players on the server who are not away (ActivityService): idle ones bring no meteors.
-	activePlayers: () -> number,
+	-- Whether a player is not away (ActivityService): idle ones bring no meteors.
+	isActive: (player: Player) -> boolean,
+	getSpeed: (player: Player) -> BigNum.BigNum,
 }
 
 export type MeteorService = {
@@ -53,6 +61,18 @@ export type MeteorService = {
 local MeteorService = {}
 
 local CENTER = StationConfig.PLATFORM_CENTER
+
+-- Every guardian's recommended stat, from the station outwards (for SpeedGoal).
+local RECOMMENDED: { BigNum.BigNum } = {}
+for index, post in GuardianConfig.POSTS do
+	RECOMMENDED[index] = post.recommended
+end
+
+-- The strongest guardian a player of `speed` gets away from (the first one at least).
+local function bestPostOf(speed: BigNum.BigNum): number
+	local goal = SpeedGoal.next(speed, RECOMMENDED)
+	return if goal then math.max(goal.post - 1, 1) else #RECOMMENDED
+end
 
 -- The strip's direction from the station, level with it.
 local function directionOf(position: Vector3): Vector3
@@ -93,13 +113,16 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		return true
 	end
 
-	-- A free spot on the strip within `zone`'s ring, at a nest's height range; nil if none found.
-	local function spotIn(zone: ZoneConfig.ZoneId, direction: Vector3): Vector3?
+	-- A free spot on the strip on guardian `grade`'s own ring (Domain/NestLayout.postBand), at a
+	-- nest's height range; nil if none found.
+	local function spotFor(grade: number, direction: Vector3): Vector3?
+		local zone, post = ZoneConfig.zoneOfPost(grade)
 		local ring = ZoneConfig.ZONES[zone]
+		local middle, stray = NestLayout.postBand(ring, post)
 		local across = direction:Cross(Vector3.yAxis)
 		for _ = 1, MeteorConfig.PLACE_ATTEMPTS do
 			local point = CENTER
-				+ direction * random:NextNumber(ring.ringMin, ring.ringMax)
+				+ direction * random:NextNumber(middle - stray, middle + stray)
 				+ across * random:NextNumber(-MeteorConfig.STRIP_HALF_WIDTH, MeteorConfig.STRIP_HALF_WIDTH)
 				+ Vector3.yAxis * random:NextNumber(-ring.heightSpread, ring.heightSpread)
 			if isFree(point) then
@@ -179,23 +202,21 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		sync()
 	end
 
-	local function makeCrater(zone: ZoneConfig.ZoneId, center: Vector3)
+	local function makeCrater(grade: number, center: Vector3)
 		craterCount += 1
+		local zone = ZoneConfig.zoneOfPost(grade)
 		local site = dependencies.buildCrater(`MeteorCrater{craterCount}`, zone, center)
 		if not site then
 			return
 		end
-		if dependencies.addCrater(site, "Meteor") then
-			table.insert(craters, site.id)
-			markCrater(site)
-		else
-			site.model:Destroy()
-		end
+		dependencies.addCrater(site, "Meteor", grade)
+		table.insert(craters, site.id)
+		markCrater(site)
 	end
 
-	-- One meteor into `zone` along the strip.
-	local function drop(current: number, zone: ZoneConfig.ZoneId, direction: Vector3)
-		local spot = spotIn(zone, direction)
+	-- One meteor along the strip onto guardian `grade`'s ring.
+	local function drop(current: number, grade: number, direction: Vector3)
+		local spot = spotFor(grade, direction)
 		if not spot then
 			return
 		end
@@ -206,7 +227,7 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 				table.remove(landing, index)
 			end
 			if shower == current then
-				makeCrater(zone, spot)
+				makeCrater(grade, spot)
 			end
 		end)
 	end
@@ -216,12 +237,18 @@ function MeteorService.new(dependencies: Dependencies): MeteorService
 		local current = shower
 		local place = dependencies.placeOf("Meteor")
 		local direction = directionOf(if place then place.position else CENTER + Vector3.xAxis)
-		local count = MeteorShower.eggCount(dependencies.activePlayers(), MeteorConfig)
-		local zones = MeteorShower.zones(count, ZoneConfig.ZONE_ORDER)
-		for index, delay in MeteorShower.fallTimes(count, MeteorConfig) do
+		local bestPosts = {}
+		for _, player in Players:GetPlayers() do
+			if dependencies.isActive(player) then
+				table.insert(bestPosts, bestPostOf(dependencies.getSpeed(player)))
+			end
+		end
+		local count = MeteorShower.eggCount(#bestPosts, MeteorConfig)
+		local grades = MeteorShower.posts(bestPosts, count, ZoneConfig.POST_COUNT)
+		for index, delay in MeteorShower.fallTimes(#grades, MeteorConfig) do
 			task.delay(delay, function()
 				if shower == current then
-					drop(current, zones[index], direction)
+					drop(current, grades[index], direction)
 				end
 			end)
 		end

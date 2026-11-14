@@ -150,11 +150,13 @@ local VARIANTS: { [VariantId]: Variant } = {
 	},
 }
 
--- Hatch weights of a guardian's usual three kinds (decision 075): its baby most often, the rare
--- one seldom. A post may have more kinds, each with a weight of its own (decision 080).
-local MAIN_WEIGHT = 60
-local SECOND_WEIGHT = 30
-local RARE_WEIGHT = 10
+-- Hatch weights of a guardian's usual three kinds: all alike, so each kind turns up as often and
+-- a guardian's set fills evenly (decision 135; at first its baby came most often and the rare
+-- one seldom, decision 075). Kinds of one guardian earn the same. A post may have more kinds,
+-- each with a weight of its own (decision 080).
+local MAIN_WEIGHT = 1
+local SECOND_WEIGHT = 1
+local RARE_WEIGHT = 1
 
 -- Each post's kinds, its main kind (the guardian's baby) first. Ids and order match the models
 -- (assets/blender/aliens/robo_kinds.py POSTS; a test keeps them in step). Part of the save

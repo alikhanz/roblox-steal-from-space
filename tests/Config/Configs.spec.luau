@@ -89,11 +89,13 @@ describe("AlienConfig", function()
 		end
 	end)
 
-	it("hatches the guardian's own kind most often, the rare one seldom (decision 075)", function()
-		local chances = Loot.chances(AlienConfig.GRADES[1].kindEntries)
-		expect(chances.slimeWarden).toBeCloseTo(0.6)
-		expect(chances.patrolSwarm).toBeCloseTo(0.3)
-		expect(chances.patrolRay).toBeCloseTo(0.1)
+	it("hatches each of a guardian's kinds as often (decision 135)", function()
+		for _, grade in AlienConfig.GRADES do
+			local chances = Loot.chances(grade.kindEntries)
+			for _, kindId in grade.kinds do
+				expect(chances[kindId]).toBeCloseTo(1 / #grade.kinds)
+			end
+		end
 	end)
 
 	it("names every kind; a main kind by its guardian's name", function()

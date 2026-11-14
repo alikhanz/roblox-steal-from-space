@@ -277,7 +277,8 @@ local meteorService = MeteorService.new({
 	buildCrater = worldService.buildCrater,
 	addCrater = nestService.addCrater,
 	retireCrater = nestService.retireCrater,
-	activePlayers = activityService.activeCount,
+	isActive = activityService.isActive,
+	getSpeed = speedService.getSpeed,
 })
 
 local serpentService = SerpentService.new({
@@ -306,6 +307,7 @@ local guardianService = GuardianService.new({
 	getNestGrade = nestService.getGrade,
 	nestAdded = nestService.added,
 	nestRemoved = nestService.removed,
+	nestPostChanged = nestService.postChanged,
 	findCarriers = carryService.findCarriers,
 	findLooseEggs = carryService.findLooseEggs,
 	getCarried = carryService.getCarried,

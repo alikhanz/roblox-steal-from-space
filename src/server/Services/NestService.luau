@@ -7,7 +7,10 @@
 -- Besides the nests of the world there are craters: nests a meteor makes during a meteor shower
 -- (MeteorService), each with one meteor egg and a guardian of its own. A crater never regrows:
 -- it is gone once its egg is delivered, or, after it is retired at the end of the shower, as
--- soon as its egg is back in it. Craters take the grade of the nearest nest of their zone.
+-- soon as its egg is back in it. A crater's guardian post comes with it (MeteorService picks it).
+--
+-- Half of the world's nests change their guardian as they grow a new egg (Domain/NestPosts):
+-- the guardian goes and one of its ring's or a neighbouring post comes (`postChanged`).
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,8 +19,11 @@ local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local EggModel = require(script.Parent.Parent.World.EggModel)
+local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local GuardianLooks = require(ReplicatedStorage.Shared.Config.GuardianLooks)
 local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local NestCycle = require(ReplicatedStorage.Shared.Domain.NestCycle)
+local NestPosts = require(ReplicatedStorage.Shared.Domain.NestPosts)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local WorldService = require(script.Parent.WorldService)
@@ -52,20 +58,25 @@ export type NestService = {
 	getEggCFrame: (nestId: string) -> CFrame?,
 	-- Every nest's place, craters included.
 	getSites: () -> { WorldService.NestSite },
-	-- Makes a crater at `site` with an egg of `variant` from its zone's loot. False when its zone
-	-- has no nests to take a grade from.
-	addCrater: (site: WorldService.NestSite, variant: AlienConfig.VariantId) -> boolean,
+	-- Makes a crater at `site` with an egg of `variant` from its zone's loot, guarded by guardian
+	-- post `grade` (global).
+	addCrater: (site: WorldService.NestSite, variant: AlienConfig.VariantId, grade: number) -> (),
 	-- The crater goes once its egg is back in it (at once if it is there).
 	retireCrater: (nestId: string) -> (),
 	-- A nest came or went (craters): guardians follow.
 	added: Signal.Signal<WorldService.NestSite>,
 	removed: Signal.Signal<string>,
+	-- Another guardian came to a nest (Domain/NestPosts): its guardian is replaced.
+	postChanged: Signal.Signal<WorldService.NestSite>,
 }
 
 type Nest = {
 	site: WorldService.NestSite,
-	-- Guardian post of this nest; its eggs hatch into this grade.
+	-- Guardian post of this nest now (global); its eggs hatch into this grade.
 	grade: number,
+	-- The post of the ring it stands on (within its zone), while it changes its guardian with
+	-- each new egg (Domain/NestPosts); nil for nests that keep theirs, and craters.
+	changingHome: number?,
 	rarity: EggConfig.RarityId?,
 	size: EggConfig.SizeId?,
 	variant: AlienConfig.VariantId?,
@@ -83,6 +94,7 @@ function NestService.new(dependencies: Dependencies): NestService
 	local random = Random.new()
 	local added = Signal.new() :: Signal.Signal<WorldService.NestSite>
 	local removed = Signal.new() :: Signal.Signal<string>
+	local postChanged = Signal.new() :: Signal.Signal<WorldService.NestSite>
 
 	local function placeEgg(
 		nest: Nest,
@@ -181,23 +193,46 @@ function NestService.new(dependencies: Dependencies): NestService
 		end
 	end
 
+	-- A changing nest takes another guardian before its new egg grows: the old one goes (its egg
+	-- was delivered, so it guards nothing) and the new one comes with the egg.
+	local function changeGuardian(nest: Nest)
+		local home = nest.changingHome
+		if not home then
+			return
+		end
+		local zone = nest.site.zone
+		local _, current = ZoneConfig.zoneOfPost(nest.grade)
+		local nextPost = NestPosts.next(current, home, ZoneConfig.POSTS_PER_ZONE, random:NextNumber())
+		if nextPost == current then
+			return
+		end
+		nest.grade = ZoneConfig.postIndex(zone, nextPost)
+		nest.site.model:SetAttribute(EggConfig.NEST_GRADE_ATTRIBUTE, nest.grade)
+		WorldService.paintNest(nest.site.model, GuardianLooks.POSTS[GuardianConfig.POSTS[nest.grade].id].color)
+		postChanged.fire(nest.site)
+	end
+
 	local function tick()
 		local now = os.clock()
 		for _, nest in nests do
 			if NestCycle.shouldGrow(nest.cycle, now) then
+				changeGuardian(nest)
 				growEgg(nest, "Normal")
 			end
 		end
 	end
 
 	-- The world's nests, each at its post: the world laid each post's nests on a ring of their
-	-- own within the zone's (Domain/NestLayout), the first innermost.
+	-- own within the zone's (Domain/NestLayout), the first innermost. Every other one of them
+	-- changes its guardian with each new egg (Domain/NestPosts).
 	local function assignNests(sites: { WorldService.NestSite })
 		for _, site in sites do
 			local post = assert(site.post, `nest {site.id} has no guardian post`)
+			local index = assert(site.index, `nest {site.id} has no place among its post's nests`)
 			local nest: Nest = {
 				site = site,
 				grade = ZoneConfig.postIndex(site.zone, post),
+				changingHome = if NestPosts.isAnchor(index) then nil else post,
 				rarity = nil,
 				size = nil,
 				variant = nil,
@@ -212,27 +247,12 @@ function NestService.new(dependencies: Dependencies): NestService
 		end
 	end
 
-	-- The grade of the nest of `zone` nearest to `position` (craters do not count).
-	local function gradeNear(zone: ZoneConfig.ZoneId, position: Vector3): number?
-		local grade: number? = nil
-		local nearest = math.huge
-		for _, nest in nests do
-			local distance = (nest.site.eggCFrame.Position - position).Magnitude
-			if not nest.crater and nest.site.zone == zone and distance < nearest then
-				grade, nearest = nest.grade, distance
-			end
-		end
-		return grade
-	end
-
-	local function addCrater(site: WorldService.NestSite, variant: AlienConfig.VariantId): boolean
-		local grade = gradeNear(site.zone, site.eggCFrame.Position)
-		if not grade then
-			return false
-		end
+	local function addCrater(site: WorldService.NestSite, variant: AlienConfig.VariantId, grade: number)
+		assert(GuardianConfig.POSTS[grade], `crater {site.id}: no guardian post {grade}`)
 		local nest: Nest = {
 			site = site,
 			grade = grade,
+			changingHome = nil,
 			rarity = nil,
 			size = nil,
 			variant = nil,
@@ -244,7 +264,6 @@ function NestService.new(dependencies: Dependencies): NestService
 		register(nest)
 		growEgg(nest, variant)
 		added.fire(site)
-		return true
 	end
 
 	local function retireCrater(nestId: string)
@@ -288,6 +307,7 @@ function NestService.new(dependencies: Dependencies): NestService
 		retireCrater = retireCrater,
 		added = added,
 		removed = removed,
+		postChanged = postChanged,
 	}
 end
 
