@@ -13,6 +13,7 @@ local AlienDress = require(script.Parent.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local AlienOutfit = require(ReplicatedStorage.Shared.Domain.AlienOutfit)
 local OutfitDress = require(script.Parent.OutfitDress)
+local PetBox = require(ReplicatedStorage.Shared.Domain.PetBox)
 
 local PetTemplate = {}
 
@@ -22,8 +23,8 @@ PetTemplate.OUTFIT_NAME = "_Outfit"
 -- On a low-poly pet's model (a body the game dresses from the kit).
 local OUTFIT_ATTRIBUTE = "Outfit"
 
--- A dressed pet, ready to clone: where its lowest visible point is under the pivot, how wide it
--- stands and how tall, studs at the dressing scale.
+-- A dressed pet, ready to clone: where its lowest visible point is under the pivot (its body's
+-- middle), how wide a place it needs and how tall it stands, studs at the dressing scale.
 export type Template = {
 	model: Model,
 	bottom: number,
@@ -65,33 +66,22 @@ function PetTemplate.sources(cache: Cache, alien: AlienConfig.Alien): { string }
 	return { name }
 end
 
--- The lowest point, the widest span across and the height of the pet's visible parts, in its
--- pivot's frame.
+-- The lowest point, the width and the height of the pet's visible parts, in its pivot's frame. The
+-- pivot is its body's middle (AlienDress.prepare), and its wings or outfit may reach farther to one
+-- side: the width is twice the farthest reach from it, so its place has room all round.
 local function measure(model: Model): (number, number, number)
 	local pivot = model:GetPivot()
-	local low = Vector3.one * math.huge
-	local high = -low
+	local pieces: { PetBox.Piece } = {}
 	for _, part in model:GetDescendants() do
-		if not part:IsA("MeshPart") or part.Transparency >= 1 then
-			continue
-		end
-		local frame = pivot:ToObjectSpace(part.CFrame)
-		local half = part.Size / 2
-		for _, x in { -1, 1 } do
-			for _, y in { -1, 1 } do
-				for _, z in { -1, 1 } do
-					local corner = frame * Vector3.new(half.X * x, half.Y * y, half.Z * z)
-					low = low:Min(corner)
-					high = high:Max(corner)
-				end
-			end
+		if part:IsA("MeshPart") and part.Transparency < 1 then
+			table.insert(pieces, { cframe = part.CFrame, size = part.Size })
 		end
 	end
-	if low.Y == math.huge then
+	local low, high = PetBox.bounds(pieces, pivot)
+	if not (low and high) then
 		return 0, 0, 0
 	end
-	local span = high - low
-	return low.Y, math.max(span.X, span.Z), span.Y
+	return low.Y, 2 * PetBox.reach(pieces, pivot), high.Y - low.Y
 end
 
 -- The pet `alien` in `picks`, from its model and the outfit kit in the cache's set. A

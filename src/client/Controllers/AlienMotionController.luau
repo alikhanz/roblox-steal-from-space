@@ -29,9 +29,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local AlienDress = require(ReplicatedStorage.Shared.World.AlienDress)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BayLooks = require(ReplicatedStorage.Shared.Config.BayLooks)
+local PetBox = require(ReplicatedStorage.Shared.Domain.PetBox)
 local PetMotion = require(ReplicatedStorage.Shared.Domain.PetMotion)
 local RigMotion = require(script.Parent.Parent.World.RigMotion)
 
@@ -110,10 +112,13 @@ local function petOf(model: Model, stand: Model): Pet?
 	local uid = stand:GetAttribute(BayConfig.ALIEN_UID_ATTRIBUTE)
 	local random = Random.new(if type(uid) == "number" then uid else 1)
 	local now = os.clock()
+	local middleX, middleZ = PetBox.middle(AlienDress.bodyPieces(model), base)
 	local rig = RigMotion.read(model, base, random, {
 		skip = LABEL_PART,
 		scale = model:GetScale() / AlienLooks.MODELS.DRESS_SCALE,
 		now = now,
+		-- It turns to a player round its body, which stays on its place (Domain/PetBox).
+		middle = { x = middleX, z = middleZ },
 	})
 	local pet: Pet = {
 		look = model,

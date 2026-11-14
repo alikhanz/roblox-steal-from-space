@@ -136,6 +136,10 @@ export type ReadOptions = {
 	scale: number,
 	-- The clock the rhythms start from.
 	now: number,
+	-- What it turns round across the floor (X and Z, in `base`'s space): a pet's body's middle
+	-- (Domain/PetBox), not that of its box with the wings and outfit in it. The box's middle by
+	-- default.
+	middle: { x: number, z: number }?,
 }
 
 local function between(random: Random, range: { number }): number
@@ -340,6 +344,11 @@ end
 function RigMotion.read(model: Model, base: CFrame, random: Random, options: ReadOptions): Rig
 	local cf, size = model:GetBoundingBox()
 	local now = options.now
+	local centre = base:PointToObjectSpace(cf.Position)
+	local middle = options.middle
+	if middle then
+		centre = Vector3.new(middle.x, centre.Y, middle.z)
+	end
 	local rig: Rig = {
 		family = tostring(model:GetAttribute("Family") or ""),
 		phase = random:NextNumber(0, 2 * math.pi),
@@ -347,7 +356,7 @@ function RigMotion.read(model: Model, base: CFrame, random: Random, options: Rea
 		scale = options.scale,
 		radius = math.max(size.X, size.Z) / 2,
 		height = size.Y,
-		centre = base:PointToObjectSpace(cf.Position),
+		centre = centre,
 		movers = {},
 		groups = {},
 		hinges = {},

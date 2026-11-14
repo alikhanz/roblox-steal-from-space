@@ -24,6 +24,7 @@ local MaterialService = game:GetService("MaterialService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
+local PetBox = require(ReplicatedStorage.Shared.Domain.PetBox)
 
 local AlienDress = {}
 
@@ -1111,6 +1112,38 @@ local function looksOf(pet: Model): (number, boolean, Color3, Color3, Color3)
 	return tier, meteor, core, tierColor, accent
 end
 
+-- The pet's body alone, as boxes (Domain/PetBox): its seen parts without the wings, the outfit it
+-- wears (OutfitDress) and what orbits it.
+function AlienDress.bodyPieces(pet: Model): { PetBox.Piece }
+	local pieces: { PetBox.Piece } = {}
+	for _, part in pet:GetDescendants() do
+		if
+			not part:IsA("MeshPart")
+			or part.Transparency >= 1
+			or part:GetAttribute(AlienLooks.OUTFIT_PART_ATTRIBUTE)
+		then
+			continue
+		end
+		local role = tostring(part:GetAttribute("Role") or "body")
+		if string.match(role, "^wing") or role == "orbit" or role == "wisp" then
+			continue
+		end
+		table.insert(pieces, { cframe = part.CFrame, size = part.Size })
+	end
+	return pieces
+end
+
+-- The centre and size of the pet's body (AlienDress.bodyPieces) in the frame `cf`; the whole pet's
+-- size round the frame for a pet with no such parts. The legendary's glow is sized by it, not by
+-- the whole pet with the low-poly wings' wide span.
+local function bodyBox(pet: Model, cf: CFrame): (Vector3, Vector3)
+	local low, high = PetBox.bounds(AlienDress.bodyPieces(pet), cf)
+	if not (low and high) then
+		return Vector3.zero, pet:GetExtentsSize()
+	end
+	return (low + high) / 2, high - low
+end
+
 -- The server's half (a bare or already prepared model, scaled to the dressing scale): paint,
 -- materials, wings, dust points, the Body box.
 function AlienDress.prepare(pet: Model)
@@ -1122,6 +1155,8 @@ function AlienDress.prepare(pet: Model)
 	colorWings(pet, wingParts, paints, accent)
 
 	-- What the bay's label and prompts hang on (BayViewController, "Body"): the pet's whole box.
+	-- The pet's pivot is the middle of its body across the floor (Domain/PetBox): where it stands on
+	-- its place and what it turns round, its wings and outfit wherever they reach.
 	local cf, size = pet:GetBoundingBox()
 	local body = Instance.new("Part")
 	body.Name = "Body"
@@ -1130,6 +1165,8 @@ function AlienDress.prepare(pet: Model)
 	body.CastShadow = false
 	body.Size = size
 	body.CFrame = cf
+	local middleX, middleZ = PetBox.middle(AlienDress.bodyPieces(pet), cf)
+	body.PivotOffset = CFrame.new(middleX, 0, middleZ)
 	body.Parent = pet
 	pet.PrimaryPart = body
 end
@@ -1205,40 +1242,6 @@ local function carrier(pet: Model, cf: CFrame, size: Vector3): (BasePart, Attach
 	return fx, top, back
 end
 
--- The pet's body alone, in the frame `cf`: the centre and size of its seen parts without the wings,
--- the outfit it wears (OutfitDress) and what orbits it. The legendary's glow is sized by it, not by
--- the whole pet with the low-poly wings' wide span.
-local function bodyBox(pet: Model, cf: CFrame): (Vector3, Vector3)
-	local low, high = Vector3.one * math.huge, -Vector3.one * math.huge
-	for _, part in pet:GetDescendants() do
-		if
-			not part:IsA("MeshPart")
-			or part.Transparency >= 1
-			or part:GetAttribute(AlienLooks.OUTFIT_PART_ATTRIBUTE)
-		then
-			continue
-		end
-		local role = tostring(part:GetAttribute("Role") or "body")
-		if string.match(role, "^wing") or role == "orbit" or role == "wisp" then
-			continue
-		end
-		local half = part.Size / 2
-		for _, x in { -1, 1 } do
-			for _, y in { -1, 1 } do
-				for _, z in { -1, 1 } do
-					local point = cf:PointToObjectSpace((part.CFrame * Vector3.new(half.X * x, half.Y * y, half.Z * z)))
-					low = low:Min(point)
-					high = high:Max(point)
-				end
-			end
-		end
-	end
-	if low.X > high.X then
-		return Vector3.zero, pet:GetExtentsSize()
-	end
-	return (low + high) / 2, high - low
-end
-
 -- The client's half, on a prepared pet at the dressing scale: every effect.
 function AlienDress.adorn(pet: Model)
 	local zone = tostring(pet:GetAttribute("Zone"))
@@ -1247,7 +1250,10 @@ function AlienDress.adorn(pet: Model)
 	local paints = paintsOf(pet)
 	local wingParts, flames, jetSpots = partsOf(pet, paints)
 
-	local cf, size = pet:GetBoundingBox()
+	-- Everything round the pet (its light, aura, comets, rune) is round its body's middle (its
+	-- pivot, prepare), as big as the whole pet.
+	local _, size = pet:GetBoundingBox()
+	local cf = pet:GetPivot()
 	local radius = math.max(size.X, size.Z) / 2
 	local fx, top, back = carrier(pet, cf, size)
 
