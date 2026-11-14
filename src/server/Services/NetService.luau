@@ -27,6 +27,7 @@ local Remotes = require(script.Parent.Parent.Net.Remotes)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StormService = require(script.Parent.StormService)
 local TutorialService = require(script.Parent.TutorialService)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 
 -- The quest kinds the wire knows; a saved quest of another kind is not sent.
 local QUEST_KINDS: { [string]: Remotes.QuestKind } = {
@@ -46,9 +47,9 @@ export type Dependencies = {
 	bayChanged: Signal.Signal<Player>,
 	coinsChanged: Signal.Signal<Player, BigNum.BigNum>,
 	offlineSettled: Signal.Signal<Player, OfflineService.Reward>,
-	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
+	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location, number>,
 	-- Trainer payouts to forward.
-	trained: Signal.Signal<Player, BigNum.BigNum, number>,
+	trained: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>,
 	-- Ability results to forward.
 	abilityUsed: Signal.Signal<Player, PvpService.AbilityKind, boolean, boolean>,
 	-- The harpoon's and the bomb's looks, for every client to draw.
@@ -73,6 +74,8 @@ export type Dependencies = {
 		source: MonetizationConfig.ShopSource,
 		egg: number?
 	) -> PurchaseService.Notice?,
+	-- The player closed a subscription prompt (PurchaseService.subscriptionPromptClosed).
+	subscriptionPromptClosed: (player: Player) -> (),
 	-- Every command a player sends counts as them playing (ActivityService).
 	markActive: (player: Player) -> (),
 	-- The pet bench: fill the island or clear it (BenchService.run; checks who may).
@@ -249,11 +252,11 @@ function NetService.new(dependencies: Dependencies): NetService
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))
 			end
 		end)
-		dependencies.hatched.connect(function(player, alienId, location)
-			Remotes.Hatched.Fire(player, { alienId = alienId, location = location })
+		dependencies.hatched.connect(function(player, alienId, location, incomePercent)
+			Remotes.Hatched.Fire(player, { alienId = alienId, location = location, incomePercent = incomePercent })
 		end)
-		economy.crossbred.connect(function(player, alienId, location)
-			Remotes.Crossbred.Fire(player, { alienId = alienId, location = location })
+		economy.crossbred.connect(function(player, alienId, location, incomePercent)
+			Remotes.Crossbred.Fire(player, { alienId = alienId, location = location, incomePercent = incomePercent })
 		end)
 		local quests = dependencies.quests
 		quests.changed.connect(function(player)
@@ -383,6 +386,10 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.CommunityJoined.SetCallback(guarded(function(player)
 			return community.joined(player)
+		end))
+		Remotes.SubscriptionPromptClosed.SetCallback(guarded(function(player)
+			dependencies.subscriptionPromptClosed(player)
+			return nil
 		end))
 		Remotes.SetControlsHidden.SetCallback(guarded(function(player, hidden: boolean)
 			dependencies.setControlsHidden(player, hidden)

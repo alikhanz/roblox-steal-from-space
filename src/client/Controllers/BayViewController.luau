@@ -15,6 +15,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIncome = require(ReplicatedStorage.Shared.Domain.AlienIncome)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
@@ -25,6 +26,7 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggIcon = require(script.Parent.Parent.UI.EggIcon)
 local EggKind = require(ReplicatedStorage.Shared.Domain.EggKind)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
+local IncomeRoll = require(script.Parent.Parent.UI.IncomeRoll)
 local Incubator = require(ReplicatedStorage.Shared.Domain.Incubator)
 local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
 local Layout = require(script.Parent.Parent.UI.Layout)
@@ -368,8 +370,8 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 				return Upgrades.trainerPrice(level(), UpgradeConfig.TUNING)
 			end
 			local own = isOwn(bay)
-			-- The trainer's speed points with the owner's passes, times the owner's jetpack (the
-			-- owner's own copy for them, the owner's player attributes for others).
+			-- The trainer's speed points with the owner's subscriptions, times the owner's jetpack
+			-- (the owner's own copy for them, the owner's player attributes for others).
 			local ownerId = bay:GetAttribute(BayConfig.OWNER_ID_ATTRIBUTE)
 			local owner = if own
 				then Players.LocalPlayer
@@ -387,7 +389,7 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 						return 0
 					end
 			end
-			-- 0 until the server writes it: no passes known yet.
+			-- 0 until the server writes it: no subscriptions known yet.
 			local passMultiplier = if owner
 				then attributeSource(owner, MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE)
 				else function()
@@ -401,11 +403,16 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 					return Text.get(locale, "terminal.level.title", { level = level() })
 				end,
 				hint = function()
+					-- In flight the whole rate, on the stand its share (decision 131).
 					local rate = BigNum.mul(
 						Purchases.trainerRate(level(), math.max(passMultiplier(), 1), UpgradeConfig.TUNING),
 						Upgrades.jetpackMultiplier(jetpackLevel(), UpgradeConfig.TUNING)
 					)
-					return Text.get(locale, "terminal.trainerRate.hint", { rate = BigNum.format(rate) })
+					local factors = UpgradeConfig.TRAINING_FACTORS
+					return Text.get(locale, "terminal.trainerRate.hint", {
+						flight = BigNum.format(BigNum.mul(rate, BigNum.fromNumber(factors.Flight))),
+						stand = BigNum.format(BigNum.mul(rate, BigNum.fromNumber(factors.Stand))),
+					})
 				end,
 				hintColor = Theme.NEON.SPEED,
 				button = if own
@@ -533,14 +540,19 @@ function BayViewController.new(dependencies: Dependencies): BayViewController
 			return
 		end
 		local alien = AlienConfig.ALIENS[alienId]
-		local income = BigNum.format(alien.income)
+		-- Its own income, by the roll the server put on it (decision 130).
+		local percent = instance:GetAttribute(BayConfig.ALIEN_INCOME_PERCENT_ATTRIBUTE)
+		local owned = { id = alienId, incomePercent = if type(percent) == "number" then percent else nil }
+		local income = BigNum.format(AlienIncome.of(owned))
+		local roll = IncomeRoll.text(locale, AlienIncome.percentOf(owned))
 		local onShelf = instance:GetAttribute(BayConfig.ALIEN_PLAIN_ATTRIBUTE) == true
-		-- A short chip: the tier's colour and the income; the full name is in the bay window.
+		-- A short chip: the tier's colour, the income and its roll; the full name is in the bay
+		-- window.
 		label(instance, "Body", function(part)
 			return WorldChip({
 				adornee = part,
 				dot = AlienLooks.TIERS[alien.tier].color,
-				text = Text.get(locale, "alien.income.hint", { income = income }),
+				text = Text.get(locale, "alien.income.hint", { income = income, roll = roll }),
 				-- Over the head: aliens grow with every guardian (decision 068).
 				studsAbove = part.Size.Y / 2 + (if onShelf then SHELF_CHIP_STUDS_ABOVE else ALIEN_STUDS_ABOVE),
 				maxDistance = if onShelf

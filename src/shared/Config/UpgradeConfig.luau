@@ -29,8 +29,12 @@ local TUNING: Upgrades.Tuning = {
 return table.freeze({
 	TUNING = table.freeze(TUNING),
 
-	-- The trainer pays out this often while its owner stands on it: quick numbers feel alive.
+	-- Training pays out this often while its owner flies or stands on the stand: quick numbers
+	-- feel alive.
 	TRAINING_TICK_SECONDS = 0.25,
+	-- Shares of the trainer's rate (decision 131): flying in space trains at the full rate, so the
+	-- way to grow is to go out after eggs; the stand, safe at home, at half of it.
+	TRAINING_FACTORS = table.freeze({ Flight = 1, Stand = 0.5 } :: { [Upgrades.TrainingSource]: number }),
 
 	-- Names of the jetpacks (the starting one first; Upgrades.jetpackModel gives a level's
 	-- jetpack), each with its mark (Names.jetpack). JetpackLooks describes the same jetpacks.
@@ -51,7 +55,8 @@ return table.freeze({
 	-- Player attribute: the jetpack level, so every client can draw the right flames.
 	JETPACK_LEVEL_ATTRIBUTE = "JetpackLevel",
 
-	-- Training keeps going while the player is away: at this share of the rate, up to this long.
-	OFFLINE_TRAINING_FACTOR = 0.5,
+	-- Training keeps going while the player is away: at this share of the rate, up to this long
+	-- (decision 131; the Night shift subscription raises the share, MonetizationConfig).
+	OFFLINE_TRAINING_FACTOR = 0.2,
 	OFFLINE_TRAINING_CAP_SECONDS = 8 * 60 * 60,
 })

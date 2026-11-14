@@ -31,12 +31,12 @@ local create = Vide.create
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 local HOUR = 60 * 60
 
-local PASS_TEXTS: { [Purchases.PassId]: { title: Text.Key, hint: Text.Key } } = {
+local SUBSCRIPTION_TEXTS: { [Purchases.SubscriptionId]: { title: Text.Key, hint: Text.Key } } = {
 	DoubleTraining = { title = "store.doubleTraining.title", hint = "store.doubleTraining.hint" },
 	NightShift = { title = "store.nightShift.title", hint = "store.nightShift.hint" },
 }
--- Each pass's icon and colour on its card.
-local PASS_LOOKS: { [Purchases.PassId]: { icon: Icons.Name, color: Color3 } } = {
+-- Each subscription's icon and colour on its card.
+local SUBSCRIPTION_LOOKS: { [Purchases.SubscriptionId]: { icon: Icons.Name, color: Color3 } } = {
 	DoubleTraining = { icon = "Bolt", color = Theme.NEON.SPEED },
 	NightShift = { icon = "Moon", color = Color3.fromHex("#8E8CFF") },
 }
@@ -97,42 +97,45 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		return Purchases.slotTier(profile.bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
 	end
 
-	local function passCards(): { StoreWindow.Pass }
-		local tuning = MonetizationConfig.PASS_TUNING
-		local hintArgs: { [Purchases.PassId]: Text.Args } = {
+	local function subscriptionCards(): { StoreWindow.Pass }
+		local tuning = MonetizationConfig.SUBSCRIPTION_TUNING
+		local hintArgs: { [Purchases.SubscriptionId]: Text.Args } = {
 			DoubleTraining = { factor = tuning.doubleTrainingMultiplier },
 			NightShift = {
+				percent = math.round(tuning.nightShiftTrainingFactor * 100),
+				percentBase = math.round(tuning.trainingFactor * 100),
+				hours = tuning.nightShiftTrainingCapSeconds // HOUR,
 				income = tuning.nightShiftIncomeCapSeconds // HOUR,
 				incomeBase = tuning.incomeCapSeconds // HOUR,
-				training = tuning.nightShiftTrainingCapSeconds // HOUR,
-				trainingBase = tuning.trainingCapSeconds // HOUR,
 			},
 		}
 		local cards: { StoreWindow.Pass } = {}
-		for _, pass in MonetizationConfig.PASS_ORDER do
-			if not purchases.sellsPass(pass) then
-				continue
-			end
-			local texts = PASS_TEXTS[pass]
-			local looks = PASS_LOOKS[pass]
+		for _, subscription in MonetizationConfig.SUBSCRIPTION_ORDER do
+			local texts = SUBSCRIPTION_TEXTS[subscription]
+			local looks = SUBSCRIPTION_LOOKS[subscription]
 			table.insert(cards, {
 				title = text(texts.title),
 				hint = function()
-					return text(texts.hint, hintArgs[pass])
+					return text(texts.hint, hintArgs[subscription])
 				end,
 				icon = looks.icon,
 				color = looks.color,
 				price = function()
-					return price(purchases.passPrice(pass))
+					local value = purchases.subscriptionPrice(subscription)
+					return text("store.perMonth.hint", { price = value or "…" })
 				end,
 				priceReady = function()
-					return purchases.passPrice(pass) ~= nil
+					return purchases.subscriptionPrice(subscription) ~= nil
 				end,
 				owned = function()
-					return purchases.owns(pass)
+					return purchases.isSubscribed(subscription)
+				end,
+				-- Shown to a subscriber whatever Roblox says about buying: they see what they have.
+				shown = function()
+					return purchases.isSubscribed(subscription) or purchases.sellsSubscription(subscription)
 				end,
 				onBuy = function()
-					purchases.promptPass(openedFrom, pass)
+					purchases.promptSubscription(openedFrom, subscription)
 				end,
 			})
 		end
@@ -244,11 +247,11 @@ function StoreController.new(dependencies: Dependencies): StoreController
 					texts = {
 						title = text("store.window.title"),
 						hint = text("store.window.hint"),
-						forever = text("store.forever.title"),
+						forever = text("store.monthly.title"),
 						now = text("store.now.title"),
-						owned = text("store.owned.hint"),
+						owned = text("store.subscribed.hint"),
 					},
-					passes = passCards(),
+					passes = subscriptionCards(),
 					products = productCards(),
 					onClose = function()
 						isOpen(false)
@@ -280,9 +283,9 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		})
 
 		purchases.granted.connect(announce)
-		purchases.passUnlocked.connect(function(pass)
-			local name = text(PASS_TEXTS[pass].title)
-			dependencies.toasts.push(text("store.unlocked.toast", { name = name }), "Good")
+		purchases.subscriptionStarted.connect(function(subscription)
+			local name = text(SUBSCRIPTION_TEXTS[subscription].title)
+			dependencies.toasts.push(text("store.subscribed.toast", { name = name }), "Good")
 		end)
 	end
 

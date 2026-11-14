@@ -55,10 +55,10 @@ export type ProfileState = {
 	-- Paid on login for the time away: coins earned, speed gained, the seconds away, the eggs
 	-- ready to hatch and the "Collect x2" tier that pays it once more (0: nothing to pay).
 	offlineReward: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number, number, number>,
-	-- The player hatched an egg: the alien and where it went.
-	hatched: Signal.Signal<string, Location>,
-	-- Three aliens were crossbred into this one.
-	crossbred: Signal.Signal<string, Location>,
+	-- The player hatched an egg: the alien, where it went and its income roll (decision 130).
+	hatched: Signal.Signal<string, Location, number>,
+	-- Three aliens were crossbred into this one (where it went, its roll).
+	crossbred: Signal.Signal<string, Location, number>,
 	notice: Signal.Signal<Notice>,
 	-- An ability resolved: which, did it hit, did an egg come loose.
 	abilityResult: Signal.Signal<AbilityKind, boolean, boolean>,
@@ -88,8 +88,8 @@ function ProfileState.new(): ProfileState
 	local loaded = source(false)
 	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number, number, number>
-	local hatched = Signal.new() :: Signal.Signal<string, Location>
-	local crossbred = Signal.new() :: Signal.Signal<string, Location>
+	local hatched = Signal.new() :: Signal.Signal<string, Location, number>
+	local crossbred = Signal.new() :: Signal.Signal<string, Location, number>
 	local notice = Signal.new() :: Signal.Signal<Notice>
 	local abilityResult = Signal.new() :: Signal.Signal<AbilityKind, boolean, boolean>
 	local questRewarded = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum>
@@ -176,10 +176,10 @@ function ProfileState.new(): ProfileState
 			end
 		end)
 		Remotes.Hatched.SetCallback(function(event)
-			hatched.fire(event.alienId, event.location)
+			hatched.fire(event.alienId, event.location, event.incomePercent)
 		end)
 		Remotes.Crossbred.SetCallback(function(event)
-			crossbred.fire(event.alienId, event.location)
+			crossbred.fire(event.alienId, event.location, event.incomePercent)
 		end)
 		Remotes.NoticeSent.SetCallback(function(value)
 			notice.fire(value)

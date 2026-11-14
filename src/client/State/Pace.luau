@@ -5,7 +5,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIncome = require(ReplicatedStorage.Shared.Domain.AlienIncome)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local PlayReward = require(ReplicatedStorage.Shared.Domain.PlayReward)
@@ -22,14 +22,9 @@ export type Cap = {
 	speed: () -> BigNum.BigNum,
 }
 
-local function incomeOf(alienId: string): BigNum.BigNum
-	local alien = AlienConfig.ALIENS[alienId]
-	return if alien then alien.income else BigNum.ZERO
-end
-
--- Coins per second from the pods.
+-- Coins per second from the places (each alien by its own roll).
 function Pace.income(profile: ProfileState.ProfileState): BigNum.BigNum
-	return Bay.incomePerSecond(profile.bay(), incomeOf)
+	return Bay.incomePerSecond(profile.bay(), AlienIncome.of)
 end
 
 -- What `minutes` of play pay now: coins, and the speed stat gained when `withSpeed`, no more than

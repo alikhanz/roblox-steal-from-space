@@ -1,9 +1,10 @@
 --!strict
--- The trainer in every bay, the jetpack stand (docs/design/screens/jetpack-stand.md): while it
--- holds its owner, their trained speed grows a few times a second. The simulation pulls the
--- owner on and lets them off (Domain/Stand). The profile holds the level; the bay model carries
--- it for the trainer's terminal, whose button buys the next level (an UpgradeTrainer command), and
--- the stand wears the look of its level (decision 091).
+-- Training online (decision 131): a few times a second the player's trained speed grows by their
+-- trainer's rate, all of it while they fly in space, half of it while the jetpack stand on their
+-- island holds them (docs/design/screens/jetpack-stand.md; UpgradeConfig.TRAINING_FACTORS). The
+-- simulation pulls the owner onto the stand and lets them off (Domain/Stand). The profile holds
+-- the trainer's level; the bay model carries it for the trainer's terminal, whose button buys the
+-- next level (an UpgradeTrainer command), and the stand wears the look of its level (decision 091).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,6 +22,7 @@ local Stand = require(ReplicatedStorage.Shared.Domain.Stand)
 local StandConfig = require(ReplicatedStorage.Shared.Config.StandConfig)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
+local Vitals = require(ReplicatedStorage.Shared.Character.Vitals)
 
 export type Dependencies = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
@@ -36,8 +38,8 @@ export type Dependencies = {
 export type TrainingService = {
 	name: string,
 	start: () -> (),
-	-- Fires on every payout: the player, the speed points gained and the seconds trained.
-	trained: Signal.Signal<Player, BigNum.BigNum, number>,
+	-- Fires on every payout: the player, the speed points gained, the seconds trained and where.
+	trained: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>,
 }
 
 type Station = {
@@ -48,7 +50,7 @@ local TrainingService = {}
 
 function TrainingService.new(dependencies: Dependencies): TrainingService
 	local stations: { [Player]: Station } = {}
-	local trained = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number>
+	local trained = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>
 
 	-- The level on the bay model (the trainer's terminal reads it), on the stand (its look) and on
 	-- the player (the stand's flame grows with it).
@@ -74,31 +76,40 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 		stations[player] = nil
 	end
 
-	-- True while the owner's jetpack stand holds them (the simulation decides it: Domain/Stand).
-	local function isTraining(player: Player): boolean
+	-- Where the player trains now: in space, alive (oxygen ends a flight within minutes, so no
+	-- one trains there idle for long), or held by their own stand (the simulation decides it:
+	-- Domain/Stand); nil when nowhere. Flight under a dome is not in space and does not count.
+	local function sourceOf(player: Player): Upgrades.TrainingSource?
 		local character = player.Character
-		if not character or character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true then
-			return false
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not character or not humanoid or not Vitals.isAlive(humanoid) then
+			return nil
 		end
-		return Stand.isTraining(Stand.parse(character:GetAttribute(StandConfig.STATE_ATTRIBUTE)))
+		if character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) == true then
+			return "Flight"
+		end
+		local onStand = stations[player] ~= nil
+			and Stand.isTraining(Stand.parse(character:GetAttribute(StandConfig.STATE_ATTRIBUTE)))
+		return if onStand then "Stand" else nil
 	end
 
 	local function tick(deltaTime: number)
-		for player in stations do
-			if not isTraining(player) then
+		for _, player in Players:GetPlayers() do
+			local source = sourceOf(player)
+			if not source then
 				continue
 			end
 			local gain: BigNum.BigNum? = nil
 			dependencies.update(player, function(data)
-				-- Double training doubles it (decision 061).
-				local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
+				-- Double training doubles it (decision 132).
+				local effects = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
 				local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
-				gain = Upgrades.trainingGain(rate, deltaTime, 1)
+				gain = Upgrades.trainingGain(rate, deltaTime, UpgradeConfig.TRAINING_FACTORS[source])
 				data.trained = BigNum.add(data.trained, gain :: BigNum.BigNum)
 			end)
 			if gain then
 				dependencies.publishSpeed(player)
-				trained.fire(player, gain :: BigNum.BigNum, deltaTime)
+				trained.fire(player, gain :: BigNum.BigNum, deltaTime, source)
 			end
 		end
 	end

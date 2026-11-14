@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIncome = require(ReplicatedStorage.Shared.Domain.AlienIncome)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
@@ -40,7 +41,7 @@ export type Dependencies = {
 	-- Tutorial progress reached (TutorialService.advanced): its end starts the pause.
 	tutorialAdvanced: Signal.Signal<Player, number>,
 	coinsTraded: Signal.Signal<Player, EconomyService.CoinTrade, BigNum.BigNum, BigNum.BigNum>,
-	crossbred: Signal.Signal<Player, string, Bay.Location>,
+	crossbred: Signal.Signal<Player, string, Bay.Location, number>,
 	-- A daily quest's reward was taken (QuestService.rewarded).
 	questClaimed: Signal.Signal<Player, PlayReward.Paid>,
 }
@@ -60,11 +61,6 @@ export type CoachService = {
 }
 
 local CoachService = {}
-
-local function incomeNumber(alienId: string): number
-	local alien = AlienConfig.ALIENS[alienId]
-	return if alien then BigNum.toNumber(alien.income) else 0
-end
 
 local function parentOf(alienId: string): Crossbreed.Parent?
 	return AlienConfig.ALIENS[alienId]
@@ -100,7 +96,7 @@ function CoachService.new(dependencies: Dependencies): CoachService
 			jetpackLevel = data.jetpackLevel,
 			canAffordJetpack = canAffordJetpack,
 			questToClaim = questToClaim(data.quests),
-			hasTrio = #Crossbreed.trios(data.floor, parentOf, incomeNumber, BayConfig.CROSSBREED_COUNT) > 0,
+			hasTrio = #Crossbreed.trios(data.floor, parentOf, AlienIncome.numberOf, BayConfig.CROSSBREED_COUNT) > 0,
 		}
 	end
 

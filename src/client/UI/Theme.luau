@@ -39,6 +39,9 @@ local NEON = table.freeze({
 	-- Resources.
 	SPEED = hex("#FFD34A"),
 	COINS = hex("#FFC83D"),
+	-- The ends of a pet's income roll beside its income (decision 130): unlucky, lucky.
+	ROLL_LOW = hex("#FF6B6B"),
+	ROLL_HIGH = hex("#FFD34A"),
 	OXYGEN = hex("#5FD4FF"),
 	-- Newbie protection and the egg in hand.
 	SHIELD = hex("#8FF0A0"),

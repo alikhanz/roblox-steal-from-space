@@ -1,8 +1,8 @@
 --!strict
--- Robux purchases on the client (decision 061): this game's catalog, the prices Roblox shows for
--- it, the passes the player owns and the purchase prompts. A prompt only asks Roblox; what a
--- purchase gives comes from the server, by its receipt (PurchaseService), and arrives here as
--- `granted`.
+-- Robux purchases on the client (decisions 061, 132): this game's catalog, the prices Roblox shows
+-- for it, the subscriptions the player has and the purchase prompts. A prompt only asks Roblox;
+-- what a purchase gives comes from the server, by its receipt (PurchaseService), and arrives here
+-- as `granted`; a subscription counts once the server has asked Roblox about it.
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -42,12 +42,13 @@ export type PurchaseState = {
 	refreshPrices: () -> (),
 	-- Roblox's price, in Robux (reactive); nil until Roblox answers, or when it does not.
 	productPrice: (kind: MonetizationConfig.ProductKind, tier: number?, seconds: number?) -> number?,
-	passPrice: (pass: Purchases.PassId) -> number?,
-	-- The game sells this pass.
-	sellsPass: (pass: Purchases.PassId) -> boolean,
-	-- The player owns the pass (reactive).
-	owns: (pass: Purchases.PassId) -> boolean,
-	-- The trainer's multiplier from the passes (reactive).
+	-- The subscription's price as Roblox gives it ("149"); nil until Roblox answers.
+	subscriptionPrice: (subscription: Purchases.SubscriptionId) -> string?,
+	-- The game sells this subscription and Roblox lets this player subscribe (reactive).
+	sellsSubscription: (subscription: Purchases.SubscriptionId) -> boolean,
+	-- The player has the subscription (reactive).
+	isSubscribed: (subscription: Purchases.SubscriptionId) -> boolean,
+	-- The trainer's multiplier from the subscriptions (reactive).
 	trainerMultiplier: () -> number,
 	-- Shows Roblox's prompt for a product; `egg` is the egg an "Egg ready now" is for.
 	promptProduct: (
@@ -57,11 +58,11 @@ export type PurchaseState = {
 		seconds: number?,
 		egg: number?
 	) -> (),
-	promptPass: (source: MonetizationConfig.ShopSource, pass: Purchases.PassId) -> (),
+	promptSubscription: (source: MonetizationConfig.ShopSource, subscription: Purchases.SubscriptionId) -> (),
 	-- A purchase was granted.
 	granted: Signal.Signal<Granted>,
-	-- A pass became the player's (after the first reading: not for passes owned on join).
-	passUnlocked: Signal.Signal<Purchases.PassId>,
+	-- A subscription started (after the first reading: not for ones the player had on join).
+	subscriptionStarted: Signal.Signal<Purchases.SubscriptionId>,
 }
 
 local PurchaseState = {}
@@ -73,20 +74,34 @@ end
 
 function PurchaseState.new(): PurchaseState
 	local catalog = MonetizationConfig.catalogFor(game.GameId)
-	-- Roblox ids -> price; products and passes apart (their ids are separate ranges).
+	-- Roblox product ids -> price; subscription ids -> the price as Roblox gives it.
 	local productPrices = Vide.source({} :: { [number]: number })
-	local passPrices = Vide.source({} :: { [number]: number })
-	local ownedPasses = Vide.source({} :: { [string]: boolean })
+	local subscriptionPrices = Vide.source({} :: { [string]: string })
+	local subscribed = Vide.source({} :: { [string]: boolean })
+	local canSubscribe = Vide.source(false)
 	local multiplier = Vide.source(1)
 	local granted = Signal.new() :: Signal.Signal<Granted>
-	local passUnlocked = Signal.new() :: Signal.Signal<Purchases.PassId>
+	local subscriptionStarted = Signal.new() :: Signal.Signal<Purchases.SubscriptionId>
 
 	local function productId(kind: MonetizationConfig.ProductKind, tier: number?, seconds: number?): number?
 		return if catalog then MonetizationConfig.productIdOf(catalog, kind, tier, seconds) else nil
 	end
 
-	local function passId(pass: Purchases.PassId): number?
-		return if catalog then catalog.passes[pass] else nil
+	local function subscriptionId(subscription: Purchases.SubscriptionId): string?
+		return if catalog then catalog.subscriptions[subscription] else nil
+	end
+
+	-- Roblox's price of a subscription: a Robux one comes as a number, others as display text.
+	local function loadSubscriptionPrice(id: string)
+		local ok, info = pcall(MarketplaceService.GetSubscriptionProductInfoAsync, MarketplaceService, id)
+		local price = if ok and type(info) == "table" then info.PriceInRobux or info.DisplayPrice else nil
+		if type(price) == "number" or type(price) == "string" then
+			local copy = table.clone(subscriptionPrices())
+			copy[id] = tostring(price)
+			subscriptionPrices(copy)
+		else
+			warn(`[PurchaseState] No price from Roblox for subscription {id}: {if ok then "none given" else info}`)
+		end
 	end
 
 	-- Asks Roblox for the price of each id; returns the ids it did not answer for.
@@ -134,30 +149,28 @@ function PurchaseState.new(): PurchaseState
 		for id in catalog.products do
 			table.insert(products, id)
 		end
-		local passes = {}
-		for _, id in catalog.passes do
-			table.insert(passes, id)
-		end
 		task.spawn(loadPrices, products, Enum.InfoType.Product, productPrices)
-		task.spawn(loadPrices, passes, Enum.InfoType.GamePass, passPrices)
+		for _, id in catalog.subscriptions do
+			task.spawn(loadSubscriptionPrice, id)
+		end
 	end
 
-	local function readPasses(player: Player, announce: boolean)
-		local value = player:GetAttribute(MonetizationConfig.PASSES_ATTRIBUTE)
-		local before = Vide.untrack(ownedPasses)
+	local function readSubscriptions(player: Player, announce: boolean)
+		local value = player:GetAttribute(MonetizationConfig.SUBSCRIPTIONS_ATTRIBUTE)
+		local before = Vide.untrack(subscribed)
 		local now: { [string]: boolean } = {}
 		if type(value) == "string" then
-			for _, pass in string.split(value, ",") do
-				if pass ~= "" then
-					now[pass] = true
+			for _, subscription in string.split(value, ",") do
+				if subscription ~= "" then
+					now[subscription] = true
 				end
 			end
 		end
-		ownedPasses(now)
+		subscribed(now)
 		if announce then
-			for _, pass in MonetizationConfig.PASS_ORDER do
-				if now[pass] and not before[pass] then
-					passUnlocked.fire(pass)
+			for _, subscription in MonetizationConfig.SUBSCRIPTION_ORDER do
+				if now[subscription] and not before[subscription] then
+					subscriptionStarted.fire(subscription)
 				end
 			end
 		end
@@ -170,14 +183,25 @@ function PurchaseState.new(): PurchaseState
 
 	local function start()
 		local player = Players.LocalPlayer
-		-- The server publishes the passes on the player once the profile is active: the first
-		-- value is the passes owned on join, later ones are purchases.
-		local announcePasses = player:GetAttribute(MonetizationConfig.PASSES_ATTRIBUTE) ~= nil
-		player:GetAttributeChangedSignal(MonetizationConfig.PASSES_ATTRIBUTE):Connect(function()
-			readPasses(player, announcePasses)
-			announcePasses = true
+		-- The server publishes the subscriptions on the player once the profile is active: the
+		-- first value is the ones the player had, later ones are what Roblox said since.
+		local announce = player:GetAttribute(MonetizationConfig.SUBSCRIPTIONS_ATTRIBUTE) ~= nil
+		player:GetAttributeChangedSignal(MonetizationConfig.SUBSCRIPTIONS_ATTRIBUTE):Connect(function()
+			readSubscriptions(player, announce)
+			announce = true
 		end)
-		readPasses(player, false)
+		readSubscriptions(player, false)
+		local function readCanSubscribe()
+			canSubscribe(player:GetAttribute(MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE) == true)
+		end
+		player:GetAttributeChangedSignal(MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE):Connect(readCanSubscribe)
+		readCanSubscribe()
+		-- The server asks Roblox again once the prompt is gone (a purchase takes a moment to show).
+		MarketplaceService.PromptSubscriptionPurchaseFinished:Connect(function(user)
+			if user == player then
+				Remotes.SubscriptionPromptClosed.Fire()
+			end
+		end)
 		player:GetAttributeChangedSignal(MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE):Connect(function()
 			readMultiplier(player)
 		end)
@@ -212,15 +236,15 @@ function PurchaseState.new(): PurchaseState
 			local id = productId(kind, tier, seconds)
 			return if id then productPrices()[id] else nil
 		end,
-		passPrice = function(pass)
-			local id = passId(pass)
-			return if id then passPrices()[id] else nil
+		subscriptionPrice = function(subscription)
+			local id = subscriptionId(subscription)
+			return if id then subscriptionPrices()[id] else nil
 		end,
-		sellsPass = function(pass)
-			return passId(pass) ~= nil
+		sellsSubscription = function(subscription)
+			return subscriptionId(subscription) ~= nil and canSubscribe()
 		end,
-		owns = function(pass)
-			return ownedPasses()[pass] == true
+		isSubscribed = function(subscription)
+			return subscribed()[subscription] == true
 		end,
 		trainerMultiplier = function()
 			return multiplier()
@@ -234,16 +258,16 @@ function PurchaseState.new(): PurchaseState
 			Remotes.PurchasePrompted.Fire({ item = kind, source = source, egg = egg })
 			MarketplaceService:PromptProductPurchase(Players.LocalPlayer, id)
 		end,
-		promptPass = function(source, pass)
-			local id = passId(pass)
-			if not id or ownedPasses()[pass] then
+		promptSubscription = function(source, subscription)
+			local id = subscriptionId(subscription)
+			if not id or subscribed()[subscription] or not canSubscribe() then
 				return
 			end
-			Remotes.PurchasePrompted.Fire({ item = pass, source = source })
-			MarketplaceService:PromptGamePassPurchase(Players.LocalPlayer, id)
+			Remotes.PurchasePrompted.Fire({ item = subscription, source = source })
+			MarketplaceService:PromptSubscriptionPurchase(Players.LocalPlayer, id)
 		end,
 		granted = granted,
-		passUnlocked = passUnlocked,
+		subscriptionStarted = subscriptionStarted,
 	}
 end
 

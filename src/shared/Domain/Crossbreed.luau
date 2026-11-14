@@ -70,15 +70,15 @@ export type Trio = {
 	uids: { number },
 }
 
-type Owned = { uid: number, id: string, outfit: AlienOutfit.Picks? }
+type Owned = { uid: number, id: string, outfit: AlienOutfit.Picks?, incomePercent: number }
 
 -- Every group of `aliens` with at least `required` that go together, best group first (by its
 -- best earner). `parentOf` gives an alien's grade, tier and variant (nil: unknown, left out);
--- `incomeOf` its income per second as a comparable number.
+-- `incomeOf` its income per second as a comparable number (its own: AlienIncome.numberOf).
 function Crossbreed.trios(
 	aliens: { Owned },
 	parentOf: (id: string) -> Parent?,
-	incomeOf: (id: string) -> number,
+	incomeOf: (alien: Owned) -> number,
 	required: number
 ): { Trio }
 	local groups: { [string]: { Owned } } = {}
@@ -93,7 +93,7 @@ function Crossbreed.trios(
 		end
 	end
 	local weakerFirst = function(left: Owned, right: Owned): boolean
-		local a, b = incomeOf(left.id), incomeOf(right.id)
+		local a, b = incomeOf(left), incomeOf(right)
 		if a ~= b then
 			return a < b
 		end
@@ -116,7 +116,7 @@ function Crossbreed.trios(
 				count = #members,
 				uids = uids,
 			}
-			best[trio] = incomeOf(members[#members].id)
+			best[trio] = incomeOf(members[#members])
 			table.insert(result, trio)
 		end
 	end

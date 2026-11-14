@@ -24,7 +24,7 @@
 --   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("Training", 3600)
 --   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("ReadyNow", 3, 17)
 --   game.ServerStorage.DevCommands.ReplayLastReceipt:Invoke()
---   game.ServerStorage.DevCommands.GivePass:Invoke("NightShift")
+--   game.ServerStorage.DevCommands.SetSubscription:Invoke("NightShift", true)
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
 --   game.ServerStorage.DevCommands.SetCoachDone:Invoke(0)
 --   game.ServerStorage.DevCommands.FillShelf:Invoke(24)
@@ -114,7 +114,8 @@ export type Dependencies = {
 	-- now, and noting a pass as owned.
 	processReceipt: (receipt: { [string]: any }) -> Enum.ProductPurchaseDecision,
 	chooseReadyNowEgg: (player: Player, uid: number) -> string?,
-	notePass: (player: Player, pass: Purchases.PassId) -> boolean,
+	-- Sets a subscription as if Roblox said so (PurchaseService.setSubscribedForTest).
+	setSubscribed: (player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean) -> boolean,
 	-- Sets the tutorial's progress (TutorialService.setProgress).
 	setTutorialProgress: (player: Player, progress: number) -> boolean,
 	-- Sets which hints after the tutorial are done (CoachService.setDone; 0: all again).
@@ -538,16 +539,21 @@ function DevService.new(dependencies: Dependencies): DevService
 			local decision = dependencies.processReceipt(lastReceipt)
 			return `{lastReceipt.PurchaseId}: {decision.Name}`
 		end,
-		-- Notes a pass as owned by the first player (DoubleTraining or NightShift).
-		GivePass = function(pass: string): string
+		-- Turns a subscription of the first player on or off (DoubleTraining or NightShift), as if
+		-- Roblox said so; Roblox's checks leave them alone for the rest of the playtest.
+		SetSubscription = function(subscription: string, subscribed: boolean?): string
 			local player = firstPlayerRoot()
 			if not player then
 				return "no player"
 			end
-			assert(pass == "DoubleTraining" or pass == "NightShift", `Unknown pass {pass}`)
-			return if dependencies.notePass(player, pass :: Purchases.PassId)
-				then `{pass} noted`
-				else `{pass} already noted or no profile`
+			assert(
+				subscription == "DoubleTraining" or subscription == "NightShift",
+				`Unknown subscription {subscription}`
+			)
+			local on = subscribed ~= false
+			return if dependencies.setSubscribed(player, subscription :: Purchases.SubscriptionId, on)
+				then `{subscription} {if on then "on" else "off"}`
+				else "no profile"
 		end,
 		-- A readable summary of the first player's profile.
 		DumpProfile = function(): string
@@ -573,7 +579,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				.. ` | played {math.floor(data.playSeconds)}s | pods [{podList}]`
 				.. ` | shelf [{ids(data.floor)}] | eggs {#data.incubator}`
 				.. ` | slots {data.incubatorSlots}, waiting {#data.waiting}`
-				.. ` | passes [{table.concat(data.passes, ", ")}] | receipts {#data.purchaseIds}`
+				.. ` | subscriptions [{table.concat(data.subscriptions, ", ")}] | receipts {#data.purchaseIds}`
 				.. ` | tutorial {data.tutorialStep} | hints done {data.coachDone}`
 				.. ` | community gift {data.communityGiftTaken}`
 		end,

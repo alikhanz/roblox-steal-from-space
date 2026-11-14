@@ -23,8 +23,8 @@ export type Dependencies = {
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
 	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
 	-- Aliens that came to the player.
-	hatched: Signal.Signal<Player, string, Bay.Location>,
-	crossbred: Signal.Signal<Player, string, Bay.Location>,
+	hatched: Signal.Signal<Player, string, Bay.Location, number>,
+	crossbred: Signal.Signal<Player, string, Bay.Location, number>,
 }
 
 export type IndexService = {

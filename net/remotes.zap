@@ -27,6 +27,8 @@ type Alien = struct {
 	uid: u32,
 	id: string.utf8,
 	outfit: Outfit?,
+	-- Its own share of its kind's income, a whole percent (decision 130, Domain/AlienIncome).
+	incomePercent: u8,
 }
 
 type Pod = struct {
@@ -357,6 +359,8 @@ event Hatched = {
 	data: struct {
 		alienId: string.utf8,
 		location: enum { Pod, Floor },
+		-- Its income roll (decision 130), for the toast's income line.
+		incomePercent: u8,
 	},
 }
 
@@ -368,6 +372,7 @@ event Crossbred = {
 	data: struct {
 		alienId: string.utf8,
 		location: enum { Pod, Floor },
+		incomePercent: u8,
 	},
 }
 
@@ -609,6 +614,14 @@ event PurchasePrompted = {
 
 -- The client is about to show Roblox's prompt to join the game's community (analytics).
 event CommunityPrompted = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}
+
+-- Roblox's subscription prompt closed (decision 132): the server asks Roblox about the player's
+-- subscriptions again. Nothing is taken on the client's word.
+event SubscriptionPromptClosed = {
 	from: Client,
 	type: Reliable,
 	call: SingleSync,

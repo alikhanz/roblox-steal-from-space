@@ -14,10 +14,12 @@ local DEFAULTS: PlayerData.Defaults = {
 	startingIncubatorSlots = 2,
 }
 
-local TUNING: Purchases.PassTuning = {
+local TUNING: Purchases.Tuning = {
 	doubleTrainingMultiplier = 2,
-	nightShiftIncomeCapSeconds = 12 * 3600,
-	nightShiftTrainingCapSeconds = 24 * 3600,
+	nightShiftTrainingFactor = 1,
+	nightShiftIncomeCapSeconds = 8 * 3600,
+	nightShiftTrainingCapSeconds = 10 * 3600,
+	trainingFactor = 0.2,
 	incomeCapSeconds = 4 * 3600,
 	trainingCapSeconds = 8 * 3600,
 }
@@ -52,31 +54,46 @@ describe("Purchases receipts", function()
 	end)
 end)
 
-describe("Purchases passes", function()
-	it("changes nothing without passes", function()
-		local effects = Purchases.passEffects({}, TUNING)
+describe("Purchases subscriptions", function()
+	it("changes nothing without subscriptions", function()
+		local effects = Purchases.effects({}, TUNING)
 		expect(effects.trainerMultiplier).toBe(1)
+		expect(effects.offlineTrainingFactor).toBe(0.2)
 		expect(effects.offlineIncomeCapSeconds).toBe(4 * 3600)
 		expect(effects.offlineTrainingCapSeconds).toBe(8 * 3600)
 	end)
 
-	it("doubles training and lengthens the time away with the passes", function()
-		local effects = Purchases.passEffects({ "DoubleTraining", "NightShift" }, TUNING)
+	it("doubles training with Double training", function()
+		local effects = Purchases.effects({ "DoubleTraining" }, TUNING)
 		expect(effects.trainerMultiplier).toBe(2)
-		expect(effects.offlineIncomeCapSeconds).toBe(12 * 3600)
-		expect(effects.offlineTrainingCapSeconds).toBe(24 * 3600)
+		expect(effects.offlineTrainingFactor).toBe(0.2)
+		expect(effects.offlineIncomeCapSeconds).toBe(4 * 3600)
 	end)
 
-	it("notes a pass once", function()
+	it("trains at the full rate and earns longer away with Night shift", function()
+		local effects = Purchases.effects({ "NightShift" }, TUNING)
+		expect(effects.trainerMultiplier).toBe(1)
+		expect(effects.offlineTrainingFactor).toBe(1)
+		expect(effects.offlineIncomeCapSeconds).toBe(8 * 3600)
+		expect(effects.offlineTrainingCapSeconds).toBe(10 * 3600)
+	end)
+
+	it("turns a subscription on and off, reporting only changes", function()
 		local data = fresh()
-		expect(Purchases.notePass(data, "NightShift")).toBe(true)
-		expect(Purchases.notePass(data, "NightShift")).toBe(false)
-		expect(data.passes).toEqual({ "NightShift" })
+		expect(Purchases.setSubscribed(data, "NightShift", true)).toBe(true)
+		expect(Purchases.setSubscribed(data, "NightShift", true)).toBe(false)
+		expect(Purchases.setSubscribed(data, "DoubleTraining", true)).toBe(true)
+		expect(data.subscriptions).toEqual({ "NightShift", "DoubleTraining" })
+		expect(Purchases.setSubscribed(data, "NightShift", false)).toBe(true)
+		expect(Purchases.setSubscribed(data, "NightShift", false)).toBe(false)
+		expect(data.subscriptions).toEqual({ "DoubleTraining" })
+		expect(Purchases.isSubscribed(data.subscriptions, "DoubleTraining")).toBe(true)
+		expect(Purchases.isSubscribed(data.subscriptions, "NightShift")).toBe(false)
 	end)
 end)
 
 describe("Purchases.trainerRate", function()
-	it("multiplies the trainer's rate by the passes' multiplier", function()
+	it("multiplies the trainer's rate by the subscriptions' multiplier", function()
 		local tuning = UpgradeConfig.TUNING
 		local base = Upgrades.trainerRate(3, tuning)
 		expect(BigNum.toNumber(Purchases.trainerRate(3, 1, tuning))).toBe(BigNum.toNumber(base))

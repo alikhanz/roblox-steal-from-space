@@ -24,6 +24,7 @@ local Quests = require(ReplicatedStorage.Shared.Domain.Quests)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
@@ -43,9 +44,9 @@ export type Dependencies = {
 	publishSpeed: (player: Player) -> (),
 	-- What the player did, from the other services.
 	eggDelivered: Signal.Signal<Player, CarryService.Carried>,
-	hatched: Signal.Signal<Player, string, Bay.Location>,
-	trained: Signal.Signal<Player, BigNum.BigNum, number>,
-	crossbred: Signal.Signal<Player, string, Bay.Location>,
+	hatched: Signal.Signal<Player, string, Bay.Location, number>,
+	trained: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>,
+	crossbred: Signal.Signal<Player, string, Bay.Location, number>,
 	-- Ability, did it hit, did an egg come loose.
 	abilityUsed: Signal.Signal<Player, PvpService.AbilityKind, boolean, boolean>,
 }
@@ -88,7 +89,7 @@ local function canCrossbreed(data: PlayerData.PlayerData): boolean
 	end
 	local trios = Crossbreed.trios(aliens, function(id: string): Crossbreed.Parent?
 		return AlienConfig.ALIENS[id]
-	end, function(): number
+	end, function(_alien): number
 		return 0
 	end, BayConfig.CROSSBREED_COUNT)
 	return #trios > 0
@@ -268,8 +269,11 @@ function QuestService.new(dependencies: Dependencies): QuestService
 		dependencies.hatched.connect(function(player)
 			advance(player, { kind = "Hatched" })
 		end)
-		dependencies.trained.connect(function(player, _gain, seconds)
-			advance(player, { kind = "Trained", seconds = seconds })
+		-- "Train on the trainer": time on the stand only (flight trains too, decision 131).
+		dependencies.trained.connect(function(player, _gain, seconds, source)
+			if source == "Stand" then
+				advance(player, { kind = "Trained", seconds = seconds })
+			end
 		end)
 		dependencies.crossbred.connect(function(player)
 			advance(player, { kind = "Crossbred" })

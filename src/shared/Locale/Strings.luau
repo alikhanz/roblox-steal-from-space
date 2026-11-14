@@ -413,9 +413,10 @@ local Strings = {
 		en = { one = "+{count} alien! Best: {name}", other = "+{count} aliens! Best: {name}" },
 	},
 	-- The second line of a hatch or crossbreed toast: the alien's income and where it went.
+	-- {roll}: its income roll, alien.roll.hint (decision 130).
 	["alien.hatchedIncome.hint"] = {
-		ru = "●{income}/с · {place}",
-		en = "●{income}/s · {place}",
+		ru = "●{income}/с {roll} · {place}",
+		en = "●{income}/s {roll} · {place}",
 	},
 	["bay.autoPlace.button"] = {
 		ru = "Лучших на места",
@@ -601,9 +602,10 @@ local Strings = {
 		ru = "Ур. {level}",
 		en = "Lv. {level}",
 	},
+	-- What the trainer's level gives a second: in flight and on the stand (decision 131).
 	["terminal.trainerRate.hint"] = {
-		ru = "+{rate} ⚡/с на тренажёре",
-		en = "+{rate} ⚡/s on the trainer",
+		ru = "+{flight} ⚡/с в полёте, +{stand} на тренажёре",
+		en = "+{flight} ⚡/s flying, +{stand} on the trainer",
 	},
 	-- The buy button on a terminal: just the price, the terminal's title says what it buys.
 	["terminal.price.button"] = {
@@ -1139,8 +1141,8 @@ local Strings = {
 	},
 	-- In place of the buy button once the top jetpack is owned.
 	["shop.top.hint"] = {
-		ru = "Это лучший джетпак. Дальше скорость качает тренажёр",
-		en = "That's the best jetpack. Now the trainer grows your speed",
+		ru = "Это лучший джетпак. Дальше скорость растёт в полёте и на тренажёре",
+		en = "That's the best jetpack. Now speed grows as you fly and train",
 	},
 	["shop.bought.toast"] = {
 		ru = "Новый джетпак: {name}!",
@@ -1200,8 +1202,13 @@ local Strings = {
 		en = "Infinity",
 	},
 	["alien.income.hint"] = {
-		ru = "●{income}/с",
-		en = "●{income}/s",
+		ru = "●{income}/с · {roll}",
+		en = "●{income}/s · {roll}",
+	},
+	-- An alien's income roll beside its income (decision 130): {bonus} is "+23", "-8", "+0".
+	["alien.roll.hint"] = {
+		ru = "{bonus}%",
+		en = "{bonus}%",
 	},
 	["time.seconds.hint"] = {
 		ru = { one = "{count} секунда", few = "{count} секунды", many = "{count} секунд" },
@@ -1307,8 +1314,8 @@ local Strings = {
 	},
 	-- {speed}: the next guardian's recommended speed ("42").
 	["tutorial.train.hint"] = {
-		ru = "Встань на тренажёр и накачай {speed} ⚡",
-		en = "Stand on the trainer and reach {speed} ⚡",
+		ru = "Накачай {speed} ⚡: летай или встань на тренажёр",
+		en = "Reach {speed} ⚡: fly around or stand on the trainer",
 	},
 	["tutorial.stealStronger.hint"] = {
 		ru = "Ты стал быстрее! Укради яйцо у следующего стража",
@@ -1369,9 +1376,10 @@ local Strings = {
 		en = "R$ {price}",
 	},
 	-- Column titles of the store: passes, and purchases that pay at once.
-	["store.forever.title"] = {
-		ru = "Навсегда",
-		en = "Forever",
+	-- The column of the monthly subscriptions (decision 132).
+	["store.monthly.title"] = {
+		ru = "Каждый месяц",
+		en = "Monthly",
 	},
 	["store.now.title"] = {
 		ru = "Сразу",
@@ -1382,25 +1390,31 @@ local Strings = {
 		ru = "{from} → {to}",
 		en = "{from} → {to}",
 	},
-	["store.owned.hint"] = {
-		ru = "Куплено",
-		en = "Owned",
+	-- In place of the button on a subscription the player has.
+	["store.subscribed.hint"] = {
+		ru = "Активна",
+		en = "Active",
+	},
+	-- A subscription's price a month ({price} as Roblox gives it).
+	["store.perMonth.hint"] = {
+		ru = "R$ {price}/мес",
+		en = "R$ {price}/mo",
 	},
 	["store.doubleTraining.title"] = {
 		ru = "Двойная тренировка",
 		en = "Double training",
 	},
 	["store.doubleTraining.hint"] = {
-		ru = "Тренажёр даёт ×{factor} ⚡, даже когда тебя нет в игре",
-		en = "Your trainer gives ×{factor} ⚡, even while you're away",
+		ru = "Вся тренировка ×{factor}: в полёте, на тренажёре и без тебя",
+		en = "All training ×{factor}: flying, on the trainer and while you're away",
 	},
 	["store.nightShift.title"] = {
 		ru = "Ночная смена",
 		en = "Night shift",
 	},
 	["store.nightShift.hint"] = {
-		ru = "Без тебя пришельцы приносят монеты {income} ч вместо {incomeBase}, тренажёр качает {training} ч вместо {trainingBase}",
-		en = "Offline, aliens earn for {income} h, not {incomeBase}, and the trainer works {training} h, not {trainingBase}",
+		ru = "Без тебя: тренировка {percent}% вместо {percentBase}%, монеты {income} ч вместо {incomeBase}",
+		en = "Away: training at {percent}%, not {percentBase}%, coins for {income} h, not {incomeBase}",
 	},
 	["store.trainingHour.title"] = {
 		ru = "Час тренировки",
@@ -1415,8 +1429,8 @@ local Strings = {
 		en = "A day of training",
 	},
 	["store.training.hint"] = {
-		ru = "Сразу +{speed} ⚡: столько тренажёр даёт за это время",
-		en = "+{speed} ⚡ right away: what your trainer gives in that time",
+		ru = "Сразу +{speed} ⚡: столько даёт это время в полёте",
+		en = "+{speed} ⚡ right away: as much as flying that long",
 	},
 	["store.slot.title"] = {
 		ru = "Капсула инкубатора",
@@ -1435,9 +1449,9 @@ local Strings = {
 		ru = "Больше ⚡",
 		en = "More ⚡",
 	},
-	["store.unlocked.toast"] = {
-		ru = "Куплено: {name}",
-		en = "Unlocked: {name}",
+	["store.subscribed.toast"] = {
+		ru = "Подписка оформлена: {name}",
+		en = "Subscribed: {name}",
 	},
 	["store.training.toast"] = {
 		ru = "Готово: +{speed} ⚡",

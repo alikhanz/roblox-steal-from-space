@@ -1,7 +1,8 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
--- The Robux store (docs/design/screens/store.md) in a neon window. Left, "Forever": a card per
--- pass with its icon, name and price (or "Owned") in a row and what it does under them. Right,
+-- The Robux store (docs/design/screens/store.md) in a neon window. Left, "Every month": a card per
+-- subscription (decision 132) with its icon, name and price a month (or "Active") in a row and what
+-- it does under them; a player Roblox does not let subscribe sees none. Right,
 -- "Right now": the one-off purchases two by two, each with its name over what it gives in big
 -- ("⚡+1.2K", "2 → 3") and its price beside it.
 -- Prices carry the Robux mark (Locale/Marks), drawn as the Robux icon; a price Roblox has not
@@ -49,10 +50,13 @@ export type Pass = {
 	hint: () -> string,
 	icon: Icons.Name,
 	color: Color3,
-	-- "R$ 299", or "R$ …" while Roblox has not sent it.
+	-- "R$ 149/mo", or "R$ …" while Roblox has not sent it.
 	price: () -> string,
 	priceReady: () -> boolean,
+	-- The player has it: "Active" instead of the button.
 	owned: () -> boolean,
+	-- On sale for this player (Roblox lets them subscribe).
+	shown: () -> boolean,
 	onBuy: () -> (),
 }
 
@@ -268,8 +272,11 @@ local function PassCard(pass: Pass, order: number, texts: Texts): Frame
 			Layout.textStroke(),
 		}),
 	})
-	-- Two passes share the column's height.
+	-- Two subscriptions share the column's height.
 	passCard.Size = UDim2.new(1, 0, 0.5, -CARD_GAP / 2)
+	Vide.effect(function()
+		passCard.Visible = pass.shown()
+	end)
 	return passCard
 end
 

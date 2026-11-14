@@ -11,6 +11,9 @@ local BigNum = require("./BigNum")
 
 local Upgrades = {}
 
+-- Where a player trains online (decision 131): flying in space, or on their island's stand.
+export type TrainingSource = "Flight" | "Stand"
+
 export type Tuning = {
 	-- Speed points per second on a level-0 trainer, and the gain per trainer level.
 	read trainerBaseRate: BigNum.BigNum,

@@ -2,7 +2,8 @@
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- One alien in a bay window list (docs/design/screens/bay-window.md): its icon
 -- (docs/design/screens/alien-icons.md), a badge for a variant (meteor), its name, the income on
--- the right, an outline in its tier's colour. A tap
+-- the right and its income roll after it ("+23%", decision 130), an outline in its tier's colour.
+-- A tap
 -- toggles its selection: a pink frame around the row (the outline stays the tier's, so the frame
 -- sits on a wrapper: one object takes one stroke). Faded when it cannot join the crossbreed.
 
@@ -27,8 +28,8 @@ local ICON_SIZE = 15
 local VARIANT_SIZE = 17
 local PICTURE_SIZE = 26
 local GAP = 5
--- Room kept for the income's number and the gaps, points.
-local INCOME_TEXT_ROOM = 70
+-- Room kept for the income's number, its roll and the gaps, points.
+local INCOME_TEXT_ROOM = 110
 local FILL_TRANSPARENCY = 0.965
 -- How far the tier's outline goes towards the glass, and its thickness.
 local TIER_LINE_DARKEN = 0.28
@@ -41,6 +42,9 @@ export type Props = {
 	name: () -> string,
 	-- "8.5/s".
 	income: () -> string,
+	-- Its income roll, "+23%", and the colour it reads in (UI/IncomeRoll).
+	bonus: () -> string,
+	bonusColor: () -> Color3,
 	tierColor: () -> Color3,
 	-- Its kind's icon at its tier; nil while its guardian has no sheet (the ball stands in).
 	icon: () -> AlienIcons.Icon?,
@@ -187,6 +191,21 @@ local function AlienRow(props: Props): TextButton
 					TextColor3 = if props.idle then NEON.MUTED else NEON.TEXT,
 					TextTransparency = textTransparency,
 					Text = props.income,
+					Layout.textStroke(),
+				}),
+				create("TextLabel")({
+					Name = "Bonus",
+					LayoutOrder = 3,
+					AutomaticSize = Enum.AutomaticSize.X,
+					Size = UDim2.fromScale(0, 1),
+					BackgroundTransparency = 1,
+					FontFace = NEON.FONT,
+					TextSize = NEON.TEXT_SMALL,
+					TextColor3 = function()
+						return if props.idle then NEON.MUTED else props.bonusColor()
+					end,
+					TextTransparency = textTransparency,
+					Text = props.bonus,
 					Layout.textStroke(),
 				}),
 			}),

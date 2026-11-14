@@ -7,6 +7,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIncome = require(ReplicatedStorage.Shared.Domain.AlienIncome)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
@@ -57,8 +58,9 @@ export type EconomyService = {
 	-- Buys the next level of the trainer or the jetpack.
 	upgradeTrainer: (player: Player) -> Notice?,
 	upgradeJetpack: (player: Player) -> Notice?,
-	-- Fires when a crossbreed produces an alien: the player, the alien and where it went.
-	crossbred: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
+	-- Fires when a crossbreed produces an alien: the player, the alien, where it went and its income
+	-- roll (a fresh one, decision 130).
+	crossbred: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location, number>,
 	trainerUpgraded: Signal.Signal<Player>,
 	jetpackUpgraded: Signal.Signal<Player>,
 	-- Fires on every coin purchase or sale: the player, what (Pod, Trainer, Jetpack, Sell), the
@@ -70,11 +72,6 @@ export type CoinTrade = "Pod" | "IncubatorSlot" | "Trainer" | "Jetpack" | "Sell"
 
 local EconomyService = {}
 
-local function incomeOf(alienId: string): BigNum.BigNum
-	local alien = AlienConfig.ALIENS[alienId]
-	return if alien then alien.income else BigNum.ZERO
-end
-
 local function isUid(value: any): boolean
 	return type(value) == "number" and value == value and value % 1 == 0 and value >= 1
 end
@@ -85,7 +82,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 	local function nextInteger(min: number, max: number): number
 		return random:NextInteger(min, max)
 	end
-	local crossbred = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
+	local crossbred = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location, number>
 	local trainerUpgraded = Signal.new() :: Signal.Signal<Player>
 	local jetpackUpgraded = Signal.new() :: Signal.Signal<Player>
 	local coinsTraded = Signal.new() :: Signal.Signal<Player, CoinTrade, BigNum.BigNum, BigNum.BigNum>
@@ -115,7 +112,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 		return command(player, function()
 			return nil
 		end, function(data)
-			Bay.autoPlace(data, incomeOf)
+			Bay.autoPlace(data, AlienIncome.of)
 		end)
 	end
 
@@ -149,7 +146,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 	end
 
 	local function crossbreed(player: Player, uids: { number }): Notice?
-		local resultId: AlienConfig.AlienId? = nil
+		local result: PlayerData.AlienRecord? = nil
 		local resultLocation: Bay.Location? = nil
 		local notice = command(player, function(data)
 			if #uids ~= BayConfig.CROSSBREED_COUNT then
@@ -182,12 +179,14 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			)
 			local tier = Loot.pick(entries, random:NextNumber())
 			local kind = Crossbreed.resultKind(kinds, random:NextNumber())
-			resultId = AlienConfig.GRADES[first.grade].variants[first.variant][kind][tier]
-			-- Three went, one comes: there is always room for it.
-			resultLocation = Bay.addHatched(data, Bay.newAlien(data, resultId :: string, nextInteger))
+			local resultId = AlienConfig.GRADES[first.grade].variants[first.variant][kind][tier]
+			-- Three went, one comes: there is always room for it. Its roll is its own (decision 130).
+			local alien = Bay.newAlien(data, resultId, nextInteger)
+			result = alien
+			resultLocation = Bay.addHatched(data, alien)
 		end)
-		if not notice and resultId and resultLocation then
-			crossbred.fire(player, resultId, resultLocation)
+		if not notice and result and resultLocation then
+			crossbred.fire(player, result.id, resultLocation, result.incomePercent)
 		end
 		return notice
 	end
@@ -200,7 +199,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			return if record and AlienConfig.ALIENS[record.id] then nil else "UnknownAlien"
 		end, function(data)
 			local record = Bay.remove(data, uid) :: PlayerData.AlienRecord
-			local price = BigNum.mul(incomeOf(record.id), BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
+			local price = AlienIncome.saleOf(record)
 			Wallet.earn(data, price)
 			gained, balance = price, data.coins
 		end)
@@ -244,11 +243,10 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			if not removed then
 				return
 			end
-			local total = BigNum.ZERO
+			local price = BigNum.ZERO
 			for _, record in removed do
-				total = BigNum.add(total, incomeOf(record.id))
+				price = BigNum.add(price, AlienIncome.saleOf(record))
 			end
-			local price = BigNum.mul(total, BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
 			Wallet.earn(data, price)
 			gained, balance = price, data.coins
 		end)
@@ -282,7 +280,7 @@ function EconomyService.new(dependencies: Dependencies): EconomyService
 			data.coins = BigNum.sub(data.coins, price(data))
 			table.insert(data.pods, {})
 			-- The best of the shelf takes the new pod at once (decision 110).
-			Bay.fillPod(data, #data.pods, incomeOf)
+			Bay.fillPod(data, #data.pods, AlienIncome.of)
 			balance = data.coins
 		end)
 		if not notice and paid and balance then

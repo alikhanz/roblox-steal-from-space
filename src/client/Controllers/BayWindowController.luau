@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIncome = require(ReplicatedStorage.Shared.Domain.AlienIncome)
 local AlienLooks = require(ReplicatedStorage.Shared.Config.AlienLooks)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
@@ -22,6 +23,7 @@ local Crossbreed = require(ReplicatedStorage.Shared.Domain.Crossbreed)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local EggIcon = require(script.Parent.Parent.UI.EggIcon)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
+local IncomeRoll = require(script.Parent.Parent.UI.IncomeRoll)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
@@ -247,17 +249,11 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		)
 	end
 
-	local function sellPrice(alienId: string): BigNum.BigNum
-		local alien = AlienConfig.ALIENS[alienId]
-		local income = if alien then alien.income else BigNum.ZERO
-		return BigNum.mul(income, BigNum.fromNumber(BayConfig.SELL_INCOME_SECONDS))
-	end
-
 	-- What the selected aliens sell for together.
 	local function selectionPrice(): BigNum.BigNum
 		local total = BigNum.ZERO
 		for _, entry in selectedRecords() do
-			total = BigNum.add(total, sellPrice(entry.record.id))
+			total = BigNum.add(total, AlienIncome.saleOf(entry.record))
 		end
 		return total
 	end
@@ -269,16 +265,11 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return table.concat(uids, ",")
 	end
 
-	local function incomeNumber(alienId: string): number
-		local alien = AlienConfig.ALIENS[alienId]
-		return if alien then BigNum.toNumber(alien.income) else 0
-	end
-
 	-- The shelf's ready trios (Domain/Crossbreed.trios), best first.
 	local function shelfTrios(): { Crossbreed.Trio }
 		return Crossbreed.trios(profile.bay().floor, function(alienId: string): Crossbreed.Parent?
 			return AlienConfig.ALIENS[alienId]
-		end, incomeNumber, BayConfig.CROSSBREED_COUNT)
+		end, AlienIncome.numberOf, BayConfig.CROSSBREED_COUNT)
 	end
 
 	local function shelfIsFull(): boolean
@@ -390,27 +381,16 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		return text("bay.income.hint", { income = BigNum.format(income) })
 	end
 
-	-- What the pods bring together.
+	-- What the places bring together.
 	local function podsIncome(): BigNum.BigNum
-		local total = BigNum.ZERO
-		for _, pod in profile.bay().pods do
-			local alien = pod.alien and AlienConfig.ALIENS[pod.alien.id]
-			if alien then
-				total = BigNum.add(total, alien.income)
-			end
-		end
-		return total
+		return Bay.incomePerSecond(profile.bay(), AlienIncome.of)
 	end
 
 	-- The window's rows for `aliens`, the best earners first.
 	local function rowsOf(aliens: { ProfileState.Alien }): { BayWindow.Row }
 		local sorted = table.clone(aliens)
-		local function incomeOf(record: ProfileState.Alien): BigNum.BigNum
-			local alien = AlienConfig.ALIENS[record.id]
-			return if alien then alien.income else BigNum.ZERO
-		end
 		table.sort(sorted, function(a, b)
-			return BigNum.lessThan(incomeOf(b), incomeOf(a))
+			return BigNum.lessThan(AlienIncome.of(b), AlienIncome.of(a))
 		end)
 		local rows: { BayWindow.Row } = {}
 		for _, record in sorted do
@@ -420,7 +400,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 				uid = record.uid,
 				alienId = record.id,
 				name = kindName or "?",
-				income = incomeText(incomeOf(record)),
+				income = incomeText(AlienIncome.of(record)),
+				bonus = IncomeRoll.text(locale, AlienIncome.percentOf(record)),
+				bonusColor = IncomeRoll.color(AlienIncome.percentOf(record)),
 				color = if alien then AlienLooks.TIERS[alien.tier].color else Theme.NEON.MUTED,
 				variant = nil,
 			}
@@ -583,7 +565,8 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 								return ""
 							end
 							local tier = Names.alienParts(locale, entry.record.id)
-							return `{tier or "?"} · {incomeText(alien.income)}`
+							local roll = IncomeRoll.text(locale, AlienIncome.percentOf(entry.record))
+							return `{tier or "?"} · {incomeText(AlienIncome.of(entry.record))} · {roll}`
 						end,
 						sell = function()
 							local count = #selectedRecords()
@@ -833,16 +816,15 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		assert(playerGui, "[BayWindowController] PlayerGui did not appear")
 		mountUi(playerGui)
 
-		local function incomeOf(alienId: string): BigNum.BigNum
-			local alien = AlienConfig.ALIENS[alienId]
-			return if alien then alien.income else BigNum.ZERO
-		end
-		-- The second line of an alien's toast: what it earns and where it went.
-		local function incomeLine(alienId: string, location: ProfileState.Location): string
-			return text(
-				"alien.hatchedIncome.hint",
-				{ income = BigNum.format(incomeOf(alienId)), place = placeText(location) }
-			)
+		-- An alien of the toasts: its id and income roll.
+		type Born = { id: string, incomePercent: number }
+		-- The second line of an alien's toast: what it earns, its roll and where it went.
+		local function incomeLine(alien: Born, location: ProfileState.Location): string
+			return text("alien.hatchedIncome.hint", {
+				income = BigNum.format(AlienIncome.of(alien)),
+				roll = IncomeRoll.text(locale, alien.incomePercent),
+				place = placeText(location),
+			})
 		end
 		local function nameOf(alienId: string): string
 			return Names.alien(locale, alienId) or "?"
@@ -850,8 +832,9 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 		-- Hatches in a row are one toast (docs/design/screens/toasts-and-signs.md): while it is on
 		-- screen, each hatch adds to its count and the best earner so far is the one it names. On
 		-- a phone a toast per egg covered the screen (playtest, 2026-11-12).
-		local hatchRun = { count = 0, alienId = "", location = "Pod" :: ProfileState.Location }
-		local pendingHatches: { { alienId: string, location: ProfileState.Location } } = {}
+		local hatchRun =
+			{ count = 0, alien = { id = "", incomePercent = 100 } :: Born, location = "Pod" :: ProfileState.Location }
+		local pendingHatches: { { alien: Born, location: ProfileState.Location } } = {}
 		local function announceHatches()
 			local batch = pendingHatches
 			pendingHatches = {}
@@ -859,34 +842,39 @@ function BayWindowController.new(dependencies: Dependencies): BayWindowControlle
 				hatchRun.count = 0
 			end
 			for _, hatch in batch do
-				if hatchRun.count == 0 or BigNum.lessThan(incomeOf(hatchRun.alienId), incomeOf(hatch.alienId)) then
-					hatchRun.alienId = hatch.alienId
+				if
+					hatchRun.count == 0 or BigNum.lessThan(AlienIncome.of(hatchRun.alien), AlienIncome.of(hatch.alien))
+				then
+					hatchRun.alien = hatch.alien
 					hatchRun.location = hatch.location
 				end
 				hatchRun.count += 1
 			end
-			local name = nameOf(hatchRun.alienId)
+			local name = nameOf(hatchRun.alien.id)
 			local line = if hatchRun.count == 1
 				then text("alien.hatched.toast", { name = name })
 				else text("alien.hatchedMany.toast", { count = hatchRun.count, name = name })
-			toast(line, "Alien", hatchRun.alienId, {
-				detail = incomeLine(hatchRun.alienId, hatchRun.location),
+			toast(line, "Alien", hatchRun.alien.id, {
+				detail = incomeLine(hatchRun.alien, hatchRun.location),
 				group = HATCH_TOAST_GROUP,
 			})
 		end
 		-- Hatches arrive one event each; the ones of a frame are announced together, once.
-		profile.hatched.connect(function(alienId, location)
-			table.insert(pendingHatches, { alienId = alienId, location = location })
+		profile.hatched.connect(function(alienId, location, incomePercent)
+			table.insert(
+				pendingHatches,
+				{ alien = { id = alienId, incomePercent = incomePercent }, location = location }
+			)
 			if #pendingHatches == 1 then
 				task.defer(announceHatches)
 			end
 		end)
-		profile.crossbred.connect(function(alienId, location)
+		profile.crossbred.connect(function(alienId, location, incomePercent)
 			toast(
 				text("alien.crossbred.toast", { name = nameOf(alienId) }),
 				"Alien",
 				alienId,
-				{ detail = incomeLine(alienId, location) }
+				{ detail = incomeLine({ id = alienId, incomePercent = incomePercent }, location) }
 			)
 		end)
 		profile.notice.connect(function(notice)

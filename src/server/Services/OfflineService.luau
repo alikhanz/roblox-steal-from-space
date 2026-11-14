@@ -68,13 +68,14 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 		local reward: Reward? = nil
 		dependencies.update(player, function(data)
 			local current = now()
-			-- Night shift lengthens both caps, Double training doubles the rate (decision 061).
-			local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
+			-- What the subscriptions the player had when they left do (decision 132): Night shift
+			-- trains at the full rate and earns longer, Double training doubles the rate.
+			local effects = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
 			local incomeSeconds = Offline.seconds(data.lastSeenAt, current, effects.offlineIncomeCapSeconds)
 			local trainingSeconds = Offline.seconds(data.lastSeenAt, current, effects.offlineTrainingCapSeconds)
 			local earned = Offline.income(dependencies.getIncomePerSecond(player), incomeSeconds)
 			local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
-			local gained = Upgrades.trainingGain(rate, trainingSeconds, UpgradeConfig.OFFLINE_TRAINING_FACTOR)
+			local gained = Upgrades.trainingGain(rate, trainingSeconds, effects.offlineTrainingFactor)
 
 			Wallet.earn(data, earned)
 			data.trained = BigNum.add(data.trained, gained)

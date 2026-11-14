@@ -13,14 +13,15 @@ local DEFAULTS: PlayerData.Defaults = {
 }
 local SLOTS = 2
 
--- Income by alien id: "Common" earns 1, "Rare" 5, "Epic" 15.
+-- Income by alien id: "Common" earns 1, "Rare" 5, "Epic" 15, times the alien's own roll.
 local INCOMES: { [string]: number } = { Common = 1, Rare = 5, Epic = 15 }
-local function incomeOf(id: string): BigNum.BigNum
-	return BigNum.fromNumber(assert(INCOMES[id], `unknown alien {id}`))
+local function incomeOf(alien: { read id: string, read incomePercent: number? }): BigNum.BigNum
+	local base = assert(INCOMES[alien.id], `unknown alien {alien.id}`)
+	return BigNum.fromNumber(base * (alien.incomePercent or 100) / 100)
 end
 
-local function alien(uid: number, id: string): PlayerData.AlienRecord
-	return { uid = uid, id = id }
+local function alien(uid: number, id: string, incomePercent: number?): PlayerData.AlienRecord
+	return { uid = uid, id = id, incomePercent = incomePercent or 100 }
 end
 
 local function fresh(): PlayerData.PlayerData
@@ -243,6 +244,15 @@ describe("Bay.autoPlace", function()
 		expect(uids(data.floor)).toEqual(floor)
 	end)
 
+	it("puts the luckier of two alike aliens first (decision 130)", function()
+		local data = fresh()
+		data.floor = { alien(1, "Rare", 80), alien(2, "Rare", 125), alien(3, "Common", 130), alien(4, "Rare", 100) }
+		Bay.autoPlace(data, incomeOf)
+		expect(podUids(data)).toEqual({ 2, 4, 1 })
+		expect(uids(data.floor)).toEqual({ 3 })
+		expect(BigNum.toNumber(Bay.incomePerSecond(data, incomeOf))).toBe(5 * 1.25 + 5 + 5 * 0.8)
+	end)
+
 	it("leaves pods empty when there are fewer aliens than pods", function()
 		local data = fresh()
 		data.floor = { alien(1, "Common") }
@@ -432,6 +442,10 @@ describe("Bay.newAlien", function()
 			expect(seen[record.uid]).toBeNil()
 			seen[record.uid] = true
 			expect(record.id).toBe(id)
+			-- Its income roll (decision 130): a whole percent within the tuning.
+			local roll = AlienConfig.INCOME_ROLL
+			expect(record.incomePercent % 1).toBe(0)
+			expect(record.incomePercent >= roll.min and record.incomePercent <= roll.max).toBe(true)
 			local outfit = record.outfit :: AlienOutfit.Picks
 			expect(outfit).toBeTruthy()
 			for _, slot in AlienOutfit.SLOTS do

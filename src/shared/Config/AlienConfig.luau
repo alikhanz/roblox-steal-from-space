@@ -65,7 +65,8 @@ export type Alien = {
 	read kind: KindId,
 	read tier: TierId,
 	read variant: VariantId,
-	-- Coins per second while in a place.
+	-- Coins per second while in a place, at a roll of 100 % (an owned alien's own income:
+	-- Domain/AlienIncome).
 	read income: BigNum.BigNum,
 	-- How big it stands against the first guardian's common alien (decision 068): grows with
 	-- every guardian and with the tier.
@@ -127,6 +128,11 @@ local TIERS: { [TierId]: Tier } = {
 -- legendary aliens come out, and the doubled income keeps the pace of the game.
 local INCOME_BASE = BigNum.fromNumber(2)
 local INCOME_GROWTH = BigNum.fromNumber(1.7)
+-- Every alien earns its own share of that (decision 130): a whole percent rolled once when it comes
+-- to be, the sum of `dice` even throws from `min` to `max` (Domain/AlienIncome): mostly near 100,
+-- the ends seldom (with two dice 125 % or more is about one in 46), so the perfect pet is worth
+-- another trip.
+local INCOME_ROLL = { min = 70, max = 130, dice = 2 }
 -- Each guardian's aliens stand this many times bigger than the previous one's (decisions 068,
 -- 083): the last guardian's legendary model is about six times a player's height and ~30 studs
 -- wide, so 30 of them from all over the map stand on an island without crowding.
@@ -358,6 +364,7 @@ return table.freeze({
 	TIER_POSITIONS = table.freeze(TIER_POSITIONS),
 	INCOME_BASE = INCOME_BASE,
 	INCOME_GROWTH = INCOME_GROWTH,
+	INCOME_ROLL = table.freeze(INCOME_ROLL),
 	VARIANT_ORDER = table.freeze(VARIANT_ORDER),
 	VARIANTS = table.freeze(VARIANTS),
 	GRADES = table.freeze(GRADES),

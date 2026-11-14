@@ -1,5 +1,6 @@
 --!strict
 
+local AlienConfig = require("../../src/shared/Config/AlienConfig")
 local AlienOutfit = require("../../src/shared/Domain/AlienOutfit")
 local BigNum = require("../../src/shared/Domain/BigNum")
 local PlayerData = require("../../src/shared/Domain/PlayerData")
@@ -23,8 +24,13 @@ local function savedTemplate(): { [string]: any }
 	return Tables.deepCopy(PlayerData.template(DEFAULTS)) :: any
 end
 
-local function alien(uid: number, id: string?): { [string]: any }
-	return { uid = uid, id = id or "DebrisBelt1.slimeWarden.Common" }
+-- A saved alien; `incomePercent` false: one from before rolls (v23).
+local function alien(uid: number, id: string?, incomePercent: (number | false)?): { [string]: any }
+	local record: { [string]: any } = { uid = uid, id = id or "DebrisBelt1.slimeWarden.Common" }
+	if incomePercent ~= false then
+		record.incomePercent = incomePercent or 100
+	end
+	return record
 end
 
 local function expectCorrupted(saved: unknown, detail: string)
@@ -206,6 +212,18 @@ describe("PlayerData.load", function()
 					data.floor = { { uid = 1, id = "" } }
 				end,
 				detail = "alien id is invalid",
+			},
+			{
+				patch = function(data)
+					data.floor = { alien(1, nil, 0) }
+				end,
+				detail = "alien incomePercent is invalid",
+			},
+			{
+				patch = function(data)
+					data.floor = { alien(1, nil, 12.5) }
+				end,
+				detail = "alien incomePercent is invalid",
 			},
 			{
 				patch = function(data)
@@ -719,17 +737,17 @@ describe("PlayerData migration v12 -> v13", function()
 end)
 
 describe("PlayerData migration v13 -> v14", function()
-	it("gives a profile from before no receipts, no passes and nothing to collect again", function()
+	it("gives a profile from before no receipts, no subscriptions and nothing to collect again", function()
 		local saved = savedTemplate()
 		saved.schemaVersion = 13
 		saved.purchaseIds = nil
-		saved.passes = nil
+		saved.subscriptions = nil
 		saved.pendingDouble = nil
 		local outcome = load(saved)
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
 			expect(outcome.data.purchaseIds).toEqual({})
-			expect(outcome.data.passes).toEqual({})
+			expect(outcome.data.subscriptions).toEqual({})
 			expect(BigNum.isZero(outcome.data.pendingDouble.coins)).toBe(true)
 			expect(BigNum.isZero(outcome.data.pendingDouble.trained)).toBe(true)
 		end
@@ -738,14 +756,14 @@ describe("PlayerData migration v13 -> v14", function()
 	it("keeps saved purchases and rejects broken ones", function()
 		local saved = savedTemplate()
 		saved.purchaseIds = { "receipt-1", "receipt-2" }
-		saved.passes = { "NightShift" }
+		saved.subscriptions = { "NightShift" }
 		saved.pendingDouble =
 			{ coins = { mantissa = 1500000, exponent = 0 }, trained = { mantissa = 2000, exponent = 0 } }
 		local outcome = load(saved)
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
 			expect(outcome.data.purchaseIds).toEqual({ "receipt-1", "receipt-2" })
-			expect(outcome.data.passes).toEqual({ "NightShift" })
+			expect(outcome.data.subscriptions).toEqual({ "NightShift" })
 			expect(BigNum.toNumber(outcome.data.pendingDouble.coins)).toBe(1.5e6)
 		end
 		local badReceipts = savedTemplate()
@@ -947,6 +965,102 @@ describe("PlayerData migration v20 -> v21", function()
 	end)
 end)
 
+describe("PlayerData migration v22 -> v23", function()
+	-- A profile from before income rolls (decision 130) and subscriptions (decision 132): aliens in
+	-- places and on the shelf with no roll, and the copy of the old permanent passes.
+	local function v22(): { [string]: any }
+		local old = savedTemplate()
+		old.schemaVersion = 22
+		old.pods[1].alien = alien(1, nil, false)
+		old.pods[3].alien = alien(2, "DebrisBelt1.slimeWarden.Legendary", false)
+		old.floor = { alien(3, nil, false), alien(4, nil, false) }
+		old.nextUid = 5
+		old.passes = { "DoubleTraining", "NightShift" }
+		old.subscriptions = nil
+		return old
+	end
+
+	local function rolls(data: PlayerData.PlayerData): { [number]: number }
+		local found: { [number]: number } = {}
+		for _, pod in data.pods do
+			if pod.alien then
+				found[pod.alien.uid] = pod.alien.incomePercent
+			end
+		end
+		for _, record in data.floor do
+			found[record.uid] = record.incomePercent
+		end
+		return found
+	end
+
+	it("gives every alien in places and on the shelf a roll within the tuning", function()
+		local outcome = PlayerData.load(v22(), DEFAULTS, { nextInteger = AlienOutfit.sequence(3) })
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(23)
+			local roll = AlienConfig.INCOME_ROLL
+			local found = rolls(outcome.data)
+			for uid = 1, 4 do
+				local percent = found[uid]
+				expect(percent % 1).toBe(0)
+				expect(percent >= roll.min and percent <= roll.max).toBe(true)
+			end
+		end
+	end)
+
+	it("rolls with the randomness it is given", function()
+		local outcome = PlayerData.load(v22(), DEFAULTS, {
+			nextInteger = function(_min: number, max: number): number
+				return max
+			end,
+		})
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(rolls(outcome.data)[2]).toBe(AlienConfig.INCOME_ROLL.max)
+		end
+	end)
+
+	it("switches the old passes off: no copy, no subscriptions", function()
+		local outcome = load(v22())
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect((outcome.data :: any).passes).toBeNil()
+			expect(outcome.data.subscriptions).toEqual({})
+		end
+	end)
+
+	it("runs once: the saved roll stays on every later load", function()
+		local first = PlayerData.load(v22(), DEFAULTS, { nextInteger = AlienOutfit.sequence(3) })
+		expect(first.ok).toBe(true)
+		if first.ok then
+			local before = rolls(first.data)
+			for seed = 1, 5 do
+				local again = PlayerData.load(
+					Tables.deepCopy(first.data) :: any,
+					DEFAULTS,
+					{ nextInteger = AlienOutfit.sequence(seed) }
+				)
+				expect(again.ok).toBe(true)
+				if again.ok then
+					expect(rolls(again.data)).toEqual(before)
+				end
+			end
+		end
+	end)
+
+	it("fits a roll from a wider tuning to the nearest end", function()
+		local saved = savedTemplate()
+		saved.floor = { alien(1, nil, 200), alien(2, nil, 10) }
+		saved.nextUid = 3
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.floor[1].incomePercent).toBe(AlienConfig.INCOME_ROLL.max)
+			expect(outcome.data.floor[2].incomePercent).toBe(AlienConfig.INCOME_ROLL.min)
+		end
+	end)
+end)
+
 describe("PlayerData migration v21 -> v22", function()
 	local LEGENDARY = "DebrisBelt1.slimeWarden.Legendary"
 
@@ -954,11 +1068,13 @@ describe("PlayerData migration v21 -> v22", function()
 	local function v21(): { [string]: any }
 		local old = savedTemplate()
 		old.schemaVersion = 21
-		old.pods[1].alien = alien(1, LEGENDARY)
-		old.pods[2].alien = alien(2)
-		old.floor = { alien(3), alien(4, LEGENDARY) }
+		old.pods[1].alien = alien(1, LEGENDARY, false)
+		old.pods[2].alien = alien(2, nil, false)
+		old.floor = { alien(3, nil, false), alien(4, LEGENDARY, false) }
 		old.bench = { pods = 3, uids = { 2 } }
 		old.nextUid = 5
+		old.passes = {}
+		old.subscriptions = nil
 		return old
 	end
 
@@ -979,7 +1095,7 @@ describe("PlayerData migration v21 -> v22", function()
 		local outcome = PlayerData.load(v21(), DEFAULTS, { nextInteger = AlienOutfit.sequence(9) })
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
-			expect(outcome.data.schemaVersion).toBe(22)
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			local found = outfits(outcome.data)
 			for uid = 1, 4 do
 				expect(found[uid]).toBeTruthy()
@@ -1031,7 +1147,8 @@ describe("PlayerData migration v21 -> v22", function()
 
 	it("keeps an outfit whatever the pools now offer, and redraws a piece taken out of the game", function()
 		local saved = savedTemplate()
-		saved.pods[1].alien = { uid = 1, id = LEGENDARY, outfit = { head = "horns", aura = "gone", back = "fairy" } }
+		saved.pods[1].alien =
+			{ uid = 1, id = LEGENDARY, outfit = { head = "horns", aura = "gone", back = "fairy" }, incomePercent = 100 }
 		saved.nextUid = 2
 		local outcome = PlayerData.load(saved, DEFAULTS, { nextInteger = AlienOutfit.sequence(2) })
 		expect(outcome.ok).toBe(true)

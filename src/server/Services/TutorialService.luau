@@ -30,7 +30,7 @@ export type Dependencies = {
 	eggGrabbed: Signal.Signal<Player, CarryService.Carried, CarryService.GrabSource>,
 	eggDelivered: Signal.Signal<Player, CarryService.Carried>,
 	eggLost: Signal.Signal<Player, CarryService.Carried, CarryService.LossReason>,
-	hatched: Signal.Signal<Player, string, Bay.Location>,
+	hatched: Signal.Signal<Player, string, Bay.Location, number>,
 }
 
 export type TutorialService = {

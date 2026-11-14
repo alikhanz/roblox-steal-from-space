@@ -1,31 +1,37 @@
 --!strict
--- What every Robux purchase does to the profile (decision 061): the passes' effects, the
--- training packs, an egg ready now, a slot for Robux, collecting the time away twice, and the
--- record of processed receipts that makes each purchase count once. Pure Luau: numbers come in
--- as parameters (MonetizationConfig), the server applies the result in one profile update.
+-- What every Robux purchase does to the profile (decisions 061, 132): the subscriptions'
+-- effects, the training packs, an egg ready now, a slot for Robux, collecting the time away twice,
+-- and the record of processed receipts that makes each purchase count once. Pure Luau: numbers
+-- come in as parameters (MonetizationConfig), the server applies the result in one profile update.
 
 local BigNum = require("./BigNum")
 local PlayReward = require("./PlayReward")
 local PlayerData = require("./PlayerData")
 local Upgrades = require("./Upgrades")
 
-export type PassId = "DoubleTraining" | "NightShift"
+-- The monthly Roblox subscriptions (decision 132); they replaced the permanent passes of
+-- decision 061 and kept their names.
+export type SubscriptionId = "DoubleTraining" | "NightShift"
 
--- What the passes change, and the values without them.
-export type PassTuning = {
-	-- Double training: the trainer's rate is multiplied by this, away too.
+-- What the subscriptions change, and the values without them.
+export type Tuning = {
+	-- Double training: the trainer's rate is multiplied by this, in flight, on the stand and away.
 	read doubleTrainingMultiplier: number,
-	-- Night shift: how long the pods earn and the trainer works while the player is away.
+	-- Night shift: the share of the rate the trainer pays while the player is away, and how long
+	-- the places earn and the trainer works then.
+	read nightShiftTrainingFactor: number,
 	read nightShiftIncomeCapSeconds: number,
 	read nightShiftTrainingCapSeconds: number,
-	-- The same caps without the pass.
+	-- The same without it.
+	read trainingFactor: number,
 	read incomeCapSeconds: number,
 	read trainingCapSeconds: number,
 }
 
--- What the passes a player owns do, all together.
-export type PassEffects = {
+-- What the subscriptions a player has do, all together.
+export type Effects = {
 	trainerMultiplier: number,
+	offlineTrainingFactor: number,
 	offlineIncomeCapSeconds: number,
 	offlineTrainingCapSeconds: number,
 }
@@ -53,24 +59,31 @@ function Purchases.recordReceipt(data: Data, purchaseId: string, keep: number): 
 	return true
 end
 
-function Purchases.ownsPass(passes: { string }, pass: PassId): boolean
-	return table.find(passes, pass) ~= nil
+function Purchases.isSubscribed(subscriptions: { string }, subscription: SubscriptionId): boolean
+	return table.find(subscriptions, subscription) ~= nil
 end
 
--- Notes a pass the player owns (Roblox is the source of truth; this is the copy for when its
--- check fails). False when it was noted already.
-function Purchases.notePass(data: Data, pass: PassId): boolean
-	if Purchases.ownsPass(data.passes, pass) then
+-- Sets whether the player has `subscription` (Roblox is the source of truth; the profile keeps
+-- what its last check said). False when nothing changed.
+function Purchases.setSubscribed(data: Data, subscription: SubscriptionId, subscribed: boolean): boolean
+	local index = table.find(data.subscriptions, subscription)
+	if subscribed == (index ~= nil) then
 		return false
 	end
-	table.insert(data.passes, pass)
+	if index then
+		table.remove(data.subscriptions, index)
+	else
+		table.insert(data.subscriptions, subscription)
+	end
 	return true
 end
 
-function Purchases.passEffects(passes: { string }, tuning: PassTuning): PassEffects
-	local nightShift = Purchases.ownsPass(passes, "NightShift")
+function Purchases.effects(subscriptions: { string }, tuning: Tuning): Effects
+	local nightShift = Purchases.isSubscribed(subscriptions, "NightShift")
+	local double = Purchases.isSubscribed(subscriptions, "DoubleTraining")
 	return {
-		trainerMultiplier = if Purchases.ownsPass(passes, "DoubleTraining") then tuning.doubleTrainingMultiplier else 1,
+		trainerMultiplier = if double then tuning.doubleTrainingMultiplier else 1,
+		offlineTrainingFactor = if nightShift then tuning.nightShiftTrainingFactor else tuning.trainingFactor,
 		offlineIncomeCapSeconds = if nightShift then tuning.nightShiftIncomeCapSeconds else tuning.incomeCapSeconds,
 		offlineTrainingCapSeconds = if nightShift
 			then tuning.nightShiftTrainingCapSeconds
@@ -78,14 +91,15 @@ function Purchases.passEffects(passes: { string }, tuning: PassTuning): PassEffe
 	}
 end
 
--- The trainer's rate at `level` with the passes' `multiplier` (PassEffects.trainerMultiplier):
--- what the pad pays per second, at home and away, and what a training pack is measured in.
+-- The trainer's rate at `level` with the subscriptions' `multiplier` (Effects.trainerMultiplier):
+-- what an hour of flight pays (the stand and the time away pay their shares of it), and what a
+-- training pack is measured in.
 function Purchases.trainerRate(level: number, multiplier: number, tuning: Upgrades.Tuning): BigNum.BigNum
 	return BigNum.mul(Upgrades.trainerRate(level, tuning), BigNum.fromNumber(multiplier))
 end
 
--- A training pack: as many speed points as the trainer gives at `rate` (the player's own, with
--- their passes) in `seconds`, and the stat they add at the jetpack's `multiplier`. No coins.
+-- A training pack: as many speed points as `seconds` of flight give at `rate` (the player's own,
+-- with their subscriptions), and the stat they add at the jetpack's `multiplier`. No coins.
 function Purchases.trainingPack(rate: BigNum.BigNum, seconds: number, multiplier: BigNum.BigNum): PlayReward.Paid
 	local trained = BigNum.mul(rate, BigNum.fromNumber(seconds))
 	return { coins = BigNum.ZERO, trained = trained, speed = BigNum.mul(trained, multiplier) }

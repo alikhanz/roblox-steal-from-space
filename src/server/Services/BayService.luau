@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
+local AlienIncome = require(ReplicatedStorage.Shared.Domain.AlienIncome)
 local AlienModel = require(script.Parent.Parent.World.AlienModel)
 local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
@@ -86,8 +87,9 @@ export type BayService = {
 	-- How fast every incubator on the server runs: 1 normally, more during the solar storm (the
 	-- egg timers then follow every tick).
 	setHatchRate: (rate: number) -> (),
-	-- Fires when the player hatches an egg: the player, the alien and where it went.
-	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>,
+	-- Fires when the player hatches an egg: the player, the alien, where it went and its income
+	-- roll.
+	hatched: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location, number>,
 	-- Fires once a player gets their bay, with its model.
 	assigned: Signal.Signal<Player, Model>,
 	-- Fires after the bay was rebuilt from the profile.
@@ -143,11 +145,6 @@ type ShownAlien = {
 
 local BayService = {}
 
-local function incomeOf(alienId: string): BigNum.BigNum
-	local alien = AlienConfig.ALIENS[alienId]
-	return if alien then alien.income else BigNum.ZERO
-end
-
 local function now(): number
 	return workspace:GetServerTimeNow()
 end
@@ -163,7 +160,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	local function nextInteger(min: number, max: number): number
 		return random:NextInteger(min, max)
 	end
-	local hatched = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location>
+	local hatched = Signal.new() :: Signal.Signal<Player, AlienConfig.AlienId, Bay.Location, number>
 	local assigned = Signal.new() :: Signal.Signal<Player, Model>
 	local changed = Signal.new() :: Signal.Signal<Player>
 	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
@@ -219,6 +216,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			shown.model:Destroy()
 		end
 		local model = AlienModel.build(alien.id, alien.uid, cframe, scale, alien.outfit)
+		-- Its own income for the chip over it, which every player sees (decision 130).
+		model:SetAttribute(BayConfig.ALIEN_INCOME_PERCENT_ATTRIBUTE, alien.incomePercent)
 		CollectionService:AddTag(model, BayConfig.ALIEN_TAG)
 		model.Parent = parent
 		bay.aliens[alien.uid] = { model = model, id = alien.id, scale = scaleKey, stand = cframe }
@@ -326,7 +325,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		end
 		local moved = false
 		dependencies.update(player, function(data)
-			moved = Bay.fillPod(data, pod, incomeOf) ~= nil
+			moved = Bay.fillPod(data, pod, AlienIncome.of) ~= nil
 		end)
 		if moved then
 			refresh(player)
@@ -447,7 +446,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		bay.model:SetAttribute(BayConfig.POD_COUNT_ATTRIBUTE, #data.pods)
 		bay.model:SetAttribute(BayConfig.TAKEN_POD_COUNT_ATTRIBUTE, #data.pods - Bay.freePods(data))
 		bay.model:SetAttribute(BayConfig.SHELF_COUNT_ATTRIBUTE, #data.floor)
-		local income = Bay.incomePerSecond(data, incomeOf)
+		local income = Bay.incomePerSecond(data, AlienIncome.of)
 		bay.model:SetAttribute(BayConfig.INCOME_ATTRIBUTE, if BigNum.isZero(income) then "" else BigNum.format(income))
 		-- No free place and a full shelf: eggs wait instead of hatching (decision 110).
 		local full = not Bay.hasRoom(data, BayConfig.SHELF_SLOTS)
@@ -600,7 +599,7 @@ function BayService.new(dependencies: Dependencies): BayService
 
 	local function getIncomePerSecond(player: Player): BigNum.BigNum
 		local data = dependencies.getData(player)
-		return if data then Bay.incomePerSecond(data, incomeOf) else BigNum.ZERO
+		return if data then Bay.incomePerSecond(data, AlienIncome.of) else BigNum.ZERO
 	end
 
 	-- Islands taken on joining, before the bay is built (it waits for the profile).
@@ -736,7 +735,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	local function hatchEgg(
 		data: PlayerData.PlayerData,
 		egg: PlayerData.EggRecord
-	): (AlienConfig.AlienId?, Bay.Location?)
+	): (PlayerData.AlienRecord?, Bay.Location?)
 		local rarity = EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId]
 		local size = EggConfig.SIZES[egg.size :: EggConfig.SizeId]
 		local grade = AlienConfig.GRADES[egg.grade]
@@ -748,15 +747,15 @@ function BayService.new(dependencies: Dependencies): BayService
 		local odds = EggConfig.hatchEntries(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
 		local kind = Loot.pick(grade.kindEntries, random:NextNumber())
 		local tier: AlienConfig.TierId = Loot.pick(odds, random:NextNumber())
-		local alienId = variant[kind][tier]
-		return alienId, Bay.addHatched(data, Bay.newAlien(data, alienId, nextInteger))
+		local alien = Bay.newAlien(data, variant[kind][tier], nextInteger)
+		return alien, Bay.addHatched(data, alien)
 	end
 
 	-- The owner hatches a ready egg (its prompt): the alien goes where it fits, and the first
 	-- waiting egg takes the slot. With no free place and a full shelf it stays ready (decision 110):
 	-- the bay is only rebuilt, so an egg made ready by a purchase shows it cannot hatch.
 	function hatchReady(player: Player, uid: number)
-		local alienId: AlienConfig.AlienId?, location: Bay.Location? = nil, nil
+		local alien: PlayerData.AlienRecord?, location: Bay.Location? = nil, nil
 		local taken = false
 		local current = dependencies.getData(player)
 		if current and not Bay.hasRoom(current, BayConfig.SHELF_SLOTS) then
@@ -770,18 +769,18 @@ function BayService.new(dependencies: Dependencies): BayService
 			local egg = Bay.hatch(data, uid, now())
 			if egg then
 				taken = true
-				alienId, location = hatchEgg(data, egg)
+				alien, location = hatchEgg(data, egg)
 			end
 		end)
 		if not taken then
 			return
 		end
 		refresh(player)
-		if alienId and location then
+		if alien and location then
 			if LOG then
-				print(`[BayService] {player.Name} hatched {alienId} -> {location}`)
+				print(`[BayService] {player.Name} hatched {alien.id} ({alien.incomePercent}%) -> {location}`)
 			end
-			hatched.fire(player, alienId, location)
+			hatched.fire(player, alien.id, location, alien.incomePercent)
 		end
 	end
 
@@ -822,7 +821,7 @@ function BayService.new(dependencies: Dependencies): BayService
 					Bay.advanceIncubator(data, extraHatchSeconds)
 				end
 				ready = Bay.readyCount(data, current)
-				local income = Bay.incomePerSecond(data, incomeOf)
+				local income = Bay.incomePerSecond(data, AlienIncome.of)
 				if not BigNum.isZero(income) then
 					earned = BigNum.mul(income, earnedSeconds)
 					Wallet.earn(data, earned :: BigNum.BigNum)

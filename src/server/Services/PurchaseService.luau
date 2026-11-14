@@ -1,17 +1,21 @@
 --!strict
--- Robux purchases (decision 061). The one MarketplaceService.ProcessReceipt in the game:
+-- Robux purchases (decisions 061, 132). The one MarketplaceService.ProcessReceipt in the game:
 --   1. waits for the player's active profile;
 --   2. skips a receipt already granted (its PurchaseId is in the profile);
 --   3. grants the product and records the receipt in one profile update;
 --   4. waits until the store holds a save with the receipt in it;
 --   5. only then answers PurchaseGranted; anything else is NotProcessedYet, and Roblox asks again
 --      (CONVENTIONS section 7, ProfileStore's "Caching PurchaseId" example).
--- Passes: ownership is checked with Roblox on join and noted on purchase; the profile keeps a
--- copy for when Roblox's check fails. What each purchase does is Domain/Purchases; which ids
--- belong to this game is MonetizationConfig (in a game it does not list, purchases are off).
+-- Subscriptions (monthly, Roblox's own): their status is asked of Roblox on join, when Roblox says
+-- it changed, after the player closes a subscription prompt and every few minutes while they
+-- play; the profile keeps what the last answer said, which pays the time away and stands in when
+-- Roblox's check fails. Whether Roblox lets the player subscribe at all (PolicyService) is published
+-- for the shop. What each purchase does is Domain/Purchases; which ids belong to this game is
+-- MonetizationConfig (in a game it does not list, purchases are off).
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
+local PolicyService = game:GetService("PolicyService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -23,6 +27,7 @@ local PlayReward = require(ReplicatedStorage.Shared.Domain.PlayReward)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local Purchases = require(ReplicatedStorage.Shared.Domain.Purchases)
+local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
@@ -31,9 +36,11 @@ local Wallet = require(ReplicatedStorage.Shared.Domain.Wallet)
 -- How long a receipt waits for the player's profile to become active, seconds.
 local PROFILE_WAIT_SECONDS = 60
 local PROFILE_POLL_SECONDS = 0.5
--- A pass check that fails is tried this many times in all.
-local PASS_CHECK_TRIES = 2
-local PASS_CHECK_RETRY_SECONDS = 5
+-- A subscription or policy check that fails is tried this many times in all.
+local CHECK_TRIES = 2
+local CHECK_RETRY_SECONDS = 5
+-- While playing, a subscription that ran out (cancelled, not renewed) stops this soon.
+local SUBSCRIPTION_POLL_SECONDS = 15 * 60
 local LOG = RunService:IsStudio()
 
 export type Notice = "NoSuchEgg"
@@ -67,13 +74,14 @@ export type Dependencies = {
 	refreshBay: (player: Player) -> (),
 	-- Hatches a ready egg (an "Egg ready now" bought at that very egg hatches it at once).
 	hatchEgg: (player: Player, uid: number) -> (),
+	scheduler: Scheduler.Scheduler,
 }
 
 export type PurchaseService = {
 	name: string,
 	start: () -> (),
-	-- What the player's passes do (no profile: nothing).
-	passEffects: (player: Player) -> Purchases.PassEffects,
+	-- What the player's subscriptions do (no profile: nothing).
+	effects: (player: Player) -> Purchases.Effects,
 	-- The egg the player is about to make ready now: the receipt applies to it when it comes.
 	chooseReadyNowEgg: (player: Player, uid: number) -> Notice?,
 	-- The client is about to show a purchase prompt: where (for the analytics) and, for
@@ -86,12 +94,15 @@ export type PurchaseService = {
 	) -> Notice?,
 	-- The receipt handler itself (dev commands run fake receipts through it).
 	processReceipt: (receipt: { [string]: any }) -> Enum.ProductPurchaseDecision,
-	-- Notes a pass as owned (on purchase; dev commands).
-	notePass: (player: Player, pass: Purchases.PassId) -> boolean,
+	-- The player closed a subscription prompt: their status is asked again.
+	subscriptionPromptClosed: (player: Player) -> (),
+	-- Sets a subscription in Studio, as if Roblox said so; Roblox's checks then leave this player's
+	-- subscriptions alone until they leave (dev commands).
+	setSubscribedForTest: (player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean) -> boolean,
 	-- Fires once per granted receipt.
 	purchased: Signal.Signal<Player, Granted>,
-	-- Fires when a pass was noted as owned.
-	passesChanged: Signal.Signal<Player>,
+	-- Fires when a subscription started or ended: the player, which one and whether it is on now.
+	subscriptionChanged: Signal.Signal<Player, Purchases.SubscriptionId, boolean>,
 	-- Fires for every purchase prompt a client reports.
 	prompted: Signal.Signal<Player, MonetizationConfig.ShopItem, MonetizationConfig.ShopSource>,
 }
@@ -102,10 +113,29 @@ local function now(): number
 	return workspace:GetServerTimeNow()
 end
 
-local function passOfId(catalog: MonetizationConfig.GameCatalog, gamePassId: number): Purchases.PassId?
-	for pass, id in catalog.passes do
-		if id == gamePassId then
-			return pass
+local function subscriptionOfId(
+	catalog: MonetizationConfig.GameCatalog,
+	subscriptionId: string
+): Purchases.SubscriptionId?
+	for subscription, id in catalog.subscriptions do
+		if id == subscriptionId then
+			return subscription
+		end
+	end
+	return nil
+end
+
+-- Calls `ask` up to CHECK_TRIES times until it succeeds; its result, or nil when every try failed
+-- (the last error is warned about).
+local function withRetries<T>(what: string, ask: () -> T): T?
+	for try = 1, CHECK_TRIES do
+		local ok, result = pcall(ask)
+		if ok then
+			return result
+		elseif try < CHECK_TRIES then
+			task.wait(CHECK_RETRY_SECONDS)
+		else
+			warn(`[PurchaseService] {what} failed: {result}`)
 		end
 	end
 	return nil
@@ -113,42 +143,102 @@ end
 
 function PurchaseService.new(dependencies: Dependencies): PurchaseService
 	local purchased = Signal.new() :: Signal.Signal<Player, Granted>
-	local passesChanged = Signal.new() :: Signal.Signal<Player>
+	local subscriptionChanged = Signal.new() :: Signal.Signal<Player, Purchases.SubscriptionId, boolean>
 	local prompted = Signal.new() :: Signal.Signal<Player, MonetizationConfig.ShopItem, MonetizationConfig.ShopSource>
 	-- The egg each player chose to make ready now (session only: a late receipt picks one itself).
 	local readyNowChoice: { [Player]: number } = {}
 	-- Where each player was last offered a purchase (session only), for the analytics.
 	local lastSource: { [Player]: MonetizationConfig.ShopSource } = {}
+	-- Players whose subscriptions a Studio command set: Roblox's checks leave them alone.
+	local testOverrides: { [Player]: boolean } = {}
 
-	local function passEffects(player: Player): Purchases.PassEffects
+	local function effects(player: Player): Purchases.Effects
 		local data = dependencies.getData(player)
-		return Purchases.passEffects(if data then data.passes else {}, MonetizationConfig.PASS_TUNING)
+		return Purchases.effects(if data then data.subscriptions else {}, MonetizationConfig.SUBSCRIPTION_TUNING)
 	end
 
-	-- The passes on the player, for every client (the shop, the trainer sign over their bay).
+	-- The subscriptions on the player, for every client (the shop, the trainer sign over their bay).
 	local function publish(player: Player)
 		local data = dependencies.getData(player)
 		if not data then
 			return
 		end
-		local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
-		player:SetAttribute(MonetizationConfig.PASSES_ATTRIBUTE, table.concat(data.passes, ","))
-		player:SetAttribute(MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE, effects.trainerMultiplier)
+		local current = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
+		player:SetAttribute(MonetizationConfig.SUBSCRIPTIONS_ATTRIBUTE, table.concat(data.subscriptions, ","))
+		player:SetAttribute(MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE, current.trainerMultiplier)
 	end
 
-	local function notePass(player: Player, pass: Purchases.PassId): boolean
-		local noted = false
+	local function setSubscribed(player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean): boolean
+		local changed = false
 		dependencies.update(player, function(data)
-			noted = Purchases.notePass(data, pass)
+			changed = Purchases.setSubscribed(data, subscription, subscribed)
 		end)
-		if noted then
+		if changed then
 			if LOG then
-				print(`[PurchaseService] {player.Name} owns {pass}`)
+				print(`[PurchaseService] {player.Name}: {subscription} {if subscribed then "on" else "off"}`)
 			end
 			publish(player)
-			passesChanged.fire(player)
+			subscriptionChanged.fire(player, subscription, subscribed)
 		end
-		return noted
+		return changed
+	end
+
+	-- Asks Roblox whether the player has `subscription` and notes the answer. A failed check keeps
+	-- the profile's copy as it is.
+	local function checkSubscription(player: Player, subscription: Purchases.SubscriptionId)
+		local catalog = MonetizationConfig.catalogFor(game.GameId)
+		local id = if catalog then catalog.subscriptions[subscription] else nil
+		if not id or testOverrides[player] then
+			return
+		end
+		local status = withRetries(`Subscription check of {subscription} for {player.Name}`, function()
+			return MarketplaceService:GetUserSubscriptionStatusAsync(player, id)
+		end)
+		-- The player may have left, or a Studio command took over, while Roblox answered.
+		if type(status) == "table" and player.Parent == Players and not testOverrides[player] then
+			setSubscribed(player, subscription, status.IsSubscribed == true)
+		end
+	end
+
+	local function checkSubscriptions(player: Player)
+		for _, subscription in MonetizationConfig.SUBSCRIPTION_ORDER do
+			checkSubscription(player, subscription)
+		end
+	end
+
+	-- Whether Roblox lets the player buy subscriptions (the shop offers them only then). Unknown
+	-- (the check failed) counts as no.
+	local function checkPolicy(player: Player)
+		local policy = withRetries(`Policy check for {player.Name}`, function()
+			return PolicyService:GetPolicyInfoForPlayerAsync(player)
+		end)
+		if player.Parent == Players then
+			local eligible = type(policy) == "table" and policy.IsEligibleToPurchaseSubscription == true
+			player:SetAttribute(MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE, eligible)
+		end
+	end
+
+	local function subscriptionPromptClosed(player: Player)
+		task.spawn(checkSubscriptions, player)
+		task.delay(MonetizationConfig.SUBSCRIPTION_RECHECK_SECONDS, function()
+			if player.Parent == Players then
+				checkSubscriptions(player)
+			end
+		end)
+	end
+
+	local function setSubscribedForTest(
+		player: Player,
+		subscription: Purchases.SubscriptionId,
+		subscribed: boolean
+	): boolean
+		assert(RunService:IsStudio(), "subscriptions are set by hand only in Studio")
+		if not dependencies.getData(player) then
+			return false
+		end
+		testOverrides[player] = true
+		setSubscribed(player, subscription, subscribed)
+		return true
 	end
 
 	local function chooseReadyNowEgg(player: Player, uid: number): Notice?
@@ -202,8 +292,8 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		local multiplier = Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)
 		local current = now()
 		if product.kind == "Training" then
-			local effects = Purchases.passEffects(data.passes, MonetizationConfig.PASS_TUNING)
-			local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
+			local subscribed = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
+			local rate = Purchases.trainerRate(data.trainerLevel, subscribed.trainerMultiplier, UpgradeConfig.TUNING)
 			local paid = Purchases.trainingPack(rate, product.seconds or 0, multiplier)
 			data.trained = BigNum.add(data.trained, paid.trained)
 			granted.speed = paid.speed
@@ -305,61 +395,47 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		return if saved then Enum.ProductPurchaseDecision.PurchaseGranted else notYet
 	end
 
-	-- Asks Roblox which passes the player owns and notes them. A failed check keeps the copy in
-	-- the profile as it is.
-	local function checkPasses(player: Player)
-		local catalog = MonetizationConfig.catalogFor(game.GameId)
-		if not catalog then
-			return
-		end
-		for pass, gamePassId in catalog.passes do
-			for try = 1, PASS_CHECK_TRIES do
-				local ok, owns =
-					pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, gamePassId)
-				if ok then
-					if owns then
-						notePass(player, pass)
-					end
-					break
-				elseif try < PASS_CHECK_TRIES then
-					task.wait(PASS_CHECK_RETRY_SECONDS)
-				else
-					warn(`[PurchaseService] Pass check for {player.Name} failed: {owns}`)
-				end
-			end
-		end
-	end
-
 	local function start()
 		MarketplaceService.ProcessReceipt = processReceipt
 		dependencies.activated.connect(function(player)
-			-- The copy in the profile counts at once; Roblox's answer may add to it.
+			-- The copy in the profile counts at once; Roblox's answer may change it.
 			publish(player)
-			task.spawn(checkPasses, player)
+			task.spawn(checkSubscriptions, player)
+			task.spawn(checkPolicy, player)
 		end)
-		MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
+		Players.UserSubscriptionStatusChanged:Connect(function(player, subscriptionId)
 			local catalog = MonetizationConfig.catalogFor(game.GameId)
-			local pass = if catalog and wasPurchased then passOfId(catalog, gamePassId) else nil
-			if pass then
-				notePass(player, pass)
+			local subscription = if catalog then subscriptionOfId(catalog, subscriptionId) else nil
+			if subscription then
+				task.spawn(checkSubscription, player, subscription)
+			end
+		end)
+		-- A cancelled subscription runs to the end of its month, then stops: noticed in play too.
+		dependencies.scheduler.every(SUBSCRIPTION_POLL_SECONDS, function()
+			for _, player in Players:GetPlayers() do
+				if dependencies.getData(player) then
+					task.spawn(checkSubscriptions, player)
+				end
 			end
 		end)
 		PlayerEvents.observe(function() end, function(player)
 			readyNowChoice[player] = nil
 			lastSource[player] = nil
+			testOverrides[player] = nil
 		end)
 	end
 
 	return {
 		name = "PurchaseService",
 		start = start,
-		passEffects = passEffects,
+		effects = effects,
 		chooseReadyNowEgg = chooseReadyNowEgg,
 		notePrompt = notePrompt,
 		processReceipt = processReceipt,
-		notePass = notePass,
+		subscriptionPromptClosed = subscriptionPromptClosed,
+		setSubscribedForTest = setSubscribedForTest,
 		purchased = purchased,
-		passesChanged = passesChanged,
+		subscriptionChanged = subscriptionChanged,
 		prompted = prompted,
 	}
 end

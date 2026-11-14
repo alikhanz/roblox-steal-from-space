@@ -3,13 +3,15 @@
 -- 092) and eggs in the incubator. Pure functions over the saved data that change it in place;
 -- they are meant to run inside one DataService update each.
 
+local AlienIncome = require("./AlienIncome")
 local AlienOutfit = require("./AlienOutfit")
 local BigNum = require("./BigNum")
 local PlayerData = require("./PlayerData")
 
 -- Where an alien stands: in a pod, or on the shelf ("Floor": the name it keeps in the save).
 export type Location = "Pod" | "Floor"
-export type IncomeOf = (alienId: string) -> BigNum.BigNum
+-- What an alien earns a second: AlienIncome.of in the game (its kind and its own roll).
+export type IncomeOf = (alien: AlienIncome.Owned) -> BigNum.BigNum
 
 type Data = PlayerData.PlayerData
 type Alien = PlayerData.AlienRecord
@@ -22,11 +24,16 @@ function Bay.newUid(data: Data): number
 	return uid
 end
 
--- A new alien record for `alienId`: a fresh uid and its outfit, drawn once now from its tier's
--- pools (decision 121). Every place an alien comes to be (hatching, crossbreeding, gifts, the bench)
--- makes it here.
+-- A new alien record for `alienId`: a fresh uid, its outfit drawn once now from its tier's pools
+-- (decision 121) and its income roll (decision 130). Every place an alien comes to be (hatching,
+-- crossbreeding, gifts, the bench) makes it here.
 function Bay.newAlien(data: Data, alienId: string, nextInteger: AlienOutfit.NextInteger): Alien
-	return { uid = Bay.newUid(data), id = alienId, outfit = AlienOutfit.forAlien(alienId, nextInteger) }
+	return {
+		uid = Bay.newUid(data),
+		id = alienId,
+		outfit = AlienOutfit.forAlien(alienId, nextInteger),
+		incomePercent = AlienIncome.draw(nextInteger),
+	}
 end
 
 local function indexOf(list: { Alien }, uid: number): number?
@@ -122,7 +129,7 @@ end
 -- nothing.
 local function byIncome(incomeOf: IncomeOf): (Alien, Alien) -> boolean
 	return function(left: Alien, right: Alien): boolean
-		local order = BigNum.compare(incomeOf(left.id), incomeOf(right.id))
+		local order = BigNum.compare(incomeOf(left), incomeOf(right))
 		if order ~= 0 then
 			return order > 0
 		end
@@ -200,7 +207,7 @@ function Bay.incomePerSecond(data: { read pods: { PlayerData.Pod } }, incomeOf: 
 	local total = BigNum.ZERO
 	for _, pod in data.pods do
 		if pod.alien then
-			total = BigNum.add(total, incomeOf(pod.alien.id))
+			total = BigNum.add(total, incomeOf(pod.alien))
 		end
 	end
 	return total

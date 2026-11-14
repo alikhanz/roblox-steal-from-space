@@ -63,6 +63,9 @@ export type Row = {
 	name: string,
 	-- "8.5/s".
 	income: string,
+	-- Its income roll, "+23%", and that roll's colour (UI/IncomeRoll).
+	bonus: string,
+	bonusColor: Color3,
 	color: Color3,
 	-- A badge for a variant alien; nil for a regular one.
 	variant: Icons.Name?,
@@ -311,6 +314,12 @@ local function BayWindow(props: Props): Frame
 				end,
 				income = function()
 					return row().income
+				end,
+				bonus = function()
+					return row().bonus
+				end,
+				bonusColor = function()
+					return row().bonusColor
 				end,
 				tierColor = function()
 					return row().color

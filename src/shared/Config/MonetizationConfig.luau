@@ -1,7 +1,7 @@
 --!strict
--- Robux purchases (decision 061): which Roblox pass and product ids belong to which game, what
--- each one does and the numbers behind them. The prices are set in the Creator Hub, not here:
--- the game shows the price Roblox returns. Pure Luau: tests load it in Lune.
+-- Robux purchases (decisions 061, 132): which Roblox subscription and product ids belong to which
+-- game, what each one does and the numbers behind them. The prices are set in the Creator Hub, not
+-- here: the game shows the price Roblox returns. Pure Luau: tests load it in Lune.
 
 local BayConfig = require("./BayConfig")
 local BigNum = require("../Domain/BigNum")
@@ -13,7 +13,7 @@ local ZoneConfig = require("./ZoneConfig")
 -- What a developer product does.
 export type ProductKind = "Training" | "ReadyNow" | "IncubatorSlot" | "CollectDouble"
 -- Everything on offer, for the analytics of where it was offered.
-export type ShopItem = Purchases.PassId | ProductKind
+export type ShopItem = Purchases.SubscriptionId | ProductKind
 -- Where a purchase was offered: the shop window opened from the menu (Store) or from the speed
 -- goal (Goal), the welcome-back screen, the bay window, the prompt on a warming egg (Egg).
 export type ShopSource = "Store" | "Goal" | "Welcome" | "Bay" | "Egg"
@@ -26,17 +26,22 @@ export type Product = {
 	read tier: number?,
 }
 
--- One game's ids: its passes and its products, by Roblox id.
+-- One game's ids: its subscriptions (Roblox's "EXP-…" ids; none yet: not offered) and its
+-- products, by Roblox id.
 export type GameCatalog = {
-	read passes: { [Purchases.PassId]: number },
+	read subscriptions: { [Purchases.SubscriptionId]: string },
 	read products: { [number]: Product },
 }
 
-local PASS_TUNING: Purchases.PassTuning = {
+local SUBSCRIPTION_TUNING: Purchases.Tuning = {
 	doubleTrainingMultiplier = 2,
-	-- Twice the free caps: with this alone the game goes about as fast as with Double training.
+	-- The night away trains at the full rate of a flight and earns twice the free time (user,
+	-- 2026-11-14: «ночная тренировка 100%»): by `lune run balance` the Whale in 26 days instead of
+	-- 58, a little faster than with Double training (37).
+	nightShiftTrainingFactor = 1,
 	nightShiftIncomeCapSeconds = 8 * 60 * 60,
-	nightShiftTrainingCapSeconds = 16 * 60 * 60,
+	nightShiftTrainingCapSeconds = UpgradeConfig.OFFLINE_TRAINING_CAP_SECONDS,
+	trainingFactor = UpgradeConfig.OFFLINE_TRAINING_FACTOR,
 	incomeCapSeconds = BayConfig.OFFLINE_INCOME_CAP_SECONDS,
 	trainingCapSeconds = UpgradeConfig.OFFLINE_TRAINING_CAP_SECONDS,
 }
@@ -45,14 +50,13 @@ local HOUR = 60 * 60
 -- The training packs, shortest first: seconds of the trainer's rate each one gives.
 local TRAINING_PACK_SECONDS = { HOUR, 8 * HOUR, 24 * HOUR }
 
--- Each game has its own passes and products (decision 011: Dev and Prod are separate games).
+-- Each game has its own subscriptions and products (decision 011: Dev and Prod are separate games).
+-- The permanent passes of decision 061 are switched off (decision 132): Dev 2070386434 /
+-- 2070559216, Prod 2078156255 / 2075939060, off sale in the Creator Hub.
 local GAMES: { [number]: GameCatalog } = {
 	-- Steal from Space Dev (created 2026-11-06).
 	[10774871729] = {
-		passes = {
-			DoubleTraining = 2070386434,
-			NightShift = 2070559216,
-		},
+		subscriptions = {},
 		products = {
 			[3728652464] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[1] },
 			[3728652573] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[2] },
@@ -80,10 +84,7 @@ local GAMES: { [number]: GameCatalog } = {
 	},
 	-- Fly & Steal Space Eggs, the Prod game owned by the community (created 2026-11-11).
 	[10775754016] = {
-		passes = {
-			DoubleTraining = 2078156255,
-			NightShift = 2075939060,
-		},
+		subscriptions = {},
 		products = {
 			[3730276086] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[1] },
 			[3730276256] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[2] },
@@ -113,9 +114,12 @@ local GAMES: { [number]: GameCatalog } = {
 
 local MonetizationConfig = {}
 
-MonetizationConfig.PASS_TUNING = table.freeze(PASS_TUNING)
--- The passes in the order the shop lists them.
-MonetizationConfig.PASS_ORDER = table.freeze({ "DoubleTraining", "NightShift" } :: { Purchases.PassId })
+MonetizationConfig.SUBSCRIPTION_TUNING = table.freeze(SUBSCRIPTION_TUNING)
+-- The subscriptions in the order the shop lists them.
+MonetizationConfig.SUBSCRIPTION_ORDER = table.freeze({ "DoubleTraining", "NightShift" } :: { Purchases.SubscriptionId })
+-- After a purchase prompt closes, Roblox may take a moment to report the new subscription: the
+-- server asks again this long after the client says it closed (Roblox's own sample waits 10 s).
+MonetizationConfig.SUBSCRIPTION_RECHECK_SECONDS = 10
 MonetizationConfig.TRAINING_PACK_SECONDS = table.freeze(TRAINING_PACK_SECONDS)
 -- "Egg ready now" tiers: zone of the egg's guardian plus its rarity (Purchases.readyNowTier).
 MonetizationConfig.READY_NOW_TIERS = 8
@@ -131,9 +135,11 @@ MonetizationConfig.RECEIPTS_KEPT = 100
 -- not lost: it pays this many minutes of the player's income instead.
 MonetizationConfig.COMPENSATION_MINUTES = 30
 MonetizationConfig.COMPENSATION_MIN_COINS = 100
--- Player attributes, for every client: the passes owned (comma-separated Purchases.PassId) and
--- the trainer's multiplier from them (the trainer sign over any bay shows the owner's rate).
-MonetizationConfig.PASSES_ATTRIBUTE = "Passes"
+-- Player attributes, for every client: the subscriptions the player has (comma-separated
+-- Purchases.SubscriptionId), the trainer's multiplier from them (the trainer sign over any bay shows
+-- the owner's rate), and whether Roblox lets them buy subscriptions at all (PolicyService).
+MonetizationConfig.SUBSCRIPTIONS_ATTRIBUTE = "Subscriptions"
+MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE = "CanSubscribe"
 MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE = "TrainerMultiplier"
 
 -- The catalog of the game with `gameId`, or nil: purchases are off in a game not listed here

@@ -29,6 +29,7 @@ local PvpService = require(script.Parent.PvpService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
+local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local IS_STUDIO = RunService:IsStudio()
@@ -66,9 +67,9 @@ export type Dependencies = {
 	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>,
 	coinsTraded: Signal.Signal<Player, EconomyService.CoinTrade, BigNum.BigNum, BigNum.BigNum>,
 	offlineSettled: Signal.Signal<Player, OfflineService.Reward>,
-	trained: Signal.Signal<Player, BigNum.BigNum, number>,
-	hatched: Signal.Signal<Player, string, Bay.Location>,
-	crossbred: Signal.Signal<Player, string, Bay.Location>,
+	trained: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>,
+	hatched: Signal.Signal<Player, string, Bay.Location, number>,
+	crossbred: Signal.Signal<Player, string, Bay.Location, number>,
 	eggGrabbed: Signal.Signal<Player, CarryService.Carried, CarryService.GrabSource>,
 	eggReachedStation: Signal.Signal<Player, CarryService.Carried>,
 	eggDelivered: Signal.Signal<Player, CarryService.Carried>,
@@ -325,8 +326,8 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 			sendEconomy(player, COINS, "Source", "Offline", reward.coins)
 			sendEconomy(player, SPEED, "Source", "Offline", reward.speed)
 		end)
-		dependencies.trained.connect(function(player, gain)
-			add(player, SPEED, "Source", "Trainer", gain)
+		dependencies.trained.connect(function(player, gain, _seconds, source)
+			add(player, SPEED, "Source", if source == "Flight" then "Flight" else "Trainer", gain)
 		end)
 
 		-- The bay.

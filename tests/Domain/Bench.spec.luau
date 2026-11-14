@@ -24,7 +24,7 @@ end
 describe("Bench.fill", function()
 	it("adds places up to the most and fills the empty ones, keeping the player's own", function()
 		local data = fresh()
-		data.pods[2].alien = { uid = 1, id = "Own" }
+		data.pods[2].alien = { uid = 1, id = "Own", incomePercent = 100 }
 		expect(Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))).toBe(true)
 		expect(#data.pods).toBe(MAX_PODS)
 		expect((data.pods[2].alien :: PlayerData.AlienRecord).id).toBe("Own")
@@ -45,7 +45,7 @@ describe("Bench.fill", function()
 	it("adds nothing when every place is the player's own", function()
 		local data = fresh()
 		for index = 1, MAX_PODS do
-			data.pods[index] = { alien = { uid = index, id = "Own" } }
+			data.pods[index] = { alien = { uid = index, id = "Own", incomePercent = 100 } }
 		end
 		expect(Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))).toBe(false)
 		expect(data.bench).toBeNil()
@@ -56,7 +56,7 @@ end)
 describe("Bench.clear", function()
 	it("takes its aliens and places away and leaves the player's own", function()
 		local data = fresh()
-		data.pods[2].alien = { uid = 1, id = "Own" }
+		data.pods[2].alien = { uid = 1, id = "Own", incomePercent = 100 }
 		Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))
 		expect(Bench.clear(data)).toBe(true)
 		expect(#data.pods).toBe(3)
@@ -71,7 +71,7 @@ describe("Bench.clear", function()
 		local moved = data.pods[1].alien :: PlayerData.AlienRecord
 		data.pods[1].alien = nil
 		table.insert(data.floor, moved)
-		table.insert(data.floor, { uid = 7, id = "Own" })
+		table.insert(data.floor, { uid = 7, id = "Own", incomePercent = 100 })
 		Bench.clear(data)
 		expect(#data.floor).toBe(1)
 	end)
@@ -79,7 +79,7 @@ describe("Bench.clear", function()
 	it("keeps an added place that holds the player's own alien", function()
 		local data = fresh()
 		Bench.fill(data, ALIENS, MAX_PODS, AlienOutfit.sequence(1))
-		data.pods[MAX_PODS].alien = { uid = 9, id = "Own" }
+		data.pods[MAX_PODS].alien = { uid = 9, id = "Own", incomePercent = 100 }
 		Bench.clear(data)
 		expect(#data.pods).toBe(MAX_PODS)
 	end)

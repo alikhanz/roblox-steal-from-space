@@ -131,6 +131,8 @@ return table.freeze({
 	ALIEN_TAG = "Alien",
 	ALIEN_ID_ATTRIBUTE = "AlienId",
 	ALIEN_UID_ATTRIBUTE = "Uid",
+	-- Its income roll in percent (decision 130, Domain/AlienIncome), for the chip over it.
+	ALIEN_INCOME_PERCENT_ATTRIBUTE = "IncomePercent",
 	-- Where the server stands an alien (its model's pivot, a CFrame): the client moves the pet
 	-- around it and follows it when the bay's layout shifts the alien to another place.
 	ALIEN_PIVOT_ATTRIBUTE = "Pivot",

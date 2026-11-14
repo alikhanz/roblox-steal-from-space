@@ -7,15 +7,12 @@ local AbilityState = require(script.Parent.State.AbilityState)
 local AimController = require(script.Parent.Controllers.AimController)
 local AimMarkController = require(script.Parent.Controllers.AimMarkController)
 local AlarmSoundController = require(script.Parent.Controllers.AlarmSoundController)
-local AlienConfig = require(ReplicatedStorage.Shared.Config.AlienConfig)
 local AlienMotionController = require(script.Parent.Controllers.AlienMotionController)
 local AlienViewController = require(script.Parent.Controllers.AlienViewController)
 local AutoLocalizeGuard = require(script.Parent.Controllers.AutoLocalizeGuard)
-local Bay = require(ReplicatedStorage.Shared.Domain.Bay)
 local BayViewController = require(script.Parent.Controllers.BayViewController)
 local BayWindowController = require(script.Parent.Controllers.BayWindowController)
 local BenchController = require(script.Parent.Controllers.BenchController)
-local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local CoachState = require(script.Parent.State.CoachState)
 local CoinBoardController = require(script.Parent.Controllers.CoinBoardController)
 local CommunityController = require(script.Parent.Controllers.CommunityController)
@@ -43,6 +40,7 @@ local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
 local MenuState = require(script.Parent.State.MenuState)
 local NewbieViewController = require(script.Parent.Controllers.NewbieViewController)
+local Pace = require(script.Parent.State.Pace)
 local PlaceGlideController = require(script.Parent.Controllers.PlaceGlideController)
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
@@ -127,10 +125,7 @@ Lifecycle.run({
 	HudController.new({
 		coins = profileState.coins,
 		income = function()
-			return Bay.incomePerSecond(profileState.bay(), function(alienId: string): BigNum.BigNum
-				local alien = AlienConfig.ALIENS[alienId]
-				return if alien then alien.income else BigNum.ZERO
-			end)
+			return Pace.income(profileState)
 		end,
 		toast = toastState.push,
 		abilities = abilityState,

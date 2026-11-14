@@ -4,6 +4,7 @@
 -- To change the shape: bump SCHEMA_VERSION, add MIGRATIONS[old version], update the template
 -- and `validate`, and cover the migration with a test on old saved data.
 
+local AlienIncome = require("./AlienIncome")
 local AlienIndex = require("./AlienIndex")
 local AlienOutfit = require("./AlienOutfit")
 local BigNum = require("./BigNum")
@@ -21,6 +22,9 @@ export type AlienRecord = {
 	-- What it wears (decision 121): drawn once when it came to be, saved by the pieces' ids
 	-- (AlienOutfit). nil only for an id the game doesn't know.
 	outfit: AlienOutfit.Picks?,
+	-- Its own share of its kind's income, a whole percent (decision 130, Domain/AlienIncome):
+	-- rolled once when it came to be.
+	incomePercent: number,
 }
 
 -- An egg hatching in the incubator; hatches once server time passes `hatchAt`.
@@ -112,8 +116,9 @@ export type PlayerData = {
 	-- The last Robux receipts granted (their PurchaseId), so none is granted twice
 	-- (Domain/Purchases, CONVENTIONS section 7).
 	purchaseIds: { string },
-	-- Passes the player owns (Purchases.PassId): a copy for when Roblox's check fails.
-	passes: { string },
+	-- Subscriptions active at Roblox's last check (Purchases.SubscriptionId, decision 132): what the
+	-- time away is paid by, and the copy for when the check fails.
+	subscriptions: { string },
 	-- What the last time away paid, for "Collect x2"; zeros: nothing to collect again.
 	pendingDouble: PendingDouble,
 	-- The pet bench, while it stands on the island; nil: none (a developer's tool, decision 082).
@@ -135,13 +140,13 @@ export type Defaults = {
 
 export type LoadFailure = "NewerVersion" | "Corrupted"
 -- What loading needs from outside the data: the server's randomness (outfits drawn by the v22
--- migration and for pieces taken out of the game).
+-- migration and for pieces taken out of the game, income rolls by the v23 one).
 export type LoadContext = { nextInteger: AlienOutfit.NextInteger }
 export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: LoadFailure, detail: string }
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 22
+PlayerData.SCHEMA_VERSION = 23
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -335,6 +340,27 @@ PlayerData.MIGRATIONS = {
 			dress(record)
 		end
 	end,
+	-- v23: aliens earn by their own roll (decision 130), and Robux passes became monthly
+	-- subscriptions (decision 132). Every alien from before rolls once, as a new one would, in the
+	-- places and on the shelf; the old permanent passes give nothing any more (the game was in a
+	-- closed test, nobody bought one), so their copy goes and `subscriptions` comes empty from the
+	-- template.
+	[22] = function(data: { [string]: any }, context: LoadContext)
+		local function roll(record: any)
+			if type(record) == "table" and record.incomePercent == nil then
+				record.incomePercent = AlienIncome.draw(context.nextInteger)
+			end
+		end
+		for _, pod in if type(data.pods) == "table" then data.pods else {} do
+			if type(pod) == "table" then
+				roll(pod.alien)
+			end
+		end
+		for _, record in if type(data.floor) == "table" then data.floor else {} do
+			roll(record)
+		end
+		data.passes = nil
+	end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -369,7 +395,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		loginGift = LoginGift.empty(),
 		index = AlienIndex.empty(),
 		purchaseIds = {},
-		passes = {},
+		subscriptions = {},
 		pendingDouble = { coins = BigNum.ZERO, trained = BigNum.ZERO },
 	}
 end
@@ -395,6 +421,9 @@ local function validateUid(record: { [string]: any }, seen: Uids): string?
 	return nil
 end
 
+-- The highest roll a save may hold (the network sends it as a byte).
+local MAX_SAVED_PERCENT = 255
+
 local function validateAlien(record: any, seen: Uids): string?
 	if type(record) ~= "table" then
 		return "alien is not a table"
@@ -413,7 +442,15 @@ local function validateAlien(record: any, seen: Uids): string?
 			end
 		end
 	end
-	return validateUid(record, seen)
+	local problem = validateUid(record, seen)
+	if problem then
+		return problem
+	end
+	-- Loosely: a roll from another tuning is fitted into this one at load, not refused.
+	if not isInteger(record.incomePercent) or record.incomePercent < 1 or record.incomePercent > MAX_SAVED_PERCENT then
+		return "alien incomePercent is invalid"
+	end
+	return nil
 end
 
 -- What every egg has, in the incubator or waiting for a slot.
@@ -556,7 +593,8 @@ local function validateStrings(list: any, name: string): string?
 end
 
 local function validatePurchases(data: { [string]: any }): string?
-	local problem = validateStrings(data.purchaseIds, "purchaseIds") or validateStrings(data.passes, "passes")
+	local problem = validateStrings(data.purchaseIds, "purchaseIds")
+		or validateStrings(data.subscriptions, "subscriptions")
 	if problem then
 		return problem
 	end
@@ -717,8 +755,10 @@ function PlayerData.load(saved: unknown, defaults: Defaults, context: LoadContex
 		return { ok = false, reason = "Corrupted", detail = problem }
 	end
 	-- Outfits fit to wear: a piece taken out of the game is drawn anew, an alien without one (none
-	-- after v22, but cheap to make sure) draws one.
+	-- after v22, but cheap to make sure) draws one. A roll outside the game's tuning (it changed)
+	-- is fitted to its nearest end.
 	for _, record in aliensOf(copy :: any) do
+		record.incomePercent = AlienIncome.fit(record.incomePercent)
 		if record.outfit then
 			AlienOutfit.repair(record.outfit, record.id, loadContext.nextInteger)
 		else

@@ -7,6 +7,7 @@
 local process = require("@lune/process")
 
 local AlienConfig = require("../src/shared/Config/AlienConfig")
+local AlienIncome = require("../src/shared/Domain/AlienIncome")
 local AlienIndex = require("../src/shared/Domain/AlienIndex")
 local Bay = require("../src/shared/Domain/Bay")
 local BayConfig = require("../src/shared/Config/BayConfig")
@@ -36,16 +37,18 @@ local ASSUMPTIONS = {
 	guardianCount = ZoneConfig.POST_COUNT,
 	days = tonumber(process.args[1]) or 60,
 	stepSeconds = 10,
-	-- One online session a day, half of it on the trainer, the rest stealing.
+	-- One online session a day, all of it stealing (decision 131: flight trains at the full rate,
+	-- the stand at half, so nobody stands); this share of it is in space, training, the rest at
+	-- home (hatching, buying, under a dome).
 	sessionHours = 2,
-	trainShare = 0.5,
+	flightShare = 0.75,
 	-- One theft loop at the nearest guardian, plus this much per post farther out.
 	theftBaseSeconds = 40,
 	theftPerPostSeconds = 5,
 	-- The thief gets away at this share of the recommended speed: the head start covers the rest.
 	escapeRatio = 0.9,
-	-- The paying profiles: what the passes do comes from MonetizationConfig, as in the game; the
-	-- big Robux package is hours of trainer rate a day (MonetizationConfig.TRAINING_PACK_SECONDS).
+	-- The paying profiles: what the subscriptions do comes from MonetizationConfig, as in the game;
+	-- the big Robux package is hours of flight a day (MonetizationConfig.TRAINING_PACK_SECONDS).
 	packageHours = MonetizationConfig.TRAINING_PACK_SECONDS[2] / (60 * 60),
 	-- Meteor eggs a player brings home from a shower: from a crater in the farthest zone they
 	-- can handle, at a guardian they can beat (the strip runs through every zone).
@@ -63,9 +66,9 @@ local ASSUMPTIONS = {
 
 type Profile = {
 	name: string,
-	-- The passes owned (Purchases.passEffects turns them into the trainer rate and the caps away).
-	-- Plain strings, as in the profile (Purchases.PassId values).
-	passes: { string },
+	-- The subscriptions held all along (Purchases.effects turns them into the trainer rate and the
+	-- time away). Plain strings, as in the profile (Purchases.SubscriptionId values).
+	subscriptions: { string },
 	packageHours: number,
 	-- Takes every reward that comes with playing every day: the login gift at the start of each
 	-- session, all of the day's quests at its end, the index as aliens are found.
@@ -73,14 +76,14 @@ type Profile = {
 }
 
 local PROFILES: { Profile } = {
-	{ name = "free", passes = {}, packageHours = 0, daily = false },
-	{ name = "free + daily", passes = {}, packageHours = 0, daily = true },
-	{ name = "pass x2", passes = { "DoubleTraining" }, packageHours = 0, daily = false },
-	{ name = "night shift", passes = { "NightShift" }, packageHours = 0, daily = false },
-	{ name = "both passes", passes = { "DoubleTraining", "NightShift" }, packageHours = 0, daily = false },
+	{ name = "free", subscriptions = {}, packageHours = 0, daily = false },
+	{ name = "free + daily", subscriptions = {}, packageHours = 0, daily = true },
+	{ name = "double", subscriptions = { "DoubleTraining" }, packageHours = 0, daily = false },
+	{ name = "night shift", subscriptions = { "NightShift" }, packageHours = 0, daily = false },
+	{ name = "both subs", subscriptions = { "DoubleTraining", "NightShift" }, packageHours = 0, daily = false },
 	{
-		name = "passes + pack",
-		passes = { "DoubleTraining", "NightShift" },
+		name = "subs + pack",
+		subscriptions = { "DoubleTraining", "NightShift" },
 		packageHours = ASSUMPTIONS.packageHours,
 		daily = false,
 	},
@@ -142,13 +145,15 @@ end
 
 -- Aliens come only from the one registry, AlienConfig: no made-up ones, so the calculator can
 -- never count an alien the game does not have. Kinds of a grade earn the same (decision 075), so
--- its main kind stands for all of them.
+-- its main kind stands for all of them; each alien earns by its own roll (decision 130).
 local function alienIdFor(grade: number, tier: AlienConfig.TierId, variant: AlienConfig.VariantId): string
 	local configured = assert(AlienConfig.GRADES[grade], `no grade {grade} in AlienConfig`)
 	return configured.variants[variant][configured.kinds[1]][tier]
 end
-local function incomeOf(id: string): BigNum.BigNum
-	return assert(AlienConfig.ALIENS[id], `unknown alien {id}`).income
+local incomeOf = AlienIncome.of
+-- The game draws with the server's Random; here with Lua's, seeded per run.
+local function nextInteger(min: number, max: number): number
+	return math.random(min, max)
 end
 
 type Snapshot = {
@@ -213,13 +218,13 @@ local function simulate(profile: Profile, seed: number): Run
 		stolenByDay = {},
 	}
 	local stolen: { [number]: number } = {}
-	local passEffects = Purchases.passEffects(profile.passes, MonetizationConfig.PASS_TUNING)
+	local effects = Purchases.effects(profile.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
 
 	local function speed(): number
 		return trained * toNumber(Upgrades.jetpackMultiplier(jetpackLevel, UpgradeConfig.TUNING))
 	end
 	local function trainRate(): number
-		return toNumber(Purchases.trainerRate(trainerLevel, passEffects.trainerMultiplier, UpgradeConfig.TUNING))
+		return toNumber(Purchases.trainerRate(trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING))
 	end
 	local function canBeat(post: number): boolean
 		return speed() >= recommendedFor(post) * ASSUMPTIONS.escapeRatio
@@ -236,7 +241,7 @@ local function simulate(profile: Profile, seed: number): Run
 	local function sellFloor()
 		while #data.floor > ASSUMPTIONS.shelfKept do
 			local alien = table.remove(data.floor) :: PlayerData.AlienRecord
-			earn(toNumber(incomeOf(alien.id)) * BayConfig.SELL_INCOME_SECONDS)
+			earn(toNumber(AlienIncome.saleOf(alien)))
 		end
 	end
 
@@ -377,7 +382,7 @@ local function simulate(profile: Profile, seed: number): Run
 			local tier: AlienConfig.TierId = Loot.pick(odds, math.random())
 			local variant = (egg.variant or "Normal") :: AlienConfig.VariantId
 			local alienId = alienIdFor(egg.grade, tier, variant)
-			Bay.addHatched(data, { uid = Bay.newUid(data), id = alienId })
+			Bay.addHatched(data, Bay.newAlien(data, alienId, nextInteger))
 			if profile.daily then
 				collect(alienId)
 			end
@@ -469,7 +474,7 @@ local function simulate(profile: Profile, seed: number): Run
 			if inDay == 0 then
 				hatch(now)
 			end
-			trained += trainRate() * ASSUMPTIONS.trainShare * dt
+			trained += trainRate() * ASSUMPTIONS.flightShare * UpgradeConfig.TRAINING_FACTORS.Flight * dt
 			earn(incomeRate * dt)
 			-- The solar storm comes round while the player is on, for everyone on the server.
 			if inDay % STORM_CYCLE >= STORM_CYCLE - STORM.schedule.activeSeconds then
@@ -523,15 +528,15 @@ local function simulate(profile: Profile, seed: number): Run
 				if target > 0 then
 					steal(target, now)
 					local loop = ASSUMPTIONS.theftBaseSeconds + ASSUMPTIONS.theftPerPostSeconds * (target - 1)
-					nextTheftAt = now + loop / (1 - ASSUMPTIONS.trainShare)
+					nextTheftAt = now + loop
 				end
 			end
 		else
 			local away = inDay - sessionSeconds
-			if away < passEffects.offlineTrainingCapSeconds then
-				trained += trainRate() * UpgradeConfig.OFFLINE_TRAINING_FACTOR * dt
+			if away < effects.offlineTrainingCapSeconds then
+				trained += trainRate() * effects.offlineTrainingFactor * dt
 			end
-			if away < passEffects.offlineIncomeCapSeconds then
+			if away < effects.offlineIncomeCapSeconds then
 				earn(incomeRate * dt)
 			end
 		end
@@ -598,7 +603,7 @@ end
 
 print("Balance: first beat of each guardian (average of", ASSUMPTIONS.runs, "runs)")
 print(
-	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, {ASSUMPTIONS.trainShare * 100}% of it training, `
+	`Assumptions: {ASSUMPTIONS.sessionHours}h online a day, all of it stealing, {ASSUMPTIONS.flightShare * 100}% of it in space (training), `
 		.. `theft loop {ASSUMPTIONS.theftBaseSeconds}s + {ASSUMPTIONS.theftPerPostSeconds}s per post, `
 		.. `escape at {ASSUMPTIONS.escapeRatio} of the recommended speed, pack = {ASSUMPTIONS.packageHours}h of training`
 		.. `, daily = quests ({string.format("%.0f", QUEST_MINUTES_A_DAY)} min a day), the login gift and the index; a solar storm every {STORM_CYCLE}s and a meteor shower every {METEOR_CYCLE}s `

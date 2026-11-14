@@ -107,11 +107,12 @@ describe("Crossbreed.trios", function()
 			then { grade = tonumber(grade) :: number, tier = tier, variant = variant }
 			else nil
 	end
-	local function incomeOf(id: string): number
-		return tonumber(string.match(id, "(%d+)$")) :: number
+	-- The income in the id, times the alien's roll.
+	local function incomeOf(alien: { read id: string, read incomePercent: number }): number
+		return (tonumber(string.match(alien.id, "(%d+)$")) :: number) * alien.incomePercent / 100
 	end
-	local function owned(uid: number, id: string): PlayerData.AlienRecord
-		return { uid = uid, id = id }
+	local function owned(uid: number, id: string, incomePercent: number?): PlayerData.AlienRecord
+		return { uid = uid, id = id, incomePercent = incomePercent or 100 }
 	end
 
 	it("finds groups of one grade, tier and variant, with their weakest three", function()
@@ -129,6 +130,16 @@ describe("Crossbreed.trios", function()
 		expect(trios[1].variant).toBe("Normal")
 		expect(trios[1].count).toBe(4)
 		expect(trios[1].uids).toEqual({ 2, 4, 1 })
+	end)
+
+	it("offers the unluckiest rolls first (decision 130)", function()
+		local trios = Crossbreed.trios({
+			owned(1, "1.Common.Normal.10", 130),
+			owned(2, "1.Common.Normal.10", 70),
+			owned(3, "1.Common.Normal.10", 100),
+			owned(4, "1.Common.Normal.10", 85),
+		}, parentOf, incomeOf, 3)
+		expect(trios[1].uids).toEqual({ 2, 4, 3 })
 	end)
 
 	it("keeps tiers apart", function()

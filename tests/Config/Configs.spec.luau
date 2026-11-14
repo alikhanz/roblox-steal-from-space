@@ -586,14 +586,16 @@ describe("MonetizationConfig", function()
 		for tier = 1, #MonetizationConfig.DOUBLE_TIER_LIMITS + 1 do
 			expect(MonetizationConfig.productIdOf(catalog, "CollectDouble", tier)).toBeTruthy()
 		end
-		expect(catalog.passes.DoubleTraining).toBeTruthy()
-		expect(catalog.passes.NightShift).toBeTruthy()
+		-- Subscriptions are Roblox's "EXP-…" ids (none yet is fine: then none is offered).
+		for _, id in catalog.subscriptions do
+			expect(string.match(id, "^EXP%-%d+$")).toBeTruthy()
+		end
 	end)
 
-	it("lists in the shop every pass and training pack the game sells", function()
+	it("lists in the shop every subscription and training pack the game sells", function()
 		local catalog = assert(MonetizationConfig.catalogFor(10774871729))
-		for pass in catalog.passes do
-			expect(table.find(MonetizationConfig.PASS_ORDER, pass)).toBeTruthy()
+		for subscription in catalog.subscriptions do
+			expect(table.find(MonetizationConfig.SUBSCRIPTION_ORDER, subscription)).toBeTruthy()
 		end
 		for _, product in catalog.products do
 			if product.kind == "Training" then

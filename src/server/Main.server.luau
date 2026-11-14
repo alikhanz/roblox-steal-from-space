@@ -87,7 +87,7 @@ local benchService = BenchService.new({
 	update = profile.update,
 	refresh = bayService.refresh,
 })
--- Robux purchases: the receipts and the passes.
+-- Robux purchases: the receipts and the subscriptions.
 local purchaseService = PurchaseService.new({
 	activated = profile.activated,
 	getData = profile.getData,
@@ -97,6 +97,7 @@ local purchaseService = PurchaseService.new({
 	publishSpeed = speedService.publish,
 	refreshBay = bayService.refresh,
 	hatchEgg = bayService.hatch,
+	scheduler = scheduler,
 })
 local offlineService = OfflineService.new({
 	activated = profile.activated,
@@ -172,6 +173,7 @@ local netService = NetService.new({
 	community = communityService,
 	purchased = purchaseService.purchased,
 	notePrompt = purchaseService.notePrompt,
+	subscriptionPromptClosed = purchaseService.subscriptionPromptClosed,
 	markActive = activityService.touch,
 	bench = benchService.run,
 	benchGuardians = benchService.showGuardians,
@@ -434,7 +436,7 @@ local devService = DevService.new({
 	holdSerpent = serpentService.hold,
 	processReceipt = purchaseService.processReceipt,
 	chooseReadyNowEgg = purchaseService.chooseReadyNowEgg,
-	notePass = purchaseService.notePass,
+	setSubscribed = purchaseService.setSubscribedForTest,
 	setTutorialProgress = tutorialService.setProgress,
 	setCoachDone = coachService.setDone,
 	resetCommunityGift = communityService.reset,
