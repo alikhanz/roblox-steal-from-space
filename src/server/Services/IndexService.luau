@@ -30,8 +30,8 @@ export type Dependencies = {
 export type IndexService = {
 	name: string,
 	start: () -> (),
-	-- The player's index changed (a find, a claim).
-	changed: Signal.Signal<Player>,
+	-- The player's index changed: how (a find, a claim), for the client's copy (decision 142).
+	changed: Signal.Signal<Player, AlienIndex.Change>,
 	-- An alien was found for the first time.
 	discovered: Signal.Signal<Player, string>,
 	-- A reward was taken: the coins, and what for (an alien id, or "Set" for a full set).
@@ -47,7 +47,7 @@ export type IndexService = {
 local IndexService = {}
 
 function IndexService.new(dependencies: Dependencies): IndexService
-	local changed = Signal.new() :: Signal.Signal<Player>
+	local changed = Signal.new() :: Signal.Signal<Player, AlienIndex.Change>
 	local discovered = Signal.new() :: Signal.Signal<Player, string>
 	local rewarded = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, string>
 
@@ -60,7 +60,7 @@ function IndexService.new(dependencies: Dependencies): IndexService
 			isNew = AlienIndex.discover(data.index, alienId)
 		end)
 		if isNew then
-			changed.fire(player)
+			changed.fire(player, { kind = "Found", id = alienId })
 			discovered.fire(player, alienId)
 		end
 	end
@@ -98,7 +98,7 @@ function IndexService.new(dependencies: Dependencies): IndexService
 			return AlienIndex.claim(data.index, alienId)
 		end)
 		if not notice then
-			changed.fire(player)
+			changed.fire(player, { kind = "Claimed", id = alienId })
 			rewarded.fire(player, coins, alienId)
 		end
 		return notice
@@ -113,7 +113,7 @@ function IndexService.new(dependencies: Dependencies): IndexService
 			return AlienIndex.claimSet(data.index, set)
 		end)
 		if not notice then
-			changed.fire(player)
+			changed.fire(player, { kind = "SetClaimed", id = setId })
 			rewarded.fire(player, coins, "Set")
 		end
 		return notice

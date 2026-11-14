@@ -4,7 +4,8 @@
 -- the kiosk, and the shop window that the prompt opens. The window's data comes from
 -- the profile copy (level, coins) and the speed stat; buying is a request to the server, which
 -- answers with UpgradesChanged or a notice (toasted by the bay window controller). The window
--- closes when the player walks away from the kiosk.
+-- closes when the player walks away from the kiosk. The window reads them only while it is open
+-- (decision 141).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -26,6 +27,7 @@ local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
+local WindowView = require(script.Parent.Parent.State.WindowView)
 
 local create = Vide.create
 
@@ -39,7 +41,7 @@ export type Dependencies = {
 	profile: ProfileState.ProfileState,
 	windows: WindowState.WindowState,
 	toasts: ToastState.ToastState,
-	-- The player's speed stat.
+	-- The player's speed stat, on the slow beat (State/PaceState, decision 141).
 	speed: () -> BigNum.BigNum,
 }
 
@@ -52,8 +54,11 @@ local ShopController = {}
 
 function ShopController.new(dependencies: Dependencies): ShopController
 	local profile = dependencies.profile
-	local speed = dependencies.speed
 	local isOpen = dependencies.windows.slot("Shop")
+	-- What the window reads, only while it is open (decision 141).
+	local upgrades = WindowView.of(isOpen, profile.upgrades)
+	local shownCoins = WindowView.of(isOpen, profile.coins)
+	local speed = WindowView.of(isOpen, dependencies.speed)
 	local locale: Text.Locale = "en"
 	-- The prompt that opened the window: walking away from it closes the window.
 	local openedAt: ProximityPrompt? = nil
@@ -68,7 +73,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 	local top = Upgrades.jetpackMaxLevel(tuning)
 
 	local function owned(): number
-		return profile.upgrades().jetpackLevel
+		return upgrades().jetpackLevel
 	end
 
 	local function atTop(): boolean
@@ -83,7 +88,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 
 	local function canBuy(): boolean
 		local price = nextPrice()
-		return price ~= nil and not BigNum.lessThan(profile.coins(), price)
+		return price ~= nil and not BigNum.lessThan(shownCoins(), price)
 	end
 
 	-- A multiplier in full while it has four digits ("×2048" reads better than "×2.04K").
@@ -145,7 +150,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 		if not price or canBuy() then
 			return ""
 		end
-		return text("shop.saving.hint", { coins = BigNum.format(profile.coins()), price = BigNum.format(price) })
+		return text("shop.saving.hint", { coins = BigNum.format(shownCoins()), price = BigNum.format(price) })
 	end
 
 	local function savingShare(): number
@@ -153,7 +158,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 		if not price or BigNum.isZero(price) then
 			return 1
 		end
-		return BigNum.toNumber(BigNum.div(profile.coins(), price))
+		return BigNum.toNumber(BigNum.div(shownCoins(), price))
 	end
 
 	local function close()
@@ -163,9 +168,10 @@ function ShopController.new(dependencies: Dependencies): ShopController
 	local function mountUi(playerGui: Instance)
 		Vide.mount(function()
 			-- A level-up after a buy: a toast with the new jetpack's name.
-			local lastLevel = owned()
+			-- The live level: the answer may come after the window closed.
+			local lastLevel = Vide.untrack(profile.upgrades).jetpackLevel
 			Vide.effect(function()
-				local level = owned()
+				local level = profile.upgrades().jetpackLevel
 				if level > lastLevel and buyAsked then
 					buyAsked = false
 					dependencies.toasts.push(
@@ -185,7 +191,7 @@ function ShopController.new(dependencies: Dependencies): ShopController
 						return isOpen()
 					end,
 					coins = function()
-						return BigNum.format(profile.coins())
+						return BigNum.format(shownCoins())
 					end,
 					texts = {
 						title = text("shop.window.title"),
@@ -196,7 +202,8 @@ function ShopController.new(dependencies: Dependencies): ShopController
 						ladderTitle = text("shop.ladder.title"),
 						owned = text("shop.owned.hint"),
 					},
-					card = card,
+					-- Several properties read the card: once per change.
+					card = Vide.derive(card),
 					atTop = atTop,
 					buyText = function()
 						local price = nextPrice()

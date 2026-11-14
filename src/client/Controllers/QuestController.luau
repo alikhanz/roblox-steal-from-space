@@ -1,8 +1,9 @@
 --!strict
 --# selene: allow(mixed_table) -- Vide declares properties and children in one table
 -- Daily quests on the client: the HUD menu tile (with how many rewards wait), the quests window
--- and the toasts for a finished quest and a reward. Rows come from the profile copy; rewards
--- shown before a claim use the same formula the server pays with (Domain/PlayReward via Pace).
+-- and the toasts for a finished quest and a reward. Rows come from the profile copy, worked out
+-- only while the window is open (decision 141); rewards shown before a claim use the same formula
+-- the server pays with (Domain/PlayReward via PaceState).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,18 +13,18 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local Icons = require(script.Parent.Parent.UI.Icons)
 local MenuState = require(script.Parent.Parent.State.MenuState)
-local Pace = require(script.Parent.Parent.State.Pace)
+local PaceState = require(script.Parent.Parent.State.PaceState)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local QuestConfig = require(ReplicatedStorage.Shared.Config.QuestConfig)
 local QuestWindow = require(script.Parent.Parent.UI.QuestWindow)
 local Quests = require(ReplicatedStorage.Shared.Domain.Quests)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
-local SpeedState = require(script.Parent.Parent.State.SpeedState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
+local WindowView = require(script.Parent.Parent.State.WindowView)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
 
 local create = Vide.create
@@ -55,8 +56,8 @@ local TASK_KEYS: { [ProfileState.QuestKind]: Text.Key } = {
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
-	-- The speed stat: a reward is capped by it (decision 114).
-	speed: SpeedState.SpeedState,
+	-- What rewards pay now, on the slow beat (decision 141); capped by the speed stat (decision 114).
+	pace: PaceState.PaceState,
 	toasts: ToastState.ToastState,
 	windows: WindowState.WindowState,
 	menu: MenuState.MenuState,
@@ -119,12 +120,12 @@ function QuestController.new(dependencies: Dependencies): QuestController
 	local function rewardTexts(quest: ProfileState.Quest): (string, string)
 		local definition = Quests.definition(QuestConfig.DEFINITIONS, quest.kind)
 		local minutes = if definition then definition.rewardMinutes else 0
-		local cap = { share = QuestConfig.MAX_SHARE_OF_EARNED, speed = dependencies.speed.speed }
-		local coins, speed = Pace.reward(profile, minutes, QuestConfig.MIN_REWARD_COINS, true, cap)
+		local coins, speed =
+			dependencies.pace.reward(minutes, QuestConfig.MIN_REWARD_COINS, true, QuestConfig.MAX_SHARE_OF_EARNED)
 		return BigNum.format(coins), BigNum.format(speed)
 	end
 
-	local function rows(): { QuestWindow.Row }
+	local function rowsNow(): { QuestWindow.Row }
 		local current = profile.quests()
 		local pending = readPendingSwap()
 		local result: { QuestWindow.Row } = {}
@@ -149,6 +150,11 @@ function QuestController.new(dependencies: Dependencies): QuestController
 		end
 		return result
 	end
+
+	-- What the window shows: only while it is open (decision 141).
+	local rows = WindowView.of(isOpen, rowsNow)
+	local quests = WindowView.of(isOpen, profile.quests)
+	local shownCoins = WindowView.of(isOpen, profile.coins)
 
 	-- A swap takes two taps: the first asks "Sure?", the second swaps. Unanswered, the question
 	-- goes away by itself.
@@ -214,7 +220,7 @@ function QuestController.new(dependencies: Dependencies): QuestController
 						return isOpen()
 					end,
 					coins = function()
-						return BigNum.format(profile.coins())
+						return BigNum.format(shownCoins())
 					end,
 					rows = rows,
 					texts = {
@@ -225,9 +231,7 @@ function QuestController.new(dependencies: Dependencies): QuestController
 							return text("quests.resetIn.hint", { time = Duration.describe(locale, left) })
 						end,
 						swapHint = function()
-							return if profile.quests().rerolled
-								then text("quests.swapUsed.hint")
-								else text("quests.swap.hint")
+							return if quests().rerolled then text("quests.swapUsed.hint") else text("quests.swap.hint")
 						end,
 						claim = text("quests.claim.button"),
 						swap = text("quests.swap.button"),

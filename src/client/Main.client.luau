@@ -40,7 +40,7 @@ local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
 local MenuState = require(script.Parent.State.MenuState)
 local NewbieViewController = require(script.Parent.Controllers.NewbieViewController)
-local Pace = require(script.Parent.State.Pace)
+local PaceState = require(script.Parent.State.PaceState)
 local PlaceGlideController = require(script.Parent.Controllers.PlaceGlideController)
 local ProfileState = require(script.Parent.State.ProfileState)
 local PromptViewController = require(script.Parent.Controllers.PromptViewController)
@@ -69,6 +69,9 @@ local profileState = ProfileState.new()
 local toastState = ToastState.new()
 local abilityState = AbilityState.new(profileState)
 local speedState = SpeedState.new()
+-- Income, ⚡ and rewards on one slow beat: what follows them is worked out at most that often
+-- (decision 141).
+local paceState = PaceState.new({ profile = profileState, speed = speedState })
 -- The egg the grab button offers, the grab's lock and progress (button, egg prompt, tutorial).
 local grabState = GrabState.new()
 -- One window open at a time: opening one closes the other.
@@ -115,6 +118,7 @@ Lifecycle.run({
 	purchaseState,
 	abilityState,
 	speedState,
+	paceState,
 	grabState,
 	menuState,
 	AimController.new(),
@@ -124,9 +128,7 @@ Lifecycle.run({
 	}),
 	HudController.new({
 		coins = profileState.coins,
-		income = function()
-			return Pace.income(profileState)
-		end,
+		income = paceState.income,
 		toast = toastState.push,
 		abilities = abilityState,
 		-- The plaque's number eases up between the server's batches (decision 134).
@@ -147,7 +149,8 @@ Lifecycle.run({
 	GrabPromptController.new({ grab = grabState }),
 	PromptViewController.new(),
 	EggPurchaseController.new({ purchases = purchaseState }),
-	GuardianViewController.new({ speed = speedState.speed }),
+	-- The signs' colours follow ⚡ on the slow beat (decision 141).
+	GuardianViewController.new({ speed = paceState.speed }),
 	BayViewController.new({ profile = profileState }),
 	alienMotionController,
 	AlienViewController.new({ motion = alienMotionController }),
@@ -164,26 +167,32 @@ Lifecycle.run({
 		profile = profileState,
 		windows = windowState,
 		toasts = toastState,
-		speed = speedState.speed,
+		speed = paceState.speed,
 	}),
 	storeController,
 	CoinBoardController.new(),
 	QuestController.new({
 		profile = profileState,
-		speed = speedState,
+		pace = paceState,
 		toasts = toastState,
 		windows = windowState,
 		menu = menuState,
 	}),
 	LoginGiftController.new({
 		profile = profileState,
-		speed = speedState,
+		pace = paceState,
 		toasts = toastState,
 		welcomeOpen = bayWindowController.welcomeOpen,
 		windows = windowState,
 		menu = menuState,
 	}),
-	IndexController.new({ profile = profileState, toasts = toastState, windows = windowState, menu = menuState }),
+	IndexController.new({
+		profile = profileState,
+		pace = paceState,
+		toasts = toastState,
+		windows = windowState,
+		menu = menuState,
+	}),
 	CommunityController.new({
 		profile = profileState,
 		toasts = toastState,
@@ -208,7 +217,7 @@ Lifecycle.run({
 	ZoneTintController.new(),
 	eventController,
 	SerpentController.new({ events = eventController }),
-	SerpentLabelController.new({ speed = speedState.speed }),
+	SerpentLabelController.new({ speed = paceState.speed }),
 	EggEffectsController.new(),
 	EggBeaconController.new(),
 	HitEffectsController.new(),

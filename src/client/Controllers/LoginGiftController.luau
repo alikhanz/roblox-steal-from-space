@@ -3,7 +3,7 @@
 -- The login gift on the client: the screen that opens by itself when today's gift waits (after
 -- the welcome-back screen), the HUD menu tile with a badge to open it again, and the celebration
 -- when it is taken. Tile gifts are shown with the same formula the server pays with
--- (Domain/PlayReward), from the profile copy.
+-- (Domain/PlayReward), from the profile copy, priced only while the window is up and a gift waits.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,16 +16,16 @@ local LoginGiftConfig = require(ReplicatedStorage.Shared.Config.LoginGiftConfig)
 local LoginGiftWindow = require(script.Parent.Parent.UI.LoginGiftWindow)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
-local Pace = require(script.Parent.Parent.State.Pace)
+local PaceState = require(script.Parent.Parent.State.PaceState)
 local ProfileState = require(script.Parent.Parent.State.ProfileState)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
-local SpeedState = require(script.Parent.Parent.State.SpeedState)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local ToastState = require(script.Parent.Parent.State.ToastState)
 local UtcDay = require(ReplicatedStorage.Shared.Domain.UtcDay)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
+local WindowView = require(script.Parent.Parent.State.WindowView)
 
 local create = Vide.create
 local source = Vide.source
@@ -40,10 +40,13 @@ local CLOSE_AFTER_CLAIM_SECONDS = 1.6
 local PULSE_AMPLITUDE = 0.06
 local PULSE_SPEED = 4
 
+-- A day's gift, formatted.
+type Price = { coins: string, speed: string }
+
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
-	-- The speed stat: a gift is capped by it (decision 114).
-	speed: SpeedState.SpeedState,
+	-- What rewards pay now, on the slow beat (decision 141); capped by the speed stat (decision 114).
+	pace: PaceState.PaceState,
 	toasts: ToastState.ToastState,
 	-- The welcome-back screen is up; the gift waits for it.
 	welcomeOpen: () -> boolean,
@@ -77,14 +80,40 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		return Names.egg(locale, LoginGiftConfig.EGG_RARITY) or "?"
 	end
 
-	-- What each streak day gives right now.
+	local function shown(): boolean
+		return isOpen() and not dependencies.welcomeOpen()
+	end
+
+	-- What each streak day gives, priced only while the window is up and today's gift waits: as
+	-- it comes up, then on the slow beat (decision 141), not on every change of the bay, ⚡ or
+	-- coins earned. A taken gift keeps its last prices for the celebration and is not priced
+	-- again till the next one waits. The server pays by its own count at the claim anyway.
+	local function priceDays(): { Price }
+		local result: { Price } = {}
+		for day, minutes in LoginGiftConfig.MINUTES do
+			local coins, speed = dependencies.pace.reward(
+				minutes,
+				LoginGiftConfig.MIN_REWARD_COINS,
+				true,
+				LoginGiftConfig.MAX_SHARE_OF_EARNED
+			)
+			result[day] = { coins = BigNum.format(coins), speed = BigNum.format(speed) }
+		end
+		return result
+	end
+	local prices = WindowView.of(function(_: boolean?)
+		return shown() and profile.loginGift().available
+	end, priceDays)
+	local shownCoins = WindowView.of(isOpen, profile.coins)
+
+	-- What each streak day gives, as last priced.
 	local function tiles(): { LoginGiftWindow.Tile }
 		local gift = profile.loginGift()
+		local priced = prices()
 		local look = (EggLooks.RARITIES :: any)[LoginGiftConfig.EGG_RARITY]
 		local result: { LoginGiftWindow.Tile } = {}
-		for day, minutes in LoginGiftConfig.MINUTES do
-			local cap = { share = LoginGiftConfig.MAX_SHARE_OF_EARNED, speed = dependencies.speed.speed }
-			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true, cap)
+		for day in LoginGiftConfig.MINUTES do
+			local price = priced[day]
 			-- Taken: days before today, and today once its gift is in.
 			local state: LoginGiftWindow.TileState = if day < gift.day or (day == gift.day and not gift.available)
 				then "Taken"
@@ -92,8 +121,8 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				else "Ahead"
 			table.insert(result, {
 				title = text("gift.day.hint", { day = day }),
-				coins = BigNum.format(coins),
-				speed = BigNum.format(speed),
+				coins = if price then price.coins else "",
+				speed = if price then price.speed else "",
 				egg = if day == LoginGiftConfig.EGG_DAY then eggName() else nil,
 				eggColor = if day == LoginGiftConfig.EGG_DAY and look then look.color else nil,
 				state = state,
@@ -124,11 +153,9 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				end),
 
 				LoginGiftWindow.create({
-					visible = function()
-						return isOpen() and not dependencies.welcomeOpen()
-					end,
+					visible = shown,
 					coins = function()
-						return BigNum.format(profile.coins())
+						return BigNum.format(shownCoins())
 					end,
 					tiles = tiles,
 					title = text("gift.window.title"),

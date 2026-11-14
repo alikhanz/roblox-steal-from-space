@@ -266,11 +266,9 @@ function NetService.new(dependencies: Dependencies): NetService
 			end
 		end)
 		local alienIndex = dependencies.index
-		alienIndex.changed.connect(function(player)
-			local data = dependencies.getData(player)
-			if data then
-				Remotes.IndexChanged.Fire(player, indexOf(data))
-			end
+		-- The whole index goes only in the snapshot; after it, each find and claim (decision 142).
+		alienIndex.changed.connect(function(player, change)
+			Remotes.IndexChanged.Fire(player, change)
 		end)
 		alienIndex.rewarded.connect(function(player, coins)
 			Remotes.IndexRewarded.Fire(player, wire(coins))

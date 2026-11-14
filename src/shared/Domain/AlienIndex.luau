@@ -145,4 +145,30 @@ function AlienIndex.openingSet(state: State, sets: { Set }, fallback: { Set }): 
 	return nil
 end
 
+-- One change of an index, as the server sends it to the client's copy instead of the whole
+-- index (decision 142): an alien found, an alien's reward taken, a set's reward taken (`id` is
+-- then the set id).
+export type ChangeKind = "Found" | "Claimed" | "SetClaimed"
+export type Change = {
+	kind: ChangeKind,
+	id: string,
+}
+
+-- `state` with `change` made, as a new table (the old one stays as it was, so a reactive copy
+-- sees the change). A change already in it gives the same contents again.
+function AlienIndex.applied(state: State, change: Change): State
+	local found = table.clone(state.found)
+	local sets = table.clone(state.sets)
+	if change.kind == "Found" then
+		if found[change.id] == nil then
+			found[change.id] = false
+		end
+	elseif change.kind == "Claimed" then
+		found[change.id] = true
+	elseif not table.find(sets, change.id) then
+		table.insert(sets, change.id)
+	end
+	return { found = found, sets = sets }
+end
+
 return table.freeze(AlienIndex)

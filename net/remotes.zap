@@ -131,6 +131,13 @@ type Index = struct {
 	sets: string.utf8[],
 }
 
+-- One change of the index (Domain/AlienIndex.Change): an alien found, an alien's reward taken, a
+-- set's reward taken (`id` is then the set id).
+type IndexChange = struct {
+	kind: enum { Found, Claimed, SetClaimed },
+	id: string.utf8,
+}
+
 -- Where the login gift streak stands today (Domain/LoginGift).
 type LoginGift = struct {
 	-- The streak day of today's gift (or of the one taken today), 1..7.
@@ -255,11 +262,13 @@ event CoachChanged = {
 	data: CoachTip?,
 }
 
+-- One change of the index after the snapshot (decision 142): a find or a taken reward, not the
+-- whole index (it grows to hundreds of aliens).
 event IndexChanged = {
 	from: Server,
 	type: Reliable,
 	call: SingleSync,
-	data: Index,
+	data: IndexChange,
 }
 
 -- An index reward was taken: the coins it paid.

@@ -364,9 +364,13 @@ local function DayTile(props: Props, index: number): Frame
 end
 
 function LoginGiftWindow.create(props: Props, dayCount: number): Frame
+	-- Every tile reads the list in each of its properties: worked out once per change, not once
+	-- per read (each read priced all seven days, ~1700 rewards a second; docs/plans/NET_TRAFFIC.md).
+	local shared = table.clone(props)
+	shared.tiles = Vide.derive(props.tiles)
 	local tiles = {}
 	for index = 1, dayCount do
-		table.insert(tiles, DayTile(props, index))
+		table.insert(tiles, DayTile(shared, index))
 	end
 
 	return NeonWindow({

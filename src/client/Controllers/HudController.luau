@@ -94,12 +94,13 @@ end)()
 
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
-	-- What the aliens on spots earn a second (decision 110): a small line under the coins.
+	-- What the aliens on spots earn a second (decision 110): a small line under the coins. On the
+	-- slow beat (State/PaceState, decision 141).
 	income: () -> BigNum.BigNum,
 	-- Shows a short message (grabbed, delivered or dropped egg).
 	toast: Toasts.Push,
 	abilities: AbilityState.AbilityState,
-	-- The player's speed stat.
+	-- The player's speed stat, live: the plaque and the speed goal.
 	speed: () -> BigNum.BigNum,
 	-- True once the profile arrived; numbers show a dash before that.
 	loaded: () -> boolean,
@@ -340,10 +341,6 @@ function HudController.new(dependencies: Dependencies): HudController
 			return inputMode() == Enum.PreferredInput.Touch
 		end
 
-		local function goal(): SpeedGoal.Goal?
-			return SpeedGoal.next(speed(), RECOMMENDED)
-		end
-
 		-- One tile per menu slot, in the slots' order; a slot no window has added stays hidden.
 		local function menuTiles(): { Instance }
 			local tiles: { Instance } = {}
@@ -398,6 +395,11 @@ function HudController.new(dependencies: Dependencies): HudController
 
 		-- Components are created inside mount: their reactive properties need Vide's scope.
 		Vide.mount(function()
+			-- The next guardian to grow towards, live with the plaque's number: once per change
+			-- (several properties read it), a few comparisons and logarithms.
+			local goal = Vide.derive(function(): SpeedGoal.Goal?
+				return SpeedGoal.next(speed(), RECOMMENDED)
+			end)
 			-- A guardian comes within reach: cheer. The first reading only notes where the player is.
 			local lastGoal: number? = nil
 			Vide.effect(function()

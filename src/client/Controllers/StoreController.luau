@@ -26,6 +26,7 @@ local UpgradeConfig = require(ReplicatedStorage.Shared.Config.UpgradeConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local Vide = require(ReplicatedStorage.Packages.Vide)
 local WindowState = require(script.Parent.Parent.State.WindowState)
+local WindowView = require(script.Parent.Parent.State.WindowView)
 
 local create = Vide.create
 
@@ -81,7 +82,12 @@ function StoreController.new(dependencies: Dependencies): StoreController
 	end
 
 	-- Server time, a tick a second: the weeks count down.
-	local clock = Vide.source(workspace:GetServerTimeNow())
+	local serverTime = Vide.source(workspace:GetServerTimeNow())
+	-- What the window reads, only while it is open (decision 141).
+	local clock = WindowView.of(isOpen, serverTime)
+	local bay = WindowView.of(isOpen, profile.bay)
+	local upgrades = WindowView.of(isOpen, profile.upgrades)
+	local shownCoins = WindowView.of(isOpen, profile.coins)
 
 	-- The left column shows weeks, not subscriptions: Roblox lets the player subscribe to neither
 	-- perk and they have neither subscription, but a week is on sale.
@@ -102,20 +108,20 @@ function StoreController.new(dependencies: Dependencies): StoreController
 	local function open(from: MonetizationConfig.ShopSource)
 		openedFrom = from
 		purchases.refreshPrices()
-		clock(workspace:GetServerTimeNow())
+		serverTime(workspace:GetServerTimeNow())
 		isOpen(true)
 	end
 
 	-- The speed stat a training pack of `seconds` adds now (Purchases.trainingPack, as the server).
 	local function packSpeed(seconds: number): BigNum.BigNum
-		local upgrades = profile.upgrades()
-		local rate = Purchases.trainerRate(upgrades.trainerLevel, purchases.trainerMultiplier(), UpgradeConfig.TUNING)
-		local jetpack = Upgrades.jetpackMultiplier(upgrades.jetpackLevel, UpgradeConfig.TUNING)
+		local levels = upgrades()
+		local rate = Purchases.trainerRate(levels.trainerLevel, purchases.trainerMultiplier(), UpgradeConfig.TUNING)
+		local jetpack = Upgrades.jetpackMultiplier(levels.jetpackLevel, UpgradeConfig.TUNING)
 		return Purchases.trainingPack(rate, seconds, jetpack).speed
 	end
 
 	local function slotTier(): number
-		return Purchases.slotTier(profile.bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
+		return Purchases.slotTier(bay().incubatorSlots, MonetizationConfig.SLOT_TIER_LAST)
 	end
 
 	local function subscriptionCards(): { StoreWindow.Pass }
@@ -223,13 +229,13 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		end
 		-- "Egg ready now" is not here: it is sold on the egg itself (decision 063).
 		local function hasRoom(): boolean
-			return profile.bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
+			return bay().incubatorSlots < BayConfig.MAX_INCUBATOR_SLOTS
 		end
 		table.insert(cards, {
 			title = text("store.slot.title"),
 			-- Slots now and after the purchase.
 			value = function()
-				local slots = profile.bay().incubatorSlots
+				local slots = bay().incubatorSlots
 				return if hasRoom()
 					then text("store.slotGrow.hint", { from = slots, to = slots + 1 })
 					else tostring(slots)
@@ -293,7 +299,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 						return isOpen()
 					end,
 					coins = function()
-						return BigNum.format(profile.coins())
+						return BigNum.format(shownCoins())
 					end,
 					texts = {
 						title = text("store.window.title"),
@@ -338,7 +344,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		task.spawn(function()
 			while true do
 				task.wait(1)
-				clock(workspace:GetServerTimeNow())
+				serverTime(workspace:GetServerTimeNow())
 			end
 		end)
 		purchases.granted.connect(announce)
