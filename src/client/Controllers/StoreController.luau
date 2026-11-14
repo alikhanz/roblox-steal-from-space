@@ -80,8 +80,24 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		return PurchaseState.priceText(locale, value)
 	end
 
-	-- Server time, a tick a second while the window is open: the weeks count down.
+	-- Server time, a tick a second: the weeks count down.
 	local clock = Vide.source(workspace:GetServerTimeNow())
+
+	-- The left column shows weeks, not subscriptions: Roblox lets the player subscribe to neither
+	-- perk and they have neither subscription, but a week is on sale.
+	local function weeksShown(): boolean
+		for _, perk in MonetizationConfig.SUBSCRIPTION_ORDER do
+			if purchases.isSubscribed(perk) or purchases.sellsSubscription(perk) then
+				return false
+			end
+		end
+		for _, perk in MonetizationConfig.SUBSCRIPTION_ORDER do
+			if purchases.sellsWeek(perk) then
+				return true
+			end
+		end
+		return false
+	end
 
 	local function open(from: MonetizationConfig.ShopSource)
 		openedFrom = from
@@ -136,10 +152,10 @@ function StoreController.new(dependencies: Dependencies): StoreController
 				end,
 				icon = looks.icon,
 				color = looks.color,
+				-- A week's price bare: the column says "7 days" (and a longer button cut the name).
 				price = function()
 					if mode() == "Week" then
-						local value = purchases.weekPrice(subscription)
-						return text("store.perWeek.hint", { price = if value then tostring(value) else "…" })
+						return price(purchases.weekPrice(subscription))
 					end
 					local value = purchases.subscriptionPrice(subscription)
 					return text("store.perMonth.hint", { price = value or "…" })
@@ -282,7 +298,9 @@ function StoreController.new(dependencies: Dependencies): StoreController
 					texts = {
 						title = text("store.window.title"),
 						hint = text("store.window.hint"),
-						forever = text("store.monthly.title"),
+						forever = function()
+							return if weeksShown() then text("store.weekly.title") else text("store.monthly.title")
+						end,
 						now = text("store.now.title"),
 						owned = text("store.subscribed.hint"),
 					},
@@ -320,9 +338,7 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		task.spawn(function()
 			while true do
 				task.wait(1)
-				if isOpen() then
-					clock(workspace:GetServerTimeNow())
-				end
+				clock(workspace:GetServerTimeNow())
 			end
 		end)
 		purchases.granted.connect(announce)

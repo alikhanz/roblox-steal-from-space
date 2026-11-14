@@ -1406,9 +1406,9 @@ local Strings = {
 	},
 	-- A week of a subscription's perk as a one-off, for a player Roblox does not let subscribe
 	-- (decision 140): its price, how long a running one still lasts.
-	["store.perWeek.hint"] = {
-		ru = "R$ {price}/7 дн.",
-		en = "R$ {price}/7 days",
+	["store.weekly.title"] = {
+		ru = "На 7 дней",
+		en = "For 7 days",
 	},
 	["store.weekLeft.hint"] = {
 		ru = "Действует ещё {time}",

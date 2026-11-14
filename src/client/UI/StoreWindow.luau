@@ -80,7 +80,8 @@ export type Product = {
 export type Texts = {
 	title: string,
 	hint: string,
-	forever: string,
+	-- The left column's title: "Monthly", or "7 days" while it shows weeks (decision 140).
+	forever: () -> string,
 	now: string,
 	owned: string,
 }
@@ -94,7 +95,7 @@ export type Props = {
 	onClose: () -> (),
 }
 
-local function head(name: string, text: string): TextLabel
+local function head(name: string, text: string | () -> string): TextLabel
 	return create("TextLabel")({
 		Name = name,
 		LayoutOrder = 0,
