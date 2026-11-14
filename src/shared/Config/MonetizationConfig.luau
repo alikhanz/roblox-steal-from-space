@@ -26,8 +26,8 @@ export type Product = {
 	read tier: number?,
 }
 
--- One game's ids: its subscriptions (Roblox's "EXP-…" ids; none yet: not offered) and its
--- products, by Roblox id.
+-- One game's ids: its subscriptions (Roblox's "EXP-…" ids; a game without them offers none) and
+-- its products, by Roblox id.
 export type GameCatalog = {
 	read subscriptions: { [Purchases.SubscriptionId]: string },
 	read products: { [number]: Product },
@@ -56,7 +56,10 @@ local TRAINING_PACK_SECONDS = { HOUR, 8 * HOUR, 24 * HOUR }
 local GAMES: { [number]: GameCatalog } = {
 	-- Steal from Space Dev (created 2026-11-06).
 	[10774871729] = {
-		subscriptions = {},
+		subscriptions = {
+			DoubleTraining = "EXP-1517120272369582672",
+			NightShift = "EXP-3561621462288826877",
+		},
 		products = {
 			[3728652464] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[1] },
 			[3728652573] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[2] },
@@ -84,7 +87,10 @@ local GAMES: { [number]: GameCatalog } = {
 	},
 	-- Fly & Steal Space Eggs, the Prod game owned by the community (created 2026-11-11).
 	[10775754016] = {
-		subscriptions = {},
+		subscriptions = {
+			DoubleTraining = "EXP-3043727158911566296",
+			NightShift = "EXP-6169272579306684973",
+		},
 		products = {
 			[3730276086] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[1] },
 			[3730276256] = { kind = "Training", seconds = TRAINING_PACK_SECONDS[2] },
