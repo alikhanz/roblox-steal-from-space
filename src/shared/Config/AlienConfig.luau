@@ -129,10 +129,10 @@ local TIERS: { [TierId]: Tier } = {
 local INCOME_BASE = BigNum.fromNumber(2)
 local INCOME_GROWTH = BigNum.fromNumber(1.7)
 -- Every alien earns its own share of that (decision 130): a whole percent rolled once when it comes
--- to be, the sum of `dice` even throws from `min` to `max` (Domain/AlienIncome): mostly near 100,
--- the ends seldom (with two dice 125 % or more is about one in 46), so the perfect pet is worth
--- another trip.
-local INCOME_ROLL = { min = 70, max = 130, dice = 2 }
+-- to be, the sum of `dice` even throws from `min` to `max` (Domain/AlienIncome). One die: every
+-- percent as likely (decision 133: with two, the user saw "mostly minuses"), so a lucky pet (125 %
+-- or more) comes one egg in ten, and an unlucky one as often.
+local INCOME_ROLL = { min = 70, max = 130, dice = 1 }
 -- Each guardian's aliens stand this many times bigger than the previous one's (decisions 068,
 -- 083): the last guardian's legendary model is about six times a player's height and ~30 studs
 -- wide, so 30 of them from all over the map stand on an island without crowding.

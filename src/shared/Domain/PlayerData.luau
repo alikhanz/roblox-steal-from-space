@@ -146,7 +146,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 23
+PlayerData.SCHEMA_VERSION = 24
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -360,6 +360,24 @@ PlayerData.MIGRATIONS = {
 			roll(record)
 		end
 		data.passes = nil
+	end,
+	-- v24: the roll is even across 70–130, no longer a bell (decision 133), and every alien from
+	-- before rolls once more, as a new one would (user: «пересчитаем у игроков их петов»), in the
+	-- places and on the shelf. The profile is saved at v24: this step never runs on it again.
+	[23] = function(data: { [string]: any }, context: LoadContext)
+		local function reroll(record: any)
+			if type(record) == "table" then
+				record.incomePercent = AlienIncome.draw(context.nextInteger)
+			end
+		end
+		for _, pod in if type(data.pods) == "table" then data.pods else {} do
+			if type(pod) == "table" then
+				reroll(pod.alien)
+			end
+		end
+		for _, record in if type(data.floor) == "table" then data.floor else {} do
+			reroll(record)
+		end
 	end,
 } :: { [number]: Migrations.Step }
 

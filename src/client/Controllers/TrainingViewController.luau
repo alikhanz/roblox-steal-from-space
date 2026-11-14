@@ -1,7 +1,8 @@
 --!strict
--- Floating "+12 ⚡" numbers over the local character while the trainer pays out: each payout
--- pops a label at the head that drifts up and fades. The HUD number itself follows the speed
--- attributes, so this is only the celebration.
+-- Floating "+12 ⚡" numbers over the local character while they train (in flight or on the
+-- stand): each batch from the server (about a second, decision 134) pops one label at the head
+-- that drifts up and fades, living a little longer than the batch, so the pops flow one into the
+-- next. The HUD number itself eases up by SpeedState, so this is only the celebration.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +22,7 @@ local TEXT_SIZE = 24
 local START_STUDS_ABOVE = 1.6
 local RISE_STUDS = 2
 local SCATTER_STUDS = 0.8
-local RISE_SECONDS = 1.1
+local RISE_SECONDS = 1.6
 local TEXT_STROKE_TRANSPARENCY = 0.4
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 
@@ -43,7 +44,7 @@ local TrainingViewController = {}
 
 function TrainingViewController.new(dependencies: Dependencies): TrainingViewController
 	local random = Random.new()
-	-- Pops are reused (four a second while training; CONVENTIONS: frequent effects come from a
+	-- Pops are reused (one a second while training; CONVENTIONS: frequent effects come from a
 	-- pool). They live in PlayerGui, adorned to the head, so a respawn takes none of them away.
 	local free: { Pop } = {}
 	local playerGui: Instance? = nil

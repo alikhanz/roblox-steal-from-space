@@ -16,6 +16,8 @@ local source = Vide.source
 -- The shapes come from the network contract (net/remotes.zap), so client and server can never
 -- disagree on them.
 export type Alien = Remotes.Alien
+-- Where a batch of training came from (Domain/Upgrades.TrainingSource).
+export type TrainingSource = "Flight" | "Stand"
 export type Pod = Remotes.Pod
 export type Egg = Remotes.Egg
 export type WaitingEgg = Remotes.WaitingEgg
@@ -50,8 +52,8 @@ export type ProfileState = {
 	index: Vide.Source<Index>,
 	-- True once the first snapshot arrived.
 	loaded: Vide.Source<boolean>,
-	-- The trainer paid out: speed points gained this tick.
-	trained: Signal.Signal<BigNum.BigNum>,
+	-- A batch of training (about a second, decision 134): speed points gained, and where.
+	trained: Signal.Signal<BigNum.BigNum, TrainingSource>,
 	-- Paid on login for the time away: coins earned, speed gained, the seconds away, the eggs
 	-- ready to hatch and the "Collect x2" tier that pays it once more (0: nothing to pay).
 	offlineReward: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number, number, number>,
@@ -86,7 +88,7 @@ function ProfileState.new(): ProfileState
 	local index = source({ found = {}, sets = {} } :: Index)
 	local indexRewarded = Signal.new() :: Signal.Signal<BigNum.BigNum>
 	local loaded = source(false)
-	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum>
+	local trained = Signal.new() :: Signal.Signal<BigNum.BigNum, TrainingSource>
 	local offlineReward = Signal.new() :: Signal.Signal<BigNum.BigNum, BigNum.BigNum, number, number, number>
 	local hatched = Signal.new() :: Signal.Signal<string, Location, number>
 	local crossbred = Signal.new() :: Signal.Signal<string, Location, number>
@@ -160,9 +162,9 @@ function ProfileState.new(): ProfileState
 			upgrades(value)
 		end)
 		Remotes.Trained.SetCallback(function(value)
-			local gain = BigNum.fromSaved(value)
+			local gain = BigNum.fromSaved(value.gain)
 			if gain then
-				trained.fire(gain)
+				trained.fire(gain, value.source)
 			end
 		end)
 		Remotes.BayChanged.SetCallback(function(value)

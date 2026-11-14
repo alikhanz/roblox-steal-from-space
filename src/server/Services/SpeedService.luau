@@ -51,7 +51,11 @@ function SpeedService.new(dependencies: Dependencies): SpeedService
 		player:SetAttribute(SpeedConfig.EXPONENT_ATTRIBUTE, speed.exponent)
 		local character = player.Character
 		if character then
-			character:SetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE, Speed.flightSpeed(speed, SpeedConfig.FLIGHT))
+			local flightSpeed = Speed.flightSpeed(speed, SpeedConfig.FLIGHT)
+			local current = character:GetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE)
+			if type(current) ~= "number" or math.abs(flightSpeed - current) >= SpeedConfig.FLIGHT_SPEED_STEP then
+				character:SetAttribute(SpeedConfig.FLIGHT_SPEED_ATTRIBUTE, flightSpeed)
+			end
 		end
 	end
 

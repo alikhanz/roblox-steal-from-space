@@ -320,12 +320,16 @@ event UpgradesChanged = {
 	data: Upgrades,
 }
 
--- One payout of the trainer: speed points gained this tick, for the floating number.
+-- A batch of training (about a second, decision 134): the speed points gained and where, for the
+-- floating number and the trainer's sound.
 event Trained = {
 	from: Server,
 	type: Reliable,
 	call: SingleSync,
-	data: BigNum,
+	data: struct {
+		gain: BigNum,
+		source: enum { Flight, Stand },
+	},
 }
 
 event BayChanged = {

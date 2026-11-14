@@ -221,8 +221,8 @@ function NetService.new(dependencies: Dependencies): NetService
 				Remotes.CoinsChanged.Fire(player, wire(data.coins))
 			end
 		end)
-		dependencies.trained.connect(function(player, gain)
-			Remotes.Trained.Fire(player, wire(gain))
+		dependencies.trained.connect(function(player, gain, _seconds, source)
+			Remotes.Trained.Fire(player, { gain = wire(gain), source = source })
 		end)
 		dependencies.abilityUsed.connect(function(player, kind, hit, droppedEgg)
 			Remotes.AbilityResult.Fire(player, { kind = kind, hit = hit, droppedEgg = droppedEgg })

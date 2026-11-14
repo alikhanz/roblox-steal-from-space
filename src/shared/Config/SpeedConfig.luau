@@ -33,4 +33,8 @@ return table.freeze({
 	-- Character attribute: top flight speed without an egg, studs per second (the simulation
 	-- reads it; the server derives it from the stat so the simulation never touches BigNum).
 	FLIGHT_SPEED_ATTRIBUTE = "FlightSpeed",
+	-- The server writes FlightSpeed again only once it moved by this much, studs per second: the
+	-- character is a predicted instance, and every write from outside the simulation reaches its
+	-- owner as a correction (decision 134).
+	FLIGHT_SPEED_STEP = 0.5,
 })

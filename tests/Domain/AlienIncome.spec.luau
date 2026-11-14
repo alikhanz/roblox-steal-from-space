@@ -24,23 +24,39 @@ describe("AlienIncome.roll", function()
 		expect(highest).toBe(130)
 	end)
 
-	it("comes out near the middle far more often than at the ends", function()
+	it("comes out evenly across the tuning (decision 133)", function()
 		local nextInteger = AlienOutfit.sequence(11)
-		local middle, ends, total = 0, 0, 0
-		for _ = 1, 4000 do
+		local low, high, lucky, total = 0, 0, 0, 0
+		local draws = 6100
+		for _ = 1, draws do
 			local percent = AlienIncome.draw(nextInteger)
 			expect(percent >= 70 and percent <= 130 and percent % 1 == 0).toBe(true)
 			total += percent
-			if percent >= 90 and percent <= 110 then
-				middle += 1
-			elseif percent >= 125 or percent <= 75 then
-				ends += 1
+			if percent < 100 then
+				low += 1
+			elseif percent > 100 then
+				high += 1
+			end
+			if percent >= 125 then
+				lucky += 1
 			end
 		end
-		-- Two dice: about 56 % within ±10 and about 4 % at the far ends; the mean is 100.
+		-- One die over 61 values: 30 of them below 100 and 30 above, 6 at 125 or more; mean 100.
+		expect(math.abs(low - high) < draws * 0.05).toBe(true)
+		expect(math.abs(lucky / draws - 6 / 61) < 0.03).toBe(true)
+		expect(math.abs(total / draws - 100) < 1.5).toBe(true)
+	end)
+
+	it("comes out near the middle with two dice", function()
+		local nextInteger = AlienOutfit.sequence(11)
+		local middle = 0
+		for _ = 1, 4000 do
+			local percent = AlienIncome.roll({ min = 70, max = 130, dice = 2 }, nextInteger)
+			if percent >= 90 and percent <= 110 then
+				middle += 1
+			end
+		end
 		expect(middle > 4000 * 0.5).toBe(true)
-		expect(ends < 4000 * 0.07).toBe(true)
-		expect(math.abs(total / 4000 - 100) < 1.5).toBe(true)
 	end)
 
 	it("refuses a span its dice cannot split evenly", function()

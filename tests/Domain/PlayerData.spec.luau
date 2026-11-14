@@ -965,6 +965,76 @@ describe("PlayerData migration v20 -> v21", function()
 	end)
 end)
 
+describe("PlayerData migration v23 -> v24", function()
+	-- A profile from the bell-shaped rolls (decision 130): every alien already has one.
+	local function v23(): { [string]: any }
+		local old = savedTemplate()
+		old.schemaVersion = 23
+		old.pods[1].alien = alien(1, nil, 88)
+		old.pods[2].alien = alien(2, "DebrisBelt1.slimeWarden.Legendary", 103)
+		old.floor = { alien(3, nil, 97), alien(4, nil, 112) }
+		old.nextUid = 5
+		return old
+	end
+
+	local function rolls(data: PlayerData.PlayerData): { [number]: number }
+		local found: { [number]: number } = {}
+		for _, pod in data.pods do
+			if pod.alien then
+				found[pod.alien.uid] = pod.alien.incomePercent
+			end
+		end
+		for _, record in data.floor do
+			found[record.uid] = record.incomePercent
+		end
+		return found
+	end
+
+	it("rolls every alien in places and on the shelf again, evenly (decision 133)", function()
+		local outcome = PlayerData.load(v23(), DEFAULTS, {
+			nextInteger = function(_min: number, max: number): number
+				return max
+			end,
+		})
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(24)
+			-- One die: its highest face is the top of the tuning, whatever the alien had.
+			expect(rolls(outcome.data)).toEqual({ [1] = 130, [2] = 130, [3] = 130, [4] = 130 })
+		end
+	end)
+
+	it("keeps everything else of the aliens", function()
+		local outcome = load(v23())
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			local legendary = outcome.data.pods[2].alien :: PlayerData.AlienRecord
+			expect(legendary.uid).toBe(2)
+			expect(legendary.id).toBe("DebrisBelt1.slimeWarden.Legendary")
+			expect(#outcome.data.floor).toBe(2)
+		end
+	end)
+
+	it("runs once: the new roll stays on every later load", function()
+		local first = PlayerData.load(v23(), DEFAULTS, { nextInteger = AlienOutfit.sequence(5) })
+		expect(first.ok).toBe(true)
+		if first.ok then
+			local before = rolls(first.data)
+			for seed = 1, 5 do
+				local again = PlayerData.load(
+					Tables.deepCopy(first.data) :: any,
+					DEFAULTS,
+					{ nextInteger = AlienOutfit.sequence(seed) }
+				)
+				expect(again.ok).toBe(true)
+				if again.ok then
+					expect(rolls(again.data)).toEqual(before)
+				end
+			end
+		end
+	end)
+end)
+
 describe("PlayerData migration v22 -> v23", function()
 	-- A profile from before income rolls (decision 130) and subscriptions (decision 132): aliens in
 	-- places and on the shelf with no roll, and the copy of the old permanent passes.
@@ -997,7 +1067,7 @@ describe("PlayerData migration v22 -> v23", function()
 		local outcome = PlayerData.load(v22(), DEFAULTS, { nextInteger = AlienOutfit.sequence(3) })
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
-			expect(outcome.data.schemaVersion).toBe(23)
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			local roll = AlienConfig.INCOME_ROLL
 			local found = rolls(outcome.data)
 			for uid = 1, 4 do

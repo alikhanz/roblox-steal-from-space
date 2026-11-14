@@ -129,7 +129,8 @@ Lifecycle.run({
 		end,
 		toast = toastState.push,
 		abilities = abilityState,
-		speed = speedState.speed,
+		-- The plaque's number eases up between the server's batches (decision 134).
+		speed = speedState.shown,
 		loaded = profileState.loaded,
 		menu = menuState,
 		tutorialLine = tutorialController.line,

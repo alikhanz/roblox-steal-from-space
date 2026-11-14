@@ -38,7 +38,8 @@ export type Dependencies = {
 export type TrainingService = {
 	name: string,
 	start: () -> (),
-	-- Fires on every payout: the player, the speed points gained, the seconds trained and where.
+	-- Fires once a batch (about a second of training, or less when it stopped or moved): the
+	-- player, the speed points gained, the seconds trained and where.
 	trained: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>,
 }
 
@@ -72,8 +73,26 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 		describe(player, station)
 	end
 
+	-- Training already in the profile but not yet told: the speed attributes, the client's pops
+	-- and the analytics hear of it once a batch (UpgradeConfig.TRAINING_BATCH_SECONDS, decision
+	-- 134). Telling every tick sent the HUD, the pops and the predicted character's FlightSpeed four
+	-- updates a second in flight, and the client saw them arrive in jerks.
+	type Batch = { gain: BigNum.BigNum, seconds: number, source: Upgrades.TrainingSource }
+	local batches: { [Player]: Batch } = {}
+
+	local function flush(player: Player)
+		local batch = batches[player]
+		if not batch then
+			return
+		end
+		batches[player] = nil
+		dependencies.publishSpeed(player)
+		trained.fire(player, batch.gain, batch.seconds, batch.source)
+	end
+
 	local function release(player: Player)
 		stations[player] = nil
+		batches[player] = nil
 	end
 
 	-- Where the player trains now: in space, alive (oxygen ends a flight within minutes, so no
@@ -96,6 +115,12 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 	local function tick(deltaTime: number)
 		for _, player in Players:GetPlayers() do
 			local source = sourceOf(player)
+			local batch = batches[player]
+			-- Training stopped or moved (stand to flight): what was gathered is told at once.
+			if batch and batch.source ~= source then
+				flush(player)
+				batch = nil
+			end
 			if not source then
 				continue
 			end
@@ -107,9 +132,19 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 				gain = Upgrades.trainingGain(rate, deltaTime, UpgradeConfig.TRAINING_FACTORS[source])
 				data.trained = BigNum.add(data.trained, gain :: BigNum.BigNum)
 			end)
-			if gain then
-				dependencies.publishSpeed(player)
-				trained.fire(player, gain :: BigNum.BigNum, deltaTime, source)
+			if not gain then
+				continue
+			end
+			-- In the profile at once (nothing is lost on leaving); told by the batch.
+			if batch then
+				batch.gain = BigNum.add(batch.gain, gain :: BigNum.BigNum)
+				batch.seconds += deltaTime
+			else
+				batch = { gain = gain :: BigNum.BigNum, seconds = deltaTime, source = source }
+				batches[player] = batch
+			end
+			if (batch :: Batch).seconds >= UpgradeConfig.TRAINING_BATCH_SECONDS - 1e-6 then
+				flush(player)
 			end
 		end
 	end

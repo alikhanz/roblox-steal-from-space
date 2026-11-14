@@ -168,9 +168,10 @@ function FlightSoundController.new(dependencies: Dependencies): FlightSoundContr
 
 	local function start()
 		local lastTickAt = -math.huge
-		dependencies.profile.trained.connect(function()
+		-- The trainer's tick is the stand's sound: a flight trains quietly (decision 131).
+		dependencies.profile.trained.connect(function(_gain, source)
 			local now = os.clock()
-			if now - lastTickAt >= SoundLooks.TRAINER_TICK_SECONDS then
+			if source == "Stand" and now - lastTickAt >= SoundLooks.TRAINER_TICK_SECONDS then
 				lastTickAt = now
 				SoundPlayer.play("TrainerTick")
 			end

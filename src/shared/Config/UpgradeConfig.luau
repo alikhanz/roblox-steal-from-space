@@ -29,9 +29,11 @@ local TUNING: Upgrades.Tuning = {
 return table.freeze({
 	TUNING = table.freeze(TUNING),
 
-	-- Training pays out this often while its owner flies or stands on the stand: quick numbers
-	-- feel alive.
+	-- Training goes into the profile this often while its owner flies or stands on the stand...
 	TRAINING_TICK_SECONDS = 0.25,
+	-- ...and is told this often, in one batch (decision 134): the speed stat, the floating
+	-- "+N ⚡" and the analytics. The client eases the number up over the batch.
+	TRAINING_BATCH_SECONDS = 1,
 	-- Shares of the trainer's rate (decision 131): flying in space trains at the full rate, so the
 	-- way to grow is to go out after eggs; the stand, safe at home, at half of it.
 	TRAINING_FACTORS = table.freeze({ Flight = 1, Stand = 0.5 } :: { [Upgrades.TrainingSource]: number }),
