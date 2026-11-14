@@ -37,7 +37,7 @@ local SUBSCRIPTION_TUNING: Purchases.Tuning = {
 	doubleTrainingMultiplier = 2,
 	-- The night away trains at the full rate of a flight and earns twice the free time (user,
 	-- 2026-11-14: «ночная тренировка 100%»): by `lune run balance` the Whale in 26 days instead of
-	-- 58, a little faster than with Double training (37).
+	-- 56, faster than with Double training (36).
 	nightShiftTrainingFactor = 1,
 	nightShiftIncomeCapSeconds = 8 * 60 * 60,
 	nightShiftTrainingCapSeconds = UpgradeConfig.OFFLINE_TRAINING_CAP_SECONDS,
