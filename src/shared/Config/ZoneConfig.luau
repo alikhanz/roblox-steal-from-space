@@ -46,7 +46,8 @@ local function zone(
 	id: ZoneId,
 	nameKey: keyof<typeof(Strings)>,
 	-- Where its nests lie (see Zone) and how many each guardian post has: the far rings are much
-	-- longer, so they get more (decision 057).
+	-- longer, so they get more (decisions 057, 135: enough that every guardian of the zone stands
+	-- near the way out from any island).
 	ring: { min: number, max: number, height: number, nestsPerPost: number },
 	rarityLoot: { Loot.Entry<EggConfig.RarityId> },
 	sizeLoot: { Loot.Entry<EggConfig.SizeId> }
@@ -70,7 +71,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		min = pastBorder(135),
 		max = pastBorder(330),
 		height = 90,
-		nestsPerPost = 4,
+		nestsPerPost = 6,
 	}, {
 		{ id = "Common", weight = 72 },
 		{ id = "Uncommon", weight = 23 },
@@ -84,7 +85,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		min = pastBorder(625),
 		max = pastBorder(965),
 		height = 160,
-		nestsPerPost = 5,
+		nestsPerPost = 7,
 	}, {
 		{ id = "Common", weight = 52 },
 		{ id = "Uncommon", weight = 33 },
@@ -99,7 +100,7 @@ local ZONES: { [ZoneId]: Zone } = {
 		min = pastBorder(1295),
 		max = pastBorder(1790),
 		height = 230,
-		nestsPerPost = 6,
+		nestsPerPost = 9,
 	}, {
 		{ id = "Common", weight = 40 },
 		{ id = "Uncommon", weight = 37 },
@@ -114,7 +115,7 @@ local ZONES: { [ZoneId]: Zone } = {
 	EventHorizon = zone(
 		"EventHorizon",
 		"zone.eventHorizon.title",
-		{ min = pastBorder(2150), max = pastBorder(2750), height = 300, nestsPerPost = 7 },
+		{ min = pastBorder(2150), max = pastBorder(2750), height = 300, nestsPerPost = 10 },
 		{
 			{ id = "Common", weight = 30 },
 			{ id = "Uncommon", weight = 35 },

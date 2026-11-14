@@ -88,6 +88,9 @@ local PROFILES: { Profile } = {
 
 local DAY_SECONDS = 24 * 60 * 60
 local SNAPSHOT_DAYS = { 1, 7, 30, ASSUMPTIONS.days }
+-- Days (2 h of play each) after which the index and the eggs stolen at each guardian are shown:
+-- how evenly a player meets the guardians of each zone.
+local SPREAD_DAYS = { 1, 2, 3, 5 }
 -- The first session's marks, seconds: how fast a newbie's income and coins get going.
 local EARLY_MARKS = { 15 * 60, 30 * 60, 60 * 60, 2 * 60 * 60 }
 -- When the model asks what a reward would pay (without taking it), seconds: a quarter of an hour and an hour in, the next
@@ -184,6 +187,9 @@ type Run = {
 	snapshots: { [number]: Snapshot },
 	early: { [number]: Early },
 	probes: { [number]: Probe },
+	-- By the end of a day's session (SPREAD_DAYS): usual aliens found and eggs stolen, by grade.
+	foundByDay: { [number]: { [number]: number } },
+	stolenByDay: { [number]: { [number]: number } },
 }
 
 local function simulate(profile: Profile, seed: number): Run
@@ -197,7 +203,16 @@ local function simulate(profile: Profile, seed: number): Run
 	local incomeRate = 0
 	local bestPost = 0
 	local nextTheftAt = 0
-	local run: Run = { firstBeat = {}, slotBought = {}, snapshots = {}, early = {}, probes = {} }
+	local run: Run = {
+		firstBeat = {},
+		slotBought = {},
+		snapshots = {},
+		early = {},
+		probes = {},
+		foundByDay = {},
+		stolenByDay = {},
+	}
+	local stolen: { [number]: number } = {}
 	local passEffects = Purchases.passEffects(profile.passes, MonetizationConfig.PASS_TUNING)
 
 	local function speed(): number
@@ -310,6 +325,7 @@ local function simulate(profile: Profile, seed: number): Run
 
 	-- An egg of `post`'s zone loot, the usual one or a meteor one, delivered now.
 	local function steal(post: number, now: number, variant: AlienConfig.VariantId?)
+		stolen[post] = (stolen[post] or 0) + 1
 		local zone = ZoneConfig.ZONES[ZoneConfig.zoneOfPost(post)]
 		incubate(Loot.pick(zone.rarityLoot, math.random()), Loot.pick(zone.sizeLoot, math.random()), post, now, variant)
 	end
@@ -459,12 +475,11 @@ local function simulate(profile: Profile, seed: number): Run
 			if inDay % STORM_CYCLE >= STORM_CYCLE - STORM.schedule.activeSeconds then
 				Bay.advanceIncubator(data, dt * (StormConfig.HATCH_RATE - 1))
 			end
-			-- The meteor shower: a crater in the zone of the farthest guardian the player beats,
-			-- at a random post of that zone up to that guardian.
+			-- The meteor shower: the player's own crater is at the farthest guardian they beat
+			-- (Domain/MeteorShower.posts); the one a post above is out of their reach.
 			if inDay % METEOR_CYCLE < dt and bestPost > 0 then
-				local _, inZone = ZoneConfig.zoneOfPost(bestPost)
 				for _ = 1, ASSUMPTIONS.meteorEggsPerShower do
-					steal(bestPost - math.random(0, inZone - 1), now, "Meteor")
+					steal(bestPost, now, "Meteor")
 				end
 			end
 			-- The star serpent's hunt: now and then the player wins its egg.
@@ -487,6 +502,16 @@ local function simulate(profile: Profile, seed: number): Run
 			-- The day's quests, claimed at the end of the session with the same formula as the game.
 			if profile.daily and inDay == sessionSeconds - dt then
 				payQuests()
+			end
+			local dayNumber = now // DAY_SECONDS + 1
+			if inDay == sessionSeconds - dt and table.find(SPREAD_DAYS, dayNumber) then
+				local found: { [number]: number } = {}
+				for grade = 1, ASSUMPTIONS.guardianCount do
+					local set = IndexConfig.SETS_BY_ID[AlienIndex.setId(grade, "Normal")]
+					found[grade] = AlienIndex.foundOf(data.index, set.aliens)
+				end
+				run.foundByDay[dayNumber] = found
+				run.stolenByDay[dayNumber] = table.clone(stolen)
 			end
 			if now >= nextTheftAt then
 				local target = bestPost
@@ -698,6 +723,45 @@ print("")
 -- of that day sees after a long time away.
 local function doubleTierAway(income: number): number
 	return MonetizationConfig.doubleTierOf(BigNum.fromNumber(income * BayConfig.OFFLINE_INCOME_CAP_SECONDS))
+end
+
+-- How evenly the guardians of each zone are met: usual aliens found of each guardian's set and
+-- eggs stolen from it, by the end of each day's session (free + daily, average).
+do
+	local runs = runsByProfile["free + daily"]
+	local setSize = #IndexConfig.SETS_BY_ID[AlienIndex.setId(1, "Normal")].aliens
+	local function average(pick: (run: Run) -> number): string
+		local total = 0
+		for _, run in runs do
+			total += pick(run)
+		end
+		return string.format("%.1f", total / #runs)
+	end
+	print(
+		`Guardian spread (free + daily, average): usual aliens found of {setSize} / eggs stolen, `
+			.. `by the end of day N ({ASSUMPTIONS.sessionHours}h of play a day)`
+	)
+	local spreadHeader = pad("post", POST_WIDTH) .. pad("nests", SPEED_WIDTH)
+	for _, day in SPREAD_DAYS do
+		spreadHeader ..= pad(`day {day}`, COLUMN_WIDTH)
+	end
+	print(spreadHeader)
+	for grade = 1, ASSUMPTIONS.guardianCount do
+		local zone = ZoneConfig.ZONES[ZoneConfig.zoneOfPost(grade)]
+		local line = pad(tostring(grade), POST_WIDTH) .. pad(tostring(zone.nestsPerPost), SPEED_WIDTH)
+		for _, day in SPREAD_DAYS do
+			line ..= pad(
+				`{average(function(run)
+					return run.foundByDay[day][grade]
+				end)} / {average(function(run)
+					return run.stolenByDay[day][grade] or 0
+				end)}`,
+				COLUMN_WIDTH
+			)
+		end
+		print(line)
+	end
+	print("")
 end
 
 print(

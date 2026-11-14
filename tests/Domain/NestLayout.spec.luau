@@ -63,3 +63,27 @@ describe("NestLayout.place", function()
 		end
 	end)
 end)
+
+describe("NestLayout.postBand", function()
+	it("gives each post an even share of the zone's ring, the first innermost", function()
+		local ring = { ringMin = 100, ringMax = 700, heightSpread = 10, postCount = 6, nestsPerPost = 6 }
+		local middle, stray = NestLayout.postBand(ring, 1)
+		expect(middle).toBeCloseTo(150, 1e-9)
+		expect(stray).toBeCloseTo(30, 1e-9)
+		local last = NestLayout.postBand(ring, 6)
+		expect(last).toBeCloseTo(650, 1e-9)
+	end)
+
+	it("holds every nest of the post", function()
+		local ring = { ringMin = 100, ringMax = 700, heightSpread = 10, postCount = 6, nestsPerPost = 6 }
+		local seed = 0
+		local function random(): number
+			seed = (seed * 9301 + 49297) % 233280
+			return seed / 233280
+		end
+		for _, spot in NestLayout.place(ring, random) do
+			local middle, stray = NestLayout.postBand(ring, spot.post)
+			expect(math.abs(spot.distance - middle) <= stray + 1e-9).toBe(true)
+		end
+	end)
+end)

@@ -1,5 +1,6 @@
 --!strict
--- The meteor shower's plan: how many meteors fall, when, and in which zone (MeteorConfig). Pure.
+-- The meteor shower's plan: how many meteors fall, when, and at which guardian's post
+-- (MeteorConfig). Pure.
 
 local MeteorShower = {}
 
@@ -26,12 +27,24 @@ function MeteorShower.fallTimes(count: number, tuning: Tuning): { number }
 	return times
 end
 
--- The zone of each of `count` meteors: round and round the zones from the station outwards, so
--- every zone gets its share all through the shower.
-function MeteorShower.zones<T>(count: number, zoneOrder: { T }): { T }
+-- What each player's craters are, in turn (decision 135): the first at the strongest guardian
+-- they get away from, the next one post above (a reach for more), then one post below; so with
+-- two craters each every player gets a crater of their level and one to stretch for.
+local OFFSETS = { 0, 1, -1 }
+
+-- The guardian post (global, 1..`postCount`) of each of `count` meteors, shared out in turn
+-- among the active players, whose strongest beaten posts are `bestPosts` (Domain/SpeedGoal).
+-- Empty with no players: nobody is there to steal.
+function MeteorShower.posts(bestPosts: { number }, count: number, postCount: number): { number }
 	local result = {}
+	if #bestPosts == 0 then
+		return result
+	end
 	for index = 1, count do
-		result[index] = zoneOrder[(index - 1) % #zoneOrder + 1]
+		local player = (index - 1) % #bestPosts + 1
+		local round = (index - 1) // #bestPosts
+		local offset = OFFSETS[round % #OFFSETS + 1]
+		result[index] = math.clamp(bestPosts[player] + offset, 1, postCount)
 	end
 	return result
 end

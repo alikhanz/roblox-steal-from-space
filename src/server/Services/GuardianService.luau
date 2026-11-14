@@ -29,11 +29,13 @@ local FOLDER_NAME = "Guardians"
 
 export type Dependencies = {
 	getNestSites: () -> { WorldService.NestSite },
-	-- The post of a nest (NestService ranks nests by distance).
+	-- The guardian post at a nest now (NestService).
 	getNestGrade: (nestId: string) -> number?,
 	-- Nests that come and go (meteor craters): each gets a guardian of its post while it lasts.
 	nestAdded: Signal.Signal<WorldService.NestSite>,
 	nestRemoved: Signal.Signal<string>,
+	-- Another guardian came to a nest (Domain/NestPosts): the old one goes, the new one comes.
+	nestPostChanged: Signal.Signal<WorldService.NestSite>,
 	findCarriers: (nestId: string) -> { Player },
 	-- Where the eggs of `nestId` lie knocked out (empty while the egg is in the nest or carried).
 	findLooseEggs: (nestId: string) -> { Vector3 },
@@ -294,8 +296,7 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 		for _, site in dependencies.getNestSites() do
 			guard(site)
 		end
-		dependencies.nestAdded.connect(guard)
-		dependencies.nestRemoved.connect(function(nestId)
+		local function unguard(nestId: string)
 			for index, guardian in guardians do
 				if guardian.nestId == nestId then
 					table.remove(guardians, index)
@@ -303,6 +304,13 @@ function GuardianService.new(dependencies: Dependencies): GuardianService
 					return
 				end
 			end
+		end
+
+		dependencies.nestAdded.connect(guard)
+		dependencies.nestRemoved.connect(unguard)
+		dependencies.nestPostChanged.connect(function(site)
+			unguard(site.id)
+			guard(site)
 		end)
 
 		dependencies.scheduler.every(GuardianConfig.TICK_SECONDS, tick)

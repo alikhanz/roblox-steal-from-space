@@ -45,9 +45,12 @@ export type NestSite = {
 	zone: ZoneConfig.ZoneId,
 	-- Where an egg rests in this nest.
 	eggCFrame: CFrame,
-	-- The guardian post within its zone (1 innermost) for a nest of the world's layout
-	-- (Domain/NestLayout); nil for a meteor crater, which takes its nearest nest's.
+	-- The guardian post within its zone (1 innermost) whose ring the nest stands on, and its place
+	-- among that post's nests, for a nest of the world's layout (Domain/NestLayout); nil for a
+	-- meteor crater, whose guardian MeteorService picks. The guardian standing at a nest may be a
+	-- neighbour of its ring's (Domain/NestPosts).
 	post: number?,
+	index: number?,
 }
 
 export type WorldService = {
@@ -557,6 +560,7 @@ local function buildNests(parent: Instance): { NestSite }
 				accent = GuardianLooks.POSTS[post.id].color,
 			}, shapes)
 			site.post = spot.post
+			site.index = spot.index
 			site.model.Parent = folder
 			table.insert(sites, site)
 		end
@@ -722,6 +726,17 @@ local function configureLighting()
 	bloom.Threshold = SkyLooks.BLOOM.THRESHOLD
 	bloom.Enabled = true
 	bloom.Parent = Lighting
+end
+
+-- Paints a nest's accent (its rim and cradle) in a guardian's colour: the nest's guardian changed
+-- (Domain/NestPosts).
+function WorldService.paintNest(model: Model, accent: Color3)
+	for _, name in { "Rim", "Cradle" } do
+		local part = model:FindFirstChild(name)
+		if part and part:IsA("BasePart") then
+			part.Color = accent
+		end
+	end
 end
 
 function WorldService.new(): WorldService
