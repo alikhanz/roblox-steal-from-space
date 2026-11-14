@@ -3,7 +3,7 @@
 -- The login gift on the client: the screen that opens by itself when today's gift waits (after
 -- the welcome-back screen), the HUD menu tile with a badge to open it again, and the celebration
 -- when it is taken. Tile gifts are shown with the same formula the server pays with
--- (Domain/PlayReward), from the profile copy.
+-- (Domain/PlayReward), from the profile copy, priced only while the window is up and a gift waits.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -39,6 +39,11 @@ local CLOSE_AFTER_CLAIM_SECONDS = 1.6
 -- Today's tile breathes this much, this fast.
 local PULSE_AMPLITUDE = 0.06
 local PULSE_SPEED = 4
+-- While the window is up, the days' gifts are priced again this often (income and ⚡ move on).
+local REPRICE_SECONDS = 5
+
+-- A day's gift, formatted.
+type Price = { coins: string, speed: string }
 
 export type Dependencies = {
 	profile: ProfileState.ProfileState,
@@ -77,14 +82,32 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		return Names.egg(locale, LoginGiftConfig.EGG_RARITY) or "?"
 	end
 
-	-- What each streak day gives right now.
+	-- What each streak day gives, priced only while the window is up and today's gift waits: on
+	-- opening and every few seconds after, not on every change of the bay, ⚡ or coins earned
+	-- (docs/plans/NET_TRAFFIC.md). The server pays by its own count at the claim anyway.
+	local prices = source({} :: { Price })
+	local function priceDays()
+		local result: { Price } = {}
+		local cap = { share = LoginGiftConfig.MAX_SHARE_OF_EARNED, speed = dependencies.speed.speed }
+		for day, minutes in LoginGiftConfig.MINUTES do
+			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true, cap)
+			result[day] = { coins = BigNum.format(coins), speed = BigNum.format(speed) }
+		end
+		prices(result)
+	end
+
+	local function shown(): boolean
+		return isOpen() and not dependencies.welcomeOpen()
+	end
+
+	-- What each streak day gives, as last priced.
 	local function tiles(): { LoginGiftWindow.Tile }
 		local gift = profile.loginGift()
+		local priced = prices()
 		local look = (EggLooks.RARITIES :: any)[LoginGiftConfig.EGG_RARITY]
 		local result: { LoginGiftWindow.Tile } = {}
-		for day, minutes in LoginGiftConfig.MINUTES do
-			local cap = { share = LoginGiftConfig.MAX_SHARE_OF_EARNED, speed = dependencies.speed.speed }
-			local coins, speed = Pace.reward(profile, minutes, LoginGiftConfig.MIN_REWARD_COINS, true, cap)
+		for day in LoginGiftConfig.MINUTES do
+			local price = priced[day]
 			-- Taken: days before today, and today once its gift is in.
 			local state: LoginGiftWindow.TileState = if day < gift.day or (day == gift.day and not gift.available)
 				then "Taken"
@@ -92,8 +115,8 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				else "Ahead"
 			table.insert(result, {
 				title = text("gift.day.hint", { day = day }),
-				coins = BigNum.format(coins),
-				speed = BigNum.format(speed),
+				coins = if price then price.coins else "",
+				speed = if price then price.speed else "",
 				egg = if day == LoginGiftConfig.EGG_DAY then eggName() else nil,
 				eggColor = if day == LoginGiftConfig.EGG_DAY and look then look.color else nil,
 				state = state,
@@ -124,9 +147,7 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 				end),
 
 				LoginGiftWindow.create({
-					visible = function()
-						return isOpen() and not dependencies.welcomeOpen()
-					end,
+					visible = shown,
 					coins = function()
 						return BigNum.format(profile.coins())
 					end,
@@ -188,6 +209,13 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 		end
 		Vide.root(function()
 			Vide.effect(onGift)
+			-- Priced as the window comes up, and when a gift starts waiting while it is up. A taken
+			-- gift keeps the last prices for the celebration and is not priced again till the next.
+			Vide.effect(function()
+				if shown() and profile.loginGift().available then
+					Vide.untrack(priceDays)
+				end
+			end)
 		end)
 
 		profile.giftRewarded.connect(function(reward)
@@ -204,8 +232,10 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 
 		local elapsed = 0
 		local sinceTick = 0
+		local sincePriced = 0
 		RunService.Heartbeat:Connect(function(deltaTime)
 			if not isOpen() then
+				sincePriced = 0
 				return
 			end
 			elapsed += deltaTime
@@ -214,6 +244,13 @@ function LoginGiftController.new(dependencies: Dependencies): LoginGiftControlle
 			if sinceTick >= 1 then
 				sinceTick = 0
 				clock(clock() + 1)
+			end
+			sincePriced += deltaTime
+			if sincePriced >= REPRICE_SECONDS then
+				sincePriced = 0
+				if shown() and profile.loginGift().available then
+					priceDays()
+				end
 			end
 		end)
 	end
