@@ -87,6 +87,9 @@ local GAMES: { [number]: GameCatalog } = {
 			[3728983641] = { kind = "CollectDouble", tier = 6 },
 			[3728983708] = { kind = "CollectDouble", tier = 7 },
 			[3728654444] = { kind = "CollectDouble", tier = 8 },
+			-- A week of each perk for whoever Roblox does not let subscribe (decision 140).
+			[3731076479] = { kind = "Week", perk = "DoubleTraining", seconds = WEEK_SECONDS },
+			[3731076658] = { kind = "Week", perk = "NightShift", seconds = WEEK_SECONDS },
 		},
 	},
 	-- Fly & Steal Space Eggs, the Prod game owned by the community (created 2026-11-11).
@@ -118,6 +121,9 @@ local GAMES: { [number]: GameCatalog } = {
 			[3730276693] = { kind = "CollectDouble", tier = 6 },
 			[3730276710] = { kind = "CollectDouble", tier = 7 },
 			[3730276526] = { kind = "CollectDouble", tier = 8 },
+			-- A week of each perk for whoever Roblox does not let subscribe (decision 140).
+			[3731076801] = { kind = "Week", perk = "DoubleTraining", seconds = WEEK_SECONDS },
+			[3731076955] = { kind = "Week", perk = "NightShift", seconds = WEEK_SECONDS },
 		},
 	},
 }
