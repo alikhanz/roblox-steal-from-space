@@ -104,3 +104,14 @@ Creator Hub → игра → **Monetization → Passes** и **Monetization → D
 3. **Developer Products D1–D3** — новое описание:
    - EN: As much ⚡ as 1 hour (8 hours, a day) of flight gives, right away. The shop shows the exact number.
    - RU: Сразу столько ⚡, сколько даёт час (8 часов, сутки) полёта. Точное число — в магазине.
+
+## Недели бонусов — тем, кому закрыты подписки (решение 140, 2026-11-14)
+
+**Создать в Creator Hub — Monetization → Developer Products, в Dev (`10774871729`) и в Prod (`10775754016`):**
+
+| # | Название EN / RU | Описание EN / RU | Цена |
+|---|---|---|---|
+| W1 | Double training for 7 days / Двойная тренировка на 7 дней | All your training gives twice the ⚡ for 7 days: in flight, on the trainer and while you're away. Buy again to add 7 more days. / 7 дней вся тренировка даёт вдвое больше ⚡: в полёте, на тренажёре и пока тебя нет. Купи ещё раз — прибавится ещё 7 дней. | 49 R$ |
+| W2 | Night shift for 7 days / Ночная смена на 7 дней | For 7 days, while you're away, training runs at 100% instead of 20% and aliens earn coins for 8 hours instead of 4. Buy again to add 7 more days. / 7 дней, пока тебя нет, тренировка идёт на 100% вместо 20%, а пришельцы приносят монеты 8 часов вместо 4. Купи ещё раз — прибавится ещё 7 дней. | 29 R$ |
+
+Русские название и описание — в **Localization**. ID — в `MonetizationConfig`, в `products` каждой игры: `[id] = { kind = "Week", perk = "DoubleTraining", seconds = WEEK_SECONDS }` (W2 — `perk = "NightShift"`). Пока id нет, магазин недели не показывает.

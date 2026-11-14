@@ -10,7 +10,8 @@ local PlayerData = require("./PlayerData")
 local Upgrades = require("./Upgrades")
 
 -- The monthly Roblox subscriptions (decision 132); they replaced the permanent passes of
--- decision 061 and kept their names.
+-- decision 061 and kept their names. The same perks are sold a week at a time where Roblox does
+-- not let a player subscribe (decision 140).
 export type SubscriptionId = "DoubleTraining" | "NightShift"
 
 -- What the subscriptions change, and the values without them.
@@ -76,6 +77,81 @@ function Purchases.setSubscribed(data: Data, subscription: SubscriptionId, subsc
 		table.insert(data.subscriptions, subscription)
 	end
 	return true
+end
+
+-- A week of a subscription's perk bought as a one-off (decision 140), for a player Roblox does not
+-- let subscribe: the server time it runs until, by perk (Purchases.SubscriptionId). A new week
+-- adds seven days to the one running, or starts from now.
+function Purchases.extendWeek(data: Data, perk: SubscriptionId, seconds: number, now: number): number
+	assert(seconds > 0, "a week must last")
+	local untilTime = math.max(data.weeks[perk] or 0, now) + seconds
+	data.weeks[perk] = untilTime
+	return untilTime
+end
+
+-- Every perk the player has now: their subscriptions and the weeks still running, each once, so a
+-- subscription and a week of the same perk do not stack.
+function Purchases.active(
+	data: { read subscriptions: { string }, read weeks: { [string]: number } },
+	now: number
+): { string }
+	local list = table.clone(data.subscriptions)
+	for perk, untilTime in data.weeks do
+		if untilTime > now and not table.find(list, perk) then
+			table.insert(list, perk)
+		end
+	end
+	table.sort(list)
+	return list
+end
+
+-- How long each perk lasted of a time away: the whole of it for a subscription (the profile's copy,
+-- what Roblox said when the player left), up to its end for a week.
+function Purchases.coveredAway(
+	data: { read subscriptions: { string }, read weeks: { [string]: number } },
+	lastSeenAt: number,
+	awaySeconds: number
+): { [string]: number }
+	local covered: { [string]: number } = {}
+	for perk, untilTime in data.weeks do
+		covered[perk] = math.clamp(untilTime - lastSeenAt, 0, awaySeconds)
+	end
+	for _, perk in data.subscriptions do
+		covered[perk] = awaySeconds
+	end
+	return covered
+end
+
+-- What a time away pays for: seconds of the places' income, and the trainer's base rate times
+-- seconds (`rateSeconds`: the shares and multipliers of the perks already in it). `covered` says
+-- how long of it each perk lasted, from the start (Purchases.coveredAway): Night shift trains at
+-- its share and earns longer while it lasts, Double training doubles what is trained meanwhile.
+export type Away = { incomeSeconds: number, rateSeconds: number }
+
+function Purchases.away(awaySeconds: number, covered: { [string]: number }, tuning: Tuning): Away
+	local night = math.min(covered.NightShift or 0, awaySeconds)
+	local double = math.min(covered.DoubleTraining or 0, awaySeconds)
+	-- A cap of the free time, longer by as much of Night shift's as the time it lasted.
+	local function capped(freeCap: number, nightCap: number): number
+		return math.min(awaySeconds, math.max(freeCap, math.min(nightCap, night)))
+	end
+	local trainingEnd = capped(tuning.trainingCapSeconds, tuning.nightShiftTrainingCapSeconds)
+	-- The share and multiplier change only where a perk ends: add up the pieces between.
+	local marks = { 0, trainingEnd, math.min(night, trainingEnd), math.min(double, trainingEnd) }
+	table.sort(marks)
+	local rateSeconds = 0
+	for index = 2, #marks do
+		local from, to = marks[index - 1], marks[index]
+		if to > from then
+			local factor = if from < night then tuning.nightShiftTrainingFactor else tuning.trainingFactor
+			local multiplier = if from < double then tuning.doubleTrainingMultiplier else 1
+			rateSeconds += (to - from) * factor * multiplier
+		end
+	end
+	return {
+		incomeSeconds = capped(tuning.incomeCapSeconds, tuning.nightShiftIncomeCapSeconds),
+		rateSeconds = rateSeconds,
+	}
 end
 
 function Purchases.effects(subscriptions: { string }, tuning: Tuning): Effects

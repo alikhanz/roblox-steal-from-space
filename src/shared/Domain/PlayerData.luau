@@ -119,6 +119,9 @@ export type PlayerData = {
 	-- Subscriptions active at Roblox's last check (Purchases.SubscriptionId, decision 132): what the
 	-- time away is paid by, and the copy for when the check fails.
 	subscriptions: { string },
+	-- Weeks of the same perks bought one at a time (decision 140): the server time each runs
+	-- until, by Purchases.SubscriptionId; a past time is a week that ended.
+	weeks: { [string]: number },
 	-- What the last time away paid, for "Collect x2"; zeros: nothing to collect again.
 	pendingDouble: PendingDouble,
 	-- The pet bench, while it stands on the island; nil: none (a developer's tool, decision 082).
@@ -146,7 +149,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 24
+PlayerData.SCHEMA_VERSION = 25
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -379,6 +382,9 @@ PlayerData.MIGRATIONS = {
 			reroll(record)
 		end
 	end,
+	-- v25 adds the weeks of the perks bought one at a time (decision 140): `weeks`, empty from the
+	-- template.
+	[24] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -414,6 +420,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		index = AlienIndex.empty(),
 		purchaseIds = {},
 		subscriptions = {},
+		weeks = {},
 		pendingDouble = { coins = BigNum.ZERO, trained = BigNum.ZERO },
 	}
 end
@@ -615,6 +622,14 @@ local function validatePurchases(data: { [string]: any }): string?
 		or validateStrings(data.subscriptions, "subscriptions")
 	if problem then
 		return problem
+	end
+	if type(data.weeks) ~= "table" then
+		return "weeks is not a table"
+	end
+	for perk, untilTime in data.weeks do
+		if type(perk) ~= "string" or perk == "" or not isFinite(untilTime) or untilTime < 0 then
+			return "weeks is invalid"
+		end
 	end
 	local pending = data.pendingDouble
 	if type(pending) ~= "table" then

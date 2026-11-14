@@ -965,6 +965,41 @@ describe("PlayerData migration v20 -> v21", function()
 	end)
 end)
 
+describe("PlayerData migration v24 -> v25", function()
+	it("gives a profile from before no weeks, and keeps the rest", function()
+		local old = savedTemplate()
+		old.schemaVersion = 24
+		old.weeks = nil
+		old.subscriptions = { "NightShift" }
+		old.pods[1].alien = alien(1, nil, 117)
+		old.nextUid = 2
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(25)
+			expect(outcome.data.weeks).toEqual({})
+			expect(outcome.data.subscriptions).toEqual({ "NightShift" })
+			expect((outcome.data.pods[1].alien :: PlayerData.AlienRecord).incomePercent).toBe(117)
+		end
+	end)
+
+	it("keeps saved weeks and rejects broken ones", function()
+		local saved = savedTemplate()
+		saved.weeks = { NightShift = 1800000000 }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.weeks.NightShift).toBe(1800000000)
+		end
+		local broken = savedTemplate()
+		broken.weeks = { NightShift = "soon" }
+		expectCorrupted(broken, "weeks is invalid")
+		local notTable = savedTemplate()
+		notTable.weeks = 7
+		expectCorrupted(notTable, "weeks is not a table")
+	end)
+end)
+
 describe("PlayerData migration v23 -> v24", function()
 	-- A profile from the bell-shaped rolls (decision 130): every alien already has one.
 	local function v23(): { [string]: any }
@@ -998,7 +1033,7 @@ describe("PlayerData migration v23 -> v24", function()
 		})
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
-			expect(outcome.data.schemaVersion).toBe(24)
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			-- One die: its highest face is the top of the tuning, whatever the alien had.
 			expect(rolls(outcome.data)).toEqual({ [1] = 130, [2] = 130, [3] = 130, [4] = 130 })
 		end

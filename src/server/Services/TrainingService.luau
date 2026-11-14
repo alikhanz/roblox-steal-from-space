@@ -127,7 +127,10 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 			local gain: BigNum.BigNum? = nil
 			dependencies.update(player, function(data)
 				-- Double training doubles it (decision 132).
-				local effects = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
+				local effects = Purchases.effects(
+					Purchases.active(data, workspace:GetServerTimeNow()),
+					MonetizationConfig.SUBSCRIPTION_TUNING
+				)
 				local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
 				gain = Upgrades.trainingGain(rate, deltaTime, UpgradeConfig.TRAINING_FACTORS[source])
 				data.trained = BigNum.add(data.trained, gain :: BigNum.BigNum)

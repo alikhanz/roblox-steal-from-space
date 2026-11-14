@@ -11,7 +11,7 @@ local UpgradeConfig = require("./UpgradeConfig")
 local ZoneConfig = require("./ZoneConfig")
 
 -- What a developer product does.
-export type ProductKind = "Training" | "ReadyNow" | "IncubatorSlot" | "CollectDouble"
+export type ProductKind = "Training" | "ReadyNow" | "IncubatorSlot" | "CollectDouble" | "Week"
 -- Everything on offer, for the analytics of where it was offered.
 export type ShopItem = Purchases.SubscriptionId | ProductKind
 -- Where a purchase was offered: the shop window opened from the menu (Store) or from the speed
@@ -20,10 +20,12 @@ export type ShopSource = "Store" | "Goal" | "Welcome" | "Bay" | "Egg"
 
 export type Product = {
 	read kind: ProductKind,
-	-- Training: seconds of the trainer's rate. ReadyNow, IncubatorSlot, CollectDouble: the price
-	-- tier.
+	-- Training: seconds of the trainer's rate; Week: how long the perk lasts. ReadyNow,
+	-- IncubatorSlot, CollectDouble: the price tier.
 	read seconds: number?,
 	read tier: number?,
+	-- Week: whose perk it is (decision 140).
+	read perk: Purchases.SubscriptionId?,
 }
 
 -- One game's ids: its subscriptions (Roblox's "EXP-…" ids; a game without them offers none) and
@@ -49,6 +51,8 @@ local SUBSCRIPTION_TUNING: Purchases.Tuning = {
 local HOUR = 60 * 60
 -- The training packs, shortest first: seconds of the trainer's rate each one gives.
 local TRAINING_PACK_SECONDS = { HOUR, 8 * HOUR, 24 * HOUR }
+-- How long a week product's perk lasts (decision 140): `{ kind = "Week", perk = …, seconds = WEEK_SECONDS }`.
+local WEEK_SECONDS = 7 * 24 * HOUR
 
 -- Each game has its own subscriptions and products (decision 011: Dev and Prod are separate games).
 -- The permanent passes of decision 061 are switched off (decision 132): Dev 2070386434 /
@@ -126,6 +130,11 @@ MonetizationConfig.SUBSCRIPTION_ORDER = table.freeze({ "DoubleTraining", "NightS
 -- After a purchase prompt closes, Roblox may take a moment to report the new subscription: the
 -- server asks again this long after the client says it closed (Roblox's own sample waits 10 s).
 MonetizationConfig.SUBSCRIPTION_RECHECK_SECONDS = 10
+-- A week of a subscription's perk bought as a one-off (decision 140), for a player Roblox does not
+-- let subscribe; another one adds as much on top.
+MonetizationConfig.WEEK_SECONDS = WEEK_SECONDS
+-- How often the server looks for weeks that ran out during play, seconds.
+MonetizationConfig.WEEK_CHECK_SECONDS = 5
 MonetizationConfig.TRAINING_PACK_SECONDS = table.freeze(TRAINING_PACK_SECONDS)
 -- "Egg ready now" tiers: zone of the egg's guardian plus its rarity (Purchases.readyNowTier).
 MonetizationConfig.READY_NOW_TIERS = 8
@@ -146,6 +155,9 @@ MonetizationConfig.COMPENSATION_MIN_COINS = 100
 -- the owner's rate), and whether Roblox lets them buy subscriptions at all (PolicyService).
 MonetizationConfig.SUBSCRIPTIONS_ATTRIBUTE = "Subscriptions"
 MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE = "CanSubscribe"
+-- Player attributes: the server time each week of a perk runs until ("WeekUntilNightShift");
+-- none: never bought.
+MonetizationConfig.WEEK_ATTRIBUTE_PREFIX = "WeekUntil"
 MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE = "TrainerMultiplier"
 
 -- The catalog of the game with `gameId`, or nil: purchases are off in a game not listed here
@@ -171,6 +183,16 @@ end
 function MonetizationConfig.doubleLimitOf(tier: number): BigNum.BigNum?
 	local limit = MonetizationConfig.DOUBLE_TIER_LIMITS[tier]
 	return if limit then BigNum.fromNumber(limit) else nil
+end
+
+-- The product id of the week of `perk` in `catalog`, or nil while the game sells none.
+function MonetizationConfig.weekProductOf(catalog: GameCatalog, perk: Purchases.SubscriptionId): number?
+	for id, product in catalog.products do
+		if product.kind == "Week" and product.perk == perk then
+			return id
+		end
+	end
+	return nil
 end
 
 -- The product id of a kind (and tier, or training seconds) in `catalog`, or nil: for the client

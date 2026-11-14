@@ -1222,6 +1222,10 @@ local Strings = {
 		ru = { one = "{count} час", few = "{count} часа", many = "{count} часов" },
 		en = { one = "{count} hour", other = "{count} hours" },
 	},
+	["time.days.hint"] = {
+		ru = { one = "{count} день", few = "{count} дня", many = "{count} дней" },
+		en = { one = "{count} day", other = "{count} days" },
+	},
 	["tier.common.title"] = {
 		ru = "Обычный",
 		en = "Common",
@@ -1400,6 +1404,16 @@ local Strings = {
 		ru = "R$ {price}/мес",
 		en = "R$ {price}/mo",
 	},
+	-- A week of a subscription's perk as a one-off, for a player Roblox does not let subscribe
+	-- (decision 140): its price, how long a running one still lasts.
+	["store.perWeek.hint"] = {
+		ru = "R$ {price}/7 дн.",
+		en = "R$ {price}/7 days",
+	},
+	["store.weekLeft.hint"] = {
+		ru = "Действует ещё {time}",
+		en = "{time} left",
+	},
 	["store.doubleTraining.title"] = {
 		ru = "Двойная тренировка",
 		en = "Double training",
@@ -1452,6 +1466,10 @@ local Strings = {
 	["store.subscribed.toast"] = {
 		ru = "Подписка оформлена: {name}",
 		en = "Subscribed: {name}",
+	},
+	["store.week.toast"] = {
+		ru = "{name}: +7 дней",
+		en = "{name}: +7 days",
 	},
 	["store.training.toast"] = {
 		ru = "Готово: +{speed} ⚡",

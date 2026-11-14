@@ -68,14 +68,15 @@ function OfflineService.new(dependencies: Dependencies): OfflineService
 		local reward: Reward? = nil
 		dependencies.update(player, function(data)
 			local current = now()
-			-- What the subscriptions the player had when they left do (decision 132): Night shift
-			-- trains at the full rate and earns longer, Double training doubles the rate.
-			local effects = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
-			local incomeSeconds = Offline.seconds(data.lastSeenAt, current, effects.offlineIncomeCapSeconds)
-			local trainingSeconds = Offline.seconds(data.lastSeenAt, current, effects.offlineTrainingCapSeconds)
-			local earned = Offline.income(dependencies.getIncomePerSecond(player), incomeSeconds)
-			local rate = Purchases.trainerRate(data.trainerLevel, effects.trainerMultiplier, UpgradeConfig.TUNING)
-			local gained = Upgrades.trainingGain(rate, trainingSeconds, effects.offlineTrainingFactor)
+			-- The perks pay for as much of the time away as they lasted (decisions 132, 140): a
+			-- subscription the player had when they left the whole of it, a week up to its end.
+			-- Night shift trains at the full rate and earns longer, Double training doubles the rate.
+			local away = Offline.seconds(data.lastSeenAt, current, math.huge)
+			local covered = Purchases.coveredAway(data, data.lastSeenAt, away)
+			local paid = Purchases.away(away, covered, MonetizationConfig.SUBSCRIPTION_TUNING)
+			local earned = Offline.income(dependencies.getIncomePerSecond(player), paid.incomeSeconds)
+			local rate = Purchases.trainerRate(data.trainerLevel, 1, UpgradeConfig.TUNING)
+			local gained = Upgrades.trainingGain(rate, paid.rateSeconds, 1)
 
 			Wallet.earn(data, earned)
 			data.trained = BigNum.add(data.trained, gained)

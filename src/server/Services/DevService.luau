@@ -25,6 +25,7 @@
 --   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("ReadyNow", 3, 17)
 --   game.ServerStorage.DevCommands.ReplayLastReceipt:Invoke()
 --   game.ServerStorage.DevCommands.SetSubscription:Invoke("NightShift", true)
+--   game.ServerStorage.DevCommands.GiveWeek:Invoke("NightShift", 604800)
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
 --   game.ServerStorage.DevCommands.SetCoachDone:Invoke(0)
 --   game.ServerStorage.DevCommands.FillShelf:Invoke(24)
@@ -116,6 +117,8 @@ export type Dependencies = {
 	chooseReadyNowEgg: (player: Player, uid: number) -> string?,
 	-- Sets a subscription as if Roblox said so (PurchaseService.setSubscribedForTest).
 	setSubscribed: (player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean) -> boolean,
+	-- Gives a week of a perk as if bought (PurchaseService.grantWeekForTest).
+	grantWeek: (player: Player, perk: Purchases.SubscriptionId, seconds: number) -> number?,
 	-- Sets the tutorial's progress (TutorialService.setProgress).
 	setTutorialProgress: (player: Player, progress: number) -> boolean,
 	-- Sets which hints after the tutorial are done (CoachService.setDone; 0: all again).
@@ -508,9 +511,15 @@ function DevService.new(dependencies: Dependencies): DevService
 				return `no catalog for game {game.GameId}: publish the place first`
 			end
 			local productKind = kind :: MonetizationConfig.ProductKind
-			local productId = if productKind == "Training"
-				then MonetizationConfig.productIdOf(catalog, productKind, nil, detail)
-				else MonetizationConfig.productIdOf(catalog, productKind, detail)
+			local productId: number?
+			if productKind == "Training" then
+				productId = MonetizationConfig.productIdOf(catalog, productKind, nil, detail)
+			elseif productKind == "Week" then
+				-- The perk is the second argument here: SimulatePurchase("Week", "NightShift").
+				productId = MonetizationConfig.weekProductOf(catalog, (detail :: any) :: Purchases.SubscriptionId)
+			else
+				productId = MonetizationConfig.productIdOf(catalog, productKind, detail)
+			end
 			if not productId then
 				return `no product {kind} {detail}`
 			end
@@ -539,6 +548,23 @@ function DevService.new(dependencies: Dependencies): DevService
 			local decision = dependencies.processReceipt(lastReceipt)
 			return `{lastReceipt.PurchaseId}: {decision.Name}`
 		end,
+		-- A week of a perk for the first player (DoubleTraining or NightShift), as if bought; another
+		-- adds on top. Seconds: how long (a week by default; 60 to see it run out).
+		GiveWeek = function(perk: string, seconds: number?): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(perk == "DoubleTraining" or perk == "NightShift", `Unknown perk {perk}`)
+			local untilTime = dependencies.grantWeek(
+				player,
+				perk :: Purchases.SubscriptionId,
+				seconds or MonetizationConfig.WEEK_SECONDS
+			)
+			return if untilTime
+				then `{perk} until {math.floor(untilTime - workspace:GetServerTimeNow())} s from now`
+				else "no profile"
+		end,
 		-- Turns a subscription of the first player on or off (DoubleTraining or NightShift), as if
 		-- Roblox said so; Roblox's checks leave them alone for the rest of the playtest.
 		SetSubscription = function(subscription: string, subscribed: boolean?): string
@@ -557,6 +583,15 @@ function DevService.new(dependencies: Dependencies): DevService
 		end,
 		-- A readable summary of the first player's profile.
 		DumpProfile = function(): string
+			-- Each week's perk and how long it still runs, seconds.
+			local function weeksText(data: PlayerData.PlayerData): string
+				local parts = {}
+				for perk, untilTime in data.weeks do
+					table.insert(parts, `{perk} {math.floor(untilTime - workspace:GetServerTimeNow())}s`)
+				end
+				table.sort(parts)
+				return table.concat(parts, ", ")
+			end
 			local player = firstPlayerRoot()
 			local data = player and dependencies.getData(player)
 			if not data then
@@ -579,7 +614,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				.. ` | played {math.floor(data.playSeconds)}s | pods [{podList}]`
 				.. ` | shelf [{ids(data.floor)}] | eggs {#data.incubator}`
 				.. ` | slots {data.incubatorSlots}, waiting {#data.waiting}`
-				.. ` | subscriptions [{table.concat(data.subscriptions, ", ")}] | receipts {#data.purchaseIds}`
+				.. ` | subscriptions [{table.concat(data.subscriptions, ", ")}] | weeks [{weeksText(data)}] | receipts {#data.purchaseIds}`
 				.. ` | tutorial {data.tutorialStep} | hints done {data.coachDone}`
 				.. ` | community gift {data.communityGiftTaken}`
 		end,

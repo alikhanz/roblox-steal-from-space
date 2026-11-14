@@ -19,6 +19,13 @@ describe("Duration.describe", function()
 		expect(Duration.describe("en", 3600 * 12.2)).toBe("13 hours")
 	end)
 
+	it("counts days from two days on", function()
+		expect(Duration.describe("en", 3600 * 47)).toBe("47 hours")
+		expect(Duration.describe("en", 86400 * 2)).toBe("2 days")
+		expect(Duration.describe("ru", 86400 * 6.2)).toBe("7 дней")
+		expect(Duration.describe("ru", 86400 * 2.5)).toBe("3 дня")
+	end)
+
 	it("never goes negative", function()
 		expect(Duration.describe("en", -5)).toBe("0 seconds")
 	end)

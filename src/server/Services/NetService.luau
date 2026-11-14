@@ -306,6 +306,7 @@ function NetService.new(dependencies: Dependencies): NetService
 				kind = granted.kind,
 				compensated = granted.compensated,
 				hatched = granted.hatched,
+				perk = granted.perk,
 				coins = wire(granted.coins),
 				speed = wire(granted.speed),
 			})

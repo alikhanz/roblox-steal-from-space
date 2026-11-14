@@ -179,6 +179,7 @@ type ProductKind = enum {
 	ReadyNow,
 	IncubatorSlot,
 	CollectDouble,
+	Week,
 }
 
 -- Everything the game offers for Robux: the passes and the product kinds.
@@ -189,6 +190,7 @@ type ShopItem = enum {
 	ReadyNow,
 	IncubatorSlot,
 	CollectDouble,
+	Week,
 }
 
 -- Where a purchase was offered: the shop window (opened from the menu or from the speed goal),
@@ -450,6 +452,8 @@ event Purchased = {
 		speed: BigNum,
 		-- "Egg ready now" hatched the egg at once (the hatch has its own announcement).
 		hatched: boolean,
+		-- A week (decision 140): whose perk.
+		perk: enum { DoubleTraining, NightShift }?,
 	},
 }
 

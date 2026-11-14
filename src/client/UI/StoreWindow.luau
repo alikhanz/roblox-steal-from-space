@@ -55,8 +55,10 @@ export type Pass = {
 	priceReady: () -> boolean,
 	-- The player has it: "Active" instead of the button.
 	owned: () -> boolean,
-	-- On sale for this player (Roblox lets them subscribe).
+	-- On sale for this player (Roblox lets them subscribe, or a week of it is sold).
 	shown: () -> boolean,
+	-- A line under what it does, "" for none: how long a week still runs.
+	status: () -> string,
 	onBuy: () -> (),
 }
 
@@ -269,6 +271,23 @@ local function PassCard(pass: Pass, order: number, texts: Texts): Frame
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextWrapped = true,
 			Text = pass.hint,
+			Layout.textStroke(),
+		}),
+		create("TextLabel")({
+			Name = "Status",
+			LayoutOrder = 3,
+			Size = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			FontFace = NEON.FONT,
+			TextSize = NEON.TEXT_SMALL,
+			TextColor3 = CHECK_COLOR,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextWrapped = true,
+			Text = pass.status,
+			Visible = function()
+				return pass.status() ~= ""
+			end,
 			Layout.textStroke(),
 		}),
 	})

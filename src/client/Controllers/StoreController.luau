@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
+local Duration = require(ReplicatedStorage.Shared.Locale.Duration)
 local Icons = require(script.Parent.Parent.UI.Icons)
 local Marks = require(ReplicatedStorage.Shared.Locale.Marks)
 local MenuState = require(script.Parent.Parent.State.MenuState)
@@ -79,9 +80,13 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		return PurchaseState.priceText(locale, value)
 	end
 
+	-- Server time, a tick a second while the window is open: the weeks count down.
+	local clock = Vide.source(workspace:GetServerTimeNow())
+
 	local function open(from: MonetizationConfig.ShopSource)
 		openedFrom = from
 		purchases.refreshPrices()
+		clock(workspace:GetServerTimeNow())
 		isOpen(true)
 	end
 
@@ -113,6 +118,17 @@ function StoreController.new(dependencies: Dependencies): StoreController
 		for _, subscription in MonetizationConfig.SUBSCRIPTION_ORDER do
 			local texts = SUBSCRIPTION_TEXTS[subscription]
 			local looks = SUBSCRIPTION_LOOKS[subscription]
+			-- The subscription for a subscriber or whoever Roblox lets subscribe; for the rest a
+			-- week of the same perk (decision 140); nothing when neither is on sale.
+			local function mode(): "Subscription" | "Week" | "None"
+				if purchases.isSubscribed(subscription) or purchases.sellsSubscription(subscription) then
+					return "Subscription"
+				end
+				return if purchases.sellsWeek(subscription) then "Week" else "None"
+			end
+			local function weekLeft(): number
+				return purchases.weekUntil(subscription) - clock()
+			end
 			table.insert(cards, {
 				title = text(texts.title),
 				hint = function()
@@ -121,21 +137,38 @@ function StoreController.new(dependencies: Dependencies): StoreController
 				icon = looks.icon,
 				color = looks.color,
 				price = function()
+					if mode() == "Week" then
+						local value = purchases.weekPrice(subscription)
+						return text("store.perWeek.hint", { price = if value then tostring(value) else "…" })
+					end
 					local value = purchases.subscriptionPrice(subscription)
 					return text("store.perMonth.hint", { price = value or "…" })
 				end,
 				priceReady = function()
-					return purchases.subscriptionPrice(subscription) ~= nil
+					return if mode() == "Week"
+						then purchases.weekPrice(subscription) ~= nil
+						else purchases.subscriptionPrice(subscription) ~= nil
 				end,
+				-- A running week can be bought again: it adds seven days.
 				owned = function()
-					return purchases.isSubscribed(subscription)
+					return mode() == "Subscription" and purchases.isSubscribed(subscription)
 				end,
 				-- Shown to a subscriber whatever Roblox says about buying: they see what they have.
 				shown = function()
-					return purchases.isSubscribed(subscription) or purchases.sellsSubscription(subscription)
+					return mode() ~= "None"
+				end,
+				status = function()
+					if mode() ~= "Week" or weekLeft() <= 0 then
+						return ""
+					end
+					return text("store.weekLeft.hint", { time = Duration.describe(locale, weekLeft()) })
 				end,
 				onBuy = function()
-					purchases.promptSubscription(openedFrom, subscription)
+					if mode() == "Week" then
+						purchases.promptWeek(openedFrom, subscription)
+					else
+						purchases.promptSubscription(openedFrom, subscription)
+					end
 				end,
 			})
 		end
@@ -225,6 +258,8 @@ function StoreController.new(dependencies: Dependencies): StoreController
 			message, kind = text("store.readyNow.toast"), "Egg"
 		elseif granted.kind == "IncubatorSlot" then
 			message, kind = text("store.slot.toast"), "Egg"
+		elseif granted.kind == "Week" and granted.perk then
+			message, kind = text("store.week.toast", { name = text(SUBSCRIPTION_TEXTS[granted.perk].title) }), "Good"
 		else
 			message, kind = text("store.double.toast", { coins = coins, speed = speed }), "Good"
 		end
@@ -282,6 +317,14 @@ function StoreController.new(dependencies: Dependencies): StoreController
 			end,
 		})
 
+		task.spawn(function()
+			while true do
+				task.wait(1)
+				if isOpen() then
+					clock(workspace:GetServerTimeNow())
+				end
+			end
+		end)
 		purchases.granted.connect(announce)
 		purchases.subscriptionStarted.connect(function(subscription)
 			local name = text(SUBSCRIPTION_TEXTS[subscription].title)

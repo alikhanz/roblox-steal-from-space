@@ -388,7 +388,11 @@ indexService.rewarded.connect(function(player, coins, what)
 	metricsService.earned(player, "Coins", if what == "Set" then "IndexSet" else "IndexAlien", coins)
 end)
 purchaseService.purchased.connect(function(player, granted)
-	metricsService.count(player, "Purchase", { granted.kind, tostring(granted.tier or "-"), granted.source })
+	metricsService.count(
+		player,
+		"Purchase",
+		{ granted.kind, granted.perk or tostring(granted.tier or "-"), granted.source }
+	)
 	metricsService.earned(player, "Coins", "Robux", granted.coins)
 	metricsService.earned(player, "Speed", "Robux", granted.speed)
 end)
@@ -437,6 +441,7 @@ local devService = DevService.new({
 	processReceipt = purchaseService.processReceipt,
 	chooseReadyNowEgg = purchaseService.chooseReadyNowEgg,
 	setSubscribed = purchaseService.setSubscribedForTest,
+	grantWeek = purchaseService.grantWeekForTest,
 	setTutorialProgress = tutorialService.setProgress,
 	setCoachDone = coachService.setDone,
 	resetCommunityGift = communityService.reset,

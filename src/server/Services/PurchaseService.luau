@@ -61,6 +61,9 @@ export type Granted = {
 	hatched: boolean,
 	-- The egg it hatched.
 	egg: number?,
+	-- A week (decision 140): whose perk, and the server time it now runs until.
+	perk: Purchases.SubscriptionId?,
+	weekUntil: number?,
 }
 
 export type Dependencies = {
@@ -99,6 +102,9 @@ export type PurchaseService = {
 	-- Sets a subscription in Studio, as if Roblox said so; Roblox's checks then leave this player's
 	-- subscriptions alone until they leave (dev commands).
 	setSubscribedForTest: (player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean) -> boolean,
+	-- Gives a week of `perk` as if bought, for `seconds`; the server time it now runs until, or nil
+	-- without a profile (dev commands, Studio only).
+	grantWeekForTest: (player: Player, perk: Purchases.SubscriptionId, seconds: number) -> number?,
 	-- Fires once per granted receipt.
 	purchased: Signal.Signal<Player, Granted>,
 	-- Fires when a subscription started or ended: the player, which one and whether it is on now.
@@ -151,21 +157,41 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 	local lastSource: { [Player]: MonetizationConfig.ShopSource } = {}
 	-- Players whose subscriptions a Studio command set: Roblox's checks leave them alone.
 	local testOverrides: { [Player]: boolean } = {}
+	-- The perks each player's attributes last showed, to notice a week running out.
+	local publishedPerks: { [Player]: string } = {}
 
 	local function effects(player: Player): Purchases.Effects
 		local data = dependencies.getData(player)
-		return Purchases.effects(if data then data.subscriptions else {}, MonetizationConfig.SUBSCRIPTION_TUNING)
+		local active = if data then Purchases.active(data, now()) else {}
+		return Purchases.effects(active, MonetizationConfig.SUBSCRIPTION_TUNING)
 	end
 
-	-- The subscriptions on the player, for every client (the shop, the trainer sign over their bay).
+	-- The perks on the player, for every client: the subscriptions, the end of each week (the shop
+	-- counts down) and the trainer's multiplier from them all (the trainer sign over their bay).
 	local function publish(player: Player)
 		local data = dependencies.getData(player)
 		if not data then
 			return
 		end
-		local current = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
+		local active = Purchases.active(data, now())
+		local current = Purchases.effects(active, MonetizationConfig.SUBSCRIPTION_TUNING)
 		player:SetAttribute(MonetizationConfig.SUBSCRIPTIONS_ATTRIBUTE, table.concat(data.subscriptions, ","))
+		for _, perk in MonetizationConfig.SUBSCRIPTION_ORDER do
+			player:SetAttribute(MonetizationConfig.WEEK_ATTRIBUTE_PREFIX .. perk, data.weeks[perk])
+		end
 		player:SetAttribute(MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE, current.trainerMultiplier)
+		publishedPerks[player] = table.concat(active, ",")
+	end
+
+	-- A week that ran out during play stops at once: the trainer's multiplier on the player follows.
+	local function checkWeeks()
+		local current = now()
+		for _, player in Players:GetPlayers() do
+			local data = dependencies.getData(player)
+			if data and publishedPerks[player] ~= table.concat(Purchases.active(data, current), ",") then
+				publish(player)
+			end
+		end
 	end
 
 	local function setSubscribed(player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean): boolean
@@ -225,6 +251,19 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 				checkSubscriptions(player)
 			end
 		end)
+	end
+
+	-- Studio: a week of `perk` as if bought (the same grant as a receipt's, without one).
+	local function grantWeekForTest(player: Player, perk: Purchases.SubscriptionId, seconds: number): number?
+		assert(RunService:IsStudio(), "weeks are given by hand only in Studio")
+		local untilTime: number? = nil
+		dependencies.update(player, function(data)
+			untilTime = Purchases.extendWeek(data, perk, seconds, now())
+		end)
+		if untilTime then
+			publish(player)
+		end
+		return untilTime
 	end
 
 	local function setSubscribedForTest(
@@ -292,11 +331,19 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		local multiplier = Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)
 		local current = now()
 		if product.kind == "Training" then
-			local subscribed = Purchases.effects(data.subscriptions, MonetizationConfig.SUBSCRIPTION_TUNING)
+			local subscribed =
+				Purchases.effects(Purchases.active(data, current), MonetizationConfig.SUBSCRIPTION_TUNING)
 			local rate = Purchases.trainerRate(data.trainerLevel, subscribed.trainerMultiplier, UpgradeConfig.TUNING)
 			local paid = Purchases.trainingPack(rate, product.seconds or 0, multiplier)
 			data.trained = BigNum.add(data.trained, paid.trained)
 			granted.speed = paid.speed
+		elseif product.kind == "Week" then
+			-- A week on top of the one running, or from now (decision 140). With the subscription too
+			-- it still counts: the week runs on after the subscription is cancelled.
+			local perk = assert(product.perk, "a week product names its perk")
+			granted.perk = perk
+			granted.weekUntil =
+				Purchases.extendWeek(data, perk, product.seconds or MonetizationConfig.WEEK_SECONDS, current)
 		elseif product.kind == "ReadyNow" then
 			local chosen = readyNowChoice[player]
 			local made = Purchases.makeReady(data, chosen, product.tier or 1, function(egg)
@@ -384,6 +431,8 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 				dependencies.hatchEgg(player, given.egg)
 			elseif product.kind == "ReadyNow" or product.kind == "IncubatorSlot" then
 				dependencies.refreshBay(player)
+			elseif product.kind == "Week" then
+				publish(player)
 			end
 			purchased.fire(player, given)
 		end
@@ -410,6 +459,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 				task.spawn(checkSubscription, player, subscription)
 			end
 		end)
+		dependencies.scheduler.every(MonetizationConfig.WEEK_CHECK_SECONDS, checkWeeks)
 		-- A cancelled subscription runs to the end of its month, then stops: noticed in play too.
 		dependencies.scheduler.every(SUBSCRIPTION_POLL_SECONDS, function()
 			for _, player in Players:GetPlayers() do
@@ -422,6 +472,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			readyNowChoice[player] = nil
 			lastSource[player] = nil
 			testOverrides[player] = nil
+			publishedPerks[player] = nil
 		end)
 	end
 
@@ -434,6 +485,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		processReceipt = processReceipt,
 		subscriptionPromptClosed = subscriptionPromptClosed,
 		setSubscribedForTest = setSubscribedForTest,
+		grantWeekForTest = grantWeekForTest,
 		purchased = purchased,
 		subscriptionChanged = subscriptionChanged,
 		prompted = prompted,

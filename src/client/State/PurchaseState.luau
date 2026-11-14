@@ -24,6 +24,8 @@ local PRICE_REFRESH_SECONDS = 30
 -- What a granted purchase gave (speed as the stat shows it).
 export type Granted = {
 	kind: MonetizationConfig.ProductKind,
+	-- A week: whose perk.
+	perk: Purchases.SubscriptionId?,
 	compensated: boolean,
 	-- "Egg ready now" hatched the chosen egg at once.
 	hatched: boolean,
@@ -48,6 +50,12 @@ export type PurchaseState = {
 	sellsSubscription: (subscription: Purchases.SubscriptionId) -> boolean,
 	-- The player has the subscription (reactive).
 	isSubscribed: (subscription: Purchases.SubscriptionId) -> boolean,
+	-- The game sells a week of the perk (decision 140).
+	sellsWeek: (perk: Purchases.SubscriptionId) -> boolean,
+	-- Roblox's price of a week of the perk (reactive); nil until Roblox answers.
+	weekPrice: (perk: Purchases.SubscriptionId) -> number?,
+	-- The server time the player's week of the perk runs until (reactive); 0: never bought.
+	weekUntil: (perk: Purchases.SubscriptionId) -> number,
 	-- The trainer's multiplier from the subscriptions (reactive).
 	trainerMultiplier: () -> number,
 	-- Shows Roblox's prompt for a product; `egg` is the egg an "Egg ready now" is for.
@@ -59,6 +67,7 @@ export type PurchaseState = {
 		egg: number?
 	) -> (),
 	promptSubscription: (source: MonetizationConfig.ShopSource, subscription: Purchases.SubscriptionId) -> (),
+	promptWeek: (source: MonetizationConfig.ShopSource, perk: Purchases.SubscriptionId) -> (),
 	-- A purchase was granted.
 	granted: Signal.Signal<Granted>,
 	-- A subscription started (after the first reading: not for ones the player had on join).
@@ -79,6 +88,7 @@ function PurchaseState.new(): PurchaseState
 	local subscriptionPrices = Vide.source({} :: { [string]: string })
 	local subscribed = Vide.source({} :: { [string]: boolean })
 	local canSubscribe = Vide.source(false)
+	local weeks = Vide.source({} :: { [string]: number })
 	local multiplier = Vide.source(1)
 	local granted = Signal.new() :: Signal.Signal<Granted>
 	local subscriptionStarted = Signal.new() :: Signal.Signal<Purchases.SubscriptionId>
@@ -191,6 +201,18 @@ function PurchaseState.new(): PurchaseState
 			announce = true
 		end)
 		readSubscriptions(player, false)
+		local function readWeeks()
+			local now: { [string]: number } = {}
+			for _, perk in MonetizationConfig.SUBSCRIPTION_ORDER do
+				local value = player:GetAttribute(MonetizationConfig.WEEK_ATTRIBUTE_PREFIX .. perk)
+				now[perk] = if type(value) == "number" then value else 0
+			end
+			weeks(now)
+		end
+		for _, perk in MonetizationConfig.SUBSCRIPTION_ORDER do
+			player:GetAttributeChangedSignal(MonetizationConfig.WEEK_ATTRIBUTE_PREFIX .. perk):Connect(readWeeks)
+		end
+		readWeeks()
 		local function readCanSubscribe()
 			canSubscribe(player:GetAttribute(MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE) == true)
 		end
@@ -213,6 +235,7 @@ function PurchaseState.new(): PurchaseState
 			if coins and speed then
 				granted.fire({
 					kind = value.kind,
+					perk = value.perk,
 					compensated = value.compensated,
 					hatched = value.hatched,
 					coins = coins,
@@ -246,6 +269,16 @@ function PurchaseState.new(): PurchaseState
 		isSubscribed = function(subscription)
 			return subscribed()[subscription] == true
 		end,
+		sellsWeek = function(perk)
+			return catalog ~= nil and MonetizationConfig.weekProductOf(catalog, perk) ~= nil
+		end,
+		weekPrice = function(perk)
+			local id = if catalog then MonetizationConfig.weekProductOf(catalog, perk) else nil
+			return if id then productPrices()[id] else nil
+		end,
+		weekUntil = function(perk)
+			return weeks()[perk] or 0
+		end,
 		trainerMultiplier = function()
 			return multiplier()
 		end,
@@ -265,6 +298,15 @@ function PurchaseState.new(): PurchaseState
 			end
 			Remotes.PurchasePrompted.Fire({ item = subscription, source = source })
 			MarketplaceService:PromptSubscriptionPurchase(Players.LocalPlayer, id)
+		end,
+		promptWeek = function(source, perk)
+			local id = if catalog then MonetizationConfig.weekProductOf(catalog, perk) else nil
+			if not id then
+				warn(`[PurchaseState] This game does not sell a week of {perk}`)
+				return
+			end
+			Remotes.PurchasePrompted.Fire({ item = "Week", source = source })
+			MarketplaceService:PromptProductPurchase(Players.LocalPlayer, id)
 		end,
 		granted = granted,
 		subscriptionStarted = subscriptionStarted,

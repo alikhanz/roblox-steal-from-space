@@ -600,6 +600,10 @@ describe("MonetizationConfig", function()
 		for _, product in catalog.products do
 			if product.kind == "Training" then
 				expect(table.find(MonetizationConfig.TRAINING_PACK_SECONDS, product.seconds :: number)).toBeTruthy()
+			elseif product.kind == "Week" then
+				-- A week of a perk the shop knows, lasting a week (decision 140).
+				expect(table.find(MonetizationConfig.SUBSCRIPTION_ORDER, product.perk :: any)).toBeTruthy()
+				expect(product.seconds).toBe(MonetizationConfig.WEEK_SECONDS)
 			end
 		end
 		-- The shop names them: 1 hour, 8 hours, a day (StoreController.TRAINING_TITLES).

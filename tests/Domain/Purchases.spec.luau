@@ -54,6 +54,84 @@ describe("Purchases receipts", function()
 	end)
 end)
 
+describe("Purchases weeks", function()
+	local WEEK = 7 * 86400
+	local NOW = 1000000
+
+	it("starts a week from now and adds the next one on top", function()
+		local data = fresh()
+		expect(Purchases.extendWeek(data, "NightShift", WEEK, NOW)).toBe(NOW + WEEK)
+		expect(Purchases.extendWeek(data, "NightShift", WEEK, NOW + 100)).toBe(NOW + 2 * WEEK)
+		-- After one ran out, the next starts from the purchase, not from the old end.
+		expect(Purchases.extendWeek(data, "DoubleTraining", WEEK, NOW)).toBe(NOW + WEEK)
+		expect(Purchases.extendWeek(data, "DoubleTraining", WEEK, NOW + 3 * WEEK)).toBe(NOW + 4 * WEEK)
+	end)
+
+	it("counts a running week as the perk, once, with or without the subscription", function()
+		local data = fresh()
+		Purchases.extendWeek(data, "NightShift", WEEK, NOW)
+		expect(Purchases.active(data, NOW + 10)).toEqual({ "NightShift" })
+		expect(Purchases.active(data, NOW + WEEK)).toEqual({})
+		data.subscriptions = { "NightShift" }
+		expect(Purchases.active(data, NOW + 10)).toEqual({ "NightShift" })
+		Purchases.extendWeek(data, "DoubleTraining", WEEK, NOW)
+		expect(Purchases.active(data, NOW + 10)).toEqual({ "DoubleTraining", "NightShift" })
+		-- Both perks of the same kind never double twice.
+		local effects = Purchases.effects(Purchases.active(data, NOW + 10), TUNING)
+		expect(effects.trainerMultiplier).toBe(2)
+	end)
+
+	it("covers as much of a time away as a week lasted, all of it for a subscription", function()
+		local data = fresh()
+		data.weeks = { NightShift = NOW + 3600, DoubleTraining = NOW - 50 }
+		local covered = Purchases.coveredAway(data, NOW, 5 * 3600)
+		expect(covered.NightShift).toBe(3600)
+		expect(covered.DoubleTraining).toBe(0)
+		data.subscriptions = { "DoubleTraining" }
+		expect(Purchases.coveredAway(data, NOW, 5 * 3600).DoubleTraining).toBe(5 * 3600)
+	end)
+end)
+
+describe("Purchases.away", function()
+	local H = 3600
+
+	it("pays the free share and caps without perks", function()
+		local paid = Purchases.away(10 * H, {}, TUNING)
+		expect(paid.incomeSeconds).toBe(4 * H)
+		expect(paid.rateSeconds).toBeCloseTo(8 * H * 0.2, 1e-6)
+	end)
+
+	it("pays Night shift for the whole time it covered", function()
+		local paid = Purchases.away(12 * H, { NightShift = 12 * H }, TUNING)
+		expect(paid.incomeSeconds).toBe(8 * H)
+		-- The tuning's night cap is 10 h.
+		expect(paid.rateSeconds).toBeCloseTo(10 * H * 1, 1e-6)
+	end)
+
+	it("pays a week only for the part of the time away it lasted", function()
+		-- Night shift ran out 3 h in: 3 h at the full rate, then the free share up to the free cap.
+		local paid = Purchases.away(12 * H, { NightShift = 3 * H }, TUNING)
+		expect(paid.rateSeconds).toBeCloseTo(3 * H * 1 + 5 * H * 0.2, 1e-6)
+		-- It earned the free 4 h, as it lasted less.
+		expect(paid.incomeSeconds).toBe(4 * H)
+		-- Lasting 6 h, it earns 6 h.
+		expect(Purchases.away(12 * H, { NightShift = 6 * H }, TUNING).incomeSeconds).toBe(6 * H)
+	end)
+
+	it("doubles what was trained while Double training lasted", function()
+		local paid = Purchases.away(12 * H, { DoubleTraining = 2 * H }, TUNING)
+		expect(paid.rateSeconds).toBeCloseTo(2 * H * 0.2 * 2 + 6 * H * 0.2, 1e-6)
+		local both = Purchases.away(12 * H, { DoubleTraining = 12 * H, NightShift = 12 * H }, TUNING)
+		expect(both.rateSeconds).toBeCloseTo(10 * H * 1 * 2, 1e-6)
+	end)
+
+	it("pays nothing for no time away", function()
+		local paid = Purchases.away(0, { NightShift = 0 }, TUNING)
+		expect(paid.incomeSeconds).toBe(0)
+		expect(paid.rateSeconds).toBe(0)
+	end)
+end)
+
 describe("Purchases subscriptions", function()
 	it("changes nothing without subscriptions", function()
 		local effects = Purchases.effects({}, TUNING)
