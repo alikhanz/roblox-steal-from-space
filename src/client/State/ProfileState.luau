@@ -5,6 +5,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AlienIndex = require(ReplicatedStorage.Shared.Domain.AlienIndex)
 local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local LeaderboardConfig = require(ReplicatedStorage.Shared.Config.LeaderboardConfig)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
@@ -128,8 +129,9 @@ function ProfileState.new(): ProfileState
 			index(snapshot.index)
 			loaded(true)
 		end)
-		Remotes.IndexChanged.SetCallback(function(value)
-			index(value)
+		-- After the snapshot the index comes as its changes (decision 142).
+		Remotes.IndexChanged.SetCallback(function(change)
+			index(AlienIndex.applied(Vide.untrack(index), change))
 		end)
 		Remotes.IndexRewarded.SetCallback(function(value)
 			local paid = BigNum.fromSaved(value)
