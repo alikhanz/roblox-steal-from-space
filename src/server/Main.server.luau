@@ -441,6 +441,7 @@ local devService = DevService.new({
 	processReceipt = purchaseService.processReceipt,
 	chooseReadyNowEgg = purchaseService.chooseReadyNowEgg,
 	setSubscribed = purchaseService.setSubscribedForTest,
+	setPaidRandom = purchaseService.setPaidRandomForTest,
 	grantWeek = purchaseService.grantWeekForTest,
 	setTutorialProgress = tutorialService.setProgress,
 	setCoachDone = coachService.setDone,

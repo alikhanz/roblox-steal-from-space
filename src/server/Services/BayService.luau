@@ -23,8 +23,8 @@ local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
+local HatchOdds = require(ReplicatedStorage.Shared.Domain.HatchOdds)
 local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
-local Loot = require(ReplicatedStorage.Shared.Domain.Loot)
 local MonetizationConfig = require(ReplicatedStorage.Shared.Config.MonetizationConfig)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
@@ -238,6 +238,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		bay: PlayerBay,
 		egg: {
 			read uid: number,
+			read grade: number,
 			read rarity: string,
 			read size: string,
 			read variant: string?,
@@ -289,6 +290,8 @@ function BayService.new(dependencies: Dependencies): BayService
 		part.Anchored = true
 		part.CFrame = cframe
 		part:SetAttribute(BayConfig.EGG_UID_ATTRIBUTE, egg.uid)
+		-- Its guardian: the odds window lists that guardian's kinds (decision 127).
+		part:SetAttribute(EggConfig.LOOSE_EGG_GRADE_ATTRIBUTE, egg.grade)
 		if hatchAt then
 			part:SetAttribute(BayConfig.EGG_HATCH_AT_ATTRIBUTE, hatchAt)
 			CollectionService:AddTag(part, BayConfig.INCUBATOR_EGG_TAG)
@@ -416,11 +419,16 @@ function BayService.new(dependencies: Dependencies): BayService
 
 	-- A warming egg offers to hatch it now for Robux: the owner's client words the prompt with
 	-- the price of this egg's tier and asks Roblox for the purchase; the receipt does the rest
-	-- (PurchaseService). Only for a tier this game sells.
+	-- (PurchaseService). Only for a tier this game sells, and only to a player Roblox lets buy paid
+	-- random items (decisions 127, 143): to anyone else a warming egg offers nothing.
 	local function addHatchNowPrompt(player: Player, part: BasePart, egg: PlayerData.EggRecord)
 		local catalog = MonetizationConfig.catalogFor(game.GameId)
 		local tier = MonetizationConfig.readyNowTierOf(egg.grade, egg.rarity)
-		if not catalog or not MonetizationConfig.productIdOf(catalog, "ReadyNow", tier) then
+		if
+			not catalog
+			or not MonetizationConfig.productIdOf(catalog, "ReadyNow", tier)
+			or not MonetizationConfig.canBuyPaidRandom(player)
+		then
 			return
 		end
 		-- The price is the client's: Roblox tells each player their own.
@@ -730,24 +738,20 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	-- An egg hatches into a kind of its grade, by the kinds' own odds, and a tier by its rarity and
-	-- size: its own, now and then one down or up (EggConfig.hatchEntries, decision 113). Luck (the
-	-- star egg's) never touches the kind: it is for the collection (decision 075).
+	-- size: its own, now and then one down or up (decision 113). Luck (the star egg's) never touches
+	-- the kind: it is for the collection (decision 075). The odds are Domain/HatchOdds, the table the
+	-- odds window lists before "Hatch for R$" (decision 127).
 	local function hatchEgg(
 		data: PlayerData.PlayerData,
 		egg: PlayerData.EggRecord
 	): (PlayerData.AlienRecord?, Bay.Location?)
-		local rarity = EggConfig.RARITIES[egg.rarity :: EggConfig.RarityId]
-		local size = EggConfig.SIZES[egg.size :: EggConfig.SizeId]
-		local grade = AlienConfig.GRADES[egg.grade]
-		local variant = grade and grade.variants[(egg.variant or "Normal") :: AlienConfig.VariantId]
-		if not rarity or not size or not variant then
+		local draw = HatchOdds.of(egg)
+		if not draw then
 			warn(`[BayService] Egg {egg.uid} ({egg.rarity} {egg.size}, grade {egg.grade}) cannot hatch; dropped`)
 			return nil, nil
 		end
-		local odds = EggConfig.hatchEntries(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
-		local kind = Loot.pick(grade.kindEntries, random:NextNumber())
-		local tier: AlienConfig.TierId = Loot.pick(odds, random:NextNumber())
-		local alien = Bay.newAlien(data, variant[kind][tier], nextInteger)
+		local alienId = HatchOdds.pick(draw, random:NextNumber(), random:NextNumber())
+		local alien = Bay.newAlien(data, alienId, nextInteger)
 		return alien, Bay.addHatched(data, alien)
 	end
 

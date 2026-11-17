@@ -522,6 +522,11 @@ local Strings = {
 		ru = "Это яйцо уже готово",
 		en = "That egg's done already",
 	},
+	-- "Hatch for R$" refused: Roblox does not let this player buy paid random items (decision 143).
+	["notice.paidRandomBlocked.toast"] = {
+		ru = "Эта покупка тебе недоступна",
+		en = "This purchase isn't available to you",
+	},
 	["notice.jetpackTop.toast"] = {
 		ru = "Это лучший джетпак",
 		en = "That's the best jetpack",

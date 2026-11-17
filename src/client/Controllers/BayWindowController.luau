@@ -81,6 +81,7 @@ local NOTICE_KEYS: { [ProfileState.Notice]: Text.Key } = {
 	IndexClaimed = "notice.questClaimed.toast",
 	StormTeleport = "notice.stormTeleport.toast",
 	NoSuchEgg = "notice.noSuchEgg.toast",
+	PaidRandomBlocked = "notice.paidRandomBlocked.toast",
 	NotInCommunity = "notice.notInCommunity.toast",
 }
 
