@@ -233,7 +233,9 @@ function BayService.new(dependencies: Dependencies): BayService
 	-- Shows `egg` lying at `cframe` in `bay`: in a capsule (`hatchAt` given, for its countdown;
 	-- shining once `ready`) or waiting for one on the platform. The part it already has, moved
 	-- there, or a new one when it has none or what it shows changed (the second result: true for a
-	-- new one, which needs its prompt). `kept` collects the uids shown.
+	-- new one, which needs its prompt). `kept` collects the uids shown. `offered`: a warming egg
+	-- that offers "Hatch for R$" (the player may buy paid random items); a change rebuilds it, so
+	-- its prompt comes or goes with the offer.
 	local function showEgg(
 		bay: PlayerBay,
 		egg: {
@@ -249,11 +251,15 @@ function BayService.new(dependencies: Dependencies): BayService
 		kept: { [number]: boolean },
 		hatchAt: number?,
 		ready: boolean?,
-		full: boolean?
+		full: boolean?,
+		offered: boolean?
 	): (BasePart?, boolean)
 		local state = if hatchAt == nil then "waiting" elseif ready then "ready" else "warming"
 		if hatchAt ~= nil and full then
 			state ..= "Full"
+		end
+		if offered then
+			state ..= "Offered"
 		end
 		-- `cframe` is where a medium egg lies; every egg stands on its bottom there.
 		if EggConfig.SIZES[egg.size :: EggConfig.SizeId] then
@@ -531,6 +537,7 @@ function BayService.new(dependencies: Dependencies): BayService
 		bay.eggCapsules = Bay.capsulesFor(warming, bay.eggCapsules, capsuleCount)
 		local keptEggs: { [number]: boolean } = {}
 		local current = now()
+		local mayBuyRandom = MonetizationConfig.canBuyPaidRandom(player)
 		bay.ready = 0
 		local states: { [number]: BayModel.CapsuleState } = {}
 		for _, egg in data.incubator do
@@ -538,7 +545,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			local capsule = bay.eggCapsules[egg.uid]
 			states[capsule] = if ready then "Ready" else "Warming"
 			local cframe = BayModel.eggCFrame(bay.origin, capsule)
-			local part, new = showEgg(bay, egg, cframe, contents, keptEggs, egg.hatchAt, ready, full)
+			local offered = not ready and not full and mayBuyRandom
+			local part, new = showEgg(bay, egg, cframe, contents, keptEggs, egg.hatchAt, ready, full, offered)
 			if ready then
 				bay.ready += 1
 			end
