@@ -94,7 +94,10 @@ local function contentOf(locale: Text.Locale, egg: HatchOdds.Egg): OddsWindow.Co
 		table.insert(notes, Text.get(locale, "odds.rounded.hint"))
 	end
 
-	local sizeKey = SIZE_KEYS[egg.size]
+	-- A lucky egg (the star egg) hatches as a large one whatever its size: its star says so, and
+	-- its own size would only mislead.
+	local lucky = egg.luck ~= nil and egg.luck > 0
+	local sizeKey = if lucky then nil else SIZE_KEYS[egg.size]
 	local eggLine = Names.eggWithGuardian(locale, egg)
 	return {
 		egg = if sizeKey then `{eggLine} · {Text.get(locale, sizeKey)}` else eggLine,
