@@ -16,6 +16,7 @@
 --   game.ServerStorage.DevCommands.GiveCoins:Invoke(5000)
 --   game.ServerStorage.DevCommands.SpawnDummyThief:Invoke("Rare", 10)
 --   game.ServerStorage.DevCommands.SetPlayTime:Invoke(3600)
+--   game.ServerStorage.DevCommands.ReportDelivery:Invoke(10)
 --   game.ServerStorage.DevCommands.PvpStats:Invoke()
 --   game.ServerStorage.DevCommands.ActivityStatus:Invoke()
 --   game.ServerStorage.DevCommands.HitSerpent:Invoke(3)
@@ -126,6 +127,8 @@ export type Dependencies = {
 	-- The community gift is not taken again; this session's automatic checks are skipped
 	-- (CommunityService.reset).
 	resetCommunityGift: (player: Player) -> boolean,
+	-- Analytics hears a delivery from a post (MetricsService.deliveredFrom); nothing else changes.
+	reportDelivery: (player: Player, grade: number) -> (),
 	-- Shows a changed jetpack level: the model, the attribute and the speed (JetpackService).
 	refreshJetpack: (player: Player) -> (),
 	-- Shows a changed trainer level: the terminal, the stand's look and flame (as a bought upgrade).
@@ -271,6 +274,20 @@ function DevService.new(dependencies: Dependencies): DevService
 				onHarpoon = knockOut,
 			})
 			return "dummy thief ahead"
+		end,
+		-- The analytics of a delivery from post `grade` for the first player (the new player's
+		-- funnel, the progression, the day-1 wall), with no egg: their bay and quests stay as they are.
+		ReportDelivery = function(grade: number): string
+			assert(
+				type(grade) == "number" and grade % 1 == 0 and grade >= 1 and grade <= ZoneConfig.POST_COUNT,
+				`ReportDelivery expects a post 1-{ZoneConfig.POST_COUNT}`
+			)
+			local player = Players:GetPlayers()[1]
+			if not player or not dependencies.getData(player) then
+				return "no active profile"
+			end
+			dependencies.reportDelivery(player, grade)
+			return `delivery from post {grade} reported for {player.Name}`
 		end,
 		-- Sets every player's total play time (to leave or re-enter the newbie protection).
 		SetPlayTime = function(seconds: number): string

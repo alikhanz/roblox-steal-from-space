@@ -965,6 +965,40 @@ describe("PlayerData migration v20 -> v21", function()
 	end)
 end)
 
+describe("PlayerData migration v25 -> v26", function()
+	it("gives a profile from before a day-1 wall not started, and keeps the rest", function()
+		local old = savedTemplate()
+		old.schemaVersion = 25
+		old.dayOneWall = nil
+		old.bestPost = 10
+		old.playSeconds = 5400
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.dayOneWall).toEqual({ startedAt = 0, startedPlaySeconds = 0 })
+			expect(outcome.data.bestPost).toBe(10)
+			expect(outcome.data.playSeconds).toBe(5400)
+		end
+	end)
+
+	it("keeps a started wall and rejects broken ones", function()
+		local saved = savedTemplate()
+		saved.dayOneWall = { startedAt = 1800000000, startedPlaySeconds = 4000.5 }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.dayOneWall).toEqual({ startedAt = 1800000000, startedPlaySeconds = 4000.5 })
+		end
+		local broken = savedTemplate()
+		broken.dayOneWall = { startedAt = -1, startedPlaySeconds = 0 }
+		expectCorrupted(broken, "dayOneWall startedAt is invalid")
+		local notTable = savedTemplate()
+		notTable.dayOneWall = 7
+		expectCorrupted(notTable, "dayOneWall is not a table")
+	end)
+end)
+
 describe("PlayerData migration v24 -> v25", function()
 	it("gives a profile from before no weeks, and keeps the rest", function()
 		local old = savedTemplate()
@@ -976,7 +1010,7 @@ describe("PlayerData migration v24 -> v25", function()
 		local outcome = load(old)
 		expect(outcome.ok).toBe(true)
 		if outcome.ok then
-			expect(outcome.data.schemaVersion).toBe(25)
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
 			expect(outcome.data.weeks).toEqual({})
 			expect(outcome.data.subscriptions).toEqual({ "NightShift" })
 			expect((outcome.data.pods[1].alien :: PlayerData.AlienRecord).incomePercent).toBe(117)

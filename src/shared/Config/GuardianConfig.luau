@@ -116,6 +116,7 @@ assert(#POST_LIST == #AlienConfig.GRADES, "GuardianConfig posts and AlienConfig.
 
 local POSTS: { Post } = {}
 local POSTS_BY_ID: { [PostId]: Post } = {}
+local RECOMMENDED: { BigNum.BigNum } = {}
 for index, entry in POST_LIST do
 	local recommended = recommendedFor(index)
 	local zone = ZoneConfig.zoneOfPost(index)
@@ -129,6 +130,7 @@ for index, entry in POST_LIST do
 		speed = Speed.withEgg(recommended, TYPICAL_WEIGHT),
 	})
 	POSTS[index] = post
+	RECOMMENDED[index] = recommended
 	assert(not POSTS_BY_ID[entry.id], `guardian post {entry.id} repeats`)
 	POSTS_BY_ID[entry.id] = post
 end
@@ -148,6 +150,8 @@ return table.freeze({
 	-- Every post, from the station outwards; POSTS[k] guards grade k.
 	POSTS = table.freeze(POSTS),
 	POSTS_BY_ID = table.freeze(POSTS_BY_ID),
+	-- Every post's recommended stat in the same order: the speed goals (Domain/SpeedGoal).
+	RECOMMENDED = table.freeze(RECOMMENDED),
 	BRAIN = table.freeze(BRAIN),
 	TYPICAL_WEIGHT = TYPICAL_WEIGHT,
 	-- A sleeping guardian hovers this far above its nest's egg, studs.

@@ -1,6 +1,7 @@
 --!strict
 -- Analytics: the new player's funnel, progression through the guardians, the coin and speed
--- economy, each theft as a funnel, and counted gameplay events. Other services only report
+-- economy, each theft as a funnel, counted gameplay events, and the launch's numbers (decision
+-- 143): where each session ends and how long the day-1 wall takes. Other services only report
 -- facts through their signals; this is the one place that knows Roblox's AnalyticsService.
 --
 -- Frequent facts (pod income every second, trainer payouts, ability uses) are summed per player
@@ -21,6 +22,7 @@ local CarryService = require(script.Parent.CarryService)
 local EconomyService = require(script.Parent.EconomyService)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local LaunchMetrics = require(ReplicatedStorage.Shared.Domain.LaunchMetrics)
 local OfflineService = require(script.Parent.OfflineService)
 local Onboarding = require(ReplicatedStorage.Shared.Domain.Onboarding)
 local PlayerData = require(ReplicatedStorage.Shared.Domain.PlayerData)
@@ -28,6 +30,8 @@ local PlayerEvents = require(script.Parent.Parent.Runtime.PlayerEvents)
 local PvpService = require(script.Parent.PvpService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
+local SpeedConfig = require(ReplicatedStorage.Shared.Config.SpeedConfig)
+local SpeedGoal = require(ReplicatedStorage.Shared.Domain.SpeedGoal)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local Upgrades = require(ReplicatedStorage.Shared.Domain.Upgrades)
 local ZoneConfig = require(ReplicatedStorage.Shared.Config.ZoneConfig)
@@ -47,6 +51,11 @@ local THEFT_STEPS = { Grabbed = 1, ReachedStation = 2, Delivered = 3 }
 -- (Domain/Tutorial), so a step is never logged twice.
 local TUTORIAL_FUNNEL = "Tutorial"
 local TUTORIAL_STEPS = { "Started", "Delivered", "Hatched", "Trained", "Done" }
+-- Once per session, as it ends; the value is its length in minutes.
+local SESSION_END = "SessionEnd"
+-- Once per account, on the first delivery from the wall's last post; the value is the minutes
+-- played since the first from its first post (MetricsConfig).
+local DAY_ONE_WALL = "DayOneWall"
 
 local FIELD_KEYS = {
 	Enum.AnalyticsCustomFieldKeys.CustomField01.Name,
@@ -92,6 +101,17 @@ export type MetricsService = {
 	serverEvent: (eventId: string) -> (),
 	-- The player reached tutorial progress `progress` (0: it started).
 	tutorialStep: (player: Player, progress: number) -> (),
+	-- As if an egg of post `grade` was delivered (a developer's command: analytics only).
+	deliveredFrom: (player: Player, grade: number) -> (),
+}
+
+-- The session in progress of one player. Kept here, as the profile is released before this
+-- service hears the player leave.
+type Session = {
+	startedAt: number,
+	-- The account's first: the "Joined" funnel step was new.
+	isFirst: boolean,
+	bestPost: number,
 }
 
 -- Summed facts of one player, waiting to be sent.
@@ -146,6 +166,7 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 	local thefts: { [Player]: string } = {}
 	-- Last known coin balance (the profile may be gone when a leaving player is flushed).
 	local coinBalance: { [Player]: BigNum.BigNum } = {}
+	local sessions: { [Player]: Session } = {}
 
 	local function pendingOf(player: Player): Pending
 		local entry = pending[player]
@@ -221,6 +242,19 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 		AnalyticsService:LogProgressionCompleteEvent(player, GUARDIAN_PATH, grade, post.id)
 	end
 
+	-- A custom event sent at once, with its own value.
+	local function sendValue(player: Player, eventName: string, value: number, values: { string })
+		if IS_STUDIO then
+			print(`[Metrics] {player.Name} {eventName} {value}{describe(values)}`)
+			return
+		end
+		AnalyticsService:LogCustomEvent(player, eventName, value, fieldsOf(values))
+	end
+
+	local function minutes(seconds: number): number
+		return math.floor(seconds / 6) / 10
+	end
+
 	-- Summing.
 
 	local function add(player: Player, currency: Currency, flow: Flow, sku: string, amount: BigNum.BigNum)
@@ -258,12 +292,13 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 		end
 	end
 
-	-- The new player's funnel: each step once per account, remembered in the profile.
-	local function reach(player: Player, stepName: string)
+	-- The new player's funnel: each step once per account, remembered in the profile. True when
+	-- the step was new.
+	local function reach(player: Player, stepName: string): boolean
 		local data = dependencies.getData(player)
 		local step = Onboarding.step(stepName)
 		if not data or Onboarding.has(data.onboardingSteps, step) then
-			return
+			return false
 		end
 		local isNew = false
 		dependencies.update(player, function(profile)
@@ -274,24 +309,80 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 		if isNew then
 			sendOnboarding(player, step)
 		end
+		return isNew
 	end
 
-	-- A delivery from a post further than ever before.
+	-- A delivery from a post further than ever before; it may start or pass the day-1 wall.
 	local function progress(player: Player, grade: number)
 		local data = dependencies.getData(player)
 		if not data or grade <= data.bestPost then
 			return
 		end
 		local isBest = false
+		local crossing: LaunchMetrics.WallCrossing? = nil
 		dependencies.update(player, function(profile)
 			if grade > profile.bestPost then
+				local now = workspace:GetServerTimeNow()
+				crossing = LaunchMetrics.passWall(profile.dayOneWall, profile.bestPost, grade, now, profile.playSeconds)
 				profile.bestPost = grade
 				isBest = true
 			end
 		end)
-		if isBest then
-			sendProgression(player, grade)
+		if not isBest then
+			return
 		end
+		local session = sessions[player]
+		if session then
+			session.bestPost = grade
+		end
+		sendProgression(player, grade)
+		if crossing then
+			local wall = crossing :: LaunchMetrics.WallCrossing
+			sendValue(player, DAY_ONE_WALL, minutes(wall.playSeconds), LaunchMetrics.wallFields(wall))
+		end
+	end
+
+	-- An egg of guardian post `grade` (nil: of no post) is in the bay.
+	local function deliveredFrom(player: Player, grade: number?)
+		reach(player, "DeliveredEgg")
+		if grade then
+			for _, step in Onboarding.stealSteps(grade, ZoneConfig.postIndex("IceRings", 1)) do
+				reach(player, step.name)
+			end
+			progress(player, grade)
+		end
+	end
+
+	local function begin(player: Player)
+		local isFirst = reach(player, "Joined")
+		local data = dependencies.getData(player)
+		sessions[player] = {
+			startedAt = os.clock(),
+			isFirst = isFirst,
+			bestPost = if data then data.bestPost else 0,
+		}
+	end
+
+	-- The speed goal from the stat on the player (the profile is gone by now; SpeedService keeps
+	-- the attributes current).
+	local function goalPostOf(player: Player): number?
+		local speed = BigNum.fromSaved({
+			mantissa = player:GetAttribute(SpeedConfig.MANTISSA_ATTRIBUTE),
+			exponent = player:GetAttribute(SpeedConfig.EXPONENT_ATTRIBUTE),
+		}) or SpeedConfig.STARTING_SPEED
+		local goal = SpeedGoal.next(speed, GuardianConfig.RECOMMENDED)
+		return if goal then goal.post else nil
+	end
+
+	local function finish(player: Player)
+		local session = sessions[player]
+		sessions[player] = nil
+		if not session then
+			return
+		end
+		local seconds = os.clock() - session.startedAt
+		local fields = LaunchMetrics.sessionFields(session.bestPost, goalPostOf(player), session.isFirst, seconds)
+		sendValue(player, SESSION_END, minutes(seconds), fields)
 	end
 
 	local function watchLeftStation()
@@ -304,9 +395,7 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 	end
 
 	local function connect()
-		dependencies.activated.connect(function(player)
-			reach(player, "Joined")
-		end)
+		dependencies.activated.connect(begin)
 
 		-- Economy.
 		dependencies.incomePaid.connect(function(player, amount, balance)
@@ -358,13 +447,7 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 			if session then
 				sendTheftStep(player, session, "Delivered", { zoneOfGrade(grade) })
 			end
-			reach(player, "DeliveredEgg")
-			if grade then
-				for _, step in Onboarding.stealSteps(grade, ZoneConfig.postIndex("IceRings", 1)) do
-					reach(player, step.name)
-				end
-				progress(player, grade)
-			end
+			deliveredFrom(player, grade)
 		end)
 		dependencies.eggLost.connect(function(player, egg, reason)
 			thefts[player] = nil
@@ -388,6 +471,7 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 	local function start()
 		connect()
 		PlayerEvents.observe(function() end, function(player)
+			finish(player)
 			flush(player)
 			thefts[player] = nil
 			coinBalance[player] = nil
@@ -407,6 +491,7 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 			add(player, currency, "Source", sku, amount)
 		end,
 		count = count,
+		deliveredFrom = deliveredFrom,
 		found = function(player: Player, alienId: string)
 			count(player, "AlienFound", alienFields(alienId))
 		end,

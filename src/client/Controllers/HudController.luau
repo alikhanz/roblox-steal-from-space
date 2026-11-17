@@ -83,15 +83,6 @@ local function leftPadding(pixels: number): UIPadding
 	return instance
 end
 
--- Every guardian's recommended stat, from the station outwards: the speed goals (SpeedGoal).
-local RECOMMENDED = (function(): { BigNum.BigNum }
-	local list = {}
-	for _, post in GuardianConfig.POSTS do
-		table.insert(list, post.recommended)
-	end
-	return list
-end)()
-
 export type Dependencies = {
 	coins: () -> BigNum.BigNum,
 	-- What the aliens on spots earn a second (decision 110): a small line under the coins. On the
@@ -398,13 +389,13 @@ function HudController.new(dependencies: Dependencies): HudController
 			-- The next guardian to grow towards, live with the plaque's number: once per change
 			-- (several properties read it), a few comparisons and logarithms.
 			local goal = Vide.derive(function(): SpeedGoal.Goal?
-				return SpeedGoal.next(speed(), RECOMMENDED)
+				return SpeedGoal.next(speed(), GuardianConfig.RECOMMENDED)
 			end)
 			-- A guardian comes within reach: cheer. The first reading only notes where the player is.
 			local lastGoal: number? = nil
 			Vide.effect(function()
 				local current = goal()
-				local post = if current then current.post else #RECOMMENDED + 1
+				local post = if current then current.post else #GuardianConfig.RECOMMENDED + 1
 				local before = lastGoal
 				lastGoal = post
 				if before and post > before then
