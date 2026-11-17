@@ -420,7 +420,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	-- A warming egg offers to hatch it now for Robux: the owner's client words the prompt with
 	-- the price of this egg's tier and asks Roblox for the purchase; the receipt does the rest
 	-- (PurchaseService). Only for a tier this game sells, and only to a player Roblox lets buy paid
-	-- random items (decisions 127, 143): to anyone else a warming egg offers nothing.
+	-- random items (decisions 127, 144): to anyone else a warming egg offers nothing.
 	local function addHatchNowPrompt(player: Player, part: BasePart, egg: PlayerData.EggRecord)
 		local catalog = MonetizationConfig.catalogFor(game.GameId)
 		local tier = MonetizationConfig.readyNowTierOf(egg.grade, egg.rarity)

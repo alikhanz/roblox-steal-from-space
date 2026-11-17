@@ -328,6 +328,49 @@ local Strings = {
 		ru = "Вылупить за {price}",
 		en = "Hatch for {price}",
 	},
+	-- The word on the odds row under an incubator egg's prompt: the row opens the odds window
+	-- (decisions 127, 144; docs/design/screens/egg-odds.md).
+	["egg.odds.button"] = {
+		ru = "Шансы",
+		en = "Odds",
+	},
+	-- An egg's size in the odds window's line about the egg ("Rare egg · Crab Drone · large").
+	["egg.sizeSmall.hint"] = {
+		ru = "маленькое",
+		en = "small",
+	},
+	["egg.sizeMedium.hint"] = {
+		ru = "среднее",
+		en = "medium",
+	},
+	["egg.sizeLarge.hint"] = {
+		ru = "большое",
+		en = "large",
+	},
+	-- The odds window: every alien an egg can hatch into, with its chance.
+	["odds.window.title"] = {
+		ru = "Шансы яйца",
+		en = "Egg odds",
+	},
+	-- A tier's column head: "Rare 60%".
+	["odds.tier.hint"] = {
+		ru = "{tier} {chance} %",
+		en = "{tier} {chance}%",
+	},
+	-- The income roll (decisions 130, 133): every whole percent from {min} to {max} as likely.
+	["odds.income.hint"] = {
+		ru = "Доход пришельца: от {min} до {max} %, у каждого значения шанс {chance} %",
+		en = "Alien income: {min}–{max}%, each value has a {chance}% chance",
+	},
+	["odds.outfit.hint"] = {
+		ru = "Наряд — случайный, на доход не влияет",
+		en = "The outfit is random and doesn't change income",
+	},
+	-- Shown when a chance in the window is rounded (Roblox's rule for odds that do not come out even).
+	["odds.rounded.hint"] = {
+		ru = "Шансы округлены: в сумме может быть не ровно 100 %",
+		en = "Odds are rounded and may not add up to exactly 100%",
+	},
 	-- On the owner's sign at the entrance of their island.
 	["bay.owner.title"] = {
 		ru = "Остров {name}",
@@ -522,7 +565,7 @@ local Strings = {
 		ru = "Это яйцо уже готово",
 		en = "That egg's done already",
 	},
-	-- "Hatch for R$" refused: Roblox does not let this player buy paid random items (decision 143).
+	-- "Hatch for R$" refused: Roblox does not let this player buy paid random items (decision 144).
 	["notice.paidRandomBlocked.toast"] = {
 		ru = "Эта покупка тебе недоступна",
 		en = "This purchase isn't available to you",

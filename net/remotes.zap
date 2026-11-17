@@ -122,7 +122,7 @@ type Notice = enum {
 	NotInCommunity,
 	-- Crossbreeding: only aliens of one tier go together (decision 113).
 	MixedTiers,
-	-- "Egg ready now": Roblox does not let this player buy paid random items (decision 143).
+	-- "Egg ready now": Roblox does not let this player buy paid random items (decision 144).
 	PaidRandomBlocked,
 }
 

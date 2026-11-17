@@ -584,7 +584,7 @@ function DevService.new(dependencies: Dependencies): DevService
 				then `{subscription} {if on then "on" else "off"}`
 				else "no profile"
 		end,
-		-- Roblox's paid random items restriction (decisions 127, 143) on the first player, as if
+		-- Roblox's paid random items restriction (decisions 127, 144) on the first player, as if
 		-- PolicyService said so, until they leave: "Hatch for R$" goes from their eggs, its prompt is
 		-- refused and its receipt pays coins. False: allowed again.
 		SetPaidRandomRestricted = function(restricted: boolean?): string

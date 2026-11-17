@@ -10,7 +10,7 @@
 -- it changed, after the player closes a subscription prompt and every few minutes while they
 -- play; the profile keeps what the last answer said, which pays the time away and stands in when
 -- Roblox's check fails. Whether Roblox lets the player subscribe at all, and buy paid random items
--- ("Egg ready now", decisions 127 and 143), is asked of PolicyService and published for the
+-- ("Egg ready now", decisions 127 and 144), is asked of PolicyService and published for the
 -- clients; a player it does not allow (or one it did not answer for) is never sold a paid random
 -- item: the prompt is refused and a receipt for one pays coins instead. What each purchase does is
 -- Domain/Purchases; which ids belong to this game is MonetizationConfig (in a game it does not
@@ -66,7 +66,7 @@ export type Granted = {
 	hatched: boolean,
 	-- The egg it hatched.
 	egg: number?,
-	-- A paid random item for a player Roblox does not allow them: coins instead (decision 143).
+	-- A paid random item for a player Roblox does not allow them: coins instead (decision 144).
 	blocked: boolean,
 	-- A week (decision 140): whose perk, and the server time it now runs until.
 	perk: Purchases.SubscriptionId?,
@@ -261,7 +261,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 
 	-- Whether Roblox lets the player buy subscriptions (the shop offers them only then) and paid
 	-- random items ("Hatch for R$"). Unknown (the check failed) counts as no for both: a paid random
-	-- item sold where the law forbids it is far worse than one not offered (decision 143).
+	-- item sold where the law forbids it is far worse than one not offered (decision 144).
 	local function checkPolicy(player: Player)
 		local policy = withRetries(`Policy check for {player.Name}`, function()
 			return PolicyService:GetPolicyInfoForPlayerAsync(player)
@@ -380,7 +380,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		local current = now()
 		if MonetizationConfig.isPaidRandom(product.kind) and not MonetizationConfig.canBuyPaidRandom(player) then
 			-- Roblox does not let this player buy it (a client that prompted anyway): no random
-			-- outcome, the coins a purchase with nothing to apply to pays (decision 143).
+			-- outcome, the coins a purchase with nothing to apply to pays (decision 144).
 			readyNowChoice[player] = nil
 			granted.blocked = true
 			granted.compensated = true

@@ -288,7 +288,7 @@ function PurchaseState.new(): PurchaseState
 				warn(`[PurchaseState] This game does not sell {kind} {tier or seconds or ""}`)
 				return
 			end
-			-- Roblox does not let this player buy paid random items (decision 143); the server would
+			-- Roblox does not let this player buy paid random items (decision 144); the server would
 			-- refuse it too.
 			if
 				MonetizationConfig.isPaidRandom(kind) and not MonetizationConfig.canBuyPaidRandom(Players.LocalPlayer)

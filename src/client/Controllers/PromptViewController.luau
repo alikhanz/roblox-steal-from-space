@@ -4,7 +4,8 @@
 -- and the shop green, hatch for Robux teal, take blue. The prompt itself stays an engine prompt;
 -- this only replaces its picture. Touch screens press the whole pill: a press goes through at
 -- once, and lifting the finger anywhere ends a hold (a finger slid off the pill used to leave the
--- prompt held).
+-- prompt held). An egg in the player's incubator shows its odds under the pill; the strip opens
+-- the odds window (decision 127).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -18,6 +19,7 @@ local BayConfig = require(ReplicatedStorage.Shared.Config.BayConfig)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local GrabPrompt = require(script.Parent.Parent.UI.GrabPrompt)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
+local HatchOdds = require(ReplicatedStorage.Shared.Domain.HatchOdds)
 local Mount = require(script.Parent.Parent.UI.Mount)
 local Text = require(ReplicatedStorage.Shared.Locale.Text)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -30,6 +32,11 @@ local TOUCH_BADGE = "✋"
 local PROMPT_DISTANCE_SLACK = 2
 -- The prompt sits on the thing itself: its sign (an alien's name and income) is above it.
 local PROMPT_STUDS_ABOVE = 0
+
+export type Dependencies = {
+	-- Opens the odds window for an egg (OddsController.open).
+	openOdds: (egg: HatchOdds.Egg) -> (),
+}
 
 export type PromptViewController = {
 	name: string,
@@ -77,27 +84,53 @@ local function colorOf(prompt: ProximityPrompt): Color3
 	return ACTION.Main
 end
 
--- The hatch odds of the egg a prompt hangs on, when it is an egg in the player's incubator, where
--- "Hatch for R$" is sold (docs/design/screens/egg-odds.md); nil for any other prompt.
-local function oddsOf(prompt: ProximityPrompt, locale: Text.Locale): { GrabPrompt.Chance }?
+-- The egg a prompt hangs on, when it is an egg in the player's incubator, where "Hatch for R$" is
+-- sold (docs/design/screens/egg-odds.md); nil for any other prompt, or an egg this build does not
+-- know.
+local function incubatorEggOf(prompt: ProximityPrompt): HatchOdds.Egg?
 	local part = prompt.Parent
 	if not part or not CollectionService:HasTag(part, BayConfig.INCUBATOR_EGG_TAG) then
 		return nil
 	end
 	local rarity = part:GetAttribute(EggConfig.LOOSE_EGG_RARITY_ATTRIBUTE)
 	local size = part:GetAttribute(EggConfig.LOOSE_EGG_SIZE_ATTRIBUTE)
-	if not EggConfig.RARITIES[rarity :: any] or not EggConfig.SIZES[size :: any] then
+	local grade = part:GetAttribute(EggConfig.LOOSE_EGG_GRADE_ATTRIBUTE)
+	local variant = part:GetAttribute(EggConfig.EGG_VARIANT_ATTRIBUTE)
+	if type(rarity) ~= "string" or type(size) ~= "string" or type(grade) ~= "number" then
 		return nil
 	end
-	local luck = if part:GetAttribute(EggConfig.EGG_LUCKY_ATTRIBUTE) == true then 1 else nil
+	local egg: HatchOdds.Egg = {
+		grade = grade,
+		rarity = rarity,
+		size = size,
+		variant = if type(variant) == "string" then variant else nil,
+		luck = if part:GetAttribute(EggConfig.EGG_LUCKY_ATTRIBUTE) == true then 1 else nil,
+	}
+	return if HatchOdds.of(egg) then egg else nil
+end
+
+-- The odds row under an incubator egg's prompt: the tiers' chances, rounded to a tenth; pressing
+-- it opens the full list.
+local function oddsOf(prompt: ProximityPrompt, locale: Text.Locale, openOdds: (HatchOdds.Egg) -> ()): GrabPrompt.Odds?
+	local egg = incubatorEggOf(prompt)
+	if not egg then
+		return nil
+	end
 	local chances: { GrabPrompt.Chance } = {}
-	for _, entry in Hatch.percents(EggConfig.hatchEntries(rarity :: any, size :: any, luck)) do
+	local tiers = EggConfig.hatchEntries(egg.rarity :: EggConfig.RarityId, egg.size :: EggConfig.SizeId, egg.luck)
+	for _, entry in Hatch.percents(tiers) do
 		table.insert(chances, {
 			color = AlienLooks.TIERS[entry.id].color,
 			text = Text.get(locale, "egg.oddsChance.hint", { chance = Hatch.percentText(entry.percent) }),
 		})
 	end
-	return chances
+	return {
+		word = Text.get(locale, "egg.odds.button"),
+		chances = chances,
+		onPress = function()
+			openOdds(egg)
+		end,
+	}
 end
 
 -- A press on the pill: the prompt goes at once; a hold ends when that finger (or button) lifts,
@@ -126,7 +159,7 @@ local function bindPress(prompt: ProximityPrompt, button: GuiButton)
 	end)
 end
 
-function PromptViewController.new(): PromptViewController
+function PromptViewController.new(dependencies: Dependencies): PromptViewController
 	local views: { [ProximityPrompt]: View } = {}
 	local inputMode = source(UserInputService.PreferredInput)
 	local locale: Text.Locale = "en"
@@ -201,7 +234,7 @@ function PromptViewController.new(): PromptViewController
 				onBadge = function(button)
 					bindPress(prompt, button)
 				end,
-				odds = oddsOf(prompt, locale),
+				odds = oddsOf(prompt, locale, dependencies.openOdds),
 			})
 			-- Under PlayerGui, not the adornee: a BillboardGui in the world draws, but only one
 			-- under PlayerGui receives taps, so on a phone the badge could not be pressed.

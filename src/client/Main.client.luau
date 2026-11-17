@@ -40,6 +40,7 @@ local Lifecycle = require(ReplicatedStorage.Shared.Runtime.Lifecycle)
 local LoginGiftController = require(script.Parent.Controllers.LoginGiftController)
 local MenuState = require(script.Parent.State.MenuState)
 local NewbieViewController = require(script.Parent.Controllers.NewbieViewController)
+local OddsController = require(script.Parent.Controllers.OddsController)
 local PaceState = require(script.Parent.State.PaceState)
 local PlaceGlideController = require(script.Parent.Controllers.PlaceGlideController)
 local ProfileState = require(script.Parent.State.ProfileState)
@@ -97,6 +98,8 @@ local storeController = StoreController.new({
 	menu = menuState,
 })
 local eventController = EventController.new()
+-- The odds of an egg in the incubator, opened from its prompt (decision 127).
+local oddsController = OddsController.new({ profile = profileState, windows = windowState })
 local alienMotionController = AlienMotionController.new()
 local tutorialController = TutorialController.new({
 	speed = speedState.speed,
@@ -147,7 +150,8 @@ Lifecycle.run({
 		grab = grabState,
 	}),
 	GrabPromptController.new({ grab = grabState }),
-	PromptViewController.new(),
+	oddsController,
+	PromptViewController.new({ openOdds = oddsController.open }),
 	EggPurchaseController.new({ purchases = purchaseState }),
 	-- The signs' colours follow ⚡ on the slow beat (decision 141).
 	GuardianViewController.new({ speed = paceState.speed }),

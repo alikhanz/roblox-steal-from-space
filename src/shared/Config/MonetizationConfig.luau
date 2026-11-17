@@ -166,7 +166,7 @@ MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE = "CanSubscribe"
 MonetizationConfig.WEEK_ATTRIBUTE_PREFIX = "WeekUntil"
 MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE = "TrainerMultiplier"
 -- Player attribute: true when Roblox lets the player buy paid random items (PolicyService's
--- ArePaidRandomItemsRestricted is false, decision 143). Missing or false: they may not (the check
+-- ArePaidRandomItemsRestricted is false, decision 144). Missing or false: they may not (the check
 -- failed, or has not answered yet). Only the server writes it; both sides read it.
 MonetizationConfig.CAN_BUY_PAID_RANDOM_ATTRIBUTE = "CanBuyPaidRandom"
 
