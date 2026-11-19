@@ -1,7 +1,9 @@
 --!strict
 -- `lune run icons`: renders the UI icons and sprites (assets/ui/icons, assets/ui/sprites) and the
 -- effect textures (assets/fx), all white SVG, to PNG in build/icons with headless Chrome, the same
--- renderer as the HTML mockups.
+-- renderer as the HTML mockups. Also the full-colour icons of the Robux purchases for the Creator
+-- Hub (assets/store/products): 512 px for developer products and a "-150" copy for subscriptions,
+-- whose cover image is at most 150 x 150.
 -- `lune run icons serve`: serves build/icons on localhost so Studio can upload the PNGs
 -- (Studio MCP upload_image); the asset ids then go into src/client/UI/Icons.luau.
 
@@ -13,12 +15,14 @@ local Paths = require("./lib/Paths")
 local Shell = require("./lib/Shell")
 
 local OUT_DIR = `{Paths.BUILD_DIR}/icons`
-local SOURCES = {
+-- `sizes`: every size to draw, the first one under the plain name, the others with "-<size>".
+local SOURCES: { { dir: string, glow: boolean, sizes: { number }? } } = {
 	-- Icons get a soft glow of their own colour (it is tinted with the icon in game).
 	{ dir = "assets/ui/icons", glow = true },
 	{ dir = "assets/ui/sprites", glow = false },
 	-- Particle and beam textures for the aliens' effects: white, tinted by the emitter in game.
 	{ dir = "assets/fx", glow = false },
+	{ dir = "assets/store/products", glow = false, sizes = { 512, 150 } },
 }
 local SIZE = 256
 -- Images drawn bigger, by name: what covers a large area in the world (the rune under a big pet).
@@ -46,31 +50,34 @@ local function render(): boolean
 		for _, file in fs.readDir(source.dir) do
 			local name = string.match(file, "^(.+)%.svg$")
 			if name then
-				local page = `{OUT_DIR}/{name}.html`
 				local filter = if source.glow then `filter: {GLOW};` else ""
-				local size = SIZES[name] or SIZE
-				fs.writeFile(
-					page,
-					`<!DOCTYPE html><html><body style="margin:0;background:transparent">`
-						.. `<img src="file:///{absolute(source.dir)}/{file}" style="display:block;width:{size}px;height:{size}px;{filter}">`
-						.. `</body></html>`
-				)
-				local result = process.exec(chrome, {
-					"--headless=new",
-					"--disable-gpu",
-					"--hide-scrollbars",
-					"--allow-file-access-from-files",
-					"--default-background-color=00000000",
-					`--window-size={size},{size}`,
-					`--screenshot={absolute(OUT_DIR)}/{name}.png`,
-					`file:///{absolute(page)}`,
-				})
-				fs.removeFile(page)
-				if not result.ok then
-					Shell.fail(`Chrome failed on {file}: {result.stderr}`)
-					return false
+				local sizes = source.sizes or { SIZES[name] or SIZE }
+				for index, size in sizes do
+					local png = if index == 1 then name else `{name}-{size}`
+					local page = `{OUT_DIR}/{png}.html`
+					fs.writeFile(
+						page,
+						`<!DOCTYPE html><html><body style="margin:0;background:transparent">`
+							.. `<img src="file:///{absolute(source.dir)}/{file}" style="display:block;width:{size}px;height:{size}px;{filter}">`
+							.. `</body></html>`
+					)
+					local result = process.exec(chrome, {
+						"--headless=new",
+						"--disable-gpu",
+						"--hide-scrollbars",
+						"--allow-file-access-from-files",
+						"--default-background-color=00000000",
+						`--window-size={size},{size}`,
+						`--screenshot={absolute(OUT_DIR)}/{png}.png`,
+						`file:///{absolute(page)}`,
+					})
+					fs.removeFile(page)
+					if not result.ok then
+						Shell.fail(`Chrome failed on {file}: {result.stderr}`)
+						return false
+					end
+					count += 1
 				end
-				count += 1
 			end
 		end
 	end
