@@ -636,6 +636,15 @@ event CommunityPrompted = {
 	call: SingleSync,
 }
 
+-- Roblox's invite prompt closed (decision 128): how many friends the player invited from it
+-- (analytics only; nothing is given for an invite).
+event FriendInvitesSent = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: u8,
+}
+
 -- Roblox's subscription prompt closed (decision 132): the server asks Roblox about the player's
 -- subscriptions again. Nothing is taken on the client's word.
 event SubscriptionPromptClosed = {

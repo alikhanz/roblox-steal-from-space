@@ -87,6 +87,8 @@ export type Dependencies = {
 	benchGallery: (player: Player) -> (),
 	-- "Don't show again" in the controls window (ControlsService.setHidden).
 	setControlsHidden: (player: Player, hidden: boolean) -> (),
+	-- Roblox's invite prompt closed having sent this many invites (FriendService.reportInvites).
+	reportInvites: (player: Player, sent: number) -> (),
 }
 
 export type Notice =
@@ -388,6 +390,10 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.SubscriptionPromptClosed.SetCallback(guarded(function(player)
 			dependencies.subscriptionPromptClosed(player)
+			return nil
+		end))
+		Remotes.FriendInvitesSent.SetCallback(guarded(function(player, sent: number)
+			dependencies.reportInvites(player, sent)
 			return nil
 		end))
 		Remotes.SetControlsHidden.SetCallback(guarded(function(player, hidden: boolean)

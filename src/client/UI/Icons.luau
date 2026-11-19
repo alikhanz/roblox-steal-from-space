@@ -11,6 +11,8 @@ export type Name =
 	| "Index"
 	| "Gift"
 	| "Community"
+	| "Invite"
+	| "Friends"
 	| "Strike"
 	| "Harpoon"
 	| "Bomb"
@@ -42,6 +44,9 @@ local ICONS: { [Name]: string } = {
 	Index = "rbxassetid://91459266009462",
 	Gift = "rbxassetid://72977247145594",
 	Community = "rbxassetid://105361946651443",
+	-- The friend bonus (decision 128): the invite tile, and the bonus beside the income.
+	Invite = "rbxassetid://0",
+	Friends = "rbxassetid://0",
 	Strike = "rbxassetid://100400859366699",
 	Harpoon = "rbxassetid://115071386432229",
 	Bomb = "rbxassetid://82979735959616",

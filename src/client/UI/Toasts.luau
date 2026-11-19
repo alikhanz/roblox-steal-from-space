@@ -39,7 +39,7 @@ local LINE_GAP = 1
 -- Denser than the HUD's glass: a toast must read over anything.
 local GLASS_TRANSPARENCY = 0.25
 
-export type Kind = "Good" | "Bad" | "Egg" | "Alien" | "Speed" | "Coins" | "Gift" | "Jetpack"
+export type Kind = "Good" | "Bad" | "Egg" | "Alien" | "Speed" | "Coins" | "Gift" | "Jetpack" | "Friends"
 
 export type Toast = {
 	id: number,
@@ -65,6 +65,8 @@ local KINDS: { [Kind]: { color: Color3, icon: Icons.Name?, glyph: string? } } = 
 	Gift = { color = NEON.TILE.Gift, icon = "Gift" },
 	-- Flight hints (the double jump, decision 096): the flight buttons' cyan.
 	Jetpack = { color = NEON.FLIGHT.Vertical, icon = "Jetpack" },
+	-- The friend bonus (decision 128).
+	Friends = { color = NEON.TILE.Invite, icon = "Friends" },
 }
 
 export type Options = {

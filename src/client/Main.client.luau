@@ -26,6 +26,8 @@ local EventController = require(script.Parent.Controllers.EventController)
 local FeedbackController = require(script.Parent.Controllers.FeedbackController)
 local FirstPersonMouseController = require(script.Parent.Controllers.FirstPersonMouseController)
 local FlightSoundController = require(script.Parent.Controllers.FlightSoundController)
+local FriendController = require(script.Parent.Controllers.FriendController)
+local FriendState = require(script.Parent.State.FriendState)
 local GrabPromptController = require(script.Parent.Controllers.GrabPromptController)
 local GrabState = require(script.Parent.State.GrabState)
 local GuardianViewController = require(script.Parent.Controllers.GuardianViewController)
@@ -78,6 +80,8 @@ local grabState = GrabState.new()
 local windowState = WindowState.new()
 -- The windows' tiles in the HUD menu row and their keys.
 local menuState = MenuState.new()
+-- Roblox friends on the server (decision 128).
+local friendState = FriendState.new()
 local purchaseState = PurchaseState.new()
 -- The hint after the tutorial (decision 110): the panel words it, the bay window lights for it.
 local coachState = CoachState.new()
@@ -121,6 +125,7 @@ Lifecycle.run({
 	paceState,
 	grabState,
 	menuState,
+	friendState,
 	AimController.new(),
 	FirstPersonMouseController.new({
 		window = windowState.current,
@@ -129,6 +134,7 @@ Lifecycle.run({
 	HudController.new({
 		coins = profileState.coins,
 		income = paceState.income,
+		friendsHere = friendState.friends,
 		toast = toastState.push,
 		abilities = abilityState,
 		-- The plaque's number eases up between the server's batches (decision 134).
@@ -201,6 +207,7 @@ Lifecycle.run({
 		tutorialDone = tutorialController.done,
 		tutorialFinished = tutorialController.finished,
 	}),
+	FriendController.new({ friends = friendState, toasts = toastState, menu = menuState }),
 	KioskController.new({ menu = menuState, windows = windowState }),
 	ControlsController.new({ windows = windowState, menu = menuState, tutorialStep = tutorialController.step }),
 	PvpViewController.new({ profile = profileState, toasts = toastState }),

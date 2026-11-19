@@ -9,7 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Vide = require(ReplicatedStorage.Packages.Vide)
 
-export type Slot = "Bay" | "Store" | "Quests" | "Index" | "Controls" | "Gift" | "Community"
+export type Slot = "Bay" | "Store" | "Quests" | "Index" | "Controls" | "Invite" | "Gift" | "Community"
 
 -- A slot, its key, and a glyph for a tile drawn with a character instead of an icon.
 export type SlotSpec = { slot: Slot, key: Enum.KeyCode, glyph: string? }
@@ -23,6 +23,8 @@ local SLOTS: { SlotSpec } = {
 	{ slot = "Index", key = Enum.KeyCode.N },
 	-- What each button does (docs/design/screens/controls.md); hidden for good by the player.
 	{ slot = "Controls", key = Enum.KeyCode.H, glyph = "?" },
+	-- Roblox's invite prompt (decision 128); only where Roblox lets the player invite.
+	{ slot = "Invite", key = Enum.KeyCode.P },
 	{ slot = "Gift", key = Enum.KeyCode.L },
 	{ slot = "Community", key = Enum.KeyCode.K },
 }
