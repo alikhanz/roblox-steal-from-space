@@ -1,5 +1,6 @@
 --!strict
--- The new player's funnel: the first-time milestones from joining to the second zone. Each is
+-- The new player's funnel: the first-time milestones from joining to the day-1 wall (post 11,
+-- decision 131), through the second zone. Each is
 -- logged once per account; the steps reached are kept in the profile as a bit mask, so a step
 -- reached out of order (training to guardian 4 before buying anything) is still counted once.
 -- Pure Luau.
@@ -22,6 +23,9 @@ Onboarding.STEPS = table.freeze({
 	table.freeze({ number = 7, name = "StoleFromPost4" }),
 	table.freeze({ number = 8, name = "StoleFromPost6" }),
 	table.freeze({ number = 9, name = "StoleInIceRings" }),
+	-- The day-1 wall (decision 143): its last post of the first session and the one after it.
+	table.freeze({ number = 10, name = "StoleFromPost10" }),
+	table.freeze({ number = 11, name = "StoleFromPost11" }),
 } :: { Step })
 
 local BY_NAME: { [string]: Step } = {}
@@ -48,7 +52,7 @@ function Onboarding.mark(mask: number, step: Step): (number, boolean)
 end
 
 -- The steps a delivered egg of guardian post `grade` reaches (from post 4, from post 6, from
--- the Ice Rings, whose first post is `iceRingsFirstPost`).
+-- the Ice Rings, whose first post is `iceRingsFirstPost`, from post 10, from post 11).
 function Onboarding.stealSteps(grade: number, iceRingsFirstPost: number): { Step }
 	local steps = {}
 	if grade >= 4 then
@@ -59,6 +63,12 @@ function Onboarding.stealSteps(grade: number, iceRingsFirstPost: number): { Step
 	end
 	if grade >= iceRingsFirstPost then
 		table.insert(steps, BY_NAME.StoleInIceRings)
+	end
+	if grade >= 10 then
+		table.insert(steps, BY_NAME.StoleFromPost10)
+	end
+	if grade >= 11 then
+		table.insert(steps, BY_NAME.StoleFromPost11)
 	end
 	return steps
 end

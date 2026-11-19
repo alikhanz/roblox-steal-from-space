@@ -445,6 +445,7 @@ local devService = DevService.new({
 	setTutorialProgress = tutorialService.setProgress,
 	setCoachDone = coachService.setDone,
 	resetCommunityGift = communityService.reset,
+	reportDelivery = metricsService.deliveredFrom,
 	-- As a bought level: the model and speed, and the client's copy of the levels too.
 	refreshJetpack = function(player: Player)
 		economyService.jetpackUpgraded.fire(player)

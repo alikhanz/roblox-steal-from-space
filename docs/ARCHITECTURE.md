@@ -133,13 +133,30 @@ SpaceSimulation (предсказание) ─> атрибуты персона�
 
 `MetricsService` — единственное место, которое знает `AnalyticsService` Roblox. Остальные службы только сообщают факты своими сигналами (`CarryService.grabbed/reachedStation/delivered/lost`, `BayService.incomePaid`, `EconomyService.coinsTraded/crossbred`, `TrainingService.trained`, `OfflineService.settled`, `SpaceService.suffocated`, `PvpService.abilityUsed`), а `Main` передаёт их в `MetricsService`.
 
-- **Воронка новичка** — `LogOnboardingFunnelStepEvent`, шаги из `Domain/Onboarding`; каждый шаг один раз на аккаунт, пройденные — битовой маской в профиле (`onboardingSteps`, схема v5).
+- **Воронка новичка** — `LogOnboardingFunnelStepEvent`, шаги из `Domain/Onboarding` (с решения 143 — до стража 11, стены первого дня); каждый шаг один раз на аккаунт, пройденные — битовой маской в профиле (`onboardingSteps`, схема v5). Пропущенный шаг Roblox засчитывает вместе со всеми предыдущими, поэтому новые шаги — только дальше по пути, номера живых не меняются.
 - **Прогресс** — `LogProgressionCompleteEvent` по пути `Guardians` при первой доставке от поста дальше прежнего (`bestPost` в профиле).
 - **Экономика** — `LogEconomyEvent`, валюты `Coins` и `Speed`; источники: доход пришельцев, продажа, офлайн, тренажёр (дальше — задания и подарки через `MetricsService.earned`); траты: капсула, тренажёр, джетпак.
 - **Кража** — `LogFunnelStepEvent` воронки `Theft`, сессия на каждое взятое яйцо: взял → долетел до границы станции → доставил.
 - **Свои события** — `LogCustomEvent`: `EggLost` (причина, зона), `GuardianCatch` (пост), `OxygenDeath` (зона), `Ability` (способность, итог), `Crossbreed` (ступень, зона).
+- **Запуск** (решение 143, `Domain/LaunchMetrics`, `MetricsConfig`): `SessionEnd` на выходе (значение — минуты сессии; поля — лучший побеждённый страж, цель роста, `First`/`Return` и диапазон длины) и `DayOneWall` при первой доставке от стража 11 (значение — минуты игры от стража 10; поля — диапазоны реального и игрового времени). Начало стены — в профиле (`dayOneWall`, схема v26). Профиль к выходу уже закрыт: лучший страж для `SessionEnd` запоминается на входе и при доставке, ⚡ — из атрибутов игрока.
 
 Частые факты (доход каждую секунду, выплаты тренажёра, способности) суммируются по игроку и уходят раз в 5 минут и при выходе — так запросов меньше лимита Roblox (120 + 20 × онлайн в минуту). В полях нет имён игроков: число сочетаний значений ограничено. В Studio события не отправляются (Roblox их не принимает) — печатаются в Output с префиксом `[Metrics]`, сумма копится 30 секунд.
+
+### Где смотреть в Creator Hub
+
+Creator Hub → Creations → игра → Analytics. Страницы **Economy**, **Funnels** и **Explore** (свои события, в меню Custom) появляются после первого события своего вида; графики — по дням, с задержкой до суток. Дошли ли события из Prod, видно сразу: кнопка **View Events** вверху страницы Economy, Funnels или Custom — список последних событий почти в реальном времени. Из Studio события не уходят.
+
+| Число | Страница | Как читать |
+|---|---|---|
+| Доля новичков, ушедших в первые 3 минуты (стоп-сигнал, решение 126) | **Explore** → `SessionEnd`, Count, разбивка по Custom Field 3 | (`First - 0-1 min` + `First - 1-3 min`) / все `First - …`. Сверка — **Engagement** → New User First Session Retention |
+| Доля начавших туториал, доставивших первое яйцо (стоп-сигнал) | **Funnels** → `Tutorial` | шаг 2 `Delivered` / шаг 1 `Started`; рядом — шаг 4 `DeliveredEgg` воронки **Onboarding** |
+| Где новички отваливаются | **Funnels** → Onboarding | шаги 1 `Joined` … 11 `StoleFromPost11` |
+| На каком страже уходят и какая цель роста | **Explore** → `SessionEnd`, разбивка по Custom Field 1 (`Best - N`) и 2 (`Goal - N`) | Average value — средняя длина сессии в минутах |
+| Стена первого дня: сколько от стража 10 до 11 | **Explore** → `DayOneWall`: Average value — минуты игры; разбивка по Custom Field 1 (`Real - …`) и 2 (`Play - …`) | доля дошедших — шаг 11 / шаг 10 воронки Onboarding |
+| Сколько стражей проходят | **Funnels** → Onboarding, шаги 7–11 (страж 4, 6, Ледяные кольца, 10, 11) | события прогресса (путь `Guardians`) уходят тоже, но своей страницы у них Roblox не описывает — искать через View Events |
+| Монеты и ⚡: откуда и куда | **Economy** | валюты `Coins`, `Speed`; источник — SKU (`AlienIncome`, `Trainer`, `Flight`, `Offline`, …) |
+| Покупки за робуксы | **Explore** → `Purchase`, `PurchasePrompt`; **Monetization** | поля — товар, ступень или бонус, место показа |
+| D1, D7 | **Retention** | |
 
 ## Активность игроков (АФК)
 

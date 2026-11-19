@@ -62,16 +62,10 @@ local MeteorService = {}
 
 local CENTER = StationConfig.PLATFORM_CENTER
 
--- Every guardian's recommended stat, from the station outwards (for SpeedGoal).
-local RECOMMENDED: { BigNum.BigNum } = {}
-for index, post in GuardianConfig.POSTS do
-	RECOMMENDED[index] = post.recommended
-end
-
 -- The strongest guardian a player of `speed` gets away from (the first one at least).
 local function bestPostOf(speed: BigNum.BigNum): number
-	local goal = SpeedGoal.next(speed, RECOMMENDED)
-	return if goal then math.max(goal.post - 1, 1) else #RECOMMENDED
+	local goal = SpeedGoal.next(speed, GuardianConfig.RECOMMENDED)
+	return if goal then math.max(goal.post - 1, 1) else #GuardianConfig.RECOMMENDED
 end
 
 -- The strip's direction from the station, level with it.
