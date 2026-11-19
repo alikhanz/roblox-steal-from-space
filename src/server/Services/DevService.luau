@@ -26,6 +26,7 @@
 --   game.ServerStorage.DevCommands.SimulatePurchase:Invoke("ReadyNow", 3, 17)
 --   game.ServerStorage.DevCommands.ReplayLastReceipt:Invoke()
 --   game.ServerStorage.DevCommands.SetSubscription:Invoke("NightShift", true)
+--   game.ServerStorage.DevCommands.SetPaidRandomRestricted:Invoke(true)
 --   game.ServerStorage.DevCommands.GiveWeek:Invoke("NightShift", 604800)
 --   game.ServerStorage.DevCommands.SetTutorialStep:Invoke(0)
 --   game.ServerStorage.DevCommands.SetCoachDone:Invoke(0)
@@ -118,6 +119,8 @@ export type Dependencies = {
 	chooseReadyNowEgg: (player: Player, uid: number) -> string?,
 	-- Sets a subscription as if Roblox said so (PurchaseService.setSubscribedForTest).
 	setSubscribed: (player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean) -> boolean,
+	-- Lets the player buy paid random items or not (PurchaseService.setPaidRandomForTest).
+	setPaidRandom: (player: Player, allowed: boolean) -> (),
 	-- Gives a week of a perk as if bought (PurchaseService.grantWeekForTest).
 	grantWeek: (player: Player, perk: Purchases.SubscriptionId, seconds: number) -> number?,
 	-- Sets the tutorial's progress (TutorialService.setProgress).
@@ -597,6 +600,18 @@ function DevService.new(dependencies: Dependencies): DevService
 			return if dependencies.setSubscribed(player, subscription :: Purchases.SubscriptionId, on)
 				then `{subscription} {if on then "on" else "off"}`
 				else "no profile"
+		end,
+		-- Roblox's paid random items restriction (decisions 127, 144) on the first player, as if
+		-- PolicyService said so, until they leave: "Hatch for R$" goes from their eggs, its prompt is
+		-- refused and its receipt pays coins. False: allowed again.
+		SetPaidRandomRestricted = function(restricted: boolean?): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			local on = restricted ~= false
+			dependencies.setPaidRandom(player, not on)
+			return `paid random items {if on then "restricted" else "allowed"}`
 		end,
 		-- A readable summary of the first player's profile.
 		DumpProfile = function(): string

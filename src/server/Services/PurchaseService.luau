@@ -9,9 +9,12 @@
 -- Subscriptions (monthly, Roblox's own): their status is asked of Roblox on join, when Roblox says
 -- it changed, after the player closes a subscription prompt and every few minutes while they
 -- play; the profile keeps what the last answer said, which pays the time away and stands in when
--- Roblox's check fails. Whether Roblox lets the player subscribe at all (PolicyService) is published
--- for the shop. What each purchase does is Domain/Purchases; which ids belong to this game is
--- MonetizationConfig (in a game it does not list, purchases are off).
+-- Roblox's check fails. Whether Roblox lets the player subscribe at all, and buy paid random items
+-- ("Egg ready now", decisions 127 and 144), is asked of PolicyService and published for the
+-- clients; a player it does not allow (or one it did not answer for) is never sold a paid random
+-- item: the prompt is refused and a receipt for one pays coins instead. What each purchase does is
+-- Domain/Purchases; which ids belong to this game is MonetizationConfig (in a game it does not
+-- list, purchases are off).
 
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -43,7 +46,9 @@ local CHECK_RETRY_SECONDS = 5
 local SUBSCRIPTION_POLL_SECONDS = 15 * 60
 local LOG = RunService:IsStudio()
 
-export type Notice = "NoSuchEgg"
+-- NoSuchEgg: the egg is not warming in the incubator; PaidRandomBlocked: Roblox does not let this
+-- player buy paid random items.
+export type Notice = "NoSuchEgg" | "PaidRandomBlocked"
 
 -- What a granted purchase gave, for the client and the analytics.
 export type Granted = {
@@ -61,6 +66,8 @@ export type Granted = {
 	hatched: boolean,
 	-- The egg it hatched.
 	egg: number?,
+	-- A paid random item for a player Roblox does not allow them: coins instead (decision 144).
+	blocked: boolean,
 	-- A week (decision 140): whose perk, and the server time it now runs until.
 	perk: Purchases.SubscriptionId?,
 	weekUntil: number?,
@@ -102,6 +109,9 @@ export type PurchaseService = {
 	-- Sets a subscription in Studio, as if Roblox said so; Roblox's checks then leave this player's
 	-- subscriptions alone until they leave (dev commands).
 	setSubscribedForTest: (player: Player, subscription: Purchases.SubscriptionId, subscribed: boolean) -> boolean,
+	-- Studio: lets the player buy paid random items or not, as if PolicyService said so; Roblox's
+	-- answer then leaves this player alone until they leave (dev commands).
+	setPaidRandomForTest: (player: Player, allowed: boolean) -> (),
 	-- Gives a week of `perk` as if bought, for `seconds`; the server time it now runs until, or nil
 	-- without a profile (dev commands, Studio only).
 	grantWeekForTest: (player: Player, perk: Purchases.SubscriptionId, seconds: number) -> number?,
@@ -159,6 +169,10 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 	local testOverrides: { [Player]: boolean } = {}
 	-- The perks each player's attributes last showed, to notice a week running out.
 	local publishedPerks: { [Player]: string } = {}
+	-- Players PolicyService answered for this session (one it did not is asked again later).
+	local policyKnown: { [Player]: boolean } = {}
+	-- Players whose paid random items a Studio command set: PolicyService's answer leaves them alone.
+	local paidRandomOverrides: { [Player]: boolean } = {}
 
 	local function effects(player: Player): Purchases.Effects
 		local data = dependencies.getData(player)
@@ -232,15 +246,38 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		end
 	end
 
-	-- Whether Roblox lets the player buy subscriptions (the shop offers them only then). Unknown
-	-- (the check failed) counts as no.
+	-- Whether `player` may buy paid random items now; the bay follows a change ("Hatch for R$" on
+	-- its eggs).
+	local function setPaidRandom(player: Player, allowed: boolean)
+		if MonetizationConfig.canBuyPaidRandom(player) == allowed then
+			return
+		end
+		player:SetAttribute(MonetizationConfig.CAN_BUY_PAID_RANDOM_ATTRIBUTE, allowed)
+		if LOG then
+			print(`[PurchaseService] {player.Name}: paid random items {if allowed then "allowed" else "restricted"}`)
+		end
+		dependencies.refreshBay(player)
+	end
+
+	-- Whether Roblox lets the player buy subscriptions (the shop offers them only then) and paid
+	-- random items ("Hatch for R$"). Unknown (the check failed) counts as no for both: a paid random
+	-- item sold where the law forbids it is far worse than one not offered (decision 144).
 	local function checkPolicy(player: Player)
 		local policy = withRetries(`Policy check for {player.Name}`, function()
 			return PolicyService:GetPolicyInfoForPlayerAsync(player)
 		end)
-		if player.Parent == Players then
-			local eligible = type(policy) == "table" and policy.IsEligibleToPurchaseSubscription == true
-			player:SetAttribute(MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE, eligible)
+		if player.Parent ~= Players then
+			return
+		end
+		local eligible, paidRandom = false, false
+		if type(policy) == "table" then
+			policyKnown[player] = true
+			eligible = policy.IsEligibleToPurchaseSubscription == true
+			paidRandom = policy.ArePaidRandomItemsRestricted == false
+		end
+		player:SetAttribute(MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE, eligible)
+		if not paidRandomOverrides[player] then
+			setPaidRandom(player, paidRandom)
 		end
 	end
 
@@ -264,6 +301,12 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			publish(player)
 		end
 		return untilTime
+	end
+
+	local function setPaidRandomForTest(player: Player, allowed: boolean)
+		assert(RunService:IsStudio(), "paid random items are set by hand only in Studio")
+		paidRandomOverrides[player] = true
+		setPaidRandom(player, allowed)
 	end
 
 	local function setSubscribedForTest(
@@ -302,6 +345,10 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 	): Notice?
 		lastSource[player] = source
 		prompted.fire(player, item, source)
+		if MonetizationConfig.isPaidRandom(item) and not MonetizationConfig.canBuyPaidRandom(player) then
+			-- Not chosen: a receipt that still comes pays coins (grant).
+			return "PaidRandomBlocked"
+		end
 		return if item == "ReadyNow" and egg then chooseReadyNowEgg(player, egg) else nil
 	end
 
@@ -327,10 +374,18 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			speed = BigNum.ZERO,
 			source = lastSource[player] or "-",
 			hatched = false,
+			blocked = false,
 		}
 		local multiplier = Upgrades.jetpackMultiplier(data.jetpackLevel, UpgradeConfig.TUNING)
 		local current = now()
-		if product.kind == "Training" then
+		if MonetizationConfig.isPaidRandom(product.kind) and not MonetizationConfig.canBuyPaidRandom(player) then
+			-- Roblox does not let this player buy it (a client that prompted anyway): no random
+			-- outcome, the coins a purchase with nothing to apply to pays (decision 144).
+			readyNowChoice[player] = nil
+			granted.blocked = true
+			granted.compensated = true
+			granted.coins = compensate(player, data)
+		elseif product.kind == "Training" then
 			local subscribed =
 				Purchases.effects(Purchases.active(data, current), MonetizationConfig.SUBSCRIPTION_TUNING)
 			local rate = Purchases.trainerRate(data.trainerLevel, subscribed.trainerMultiplier, UpgradeConfig.TUNING)
@@ -465,6 +520,9 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			for _, player in Players:GetPlayers() do
 				if dependencies.getData(player) then
 					task.spawn(checkSubscriptions, player)
+					if not policyKnown[player] then
+						task.spawn(checkPolicy, player)
+					end
 				end
 			end
 		end)
@@ -473,6 +531,8 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 			lastSource[player] = nil
 			testOverrides[player] = nil
 			publishedPerks[player] = nil
+			policyKnown[player] = nil
+			paidRandomOverrides[player] = nil
 		end)
 	end
 
@@ -485,6 +545,7 @@ function PurchaseService.new(dependencies: Dependencies): PurchaseService
 		processReceipt = processReceipt,
 		subscriptionPromptClosed = subscriptionPromptClosed,
 		setSubscribedForTest = setSubscribedForTest,
+		setPaidRandomForTest = setPaidRandomForTest,
 		grantWeekForTest = grantWeekForTest,
 		purchased = purchased,
 		subscriptionChanged = subscriptionChanged,

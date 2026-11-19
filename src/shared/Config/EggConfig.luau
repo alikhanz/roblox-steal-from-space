@@ -187,7 +187,8 @@ return table.freeze({
 	LOOSE_EGG_RARITY_ATTRIBUTE = "Rarity",
 	LOOSE_EGG_SIZE_ATTRIBUTE = "Size",
 	-- On a loose egg: the grade of the guardian that guards it (none for keepers without one),
-	-- and the user id of the player who dropped it (the tutorial leads them back to it).
+	-- and the user id of the player who dropped it (the tutorial leads them back to it). An egg in
+	-- the incubator carries its grade too: the odds window lists that guardian's kinds.
 	LOOSE_EGG_GRADE_ATTRIBUTE = "Grade",
 	LOOSE_EGG_DROPPED_BY_ATTRIBUTE = "DroppedBy",
 	-- Server time it came loose: a fresh drop is news (its sound), one streaming in is not.

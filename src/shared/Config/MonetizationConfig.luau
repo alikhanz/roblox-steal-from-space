@@ -165,6 +165,21 @@ MonetizationConfig.CAN_SUBSCRIBE_ATTRIBUTE = "CanSubscribe"
 -- none: never bought.
 MonetizationConfig.WEEK_ATTRIBUTE_PREFIX = "WeekUntil"
 MonetizationConfig.TRAINER_MULTIPLIER_ATTRIBUTE = "TrainerMultiplier"
+-- Player attribute: true when Roblox lets the player buy paid random items (PolicyService's
+-- ArePaidRandomItemsRestricted is false, decision 144). Missing or false: they may not (the check
+-- failed, or has not answered yet). Only the server writes it; both sides read it.
+MonetizationConfig.CAN_BUY_PAID_RANDOM_ATTRIBUTE = "CanBuyPaidRandom"
+
+-- Whether a product is a paid random item by Roblox's rules (decision 127): "Egg ready now"
+-- hatches the egg at once, into an alien drawn there and then.
+function MonetizationConfig.isPaidRandom(kind: ShopItem): boolean
+	return kind == "ReadyNow"
+end
+
+-- Whether `player` may be offered paid random items (CAN_BUY_PAID_RANDOM_ATTRIBUTE).
+function MonetizationConfig.canBuyPaidRandom(player: Instance): boolean
+	return player:GetAttribute(MonetizationConfig.CAN_BUY_PAID_RANDOM_ATTRIBUTE) == true
+end
 
 -- The catalog of the game with `gameId`, or nil: purchases are off in a game not listed here
 -- (an unpublished place in Studio has game id 0).

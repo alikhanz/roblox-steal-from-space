@@ -5,8 +5,9 @@
 -- action's word on its right ("Hatch", "Take"). The whole pill is the button, with room to spare
 -- round it, so a finger cannot miss; it presses and clicks like every button (UI/Press). A prompt
 -- that is held draws a ring of progress round its badge as the hold goes on (an egg's grab). An egg
--- in the incubator shows its hatch odds under the pill (docs/design/screens/egg-odds.md): a dot in
--- each tier's colour with its chance.
+-- in the incubator shows its hatch odds under the pill (docs/design/screens/egg-odds.md): the word
+-- "Odds", a dot in each tier's colour with its chance, and "›"; the strip is a button of its own
+-- that opens the full list (decision 127).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -35,8 +36,9 @@ local RING_SHARE = 1.28
 local RING_LIGHTEN = 0.35
 -- Height of the prompt above the egg's center, studs.
 local STUDS_ABOVE = 2.4
--- The billboard's room: the widest pill there may be (a price in the word), points.
-local BILLBOARD_WIDTH = 300
+-- The billboard's room: the widest pill there may be (a price in the word), or the odds row under
+-- it (the word, three chances and "›"), points.
+local BILLBOARD_WIDTH = 320
 -- The odds row under the pill: its height, a dot's size, the room between chances and between a
 -- dot and its chance, points. As wide as the pill (wider only if its chances need it), outlined in
 -- the prompt's colour, so it reads as the pill's own strip (the user, 2026-11-12: a short frame
@@ -47,11 +49,21 @@ local ODDS_GAP = 14
 local ODDS_DOT_GAP = 5
 -- Room between the pill's slack and the odds row, points.
 local ODDS_MARGIN = 4
+-- The mark after the chances: the strip opens something.
+local ODDS_MORE = "›"
 
 -- One tier's chance in the odds row.
 export type Chance = {
 	color: Color3,
 	text: string,
+}
+
+-- The odds row under an incubator egg's pill: the word in front ("Odds"), the tiers' chances
+-- (lowest first) and what pressing the strip does (opens the odds window).
+export type Odds = {
+	word: string,
+	chances: { Chance },
+	onPress: () -> (),
 }
 
 export type Props = {
@@ -73,32 +85,58 @@ export type Props = {
 	maxDistance: number?,
 	-- Height above the target's center, studs; default: over an egg.
 	studsAbove: number?,
-	-- The hatch odds under the pill, lowest tier first; absent: no row.
-	odds: { Chance }?,
+	-- The hatch odds under the pill; absent: no row.
+	odds: Odds?,
 }
 
--- The odds row: a glass strip of dots in the tiers' colours, each with its chance, at least
--- `width()` wide and outlined in `color()`.
-local function OddsRow(odds: { Chance }, width: () -> number, color: () -> Color3): Frame
+-- A word on the odds row ("Odds", "›").
+local function OddsWord(name: string, order: number, text: string): TextLabel
+	return create("TextLabel")({
+		Name = name,
+		LayoutOrder = order,
+		AutomaticSize = Enum.AutomaticSize.X,
+		Size = UDim2.fromScale(0, 1),
+		BackgroundTransparency = 1,
+		FontFace = NEON.FONT,
+		TextSize = NEON.TEXT_BODY,
+		TextColor3 = NEON.TEXT,
+		Text = text,
+		Layout.textStroke(),
+	}) :: TextLabel
+end
+
+-- The odds row: a glass strip with the word, a dot in each tier's colour with its chance and "›",
+-- at least `width()` wide and outlined in `color()`. It is a button: it lights under the finger
+-- like every button and opens the full list.
+local function OddsRow(odds: Odds, width: () -> number, color: () -> Color3): TextButton
 	local outline = Instance.new("UIStroke")
 	outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	outline.Thickness = NEON.LINE_THICKNESS
 	Vide.effect(function()
 		outline.Color = Layout.lineColor(color())
 	end)
+	local press = Press.new({})
+	-- Its contents' width, measured: the strip is as wide as the pill or as they need, whichever is
+	-- more (AutomaticSize did not grow a button with a list in it).
+	local contentWidth = Vide.source(0)
+	local list = create("UIListLayout")({
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0, ODDS_GAP),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}) :: UIListLayout
+	list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		contentWidth(list.AbsoluteContentSize.X)
+	end)
 	local children: { any } = {
 		outline,
-		create("UIListLayout")({
-			FillDirection = Enum.FillDirection.Horizontal,
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			VerticalAlignment = Enum.VerticalAlignment.Center,
-			Padding = UDim.new(0, ODDS_GAP),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
+		list,
 		create("UICorner")({ CornerRadius = UDim.new(0.5, 0) }),
-		Layout.padding(0, ODDS_GAP),
 	}
-	for index, chance in odds do
+	table.insert(children, OddsWord("Word", 0, odds.word))
+	table.insert(children, OddsWord("More", #odds.chances + 1, ODDS_MORE))
+	for index, chance in odds.chances do
 		table.insert(
 			children,
 			create("Frame")({
@@ -135,19 +173,26 @@ local function OddsRow(odds: { Chance }, width: () -> number, color: () -> Color
 			})
 		)
 	end
-	return create("Frame")({
+	return create("TextButton")({
 		Name = "Odds",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.fromScale(0.5, 1),
-		-- Grows past the pill's width when the chances need more room.
-		AutomaticSize = Enum.AutomaticSize.X,
+		-- Grows past the pill's width when its words and chances need more room.
 		Size = function()
-			return UDim2.fromOffset(width(), ODDS_HEIGHT)
+			return UDim2.fromOffset(math.max(width(), contentWidth() + ODDS_GAP * 2), ODDS_HEIGHT)
 		end,
-		BackgroundColor3 = NEON.GLASS,
+		BackgroundColor3 = function()
+			return NEON.GLASS:Lerp(Color3.new(1, 1, 1), press.light())
+		end,
 		BackgroundTransparency = 0.2,
+		Text = "",
+		AutoButtonColor = false,
+		Activated = function()
+			odds.onPress()
+		end,
+		press.action,
 		children,
-	}) :: Frame
+	}) :: TextButton
 end
 
 local function GrabPrompt(props: Props): BillboardGui
