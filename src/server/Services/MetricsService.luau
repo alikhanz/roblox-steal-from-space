@@ -73,7 +73,8 @@ export type Dependencies = {
 	getSpeed: (player: Player) -> BigNum.BigNum,
 	scheduler: Scheduler.Scheduler,
 	-- The facts reported.
-	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>,
+	-- Pod income: the coins earned, the new balance, and the friend bonus's part of them.
+	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum, BigNum.BigNum>,
 	coinsTraded: Signal.Signal<Player, EconomyService.CoinTrade, BigNum.BigNum, BigNum.BigNum>,
 	offlineSettled: Signal.Signal<Player, OfflineService.Reward>,
 	trained: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>,
@@ -398,9 +399,13 @@ function MetricsService.new(dependencies: Dependencies): MetricsService
 		dependencies.activated.connect(begin)
 
 		-- Economy.
-		dependencies.incomePaid.connect(function(player, amount, balance)
+		dependencies.incomePaid.connect(function(player, amount, balance, fromFriends)
 			coinBalance[player] = balance
-			add(player, COINS, "Source", "AlienIncome", amount)
+			-- The friend bonus is its own source (decision 128): what playing together paid.
+			add(player, COINS, "Source", "AlienIncome", BigNum.sub(amount, fromFriends))
+			if not BigNum.isZero(fromFriends) then
+				add(player, COINS, "Source", "FriendBonus", fromFriends)
+			end
 		end)
 		dependencies.coinsTraded.connect(function(player, trade, paid, balance)
 			coinBalance[player] = balance

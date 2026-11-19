@@ -21,6 +21,7 @@ local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local FlightButtons = require(script.Parent.Parent.UI.FlightButtons)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
 local FlightInputs = require(ReplicatedStorage.Shared.Input.FlightInputs)
+local FriendBonus = require(ReplicatedStorage.Shared.Domain.FriendBonus)
 local GoalCard = require(script.Parent.Parent.UI.GoalCard)
 local GoalStrip = require(script.Parent.Parent.UI.GoalStrip)
 local GrabState = require(script.Parent.Parent.State.GrabState)
@@ -65,6 +66,11 @@ local MENU_GAP = 7
 -- A touch screen's ⚡ plaque: the gap to its "+", and from it to the goal strip under it.
 local PLUS_GAP = 6
 local STRIP_GAP = 3
+-- The friend bonus beside the income (decision 128): its gap from the income, the icon (a
+-- little taller than the small text) and the gap from the icon to the percent.
+local FRIEND_GAP = 5
+local FRIEND_ICON_SIZE = 14
+local FRIEND_ICON_GAP = 2
 -- The PC row of actions: button diameters, points (the strike, used most, is the biggest).
 local ROW_BUTTON_SIZE = 52
 local ROW_STRIKE_SIZE = 60
@@ -88,6 +94,9 @@ export type Dependencies = {
 	-- What the aliens on spots earn a second (decision 110): a small line under the coins. On the
 	-- slow beat (State/PaceState, decision 141).
 	income: () -> BigNum.BigNum,
+	-- Roblox friends on the server (State/FriendState): the income line shows the friend bonus
+	-- (decision 128) and the pay with it.
+	friendsHere: () -> number,
 	-- Shows a short message (grabbed, delivered or dropped egg).
 	toast: Toasts.Push,
 	abilities: AbilityState.AbilityState,
@@ -523,25 +532,73 @@ function HudController.new(dependencies: Dependencies): HudController
 								widest = WIDEST_NUMBER,
 								layoutOrder = 1,
 							}),
-							create("TextLabel")({
-								Name = "Income",
+							-- The income with the friend bonus (what the coins grow by), and the bonus.
+							create("Frame")({
+								Name = "IncomeRow",
 								LayoutOrder = 2,
 								AutomaticSize = Enum.AutomaticSize.XY,
 								BackgroundTransparency = 1,
-								FontFace = Theme.NEON.FONT,
-								TextSize = Theme.NEON.TEXT_SMALL,
-								TextColor3 = Theme.NEON.COINS,
-								Text = function()
-									return Text.get(
-										locale,
-										"coins.income.hint",
-										{ income = BigNum.format(dependencies.income()) }
-									)
-								end,
 								Visible = function()
 									return loaded() and not BigNum.isZero(dependencies.income())
 								end,
-								Layout.textStroke(),
+								create("UIListLayout")({
+									FillDirection = Enum.FillDirection.Horizontal,
+									VerticalAlignment = Enum.VerticalAlignment.Center,
+									Padding = UDim.new(0, FRIEND_GAP),
+									SortOrder = Enum.SortOrder.LayoutOrder,
+								}),
+								create("TextLabel")({
+									Name = "Income",
+									LayoutOrder = 1,
+									AutomaticSize = Enum.AutomaticSize.XY,
+									BackgroundTransparency = 1,
+									FontFace = Theme.NEON.FONT,
+									TextSize = Theme.NEON.TEXT_SMALL,
+									TextColor3 = Theme.NEON.COINS,
+									Text = function()
+										local paid =
+											FriendBonus.boosted(dependencies.income(), dependencies.friendsHere())
+										return Text.get(locale, "coins.income.hint", { income = BigNum.format(paid) })
+									end,
+									Layout.textStroke(),
+								}),
+								create("Frame")({
+									Name = "FriendBonus",
+									LayoutOrder = 2,
+									AutomaticSize = Enum.AutomaticSize.XY,
+									BackgroundTransparency = 1,
+									Visible = function()
+										return FriendBonus.percentOf(dependencies.friendsHere()) > 0
+									end,
+									create("UIListLayout")({
+										FillDirection = Enum.FillDirection.Horizontal,
+										VerticalAlignment = Enum.VerticalAlignment.Center,
+										Padding = UDim.new(0, FRIEND_ICON_GAP),
+										SortOrder = Enum.SortOrder.LayoutOrder,
+									}),
+									create("ImageLabel")({
+										Name = "Icon",
+										LayoutOrder = 1,
+										Size = UDim2.fromOffset(FRIEND_ICON_SIZE, FRIEND_ICON_SIZE),
+										BackgroundTransparency = 1,
+										Image = Icons.ICONS.Friends,
+										ImageColor3 = Theme.NEON.TILE.Invite,
+									}),
+									create("TextLabel")({
+										Name = "Percent",
+										LayoutOrder = 2,
+										AutomaticSize = Enum.AutomaticSize.XY,
+										BackgroundTransparency = 1,
+										FontFace = Theme.NEON.FONT,
+										TextSize = Theme.NEON.TEXT_SMALL,
+										TextColor3 = Theme.NEON.TILE.Invite,
+										Text = function()
+											local percent = FriendBonus.percentOf(dependencies.friendsHere())
+											return Text.get(locale, "friends.bonus.hint", { percent = percent })
+										end,
+										Layout.textStroke(),
+									}),
+								}),
 							}),
 						}),
 						-- How long nobody can rob this player (and they cannot rob anyone): last in

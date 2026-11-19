@@ -34,6 +34,7 @@
 --   game.ServerStorage.DevCommands.BenchFamily:Invoke("slime")
 --   game.ServerStorage.DevCommands.SetJetpack:Invoke(5)
 --   game.ServerStorage.DevCommands.ResetCommunityGift:Invoke()
+--   game.ServerStorage.DevCommands.SetFriends:Invoke(2)
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -132,6 +133,8 @@ export type Dependencies = {
 	resetCommunityGift: (player: Player) -> boolean,
 	-- Analytics hears a delivery from a post (MetricsService.deliveredFrom); nothing else changes.
 	reportDelivery: (player: Player, grade: number) -> (),
+	-- The player counts this many friends on the server besides real ones (FriendService).
+	setPretendFriends: (player: Player, count: number) -> (),
 	-- Shows a changed jetpack level: the model, the attribute and the speed (JetpackService).
 	refreshJetpack: (player: Player) -> (),
 	-- Shows a changed trainer level: the terminal, the stand's look and flame (as a bought upgrade).
@@ -731,6 +734,21 @@ function DevService.new(dependencies: Dependencies): DevService
 			return if dependencies.resetCommunityGift(player)
 				then "community gift not taken; automatic checks off this playtest"
 				else "profile not active yet"
+		end,
+		-- The first player counts `count` Roblox friends on the server besides real ones (0: only
+		-- the real ones): a lone Studio player sees the friend bonus's mark, toasts and income
+		-- (decision 128).
+		SetFriends = function(count: number): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(
+				type(count) == "number" and count % 1 == 0 and count >= 0,
+				"SetFriends expects a whole number 0 or more"
+			)
+			dependencies.setPretendFriends(player, count)
+			return `{player.Name} counts {count} pretend friend(s) here`
 		end,
 		-- The first player wears jetpack `jetpack` (0 Starter … the last), at its first mark: to
 		-- look at each jetpack's body and flame (decision 089). Speed follows the new multiplier.

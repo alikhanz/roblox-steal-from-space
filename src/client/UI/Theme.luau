@@ -16,6 +16,8 @@ local TILE: { [string]: Color3 } = {
 	Controls = hex("#8FF4FF"),
 	Gift = hex("#FF5A9E"),
 	Community = hex("#36E0D0"),
+	-- Friends: the invite tile, the friend bonus beside the income, its toasts (decision 128).
+	Invite = hex("#C6F24E"),
 }
 local FLIGHT: { [string]: Color3 } = {
 	Strike = hex("#FF7A3D"),

@@ -14,6 +14,8 @@ local BayConfig = require("../src/shared/Config/BayConfig")
 local BigNum = require("../src/shared/Domain/BigNum")
 local EggConfig = require("../src/shared/Config/EggConfig")
 local EventConfig = require("../src/shared/Config/EventConfig")
+local FriendBonus = require("../src/shared/Domain/FriendBonus")
+local FriendConfig = require("../src/shared/Config/FriendConfig")
 local GuardianConfig = require("../src/shared/Config/GuardianConfig")
 local Hatch = require("../src/shared/Domain/Hatch")
 local IndexConfig = require("../src/shared/Config/IndexConfig")
@@ -73,19 +75,37 @@ type Profile = {
 	-- Takes every reward that comes with playing every day: the login gift at the start of each
 	-- session, all of the day's quests at its end, the index as aliens are found.
 	daily: boolean,
+	-- Roblox friends on the server whenever the player is on (the friend bonus, decision 128:
+	-- online pod income only).
+	friends: number,
 }
 
 local PROFILES: { Profile } = {
-	{ name = "free", subscriptions = {}, packageHours = 0, daily = false },
-	{ name = "free + daily", subscriptions = {}, packageHours = 0, daily = true },
-	{ name = "double", subscriptions = { "DoubleTraining" }, packageHours = 0, daily = false },
-	{ name = "night shift", subscriptions = { "NightShift" }, packageHours = 0, daily = false },
-	{ name = "both subs", subscriptions = { "DoubleTraining", "NightShift" }, packageHours = 0, daily = false },
+	{ name = "free", subscriptions = {}, packageHours = 0, daily = false, friends = 0 },
+	{ name = "free + daily", subscriptions = {}, packageHours = 0, daily = true, friends = 0 },
+	{ name = "double", subscriptions = { "DoubleTraining" }, packageHours = 0, daily = false, friends = 0 },
+	{ name = "night shift", subscriptions = { "NightShift" }, packageHours = 0, daily = false, friends = 0 },
+	{
+		name = "both subs",
+		subscriptions = { "DoubleTraining", "NightShift" },
+		packageHours = 0,
+		daily = false,
+		friends = 0,
+	},
 	{
 		name = "subs + pack",
 		subscriptions = { "DoubleTraining", "NightShift" },
 		packageHours = ASSUMPTIONS.packageHours,
 		daily = false,
+		friends = 0,
+	},
+	-- Plays every session with friends, enough for the whole bonus.
+	{
+		name = "free + friends",
+		subscriptions = {},
+		packageHours = 0,
+		daily = false,
+		friends = FriendConfig.MAX_FRIENDS,
 	},
 }
 
@@ -475,7 +495,7 @@ local function simulate(profile: Profile, seed: number): Run
 				hatch(now)
 			end
 			trained += trainRate() * ASSUMPTIONS.flightShare * UpgradeConfig.TRAINING_FACTORS.Flight * dt
-			earn(incomeRate * dt)
+			earn(toNumber(FriendBonus.boosted(BigNum.fromNumber(incomeRate * dt), profile.friends)))
 			-- The solar storm comes round while the player is on, for everyone on the server.
 			if inDay % STORM_CYCLE >= STORM_CYCLE - STORM.schedule.activeSeconds then
 				Bay.advanceIncubator(data, dt * (StormConfig.HATCH_RATE - 1))

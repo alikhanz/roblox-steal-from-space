@@ -978,6 +978,32 @@ local Strings = {
 		ru = "Подарок сообщества: ⚡+{speed}",
 		en = "Community gift: ⚡+{speed}",
 	},
+	-- The friend bonus (decision 128, docs/design/screens/friends.md).
+	["friends.bonus.hint"] = {
+		ru = "+{percent}%",
+		en = "+{percent}%",
+	},
+	["friends.joined.toast"] = {
+		ru = "Друг в игре! Доход +{percent}%",
+		en = "Friend joined! Income +{percent}%",
+	},
+	["friends.left.toast"] = {
+		ru = "Друг ушёл. Доход +{percent}%",
+		en = "Friend left. Income +{percent}%",
+	},
+	["friends.leftAll.toast"] = {
+		ru = "Друг ушёл, бонуса друзей больше нет",
+		en = "Friend left. No friend bonus now",
+	},
+	["friends.rule.hint"] = {
+		ru = "+{step}% за каждого друга в игре, до +{max}%",
+		en = "+{step}% for each friend here, up to +{max}%",
+	},
+	-- In Roblox's own invite prompt.
+	["friends.invite.hint"] = {
+		ru = "Играй с друзьями: каждый друг в игре даёт +{step}% дохода",
+		en = "Play with friends: each one here gives +{step}% income",
+	},
 	["notice.notInCommunity.toast"] = {
 		ru = "Ты пока не в сообществе. Попробуй ещё",
 		en = "Not in the community yet. Try again",

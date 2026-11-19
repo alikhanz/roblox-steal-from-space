@@ -19,6 +19,8 @@ local DomeFlightService = require(script.Parent.Services.DomeFlightService)
 local EconomyService = require(script.Parent.Services.EconomyService)
 local EggHomes = require(ReplicatedStorage.Shared.Domain.EggHomes)
 local EventService = require(script.Parent.Services.EventService)
+local FriendConfig = require(ReplicatedStorage.Shared.Config.FriendConfig)
+local FriendService = require(script.Parent.Services.FriendService)
 local GuardianModel = require(script.Parent.World.GuardianModel)
 local GuardianModels = require(script.Parent.World.GuardianModels) :: { [string]: string }
 local GuardianService = require(script.Parent.Services.GuardianService)
@@ -69,12 +71,15 @@ local profile = {
 	update = dataService.update,
 }
 local speedService = SpeedService.new(profile)
+-- Roblox friends on the server: the pods pay the friend bonus (decision 128).
+local friendService = FriendService.new({ scheduler = scheduler })
 local bayService = BayService.new({
 	activated = profile.activated,
 	getData = profile.getData,
 	update = profile.update,
 	scheduler = scheduler,
 	getIslandSpawn = worldService.getIslandSpawn,
+	friendsHere = friendService.friendsHere,
 })
 local economyService = EconomyService.new({
 	getData = profile.getData,
@@ -179,6 +184,7 @@ local netService = NetService.new({
 	benchGuardians = benchService.showGuardians,
 	benchGallery = benchService.gallery,
 	setControlsHidden = controlsService.setHidden,
+	reportInvites = friendService.reportInvites,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -409,6 +415,24 @@ communityService.rewarded.connect(function(player, speed)
 	metricsService.earned(player, "Speed", "Community", speed)
 	metricsService.count(player, "CommunityGift")
 end)
+-- The friend bonus (decision 128): minutes played with friends, by how many; invites.
+local function friendsField(count: number): string
+	return `Friends - {math.min(count, FriendConfig.MAX_FRIENDS)}`
+end
+friendService.changed.connect(function(player, count, before)
+	if count > before then
+		metricsService.count(player, "FriendHere", { friendsField(count) })
+	end
+end)
+friendService.playedMinute.connect(function(player, count)
+	metricsService.count(player, "FriendMinute", { friendsField(count) })
+end)
+friendService.joinedByInvite.connect(function(player)
+	metricsService.count(player, "JoinedByInvite")
+end)
+friendService.invited.connect(function(player, sent)
+	metricsService.count(player, "InvitePrompt", { if sent > 0 then "Sent" else "Closed" })
+end)
 loginGiftService.rewarded.connect(function(player, reward)
 	metricsService.earned(player, "Coins", "LoginGift", reward.paid.coins)
 	metricsService.earned(player, "Speed", "LoginGift", reward.paid.speed)
@@ -447,6 +471,7 @@ local devService = DevService.new({
 	setCoachDone = coachService.setDone,
 	resetCommunityGift = communityService.reset,
 	reportDelivery = metricsService.deliveredFrom,
+	setPretendFriends = friendService.setPretend,
 	-- As a bought level: the model and speed, and the client's copy of the levels too.
 	refreshJetpack = function(player: Player)
 		economyService.jetpackUpgraded.fire(player)
@@ -484,6 +509,7 @@ Lifecycle.run({
 	tutorialService,
 	coachService,
 	communityService,
+	friendService,
 	domeFlightService,
 	controlsService,
 	leaderboardService,

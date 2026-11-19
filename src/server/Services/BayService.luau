@@ -22,6 +22,7 @@ local BigNum = require(ReplicatedStorage.Shared.Domain.BigNum)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggLooks = require(ReplicatedStorage.Shared.Config.EggLooks)
 local EggModel = require(script.Parent.Parent.World.EggModel)
+local FriendBonus = require(ReplicatedStorage.Shared.Domain.FriendBonus)
 local Hatch = require(ReplicatedStorage.Shared.Domain.Hatch)
 local HatchOdds = require(ReplicatedStorage.Shared.Domain.HatchOdds)
 local IncubatorShape = require(ReplicatedStorage.Shared.Config.IncubatorShape)
@@ -52,6 +53,9 @@ export type Dependencies = {
 	scheduler: Scheduler.Scheduler,
 	-- The spawn on island `index`: a player respawns on their own island (decision 068).
 	getIslandSpawn: (index: number) -> SpawnLocation?,
+	-- How many of the player's Roblox friends play on the server (FriendService): the pods pay
+	-- the friend bonus on top (decision 128).
+	friendsHere: (player: Player) -> number,
 }
 
 export type BayService = {
@@ -96,8 +100,9 @@ export type BayService = {
 	changed: Signal.Signal<Player>,
 	-- Fires when the player's coins change, with the new total.
 	coinsChanged: Signal.Signal<Player, BigNum.BigNum>,
-	-- Fires on every payout of the pods: the coins earned and the new total (analytics).
-	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>,
+	-- Fires on every payout of the pods: the coins earned, the new total, and the part of the
+	-- coins earned that the friend bonus added (analytics).
+	incomePaid: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum, BigNum.BigNum>,
 }
 
 type PlayerBay = {
@@ -164,7 +169,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	local assigned = Signal.new() :: Signal.Signal<Player, Model>
 	local changed = Signal.new() :: Signal.Signal<Player>
 	local coinsChanged = Signal.new() :: Signal.Signal<Player, BigNum.BigNum>
-	local incomePaid = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum>
+	local incomePaid = Signal.new() :: Signal.Signal<Player, BigNum.BigNum, BigNum.BigNum, BigNum.BigNum>
 	-- Defined below; the prompts rebuild the bay and hatch eggs.
 	local refresh: (player: Player) -> ()
 	local hatchReady: (player: Player, uid: number) -> ()
@@ -819,7 +824,7 @@ function BayService.new(dependencies: Dependencies): BayService
 	end
 
 	-- One tick for every bay: run the incubator (faster in a storm), show the eggs that became
-	-- ready, pay the pods.
+	-- ready, pay the pods (with the friend bonus, decision 128).
 	local function tick(deltaTime: number)
 		local current = now()
 		local earnedSeconds = BigNum.fromNumber(deltaTime)
@@ -828,6 +833,8 @@ function BayService.new(dependencies: Dependencies): BayService
 			local ready = bay.ready
 			local coins: BigNum.BigNum? = nil
 			local earned: BigNum.BigNum? = nil
+			local fromFriends = BigNum.ZERO
+			local friends = dependencies.friendsHere(player)
 			dependencies.update(player, function(data)
 				if extraHatchSeconds > 0 then
 					Bay.advanceIncubator(data, extraHatchSeconds)
@@ -835,15 +842,18 @@ function BayService.new(dependencies: Dependencies): BayService
 				ready = Bay.readyCount(data, current)
 				local income = Bay.incomePerSecond(data, AlienIncome.of)
 				if not BigNum.isZero(income) then
-					earned = BigNum.mul(income, earnedSeconds)
-					Wallet.earn(data, earned :: BigNum.BigNum)
+					local base = BigNum.mul(income, earnedSeconds)
+					fromFriends = FriendBonus.extra(base, friends)
+					local total = BigNum.add(base, fromFriends)
+					earned = total
+					Wallet.earn(data, total)
 					coins = data.coins
 				end
 			end)
 			if coins then
 				coinsChanged.fire(player, coins)
 				if earned then
-					incomePaid.fire(player, earned, coins)
+					incomePaid.fire(player, earned, coins, fromFriends)
 				end
 			end
 			if ready ~= bay.ready then
