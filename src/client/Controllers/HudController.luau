@@ -26,6 +26,7 @@ local GoalCard = require(script.Parent.Parent.UI.GoalCard)
 local GoalStrip = require(script.Parent.Parent.UI.GoalStrip)
 local GrabState = require(script.Parent.Parent.State.GrabState)
 local GuardianConfig = require(ReplicatedStorage.Shared.Config.GuardianConfig)
+local HintStrip = require(ReplicatedStorage.Shared.Domain.HintStrip)
 local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Icons = require(script.Parent.Parent.UI.Icons)
 local KeyNames = require(script.Parent.Parent.UI.KeyNames)
@@ -82,9 +83,10 @@ local ROW_STRIKE_SIZE = 60
 -- right, bottom); in the keyboard row, first.
 local GRAB_TOUCH = { size = 72, right = 22, bottom = 178 }
 local ROW_GRAB_SIZE = 66
--- On a touch screen the bottom stack stands in the strip from the left edge to the flight buttons
--- (docs/design/screens/hud-hint-room.md): this far clear of the leftmost of them, points.
-local FLIGHT_CLEARANCE = 8
+-- On a touch screen the bottom stack stands in the strip between the movement stick's ring and
+-- the flight buttons (Domain/HintStrip, docs/design/screens/hud-hint-room.md): this far clear of
+-- either, points.
+local STRIP_CLEARANCE = 8
 
 local function leftPadding(pixels: number): UIPadding
 	local instance = Instance.new("UIPadding")
@@ -353,7 +355,6 @@ function HudController.new(dependencies: Dependencies): HudController
 				flightReach = math.max(flightReach, spec.right + spec.size)
 			end
 		end
-		local stripRight = flightReach + FLIGHT_CLEARANCE
 
 		-- One tile per menu slot, in the slots' order; a slot no window has added stays hidden. On a
 		-- touch screen the row folds (docs/design/screens/hud-menu-fold.md): the main tiles stay,
@@ -483,19 +484,29 @@ function HudController.new(dependencies: Dependencies): HudController
 					dependencies.toast(Text.get(locale, "speed.goalReached.toast", { name = name }), "Speed")
 				end
 			end)
-			-- The HUD's width, pixels (set once the ScreenGui is on screen), and the bottom stack's
+			-- The HUD's size, pixels (set once the ScreenGui is on screen), and the bottom stack's
 			-- scale as a value: the stack's strip on a touch screen is reckoned from both.
-			local hudWidth = source(0)
+			local hudSize = source(Vector2.zero)
 			local bottomScale = Layout.screenScale()
 			local stackScale = source(bottomScale.Scale)
 			bottomScale:GetPropertyChangedSignal("Scale"):Connect(function()
 				stackScale(bottomScale.Scale)
 			end)
-			-- The strip's width in the stack's points; unbounded until the HUD is measured.
-			local function stripWidth(): number
-				local width = hudWidth()
-				return if width > 0 then width / stackScale() - Theme.NEON.EDGE - stripRight else math.huge
-			end
+			-- The strip on a touch screen; nil elsewhere and until the HUD is measured.
+			local strip = Vide.derive(function(): HintStrip.Strip?
+				local size = hudSize()
+				if not isTouch() or size.X <= 0 then
+					return nil
+				end
+				return HintStrip.of({
+					screenWidth = size.X,
+					screenHeight = size.Y,
+					scale = stackScale(),
+					edge = Theme.NEON.EDGE,
+					flightReach = flightReach,
+					clearance = STRIP_CLEARANCE,
+				})
+			end)
 			local children: { Instance } = {
 				Crosshair({
 					visible = inSpace,
@@ -751,16 +762,16 @@ function HudController.new(dependencies: Dependencies): HudController
 				-- The bottom stack (docs/design/screens/hud.md), bottom up: on a keyboard or a
 				-- gamepad the row of actions with their keys, then the oxygen, the tutorial's line
 				-- and the egg in hand. A hidden one leaves no gap. On a touch screen it stands in
-				-- the middle of the strip left of the flight buttons, and the line wraps to the
-				-- strip (docs/design/screens/hud-hint-room.md).
+				-- the middle of the strip between the movement stick's ring and the flight buttons,
+				-- and the line wraps to the strip (docs/design/screens/hud-hint-room.md).
 				create("Frame")({
 					Name = "BottomStack",
 					AnchorPoint = Vector2.new(0.5, 1),
 					Position = function()
-						-- The strip's middle, from the screen's: it runs from EDGE to `stripRight`
-						-- short of the right edge, in points scaled like the stack.
-						local shift = if isTouch() then -(stripRight - Theme.NEON.EDGE) / 2 * stackScale() else 0
-						return UDim2.new(0.5, shift, 1, -Theme.NEON.EDGE)
+						local current = strip()
+						return if current
+							then UDim2.new(0, current.centre, 1, -Theme.NEON.EDGE)
+							else UDim2.new(0.5, 0, 1, -Theme.NEON.EDGE)
 					end,
 					AutomaticSize = Enum.AutomaticSize.XY,
 					BackgroundTransparency = 1,
@@ -796,7 +807,8 @@ function HudController.new(dependencies: Dependencies): HudController
 						icon = dependencies.tutorialIcon,
 						action = dependencies.tutorialAction,
 						maxWidth = function()
-							return if isTouch() then stripWidth() else math.huge
+							local current = strip()
+							return if current then current.width else math.huge
 						end,
 						layoutOrder = 2,
 					}),
@@ -835,7 +847,7 @@ function HudController.new(dependencies: Dependencies): HudController
 				children,
 			})
 			hud:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-				hudWidth(hud.AbsoluteSize.X)
+				hudSize(hud.AbsoluteSize)
 			end)
 			return hud
 		end, playerGui)
