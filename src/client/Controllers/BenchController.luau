@@ -16,9 +16,9 @@ local RejoinConfig = require(ReplicatedStorage.Shared.Config.RejoinConfig)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
--- Open, the toggle and the six commands fit the shortest phone (Galaxy A16: 281 points under
--- Roblox's top bar).
-local BUTTON_SIZE = UDim2.fromOffset(190, 32)
+-- Open, the toggle and the seven commands fit the shortest phone (Galaxy A16: 281 points under
+-- Roblox's top bar): 6 + 30 + 6 + 7 * 28 + 6 * 6 = 274.
+local BUTTON_SIZE = UDim2.fromOffset(190, 28)
 local BUTTON_COLOR = Color3.fromRGB(60, 70, 140)
 local TEXT_SIZE = 16
 local BUTTONS = 7
@@ -28,7 +28,7 @@ local TOGGLE_SIZE = UDim2.fromOffset(64, 30)
 -- Plain ASCII: GothamBold has no arrows (they drew as empty boxes).
 local FOLDED_LABEL = "dev +"
 local OPEN_LABEL = "dev -"
-local TOP_SHARE = 0.04
+local TOP_SHARE = 0.02
 -- The gallery's button: the command, and with a page on the bench that page ("crab 1/2").
 local GALLERY_LABEL = "/gallery pets"
 -- The rejoin test's button, with its state ("on" / "off").
