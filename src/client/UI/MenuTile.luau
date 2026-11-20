@@ -46,6 +46,9 @@ export type Props = {
 	layoutOrder: number,
 	-- Glows to call the player to it; nil: never.
 	pulse: (() -> boolean)?,
+	-- Lit, like a switched-on flight button: the "more" tile while the tiles behind it are out
+	-- (docs/design/screens/hud-menu-fold.md); nil: never.
+	active: (() -> boolean)?,
 }
 
 local function MenuTile(props: Props): ImageButton
@@ -54,9 +57,25 @@ local function MenuTile(props: Props): ImageButton
 	local pressScale = Instance.new("UIScale")
 	local glass = Layout.glass(props.color, NEON.CORNER)
 	local fill = glass[1] :: Frame
+	local outline = glass[2] :: UIStroke
+	local gradient = fill:FindFirstChildOfClass("UIGradient") :: UIGradient
+	local active = props.active
+	local function isLit(): boolean
+		return active ~= nil and active()
+	end
+	local function markColor(): Color3
+		return if isLit() then NEON.GLASS else Layout.iconColor(props.color)
+	end
 	Vide.effect(function()
 		pressScale.Scale = press.scale()
 		fill.BackgroundColor3 = props.color:Lerp(Color3.new(1, 1, 1), press.light())
+	end)
+	Vide.effect(function()
+		local lit = isLit()
+		gradient.Transparency = if lit
+			then NumberSequence.new(NEON.LIT_FILL_TOP, NEON.LIT_FILL_BOTTOM)
+			else NumberSequence.new(NEON.FILL_TOP, NEON.FILL_BOTTOM)
+		outline.Color = if lit then Layout.iconColor(props.color) else Layout.lineColor(props.color)
 	end)
 	-- The ring breathes on its own (a looped tween); the tile only shows or hides it.
 	local ringStroke = Instance.new("UIStroke")
@@ -99,7 +118,7 @@ local function MenuTile(props: Props): ImageButton
 				Size = UDim2.fromOffset(ICON_SIZE, ICON_SIZE),
 				BackgroundTransparency = 1,
 				Image = if props.icon then Icons.ICONS[props.icon] else "",
-				ImageColor3 = Layout.iconColor(props.color),
+				ImageColor3 = markColor,
 				Visible = props.icon ~= nil,
 			}),
 			create("TextLabel")({
@@ -109,7 +128,7 @@ local function MenuTile(props: Props): ImageButton
 				BackgroundTransparency = 1,
 				FontFace = NEON.FONT,
 				TextSize = GLYPH_SIZE,
-				TextColor3 = Layout.iconColor(props.color),
+				TextColor3 = markColor,
 				Text = props.glyph or "",
 				Visible = props.glyph ~= nil,
 				Layout.textStroke(),

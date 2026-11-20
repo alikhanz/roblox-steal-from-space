@@ -30,6 +30,7 @@ local HitFlash = require(script.Parent.Parent.UI.HitFlash)
 local Icons = require(script.Parent.Parent.UI.Icons)
 local KeyNames = require(script.Parent.Parent.UI.KeyNames)
 local Layout = require(script.Parent.Parent.UI.Layout)
+local MenuFold = require(ReplicatedStorage.Shared.Domain.MenuFold)
 local MenuState = require(script.Parent.Parent.State.MenuState)
 local MenuTile = require(script.Parent.Parent.UI.MenuTile)
 local Names = require(ReplicatedStorage.Shared.Locale.Names)
@@ -63,6 +64,8 @@ local WIDEST_NUMBER = "88.8Qad"
 local RESOURCE_ICON_ROOM = 14
 local RESOURCE_GAP = 20
 local MENU_GAP = 7
+-- The "more" tile of the folded row on a touch screen (docs/design/screens/hud-menu-fold.md).
+local MORE_GLYPH = "⋯"
 -- A touch screen's ⚡ plaque: the gap to its "+", and from it to the goal strip under it.
 local PLUS_GAP = 6
 local STRIP_GAP = 3
@@ -143,6 +146,8 @@ function HudController.new(dependencies: Dependencies): HudController
 	local inputMode = source(UserInputService.PreferredInput)
 	-- Seconds of newbie protection left, from the player attribute.
 	local newbieSecondsLeft = source(0)
+	-- The folded menu row is open: the tiles behind "more" stand beside it (touch screens).
+	local menuOpen = source(false)
 
 	-- Rarity of the egg in the player's hands; nil with empty hands.
 	local carried = source(nil :: string?)
@@ -341,10 +346,58 @@ function HudController.new(dependencies: Dependencies): HudController
 			return inputMode() == Enum.PreferredInput.Touch
 		end
 
-		-- One tile per menu slot, in the slots' order; a slot no window has added stays hidden.
+		-- One tile per menu slot, in the slots' order; a slot no window has added stays hidden. On a
+		-- touch screen the row folds (docs/design/screens/hud-menu-fold.md): the main tiles stay,
+		-- the rest stand behind "more", which opens them in the same row beside itself.
 		local function menuTiles(): { Instance }
-			local tiles: { Instance } = {}
-			for order, entry in dependencies.menu.slots() do
+			local slots = dependencies.menu.slots()
+			local main: { [string]: boolean } = {}
+			-- "More" follows the last main tile: slots take even places in the row, it an odd one.
+			local moreOrder = 1
+			for order, entry in slots do
+				if entry.main then
+					main[entry.slot] = true
+					moreOrder = order * 2 + 1
+				end
+			end
+			local fold = Vide.derive(function(): MenuFold.Fold
+				local tiles: { MenuFold.Tile } = {}
+				for _, entry in slots do
+					local tile = dependencies.menu.tile(entry.slot)
+					table.insert(tiles, {
+						slot = entry.slot,
+						shown = MenuState.isShown(tile),
+						badge = if tile and tile.badge then tile.badge() else 0,
+						pulse = tile ~= nil and tile.pulse ~= nil and tile.pulse(),
+					})
+				end
+				return MenuFold.of(tiles, main, menuOpen())
+			end)
+			local tiles: { Instance } = {
+				MenuTile({
+					name = "More",
+					glyph = MORE_GLYPH,
+					color = Theme.NEON.TILE.More,
+					onPress = function()
+						menuOpen(not Vide.untrack(menuOpen))
+					end,
+					badge = function()
+						return fold().moreBadge
+					end,
+					pulse = function()
+						return fold().morePulse
+					end,
+					active = menuOpen,
+					keyText = function()
+						return ""
+					end,
+					visible = function()
+						return isTouch() and fold().more
+					end,
+					layoutOrder = moreOrder,
+				}),
+			}
+			for order, entry in slots do
 				local function added(): MenuState.Tile?
 					return dependencies.menu.tile(entry.slot)
 				end
@@ -357,6 +410,8 @@ function HudController.new(dependencies: Dependencies): HudController
 						glyph = entry.glyph,
 						color = Theme.NEON.TILE[entry.slot],
 						onPress = function()
+							-- A window opens: the row folds back behind it.
+							menuOpen(false)
 							local tile = added()
 							if tile then
 								tile.onPress()
@@ -374,12 +429,18 @@ function HudController.new(dependencies: Dependencies): HudController
 							return if inputMode() == Enum.PreferredInput.KeyboardAndMouse then entry.key.Name else ""
 						end,
 						visible = function()
-							return MenuState.isShown(added())
+							return if isTouch() then fold().inRow[entry.slot] == true else MenuState.isShown(added())
 						end,
-						layoutOrder = order,
+						layoutOrder = order * 2,
 					})
 				)
 			end
+			-- Out in space the row folds back: the view is what matters there.
+			Vide.effect(function()
+				if inSpace() then
+					menuOpen(false)
+				end
+			end)
 			return tiles
 		end
 

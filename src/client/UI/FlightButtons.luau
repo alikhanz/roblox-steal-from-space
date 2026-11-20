@@ -31,10 +31,9 @@ local GLOW_TRANSPARENCY = 0.6
 local COOLDOWN_TRANSPARENCY = 0.35
 -- A disabled button: how see-through its glass gets.
 local DISABLED_TRANSPARENCY = 0.6
--- A switched-on button (slow mode) is lit: its glass nearly solid, the icon dark on it, a light
--- outline and a brighter glow, so "on" reads at a glance next to the see-through buttons.
-local LIT_FILL_TOP = 0.05
-local LIT_FILL_BOTTOM = 0.25
+-- A switched-on button (slow mode) is lit: its glass nearly solid (NEON.LIT_FILL_*), the icon
+-- dark on it, a light outline and a brighter glow, so "on" reads at a glance next to the
+-- see-through buttons.
 local LIT_GLOW_TRANSPARENCY = 0.25
 -- A button with a word under its icon: the icon a little smaller and higher, the word below.
 local LABELLED_ICON_SHARE = 0.45
@@ -173,7 +172,7 @@ local function FlightButton(spec: ButtonSpec, order: number, onButton: ((string,
 		outline.Color = if lit then Layout.iconColor(color) elseif looks then Layout.lineColor(color) else NEON.MUTED
 		outline.Transparency = if looks then 0 else DISABLED_TRANSPARENCY
 		gradient.Transparency = if lit
-			then NumberSequence.new(LIT_FILL_TOP, LIT_FILL_BOTTOM)
+			then NumberSequence.new(NEON.LIT_FILL_TOP, NEON.LIT_FILL_BOTTOM)
 			else NumberSequence.new(NEON.FILL_TOP, NEON.FILL_BOTTOM)
 		pressScale.Scale = (if enabled then press.scale() else 1) * motion()
 	end)

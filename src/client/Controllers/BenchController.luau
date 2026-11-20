@@ -18,6 +18,11 @@ local BUTTON_SIZE = UDim2.fromOffset(190, 36)
 local BUTTON_COLOR = Color3.fromRGB(60, 70, 140)
 local TEXT_SIZE = 16
 local BUTTONS = 6
+-- The one button the commands fold behind, its labels, and how far down the screen it stands.
+local TOGGLE_SIZE = UDim2.fromOffset(64, 30)
+local FOLDED_LABEL = "dev ▾"
+local OPEN_LABEL = "dev ▴"
+local TOP_SHARE = 0.3
 -- The gallery's button: the command, and with a page on the bench that page ("crab 1/2").
 local GALLERY_LABEL = "/gallery pets"
 
@@ -68,16 +73,38 @@ function BenchController.new(): BenchController
 		gui.ResetOnSpawn = false
 		gui.AutoLocalize = false
 		gui.Enabled = false
+		-- Folded to one small button by default: open, the commands hung over the jump button and
+		-- the flight buttons on a small phone (docs/design/screens/hud-menu-fold.md).
+		local panel = Instance.new("Frame")
+		panel.AnchorPoint = Vector2.new(1, 0)
+		panel.Position = UDim2.new(1, -12, TOP_SHARE, 0)
+		panel.Size = UDim2.fromOffset(BUTTON_SIZE.X.Offset, 0)
+		panel.AutomaticSize = Enum.AutomaticSize.Y
+		panel.BackgroundTransparency = 1
+		panel.Parent = gui
+		local panelLayout = Instance.new("UIListLayout")
+		panelLayout.Padding = UDim.new(0, 6)
+		panelLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		panelLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		panelLayout.Parent = panel
+		-- The commands, under the toggle.
 		local column = Instance.new("Frame")
-		column.AnchorPoint = Vector2.new(1, 0.5)
-		column.Position = UDim2.new(1, -12, 0.5, 0)
+		column.Name = "Commands"
+		column.LayoutOrder = 2
 		column.Size = UDim2.fromOffset(BUTTON_SIZE.X.Offset, BUTTON_SIZE.Y.Offset * BUTTONS + 6 * (BUTTONS - 1))
 		column.BackgroundTransparency = 1
-		column.Parent = gui
+		column.Visible = false
+		column.Parent = panel
 		local layout = Instance.new("UIListLayout")
 		layout.Padding = UDim.new(0, 6)
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.Parent = column
+		local toggle: TextButton
+		toggle = button(panel, FOLDED_LABEL, 1, function()
+			column.Visible = not column.Visible
+			toggle.Text = if column.Visible then OPEN_LABEL else FOLDED_LABEL
+		end)
+		toggle.Size = TOGGLE_SIZE
 		button(column, "/bench", 1, function()
 			Remotes.Bench.Fire(true)
 		end)
