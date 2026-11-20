@@ -680,6 +680,24 @@ event RequestSnapshot = {
 	call: SingleSync,
 }
 
+-- The player has had no input for a long while (Player.Idled, RejoinConfig): rejoin a server
+-- before Roblox's idle kick (RejoinService, decision 146). The server decides by its own view of
+-- the player and ignores it otherwise; it does not count as the player doing something.
+event RequestRejoin = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+}
+
+-- The developer's rejoin test on the bench (decision 146): true shortens the idle times, false
+-- puts them back. The server ignores anyone not allowed.
+event RejoinTest = {
+	from: Client,
+	type: Reliable,
+	call: SingleSync,
+	data: boolean,
+}
+
 -- The pet bench for measuring on a phone (BenchService, decision 082): true fills the island
 -- with 30 aliens, false takes them away. The server ignores anyone not allowed.
 event Bench = {

@@ -41,6 +41,12 @@ export type TrainingService = {
 	-- Fires once a batch (about a second of training, or less when it stopped or moved): the
 	-- player, the speed points gained, the seconds trained and where.
 	trained: Signal.Signal<Player, BigNum.BigNum, number, Upgrades.TrainingSource>,
+	-- Their own stand holds the player now (they train on it).
+	isOnStand: (player: Player) -> boolean,
+	-- Sets a living player's character down on their own stand, which then takes them on as if
+	-- they had walked there (a rejoin, decision 146). False when there is no character or stand
+	-- yet: try again later.
+	placeOnStand: (player: Player) -> boolean,
 }
 
 type Station = {
@@ -112,6 +118,30 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 		return if onStand then "Stand" else nil
 	end
 
+	local function placeOnStand(player: Player): boolean
+		local station = stations[player]
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not station or not character or not humanoid or not Vitals.isAlive(humanoid) then
+			return false
+		end
+		if not root or not root:IsA("BasePart") then
+			return false
+		end
+		local stand = station.model:FindFirstChild(BayConfig.STAND_NAME)
+		local platform = stand and stand:FindFirstChild(BayConfig.TRAINER_NAME)
+		if not platform or not platform:IsA("BasePart") then
+			return false
+		end
+		-- The platform is a disc: a cylinder whose axis (its X size) stands upright. The root goes
+		-- where it is when the feet stand on its top.
+		local feet = platform.Position + Vector3.yAxis * (platform.Size.X / 2)
+		local rootAt = feet + Vector3.yAxis * (humanoid.HipHeight + root.Size.Y / 2)
+		character:PivotTo(CFrame.new(rootAt) * character:GetPivot().Rotation)
+		return true
+	end
+
 	local function tick(deltaTime: number)
 		for _, player in Players:GetPlayers() do
 			local source = sourceOf(player)
@@ -168,6 +198,10 @@ function TrainingService.new(dependencies: Dependencies): TrainingService
 		name = "TrainingService",
 		start = start,
 		trained = trained,
+		isOnStand = function(player)
+			return sourceOf(player) == "Stand"
+		end,
+		placeOnStand = placeOnStand,
 	}
 end
 

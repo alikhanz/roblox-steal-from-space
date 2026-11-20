@@ -35,6 +35,8 @@
 --   game.ServerStorage.DevCommands.SetJetpack:Invoke(5)
 --   game.ServerStorage.DevCommands.ResetCommunityGift:Invoke()
 --   game.ServerStorage.DevCommands.SetFriends:Invoke(2)
+--   game.ServerStorage.DevCommands.RejoinTest:Invoke(true)
+--   game.ServerStorage.DevCommands.RequestRejoin:Invoke()
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -135,6 +137,11 @@ export type Dependencies = {
 	reportDelivery: (player: Player, grade: number) -> (),
 	-- The player counts this many friends on the server besides real ones (FriendService).
 	setPretendFriends: (player: Player, count: number) -> (),
+	-- As if the client asked to rejoin before the idle kick (RejoinService.request; the server's
+	-- own checks still decide).
+	requestRejoin: (player: Player) -> (),
+	-- The rejoin test's shorter idle times on or off (RejoinService.setTest).
+	setRejoinTest: (player: Player, on: boolean) -> (),
 	-- Shows a changed jetpack level: the model, the attribute and the speed (JetpackService).
 	refreshJetpack: (player: Player) -> (),
 	-- Shows a changed trainer level: the terminal, the stand's look and flame (as a bought upgrade).
@@ -749,6 +756,28 @@ function DevService.new(dependencies: Dependencies): DevService
 			)
 			dependencies.setPretendFriends(player, count)
 			return `{player.Name} counts {count} pretend friend(s) here`
+		end,
+		-- The first player's rejoin test (decision 146): the client warns at 3 and asks at 3.5
+		-- minutes without input instead of 16.5 and 17; the cooldown is a minute.
+		RejoinTest = function(on: boolean): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			assert(type(on) == "boolean", "RejoinTest expects true or false")
+			dependencies.setRejoinTest(player, on)
+			return `{player.Name}: rejoin test {if on then "on" else "off"}`
+		end,
+		-- As if the first player's client asked to rejoin now. The server decides as always (away
+		-- 3 minutes, no rejoin within the cooldown); the outcome is in Output ([RejoinService]).
+		-- Studio has no teleport, so an agreed one ends in "Rejoin failed".
+		RequestRejoin = function(): string
+			local player = firstPlayerRoot()
+			if not player then
+				return "no player"
+			end
+			task.spawn(dependencies.requestRejoin, player)
+			return `{player.Name}: rejoin asked; see Output`
 		end,
 		-- The first player wears jetpack `jetpack` (0 Starter … the last), at its first mark: to
 		-- look at each jetpack's body and flame (decision 089). Speed follows the new multiplier.

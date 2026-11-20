@@ -45,8 +45,13 @@ export type DataService = {
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	-- Applies a change to an active profile. See SessionManager.update for the mutator rules.
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
-	-- Yields until a save the store confirmed passes `isSaved` (true) or the session ends (false).
-	waitUntilSaved: (player: Player, isSaved: (saved: { [string]: any }) -> boolean) -> boolean,
+	-- Yields until a save the store confirmed passes `isSaved` (true) or the session ends (false);
+	-- with `timeout`, also gives up (false) after that many seconds.
+	waitUntilSaved: (player: Player, isSaved: (saved: { [string]: any }) -> boolean, timeout: number?) -> boolean,
+	-- The player is being teleported away (true) or the teleport was given up (false). Meanwhile
+	-- the new server may take the profile before this one hears the player leave: that is not a
+	-- lost session to kick for. Given up with the session gone, the player is sent back then.
+	setTeleporting: (player: Player, teleporting: boolean) -> (),
 }
 
 local DataService = {}
@@ -67,6 +72,10 @@ function DataService.new(): DataService
 	end
 	local activated = Signal.new() :: Signal.Signal<Player>
 	local manager: SessionManager.SessionManager? = nil
+	-- Players being teleported away (RejoinService), and those of them whose session ended
+	-- meanwhile.
+	local teleporting: { [Player]: boolean } = {}
+	local lostWhileTeleporting: { [Player]: boolean } = {}
 
 	local function sendBack(player: Player, reason: SessionManager.EndReason)
 		local key = KICK_MESSAGES[reason]
@@ -92,7 +101,10 @@ function DataService.new(): DataService
 			end
 		elseif state == "Failed" or (state == "Closed" and reason == "SessionLost") then
 			warn(`[DataService] Session for user {userId} ended: {state} ({reason})`)
-			if player and reason then
+			if player and reason == "SessionLost" and teleporting[player] then
+				-- The server they are going to took the profile: expected, no kick.
+				lostWhileTeleporting[player] = true
+			elseif player and reason then
 				sendBack(player, reason)
 			end
 		end
@@ -129,6 +141,8 @@ function DataService.new(): DataService
 			end)
 		end, function(player)
 			sessions.release(player.UserId)
+			teleporting[player] = nil
+			lostWhileTeleporting[player] = nil
 		end)
 	end
 
@@ -140,8 +154,24 @@ function DataService.new(): DataService
 		return getManager().update(player.UserId, mutator :: any)
 	end
 
-	local function waitUntilSaved(player: Player, isSaved: (saved: { [string]: any }) -> boolean): boolean
-		return getManager().waitUntilSaved(player.UserId, isSaved)
+	local function waitUntilSaved(
+		player: Player,
+		isSaved: (saved: { [string]: any }) -> boolean,
+		timeout: number?
+	): boolean
+		return getManager().waitUntilSaved(player.UserId, isSaved, timeout)
+	end
+
+	local function setTeleporting(player: Player, isTeleporting: boolean)
+		if isTeleporting then
+			teleporting[player] = if isInGame(player) then true else nil
+			return
+		end
+		teleporting[player] = nil
+		if lostWhileTeleporting[player] then
+			lostWhileTeleporting[player] = nil
+			sendBack(player, "SessionLost")
+		end
 	end
 
 	return {
@@ -152,6 +182,7 @@ function DataService.new(): DataService
 		getData = getData,
 		update = update,
 		waitUntilSaved = waitUntilSaved,
+		setTeleporting = setTeleporting,
 	}
 end
 

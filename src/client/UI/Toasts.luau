@@ -39,7 +39,7 @@ local LINE_GAP = 1
 -- Denser than the HUD's glass: a toast must read over anything.
 local GLASS_TRANSPARENCY = 0.25
 
-export type Kind = "Good" | "Bad" | "Egg" | "Alien" | "Speed" | "Coins" | "Gift" | "Jetpack" | "Friends"
+export type Kind = "Good" | "Bad" | "Egg" | "Alien" | "Speed" | "Coins" | "Gift" | "Jetpack" | "Friends" | "Rejoin"
 
 export type Toast = {
 	id: number,
@@ -67,6 +67,8 @@ local KINDS: { [Kind]: { color: Color3, icon: Icons.Name?, glyph: string? } } = 
 	Jetpack = { color = NEON.FLIGHT.Vertical, icon = "Jetpack" },
 	-- The friend bonus (decision 128).
 	Friends = { color = NEON.TILE.Invite, icon = "Friends" },
+	-- The rejoin before Roblox's idle kick (decision 146): back home, in the own island's colour.
+	Rejoin = { color = NEON.HOME, icon = "Home" },
 }
 
 export type Options = {
@@ -75,6 +77,8 @@ export type Options = {
 	-- News of one run (hatches in a row): a toast of the same group replaces the one on screen,
 	-- in its place, instead of stacking under it.
 	group: string?,
+	-- How long it stays, seconds; the usual few when nil.
+	seconds: number?,
 }
 
 -- Shows a toast (State/ToastState.push).
@@ -231,6 +235,8 @@ local function ToastView(toast: () -> Toast, index: number): Frame
 					textSize = DETAIL_TEXT_SIZE,
 					color = NEON.MUTED,
 					outline = "Neon",
+					-- Only a line of words wraps (the rejoin's); one with marks stays on one line.
+					wrapWidth = MAX_TEXT_WIDTH,
 				}),
 			}),
 		}),

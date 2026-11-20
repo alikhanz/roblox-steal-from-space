@@ -21,6 +21,8 @@ export type ToastState = {
 	push: Toasts.Push,
 	-- A toast of `group` is on screen now (not reactive).
 	isShown: (group: string) -> boolean,
+	-- Takes the toast of `group` away before its time (the news no longer holds).
+	dismiss: (group: string) -> (),
 }
 
 local ToastState = {}
@@ -60,7 +62,7 @@ function ToastState.new(): ToastState
 			table.remove(list, 1)
 		end
 		toasts(list)
-		task.delay(TOAST_SECONDS, function()
+		task.delay(options and options.seconds or TOAST_SECONDS, function()
 			local remaining = {}
 			for _, existing in Vide.untrack(toasts) do
 				if existing.id ~= id then
@@ -69,6 +71,16 @@ function ToastState.new(): ToastState
 			end
 			toasts(remaining)
 		end)
+	end
+
+	local function dismiss(group: string)
+		local remaining = {}
+		for _, existing in Vide.untrack(toasts) do
+			if existing.group ~= group then
+				table.insert(remaining, existing)
+			end
+		end
+		toasts(remaining)
 	end
 
 	local function isShown(group: string): boolean
@@ -84,6 +96,7 @@ function ToastState.new(): ToastState
 		toasts = toasts,
 		push = push,
 		isShown = isShown,
+		dismiss = dismiss,
 	}
 end
 

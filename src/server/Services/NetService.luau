@@ -89,6 +89,10 @@ export type Dependencies = {
 	setControlsHidden: (player: Player, hidden: boolean) -> (),
 	-- Roblox's invite prompt closed having sent this many invites (FriendService.reportInvites).
 	reportInvites: (player: Player, sent: number) -> (),
+	-- The client says the player has been idle a long while (RejoinService.request).
+	requestRejoin: (player: Player) -> (),
+	-- The developer's rejoin test on or off (RejoinService.setTest; checks who may).
+	setRejoinTest: (player: Player, on: boolean) -> (),
 }
 
 export type Notice =
@@ -358,6 +362,18 @@ function NetService.new(dependencies: Dependencies): NetService
 		end))
 		Remotes.BenchGallery.SetCallback(guarded(function(player)
 			dependencies.benchGallery(player)
+			return nil
+		end))
+		-- Not through `guarded`: asking to rejoin because of idling must not count as activity,
+		-- or the server would never see the player away. The rate limit still holds; a refusal
+		-- is silent (the server ignores what it does not agree to).
+		Remotes.RequestRejoin.SetCallback(function(player)
+			if limiter.allow(tostring(player.UserId), os.clock()) then
+				dependencies.requestRejoin(player)
+			end
+		end)
+		Remotes.RejoinTest.SetCallback(guarded(function(player, on: boolean)
+			dependencies.setRejoinTest(player, on)
 			return nil
 		end))
 		Remotes.Bench.SetCallback(guarded(function(player, fill: boolean)

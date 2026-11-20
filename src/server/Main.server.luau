@@ -38,6 +38,7 @@ local PurchaseService = require(script.Parent.Services.PurchaseService)
 local PvpService = require(script.Parent.Services.PvpService)
 local QuestService = require(script.Parent.Services.QuestService)
 local RadarService = require(script.Parent.Services.RadarService)
+local RejoinService = require(script.Parent.Services.RejoinService)
 local Scheduler = require(ReplicatedStorage.Shared.Runtime.Scheduler)
 local SerpentService = require(script.Parent.Services.SerpentService)
 local SpaceService = require(script.Parent.Services.SpaceService)
@@ -120,6 +121,9 @@ local pvpDependencies = {} :: PvpService.Dependencies
 local pvpService = PvpService.new(pvpDependencies)
 local eventService = EventService.new({ scheduler = scheduler })
 local activityService = ActivityService.new({ scheduler = scheduler })
+-- The rejoin before Roblox's idle kick (decision 146); analytics is bound once it exists.
+local rejoinDependencies = {} :: RejoinService.Dependencies
+local rejoinService = RejoinService.new(rejoinDependencies)
 local radarService = RadarService.new({ scheduler = scheduler })
 local indexService = IndexService.new({
 	getData = profile.getData,
@@ -185,6 +189,8 @@ local netService = NetService.new({
 	benchGallery = benchService.gallery,
 	setControlsHidden = controlsService.setHidden,
 	reportInvites = friendService.reportInvites,
+	requestRejoin = rejoinService.request,
+	setRejoinTest = rejoinService.setTest,
 })
 trainingDependencies.getData = profile.getData
 trainingDependencies.update = profile.update
@@ -439,6 +445,19 @@ loginGiftService.rewarded.connect(function(player, reward)
 	metricsService.count(player, "LoginGift", { `Day {reward.day}` })
 end)
 
+rejoinDependencies.activated = profile.activated
+rejoinDependencies.getData = profile.getData
+rejoinDependencies.update = profile.update
+rejoinDependencies.waitUntilSaved = dataService.waitUntilSaved
+rejoinDependencies.setTeleporting = dataService.setTeleporting
+rejoinDependencies.isAway = function(player: Player)
+	return not activityService.isActive(player)
+end
+rejoinDependencies.isOnStand = trainingService.isOnStand
+rejoinDependencies.placeOnStand = trainingService.placeOnStand
+rejoinDependencies.isDevAllowed = benchService.isAllowed
+rejoinDependencies.count = metricsService.count
+
 -- Studio-only playtest commands; inert in live servers.
 local devService = DevService.new({
 	spawnLooseEgg = carryService.spawnLooseEgg,
@@ -472,6 +491,8 @@ local devService = DevService.new({
 	resetCommunityGift = communityService.reset,
 	reportDelivery = metricsService.deliveredFrom,
 	setPretendFriends = friendService.setPretend,
+	requestRejoin = rejoinService.request,
+	setRejoinTest = rejoinService.setTest,
 	-- As a bought level: the model and speed, and the client's copy of the levels too.
 	refreshJetpack = function(player: Player)
 		economyService.jetpackUpgraded.fire(player)
@@ -510,6 +531,7 @@ Lifecycle.run({
 	coachService,
 	communityService,
 	friendService,
+	rejoinService,
 	domeFlightService,
 	controlsService,
 	leaderboardService,
