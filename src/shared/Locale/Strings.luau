@@ -999,6 +999,23 @@ local Strings = {
 		ru = "+{step}% за каждого друга в игре, до +{max}%",
 		en = "+{step}% for each friend here, up to +{max}%",
 	},
+	-- The rejoin before Roblox's idle kick (decision 146, docs/design/screens/rejoin.md).
+	["rejoin.soon.toast"] = {
+		ru = "Скоро переподключим тебя",
+		en = "Reconnecting you soon",
+	},
+	["rejoin.soon.hint"] = {
+		ru = "Так Roblox не выкинет тебя за простой. Нажми что-нибудь, чтобы остаться",
+		en = "So Roblox won't kick you for idling. Press anything to stay",
+	},
+	["rejoin.screen.title"] = {
+		ru = "Переподключаемся…",
+		en = "Reconnecting…",
+	},
+	["rejoin.screen.hint"] = {
+		ru = "Прогресс сохранён. Через пару секунд ты снова в игре",
+		en = "Your progress is saved. Back in a few seconds",
+	},
 	-- In Roblox's own invite prompt.
 	["friends.invite.hint"] = {
 		ru = "Играй с друзьями: каждый друг в игре даёт +{step}% дохода",

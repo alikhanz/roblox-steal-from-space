@@ -3,7 +3,8 @@
 -- phone, and take them away; set the Event Horizon's 42 guardians round the player, or a gallery
 -- of one guardian a post, and take them away (BenchService.showGuardians); fill the island with the
 -- pet gallery's next page, one family's aliens (BenchService.gallery; "/bench clear" takes it
--- away). Shown only while the server marks the player as allowed
+-- away); the rejoin test (decision 146): the idle times before the rejoin shortened to 3 and 3.5
+-- minutes, on and off. Shown only while the server marks the player as allowed
 -- (DevConfig.BENCH_ATTRIBUTE: Studio, or the Dev game's creator). A developer's tool, not a
 -- player's screen: plain instances, no brief, no localization (the labels are the commands' names).
 
@@ -11,15 +12,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local DevConfig = require(ReplicatedStorage.Shared.Config.DevConfig)
+local RejoinConfig = require(ReplicatedStorage.Shared.Config.RejoinConfig)
 local Remotes = require(script.Parent.Parent.Net.Remotes)
 
 local PLAYER_GUI_WAIT_TIMEOUT = 30
 local BUTTON_SIZE = UDim2.fromOffset(190, 36)
 local BUTTON_COLOR = Color3.fromRGB(60, 70, 140)
 local TEXT_SIZE = 16
-local BUTTONS = 6
+local BUTTONS = 7
 -- The gallery's button: the command, and with a page on the bench that page ("crab 1/2").
 local GALLERY_LABEL = "/gallery pets"
+-- The rejoin test's button, with its state ("on" / "off").
+local REJOIN_LABEL = "/rejoin test"
 
 export type BenchController = {
 	name: string,
@@ -96,6 +100,12 @@ function BenchController.new(): BenchController
 		button(column, "/bench guardians clear", 6, function()
 			Remotes.BenchGuardians.Fire("Off")
 		end)
+		local function rejoinTesting(): boolean
+			return player:GetAttribute(RejoinConfig.TEST_ATTRIBUTE) == true
+		end
+		local rejoin = button(column, REJOIN_LABEL, 7, function()
+			Remotes.RejoinTest.Fire(not rejoinTesting())
+		end)
 		gui.Parent = playerGui
 
 		local function show()
@@ -109,6 +119,11 @@ function BenchController.new(): BenchController
 		end
 		player:GetAttributeChangedSignal(DevConfig.GALLERY_ATTRIBUTE):Connect(label)
 		label()
+		local function rejoinLabel()
+			rejoin.Text = `{REJOIN_LABEL}: {if rejoinTesting() then "on" else "off"}`
+		end
+		player:GetAttributeChangedSignal(RejoinConfig.TEST_ATTRIBUTE):Connect(rejoinLabel)
+		rejoinLabel()
 	end
 
 	return {

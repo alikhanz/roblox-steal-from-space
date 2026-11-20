@@ -74,6 +74,9 @@ export type BenchService = {
 	-- Fills the island with the pet gallery's next page (Domain/PetGallery), in place of any
 	-- bench; "/bench clear" (`run(player, false)`) takes it away. Nothing for a player not allowed.
 	gallery: (player: Player) -> (),
+	-- The player may use the developer's tools in a live server: Studio, or the Dev game's
+	-- creator (the bench, the rejoin test of decision 146).
+	isAllowed: (player: Player) -> boolean,
 }
 
 export type GuardianDisplay = "Off" | "Bench" | "Gallery"
@@ -240,6 +243,7 @@ function BenchService.new(dependencies: Dependencies): BenchService
 		run = run,
 		showGuardians = showGuardians,
 		gallery = gallery,
+		isAllowed = allowed,
 	}
 end
 

@@ -12,6 +12,7 @@ local LaunchMetrics = require("./LaunchMetrics")
 local LoginGift = require("./LoginGift")
 local Migrations = require("./Migrations")
 local Quests = require("./Quests")
+local Rejoin = require("./Rejoin")
 local Tables = require("../Runtime/Tables")
 local Tutorial = require("./Tutorial")
 
@@ -100,6 +101,9 @@ export type PlayerData = {
 	bestPost: number,
 	-- When the day-1 wall started, for its analytics event (Domain/LaunchMetrics, decision 143).
 	dayOneWall: LaunchMetrics.Wall,
+	-- The last rejoin before Roblox's idle kick (Domain/Rejoin, decision 146): its time for the
+	-- cooldown, and whether to put the arriving player back on the stand.
+	rejoin: Rejoin.Record,
 	-- Tutorial milestones passed (Domain/Tutorial: 0 not started ... Tutorial.DONE).
 	tutorialStep: number,
 	-- The hints after the tutorial the player has done, as a bit mask (Domain/Coach).
@@ -152,7 +156,7 @@ export type LoadOutcome = { ok: true, data: PlayerData } | { ok: false, reason: 
 
 local PlayerData = {}
 
-PlayerData.SCHEMA_VERSION = 26
+PlayerData.SCHEMA_VERSION = 27
 
 -- v16: every guardian has three kinds of alien (decision 075) and an alien's id names its kind
 -- ("DebrisBelt2.Rare" became "DebrisBelt2.crabDrone.Rare"). An alien from before is its
@@ -391,6 +395,8 @@ PlayerData.MIGRATIONS = {
 	-- v26 adds the start of the day-1 wall (decision 143): `dayOneWall`, not started, from the
 	-- template. A player already past post 10 is not measured: when they got there is unknown.
 	[25] = function(_data: { [string]: any }) end,
+	-- v27 adds the rejoin before the idle kick (decision 146): `rejoin`, never, from the template.
+	[26] = function(_data: { [string]: any }) end,
 } :: { [number]: Migrations.Step }
 
 -- Data a brand-new player starts with. Also the template ProfileStore creates profiles from.
@@ -417,6 +423,7 @@ function PlayerData.template(defaults: Defaults): PlayerData
 		onboardingSteps = 0,
 		bestPost = 0,
 		dayOneWall = LaunchMetrics.emptyWall(),
+		rejoin = Rejoin.empty(),
 		tutorialStep = Tutorial.NOT_STARTED,
 		coachDone = 0,
 		domeFlightLearned = false,
@@ -733,6 +740,18 @@ local function validate(data: { [string]: any }): string?
 	for _, field in { "startedAt", "startedPlaySeconds" } do
 		if not isFinite(wall[field]) or wall[field] < 0 then
 			return `dayOneWall {field} is invalid`
+		end
+	end
+	local rejoin = data.rejoin
+	if type(rejoin) ~= "table" then
+		return "rejoin is not a table"
+	end
+	if not isFinite(rejoin.at) or rejoin.at < 0 then
+		return "rejoin at is invalid"
+	end
+	for _, field in { "arriving", "onStand" } do
+		if type(rejoin[field]) ~= "boolean" then
+			return `rejoin {field} is invalid`
 		end
 	end
 	if not isInteger(data.tutorialStep) or data.tutorialStep < 0 or data.tutorialStep > Tutorial.DONE then

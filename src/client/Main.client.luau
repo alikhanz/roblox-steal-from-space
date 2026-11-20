@@ -52,6 +52,7 @@ local PvpEffectsController = require(script.Parent.Controllers.PvpEffectsControl
 local PvpViewController = require(script.Parent.Controllers.PvpViewController)
 local QuestController = require(script.Parent.Controllers.QuestController)
 local RadarController = require(script.Parent.Controllers.RadarController)
+local RejoinController = require(script.Parent.Controllers.RejoinController)
 local SerpentController = require(script.Parent.Controllers.SerpentController)
 local SerpentLabelController = require(script.Parent.Controllers.SerpentLabelController)
 local ShopController = require(script.Parent.Controllers.ShopController)
@@ -171,6 +172,8 @@ Lifecycle.run({
 	FlightSoundController.new({ profile = profileState }),
 	UiSoundController.new({ windows = windowState, toasts = toastState }),
 	BenchController.new(),
+	-- The rejoin before Roblox's idle kick (decision 146).
+	RejoinController.new({ toasts = toastState }),
 	bayWindowController,
 	TrainingViewController.new({ profile = profileState }),
 	ShopController.new({

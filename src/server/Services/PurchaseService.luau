@@ -77,7 +77,7 @@ export type Dependencies = {
 	activated: Signal.Signal<Player>,
 	getData: (player: Player) -> PlayerData.PlayerData?,
 	update: (player: Player, mutator: (data: PlayerData.PlayerData) -> ()) -> boolean,
-	waitUntilSaved: (player: Player, isSaved: (saved: { [string]: any }) -> boolean) -> boolean,
+	waitUntilSaved: (player: Player, isSaved: (saved: { [string]: any }) -> boolean, timeout: number?) -> boolean,
 	getIncomePerSecond: (player: Player) -> BigNum.BigNum,
 	-- Re-publishes the speed stat, and rebuilds the bay (an egg ready, a slot more).
 	publishSpeed: (player: Player) -> (),

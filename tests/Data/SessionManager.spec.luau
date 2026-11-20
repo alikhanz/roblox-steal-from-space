@@ -375,6 +375,29 @@ describe("SessionManager.waitUntilSaved", function()
 		expect(h.handle.saveCount).toBe(3)
 	end)
 
+	it("gives up after its timeout while the store is down", function()
+		local h = harness()
+		load(h)
+		h.manager.update(USER_ID, function(data)
+			data.receipt = "r1"
+		end)
+		h.handle.savesWork = false
+		expect(h.manager.waitUntilSaved(USER_ID, hasReceipt, 25)).toBe(false)
+		-- Tried at 0, 10 and 20 s; the last sleep is cut to the timeout.
+		expect(h.handle.saveCount).toBe(3)
+		expect(h.now).toBe(25)
+		expect(h.manager.getState(USER_ID)).toBe("Active")
+	end)
+
+	it("still confirms within its timeout", function()
+		local h = harness()
+		load(h)
+		h.manager.update(USER_ID, function(data)
+			data.receipt = "r1"
+		end)
+		expect(h.manager.waitUntilSaved(USER_ID, hasReceipt, 30)).toBe(true)
+	end)
+
 	it("does not confirm for a player with no session", function()
 		local h = harness()
 		expect(h.manager.waitUntilSaved(USER_ID, hasReceipt)).toBe(false)

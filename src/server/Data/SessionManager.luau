@@ -52,8 +52,9 @@ export type SessionManager = {
 	getData: (userId: number) -> { [string]: any }?,
 	update: (userId: number, mutator: (data: { [string]: any }) -> ()) -> boolean,
 	-- Yields until the store holds a save that `isSaved` accepts (true), or the session is no
-	-- longer active (false). Robux purchases are confirmed only after this (CONVENTIONS 7).
-	waitUntilSaved: (userId: number, isSaved: (saved: { [string]: any }) -> boolean) -> boolean,
+	-- longer active (false). Robux purchases are confirmed only after this (CONVENTIONS 7). With
+	-- `timeout`, also gives up (false) once that many seconds passed without a confirmed save.
+	waitUntilSaved: (userId: number, isSaved: (saved: { [string]: any }) -> boolean, timeout: number?) -> boolean,
 }
 
 -- Seconds between save attempts while waiting for a save to land (as ProfileStore's own
@@ -198,7 +199,12 @@ function SessionManager.new(config: Config): SessionManager
 		return true
 	end
 
-	local function waitUntilSaved(userId: number, isSaved: (saved: { [string]: any }) -> boolean): boolean
+	local function waitUntilSaved(
+		userId: number,
+		isSaved: (saved: { [string]: any }) -> boolean,
+		timeout: number?
+	): boolean
+		local giveUpAt = if timeout then config.clock() + timeout else math.huge
 		while true do
 			local handle = activeHandle(userId)
 			if not handle then
@@ -206,6 +212,9 @@ function SessionManager.new(config: Config): SessionManager
 			end
 			if isSaved(handle.lastSaved()) then
 				return true
+			end
+			if config.clock() >= giveUpAt then
+				return false
 			end
 			local before = handle.lastSaved()
 			handle.save()
@@ -216,7 +225,7 @@ function SessionManager.new(config: Config): SessionManager
 				return true
 			end
 			if activeHandle(userId) then
-				config.sleep(SAVE_RETRY_SECONDS)
+				config.sleep(math.clamp(giveUpAt - config.clock(), 0, SAVE_RETRY_SECONDS))
 			end
 		end
 	end

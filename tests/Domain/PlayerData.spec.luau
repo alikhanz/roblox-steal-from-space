@@ -965,6 +965,41 @@ describe("PlayerData migration v20 -> v21", function()
 	end)
 end)
 
+describe("PlayerData migration v26 -> v27", function()
+	it("gives a profile from before no rejoin yet, and keeps the rest", function()
+		local old = savedTemplate()
+		old.schemaVersion = 26
+		old.rejoin = nil
+		old.playSeconds = 7200
+		local outcome = load(old)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.schemaVersion).toBe(PlayerData.SCHEMA_VERSION)
+			expect(outcome.data.rejoin).toEqual({ at = 0, arriving = false, onStand = false })
+			expect(outcome.data.playSeconds).toBe(7200)
+		end
+	end)
+
+	it("keeps a rejoin on its way and rejects broken ones", function()
+		local saved = savedTemplate()
+		saved.rejoin = { at = 1800000000.25, arriving = true, onStand = true }
+		local outcome = load(saved)
+		expect(outcome.ok).toBe(true)
+		if outcome.ok then
+			expect(outcome.data.rejoin).toEqual({ at = 1800000000.25, arriving = true, onStand = true })
+		end
+		local badTime = savedTemplate()
+		badTime.rejoin = { at = -1, arriving = false, onStand = false }
+		expectCorrupted(badTime, "rejoin at is invalid")
+		local badFlag = savedTemplate()
+		badFlag.rejoin = { at = 0, arriving = "yes", onStand = false }
+		expectCorrupted(badFlag, "rejoin arriving is invalid")
+		local notTable = savedTemplate()
+		notTable.rejoin = 3
+		expectCorrupted(notTable, "rejoin is not a table")
+	end)
+end)
+
 describe("PlayerData migration v25 -> v26", function()
 	it("gives a profile from before a day-1 wall not started, and keeps the rest", function()
 		local old = savedTemplate()
