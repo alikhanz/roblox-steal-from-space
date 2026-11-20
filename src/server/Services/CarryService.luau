@@ -17,6 +17,7 @@ local Bounds = require(ReplicatedStorage.Shared.Domain.Bounds)
 local EggConfig = require(ReplicatedStorage.Shared.Config.EggConfig)
 local EggModel = require(script.Parent.Parent.World.EggModel)
 local FlightConfig = require(ReplicatedStorage.Shared.Config.FlightConfig)
+local Pvp = require(ReplicatedStorage.Shared.Domain.Pvp)
 local Signal = require(ReplicatedStorage.Shared.Runtime.Signal)
 local StationConfig = require(ReplicatedStorage.Shared.Config.StationConfig)
 local Zones = require(ReplicatedStorage.Shared.Domain.Zones)
@@ -60,6 +61,9 @@ export type Egg = {
 	variant: AlienConfig.VariantId,
 	-- Luck on top of its rarity's and size's (EggConfig.luckOf), carried to the bay; nil: none.
 	luck: number?,
+	-- Everyone it came loose from since it left its home; they may win it back from any carrier
+	-- (Domain/Pvp, decision 148). Nil: nobody yet.
+	lostBy: Pvp.LostBy?,
 }
 
 export type Dependencies = {
@@ -109,6 +113,8 @@ export type CarryService = {
 	returnEgg: (player: Player, reason: LossReason) -> boolean,
 	-- What the player carries, or nil when not carrying.
 	getCarried: (player: Player) -> Carried?,
+	-- Who lost the egg the player carries (decision 148); nil when not carrying or nobody did.
+	getLostBy: (player: Player) -> Pvp.LostBy?,
 	-- Who carries an egg of `nestId` right now (several during a meteor shower).
 	findCarriers: (nestId: string) -> { Player },
 	-- Where the eggs of `nestId` lie knocked out (usually one; empty while the egg is in the
@@ -189,8 +195,13 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return
 		end
 		local model = EggModel.build(egg.rarity, egg.size, { variant = egg.variant, luck = egg.luck })
-		model.Name = "CarriedEgg"
+		model.Name = EggConfig.CARRIED_EGG_NAME
 		CollectionService:AddTag(model, EggConfig.CARRIED_EGG_TAG)
+		-- Set before it is parented, so every client gets them with the egg: the harpoon's lock
+		-- goes for whoever carries an egg you lost (World/AimTargets).
+		for userId in egg.lostBy or {} do
+			model:SetAttribute(EggConfig.lostByAttribute(userId), true)
+		end
 		model.CFrame = torso.CFrame * CFrame.new(0, -CARRY_DROP, -(CARRY_CHEST_ROOM + model.Size.Z / 2))
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = torso
@@ -250,6 +261,7 @@ function CarryService.new(dependencies: Dependencies): CarryService
 			return false
 		end
 		lost.fire(player, publicOf(egg), reason or "Death")
+		egg.lostBy = Pvp.addLoser(egg.lostBy, player.UserId)
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not root or not root:IsA("BasePart") then
@@ -442,6 +454,10 @@ function CarryService.new(dependencies: Dependencies): CarryService
 		getCarried = function(player: Player): Carried?
 			local entry = carried[player]
 			return if entry then publicOf(entry.egg) else nil
+		end,
+		getLostBy = function(player: Player): Pvp.LostBy?
+			local entry = carried[player]
+			return if entry then entry.egg.lostBy else nil
 		end,
 		findCarriers = function(nestId: string): { Player }
 			local players = {}

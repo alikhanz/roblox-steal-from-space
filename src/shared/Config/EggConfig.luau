@@ -119,6 +119,11 @@ local function hatchEntries(rarity: RarityId, size: SizeId, luck: number?): { Lo
 	return assert(bySize[oddsSize(size, luck)], `unknown size {size}`)
 end
 
+-- The carried egg's attribute for a player it came loose from (CARRIED_EGG_NAME's part).
+local function lostByAttribute(userId: number): string
+	return `LostBy{userId}`
+end
+
 return table.freeze({
 	RARITIES = table.freeze(RARITIES),
 	RARITY_ORDER = table.freeze(RARITY_ORDER),
@@ -184,6 +189,11 @@ return table.freeze({
 	-- rarity attribute for the client's trail.
 	LOOSE_EGG_TAG = "LooseEgg",
 	CARRIED_EGG_TAG = "CarriedEgg",
+	-- The egg part welded to a thief, in their character.
+	CARRIED_EGG_NAME = "CarriedEgg",
+	-- On a carried egg's part, an attribute true for every player it came loose from since it
+	-- left its home (decision 148): they may win it back whatever their ⚡.
+	lostByAttribute = lostByAttribute,
 	LOOSE_EGG_RARITY_ATTRIBUTE = "Rarity",
 	LOOSE_EGG_SIZE_ATTRIBUTE = "Size",
 	-- On a loose egg: the grade of the guardian that guards it (none for keepers without one),

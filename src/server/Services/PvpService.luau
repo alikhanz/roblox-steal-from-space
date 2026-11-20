@@ -48,6 +48,8 @@ export type Dependencies = {
 	getSpeed: (player: Player) -> BigNum.BigNum,
 	-- True while the player carries an egg.
 	isCarrying: (player: Player) -> boolean,
+	-- Who lost the egg the player carries (CarryService.getLostBy).
+	getLostBy: (player: Player) -> Pvp.LostBy?,
 	-- Knocks the carried egg loose; false when the player carried nothing.
 	dropEgg: (player: Player, launch: Vector3?, reason: CarryService.LossReason?) -> boolean,
 	-- Tells a player why an ability was refused.
@@ -197,10 +199,12 @@ function PvpService.new(dependencies: Dependencies): PvpService
 		local data = dependencies.getData(player)
 		local state = states[player]
 		return {
+			userId = player.UserId,
 			speed = dependencies.getSpeed(player),
 			playSeconds = if data then data.playSeconds else 0,
 			isInStation = not isInSpace(character),
 			spawnedAt = if state then state.spawnedAt else 0,
+			eggLostBy = dependencies.getLostBy(player),
 		}
 	end
 
