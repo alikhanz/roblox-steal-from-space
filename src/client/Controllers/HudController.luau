@@ -82,9 +82,9 @@ local ROW_STRIKE_SIZE = 60
 -- right, bottom); in the keyboard row, first.
 local GRAB_TOUCH = { size = 72, right = 22, bottom = 178 }
 local ROW_GRAB_SIZE = 66
--- On a touch screen the bottom stack stands a little left of the middle, clear of the flight
--- buttons: its centre's share of the screen width.
-local TOUCH_STACK_X = 0.41
+-- On a touch screen the bottom stack stands in the strip from the left edge to the flight buttons
+-- (docs/design/screens/hud-hint-room.md): this far clear of the leftmost of them, points.
+local FLIGHT_CLEARANCE = 8
 
 local function leftPadding(pixels: number): UIPadding
 	local instance = Instance.new("UIPadding")
@@ -345,6 +345,15 @@ function HudController.new(dependencies: Dependencies): HudController
 		local function isTouch(): boolean
 			return inputMode() == Enum.PreferredInput.Touch
 		end
+		-- How far from the screen's right edge the flight buttons reach, points: the bottom stack's
+		-- strip ends short of it (docs/design/screens/hud-hint-room.md).
+		local flightReach = 0
+		for _, spec in touchButtons do
+			if spec.right then
+				flightReach = math.max(flightReach, spec.right + spec.size)
+			end
+		end
+		local stripRight = flightReach + FLIGHT_CLEARANCE
 
 		-- One tile per menu slot, in the slots' order; a slot no window has added stays hidden. On a
 		-- touch screen the row folds (docs/design/screens/hud-menu-fold.md): the main tiles stay,
@@ -474,6 +483,19 @@ function HudController.new(dependencies: Dependencies): HudController
 					dependencies.toast(Text.get(locale, "speed.goalReached.toast", { name = name }), "Speed")
 				end
 			end)
+			-- The HUD's width, pixels (set once the ScreenGui is on screen), and the bottom stack's
+			-- scale as a value: the stack's strip on a touch screen is reckoned from both.
+			local hudWidth = source(0)
+			local bottomScale = Layout.screenScale()
+			local stackScale = source(bottomScale.Scale)
+			bottomScale:GetPropertyChangedSignal("Scale"):Connect(function()
+				stackScale(bottomScale.Scale)
+			end)
+			-- The strip's width in the stack's points; unbounded until the HUD is measured.
+			local function stripWidth(): number
+				local width = hudWidth()
+				return if width > 0 then width / stackScale() - Theme.NEON.EDGE - stripRight else math.huge
+			end
 			local children: { Instance } = {
 				Crosshair({
 					visible = inSpace,
@@ -728,17 +750,21 @@ function HudController.new(dependencies: Dependencies): HudController
 				}),
 				-- The bottom stack (docs/design/screens/hud.md), bottom up: on a keyboard or a
 				-- gamepad the row of actions with their keys, then the oxygen, the tutorial's line
-				-- and the egg in hand. A hidden one leaves no gap. On a touch screen it stands a
-				-- little left of the middle, clear of the flight buttons.
+				-- and the egg in hand. A hidden one leaves no gap. On a touch screen it stands in
+				-- the middle of the strip left of the flight buttons, and the line wraps to the
+				-- strip (docs/design/screens/hud-hint-room.md).
 				create("Frame")({
 					Name = "BottomStack",
 					AnchorPoint = Vector2.new(0.5, 1),
 					Position = function()
-						return UDim2.new(if isTouch() then TOUCH_STACK_X else 0.5, 0, 1, -Theme.NEON.EDGE)
+						-- The strip's middle, from the screen's: it runs from EDGE to `stripRight`
+						-- short of the right edge, in points scaled like the stack.
+						local shift = if isTouch() then -(stripRight - Theme.NEON.EDGE) / 2 * stackScale() else 0
+						return UDim2.new(0.5, shift, 1, -Theme.NEON.EDGE)
 					end,
 					AutomaticSize = Enum.AutomaticSize.XY,
 					BackgroundTransparency = 1,
-					Layout.screenScale(),
+					bottomScale,
 					create("UIListLayout")({
 						FillDirection = Enum.FillDirection.Vertical,
 						HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -769,6 +795,9 @@ function HudController.new(dependencies: Dependencies): HudController
 						steps = Tutorial.STEP_COUNT,
 						icon = dependencies.tutorialIcon,
 						action = dependencies.tutorialAction,
+						maxWidth = function()
+							return if isTouch() then stripWidth() else math.huge
+						end,
 						layoutOrder = 2,
 					}),
 					OxygenBar({
@@ -800,11 +829,15 @@ function HudController.new(dependencies: Dependencies): HudController
 				)
 			end
 
-			return create("ScreenGui")({
+			local hud = create("ScreenGui")({
 				Name = "Hud",
 				ResetOnSpawn = false,
 				children,
 			})
+			hud:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+				hudWidth(hud.AbsoluteSize.X)
+			end)
+			return hud
 		end, playerGui)
 
 		player.CharacterAdded:Connect(watchCharacter)
