@@ -229,6 +229,7 @@ pvpDependencies.getSpeed = speedService.getSpeed
 pvpDependencies.isCarrying = function(player: Player): boolean
 	return carryService.getCarried(player) ~= nil
 end
+pvpDependencies.getLostBy = carryService.getLostBy
 pvpDependencies.dropEgg = carryService.dropEgg
 pvpDependencies.notify = netService.notify
 pvpDependencies.scheduler = scheduler

@@ -3,7 +3,8 @@
 -- server makes (PvpService, decision 106: Abilities.bestInCone along the camera's aim, among the
 -- targets the rules let them attack), on what this client sees. For the crosshair's lock.
 -- Targets: other players' characters, test dummies (PvpConfig.DUMMY_TAG) and the star serpent's
--- head. The rules are checked as far as a client knows them: the spawn grace is left out.
+-- head. The rules are checked as far as a client knows them: the spawn grace is left out; an
+-- egg's losers are read off the carried egg (EggConfig.lostByAttribute, decision 148).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -47,7 +48,13 @@ local function sideOf(player: Player, character: Model): Pvp.Side
 		exponent = player:GetAttribute(SpeedConfig.EXPONENT_ATTRIBUTE),
 	})
 	local newbieLeft = player:GetAttribute(PvpConfig.NEWBIE_ATTRIBUTE)
+	-- Of the egg's losers only the local player matters here: they are always the attacker.
+	local me = Players.LocalPlayer.UserId
+	local egg = character:FindFirstChild(EggConfig.CARRIED_EGG_NAME)
+	local lostByMe = egg ~= nil and egg:GetAttribute(EggConfig.lostByAttribute(me)) == true
 	return {
+		userId = player.UserId,
+		eggLostBy = if lostByMe then table.freeze({ [me] = true :: true }) else nil,
 		speed = speed or SpeedConfig.STARTING_SPEED,
 		playSeconds = PvpConfig.RULES.newbieSeconds - (if type(newbieLeft) == "number" then newbieLeft else 0),
 		isInStation = character:GetAttribute(FlightConfig.IN_SPACE_ATTRIBUTE) ~= true,
