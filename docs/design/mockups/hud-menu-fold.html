@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ряд плиток на телефоне</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* One dark "space" theme by choice, like the other mockups. */
+:root { --bg: #0a0d1c; --ink: #e9ecf7; --muted: #9aa3c2; --rule: #262d52; --pick: #43CC5F; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Nunito", system-ui, sans-serif; font-weight: 600; line-height: 1.5; }
+.page { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 36px; }
+h1 { font-weight: 900; font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 0 0 10px; }
+h2 { font-weight: 900; font-size: 22px; margin: 0 0 6px; }
+h2 .tag { font-size: 13px; vertical-align: middle; margin-left: 8px; padding: 2px 10px; border-radius: 99px; background: var(--pick); color: #06210d; }
+p, li { color: var(--muted); font-size: 16px; max-width: 80ch; }
+p b, li b { color: var(--ink); }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+figure img { width: 100%; height: auto; border-radius: 18px; border: 6px solid #000; box-shadow: 0 0 0 1px #2a3156; }
+figcaption { color: var(--muted); font-size: 14px; }
+section { border-top: 1px solid var(--rule); padding-top: 24px; display: flex; flex-direction: column; gap: 12px; }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <h1>Ряд плиток на телефоне</h1>
+  <p>Снимки — Studio, эмулятор устройств, в настоящем разрешении телефона (точки). Ряд кнопок Roblox сверху на снимок не попадает. Варианты собраны прямо в игре: плитки спрятаны и добавлены из клиента, без кода. Бриф — <b>docs/design/screens/hud-menu-fold.md</b>.</p>
+</header>
+
+<section>
+  <h2>Сейчас</h2>
+  <p>Восемь плиток — 428 точек: 57 % ширины на iPhone 16 Pro, 64 % на iPhone 7. Ряд стоит на высоте горизонта.</p>
+  <div class="pair">
+    <figure><img src="hud-menu-fold/before-16pro-flight.jpg" alt=""><figcaption>iPhone 16 Pro, полёт</figcaption></figure>
+    <figure><img src="hud-menu-fold/before-iphone7-flight.jpg" alt=""><figcaption>iPhone 7 / SE, полёт</figcaption></figure>
+    <figure><img src="hud-menu-fold/before-a16-flight.jpg" alt=""><figcaption>Galaxy A16, полёт</figcaption></figure>
+    <figure><img src="hud-menu-fold/before-iphone7-station-bench.jpg" alt=""><figcaption>iPhone 7, станция, со скамьёй (её видит только создатель): закрывает прыжок</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>А. «Ещё»<span class="tag">рекомендую</span></h2>
+  <p>В ряду — <b>отсек, магазин, задания и «⋯»</b>: 209 точек. «⋯» раскрывает остальные плитки в том же ряду; бейдж на «⋯» — сумма спрятанных. Ряд сворачивается после нажатия плитки, повторным «⋯» и в космосе.</p>
+  <div class="pair">
+    <figure><img src="hud-menu-fold/a-16pro-flight.jpg" alt=""><figcaption>iPhone 16 Pro, полёт</figcaption></figure>
+    <figure><img src="hud-menu-fold/a-iphone7-flight.jpg" alt=""><figcaption>iPhone 7, полёт</figcaption></figure>
+    <figure><img src="hud-menu-fold/a-16pro-open.jpg" alt=""><figcaption>iPhone 16 Pro, станция, «⋯» нажата — ряд раскрыт</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>Б. Прятать в полёте</h2>
+  <p>На станции — все плитки, как сейчас. В космосе ряд пропадает целиком; остаются ⚡ с «+», монеты и защита.</p>
+  <div class="pair">
+    <figure><img src="hud-menu-fold/b-16pro-flight.jpg" alt=""><figcaption>iPhone 16 Pro, полёт</figcaption></figure>
+    <figure><img src="hud-menu-fold/b-iphone7-flight.jpg" alt=""><figcaption>iPhone 7, полёт</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>В. А + Б</h2>
+  <p>На станции — как А (три плитки и «⋯»), в космосе — как Б (ряда нет). Полёт выглядит как Б, станция — как А.</p>
+</section>
+</div>
+</body>
+</html>

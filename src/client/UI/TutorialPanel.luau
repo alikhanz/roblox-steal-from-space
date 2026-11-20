@@ -20,8 +20,10 @@ local NEON = Theme.NEON
 local PADDING_X = 14
 local PADDING_Y = 7
 local GAP = 8
--- The text wraps past this width, points.
+-- The text wraps past this width, points (or sooner, to keep the panel within `maxWidth`).
 local MAX_TEXT_WIDTH = 392
+-- Room for a hint's button and its gap, points: the widest, «Открыть отсек», with a margin.
+local ACTION_ROOM = 112
 local DOT_SIZE = 8
 local CURRENT_DOT_SIZE = 11
 local DOT_GAP = 4
@@ -48,6 +50,10 @@ export type Props = {
 	icon: () -> Icons.Name?,
 	-- A button after the line; nil: none.
 	action: () -> Action?,
+	-- The widest the whole panel may be, points; the line wraps sooner to keep within it (on a
+	-- touch screen, the strip left of the flight buttons: docs/design/screens/hud-hint-room.md).
+	-- nil: only the line's own limit.
+	maxWidth: (() -> number)?,
 	layoutOrder: number,
 }
 
@@ -93,6 +99,28 @@ local function TutorialPanel(props: Props): Frame
 	for index = 1, props.steps do
 		table.insert(dots, Dot(index, props.step))
 	end
+	-- Everything in the panel but the line, points: the padding, the dots with the divider, the
+	-- icon, the button, and the gaps between them.
+	local dotsWidth = (props.steps - 1) * (DOT_SIZE + DOT_GAP) + CURRENT_DOT_SIZE
+	local function besideLine(): number
+		local width = 2 * PADDING_X
+		if hasStep() then
+			width += dotsWidth + GAP + 1 + GAP
+		end
+		if props.icon() ~= nil then
+			width += ICON_SIZE + GAP
+		end
+		if props.action() ~= nil then
+			width += ACTION_ROOM
+		end
+		return width
+	end
+	local maxWidth = props.maxWidth
+	local lineLimit = Instance.new("UISizeConstraint")
+	Vide.effect(function()
+		local limit = if maxWidth then math.min(MAX_TEXT_WIDTH, maxWidth() - besideLine()) else MAX_TEXT_WIDTH
+		lineLimit.MaxSize = Vector2.new(math.max(limit, 0), math.huge)
+	end)
 	return create("Frame")({
 		Name = "TutorialPanel",
 		LayoutOrder = props.layoutOrder,
@@ -159,7 +187,7 @@ local function TutorialPanel(props: Props): Frame
 			TextWrapped = true,
 			Text = props.text,
 			Layout.textStroke(),
-			Layout.maxSize(MAX_TEXT_WIDTH, math.huge),
+			lineLimit,
 		}),
 		ActionButton({
 			name = "Action",

@@ -18,6 +18,9 @@ local TILE: { [string]: Color3 } = {
 	Community = hex("#36E0D0"),
 	-- Friends: the invite tile, the friend bonus beside the income, its toasts (decision 128).
 	Invite = hex("#C6F24E"),
+	-- "More" on a touch screen: opens the tiles folded behind it (docs/design/screens/
+	-- hud-menu-fold.md); a quiet grey-blue, as it is no window of its own.
+	More = hex("#B8C8DC"),
 }
 local FLIGHT: { [string]: Color3 } = {
 	Strike = hex("#FF7A3D"),
@@ -69,6 +72,9 @@ local NEON = table.freeze({
 	FILL_BOTTOM = 0.94,
 	DENSE_FILL_TOP = 0.64,
 	DENSE_FILL_BOTTOM = 0.84,
+	-- A lit element (slow mode on, the menu's "more" open): almost solid, its icon dark.
+	LIT_FILL_TOP = 0.05,
+	LIT_FILL_BOTTOM = 0.25,
 	LINE_DARKEN = 0.22,
 	LINE_THICKNESS = 2,
 	-- Icons are the element's colour lifted towards white by this much.

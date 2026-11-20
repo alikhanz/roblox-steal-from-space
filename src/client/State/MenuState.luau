@@ -11,15 +11,18 @@ local Vide = require(ReplicatedStorage.Packages.Vide)
 
 export type Slot = "Bay" | "Store" | "Quests" | "Index" | "Controls" | "Invite" | "Gift" | "Community"
 
--- A slot, its key, and a glyph for a tile drawn with a character instead of an icon.
-export type SlotSpec = { slot: Slot, key: Enum.KeyCode, glyph: string? }
+-- A slot, its key, and a glyph for a tile drawn with a character instead of an icon. `main`:
+-- on a touch screen the tile always stays in the row; the others fold behind "more"
+-- (Domain/MenuFold, docs/design/screens/hud-menu-fold.md).
+export type SlotSpec = { slot: Slot, key: Enum.KeyCode, glyph: string?, main: boolean? }
 
--- Left to right. A tile that can disappear goes last, so the row never has a gap (the gift
--- waits for the first delivery; the community gift comes after the tutorial and goes for good).
+-- Left to right; the main ones first, as "more" follows them. A tile that can disappear goes
+-- last, so the row never has a gap (the gift waits for the first delivery; the community gift
+-- comes after the tutorial and goes for good).
 local SLOTS: { SlotSpec } = {
-	{ slot = "Bay", key = Enum.KeyCode.B },
-	{ slot = "Store", key = Enum.KeyCode.M },
-	{ slot = "Quests", key = Enum.KeyCode.J },
+	{ slot = "Bay", key = Enum.KeyCode.B, main = true },
+	{ slot = "Store", key = Enum.KeyCode.M, main = true },
+	{ slot = "Quests", key = Enum.KeyCode.J, main = true },
 	{ slot = "Index", key = Enum.KeyCode.N },
 	-- What each button does (docs/design/screens/controls.md); hidden for good by the player.
 	{ slot = "Controls", key = Enum.KeyCode.H, glyph = "?" },
